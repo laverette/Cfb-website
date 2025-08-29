@@ -1,0 +1,48 @@
+.bg-gold{
+    background-color: #baba27; /* You can change this hex code to any shade of red you prefer */
+}
+
+body {
+    background-color: #000000; 
+}
+
+.text-gold {
+    color: #baba27; 
+}
+
+.btn-btnheisman {
+    background-color: #baba27; 
+    color: #000000; 
+}
+
+.list-group-item {
+    background-color: #baba27;  /* Gold */
+    color: #000000;          /* Black text */
+    border: none;                         /* Optional: removes borders */
+}
+
+.mt-custom {
+    margin-top: 5.5rem;
+}
+
+.btn-btnbama {
+    background-color: #9e1b32; /* Crimson Red */
+    color: #ffffff;            /* White text */
+}
+
+.list-group-item{
+    font-size: 1.5rem;
+    background-color: #baba27;
+    color: #000000;
+    border: none;
+    font: bold;
+}
+
+.btn-btnpredictor{
+    background-color: #baba27;
+    color: #000000;
+}
+
+.me-custom{
+    margin-right: 7.5rem;
+}
