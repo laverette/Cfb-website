@@ -173,25 +173,27 @@
         <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQft8fY7vY1m5cRyqkwUY6tumeOenBEU7Q_LA&s" alt="oops" class="img-fluid rounded shadow big-img">
       </div>
     
+    <script>
+document.querySelector('form[name="predictions"]').addEventListener('submit', function(e) {
+  // build preview
+  const user = document.querySelector('input[name="user"]').value;
+  let html = `<h2 class="title">Your Predictions</h2><p><strong>Name:</strong> ${user}</p><ul class="list-group">`;
 
-<script>
-    document.querySelector('form[name="predictions"]').addEventListener('submit', function(e) {
-      e.preventDefault();
-    
-      const user = document.querySelector('input[name="user"]').value;
-      let html = `<h2 class="title">Your Predictions</h2><p><strong>Name:</strong> ${user}</p><ul class="list-group">`;
-    
-      for (let i = 1; i <= 12; i++) {
-        const game = document.querySelector(`select[name="game${i}"]`);
-        const score = document.querySelector(`input[name="score${i}"]`);
-        if (game && score) {
-          html += `<li class="list-group-item">Game ${i}: ${game.options[game.selectedIndex].text} - Score: ${score.value}</li>`;
-        }
-      }
-      html += '</ul>';
-    
-      document.getElementById('results').innerHTML = html;
-    });
-    </script>
+  for (let i = 1; i <= 12; i++) {
+    const game = document.querySelector(`select[name="game${i}"]`);
+    const score = document.querySelector(`input[name="score${i}"]`);
+    if (game && score) {
+      html += `<li class="list-group-item">Game ${i}: ${game.options[game.selectedIndex].text} - Score: ${score.value}</li>`;
+    }
+  }
+  html += '</ul>';
+
+  document.getElementById('results').innerHTML = html;
+
+  // 🔑 let the form actually submit to Netlify
+  // don't use preventDefault()
+});
+</script>
+
 </body>
 </html>
