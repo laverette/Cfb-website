@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Alabama Football Predictions</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <link rel="stylesheet" href="./Resources/Styles/bama.css">
+</head>
+<body>
+    <h1 class="title">Alabama Football Predictions</h1>
+  <!-- Netlify Form -->
+  <form name="predictions" method="POST" data-netlify="true">
+    <p>
+      <label>Your Name: 
+        <input type="text" name="user" />
+      </label>
+    </p>
+    
+    <p>
+      <label>Game 1: Alabama at Florida State
+        <select name="game1">
+          <option value="win">Win</option>
+          <option value="loss">Loss</option>
+        <label>Score: 
+        <input type="text" name="score1" placeholder="e.g. 28-14" />
+        </label>
+        </select>
+      </label>
+    </p>
+
+    <p>
+      <label>Game 2: Alabama vs LA-Monroe
+        <select name="game2">
+          <option value="win">Win</option>
+          <option value="loss">Loss</option>
+          <label>Score: 
+        <input type="text" name="score2" placeholder="e.g. 28-14" />
+        </label>
+        </select>
+      </label>
+    </p>
+
+    <p>
+      <label>Game 3: Alabama vs Wisconsin
+        <select name="game3">
+          <option value="win">Win</option>
+          <option value="loss">Loss</option>
+        <label>Score: 
+        <input type="text" name="score3" placeholder="e.g. 28-14" />
+        </label>
+        </select>
+      </label>
+    </p>
+
+    <p>
+      <label>Game 4: Alabama at Georgia
+        <select name="game4">
+          <option value="win">Win</option>
+          <option value="loss">Loss</option>
+        <label>Score: 
+        <input type="text" name="score4" placeholder="e.g. 28-14" />
+        </label>
+        </select>
+      </label>
+    </p>
+
+    <p>
+      <label>Game 5: Alabama vs Vanderbilt
+        <select name="game5">
+          <option value="win">Win</option>
+          <option value="loss">Loss</option>
+        <label>Score: 
+        <input type="text" name="score5" placeholder="e.g. 28-14" />
+        </label>
+        </select>
+      </label>
+    </p>
+
+    <p>
+      <label>Game 6: Alabama at Missouri
+        <select name="game6">
+          <option value="win">Win</option>
+          <option value="loss">Loss</option>
+        <label>Score: 
+        <input type="text" name="score6" placeholder="e.g. 28-14" />
+        </label>
+        </select>
+      </label>
+    </p>
+
+    <p>
+      <label>Game 7: Alabama vs Tennessee
+        <select name="game7">
+          <option value="win">Win</option>
+          <option value="loss">Loss</option>
+        <label>Score: 
+        <input type="text" name="score7" placeholder="e.g. 28-14" />
+        </label>
+        </select>
+      </label>
+    </p>
+
+    <p>
+      <label>Game 8: Alabama at South Carolina
+        <select name="game8">
+          <option value="win">Win</option>
+          <option value="loss">Loss</option>
+        <label>Score: 
+        <input type="text" name="score8" placeholder="e.g. 28-14" />
+        </label>
+        </select>
+      </label>
+    </p>
+
+    <p>
+      <label>Game 9: Alabama vs LSU
+        <select name="game9">
+          <option value="win">Win</option>
+          <option value="loss">Loss</option>
+        <label>Score: 
+        <input type="text" name="score9" placeholder="e.g. 28-14" />
+        </label>
+        </select>
+      </label>
+    </p>
+
+    <p>
+      <label>Game 10: Alabama vs Oklahoma
+        <select name="game10">
+          <option value="win">Win</option>
+          <option value="loss">Loss</option>
+        <label>Score: 
+        <input type="text" name="score10" placeholder="e.g. 28-14" />
+        </label>
+        </select>
+      </label>
+    </p>
+
+    <p>
+      <label>Game 11: Alabama vs Eastern Illinois
+        <select name="game11">
+          <option value="win">Win</option>
+          <option value="loss">Loss</option>
+        <label>Score: 
+        <input type="text" name="score11" placeholder="e.g. 28-14" />
+        </label>
+        </select>
+      </label>
+    </p>
+
+    <p>
+      <label>Game 12: Alabama at Auburn
+        <select name="game12">
+          <option value="win">Win</option>
+          <option value="loss">Loss</option>
+        <label>Score: 
+        <input type="text" name="score12" placeholder="e.g. 28-14" />
+        </label>
+        </select>
+      </label>
+    </p>
+
+    <!-- keep adding more games like above -->
+
+    <p>
+      <button type="submit">Submit Predictions</button>
+      <span class="text-white">Scroll Down to See Results!</span>
+    </p>
+  </form>
+  <div id="results"></div>
+  <div class="col-md-10 ps-rg-6 text-end mb-5 mt-up">
+        <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQft8fY7vY1m5cRyqkwUY6tumeOenBEU7Q_LA&s" alt="oops" class="img-fluid rounded shadow big-img">
+      </div>
+    
+
+<script>
+    document.querySelector('form[name="predictions"]').addEventListener('submit', function(e) {
+      e.preventDefault();
+    
+      const user = document.querySelector('input[name="user"]').value;
+      let html = `<h2 class="title">Your Predictions</h2><p><strong>Name:</strong> ${user}</p><ul class="list-group">`;
+    
+      for (let i = 1; i <= 12; i++) {
+        const game = document.querySelector(`select[name="game${i}"]`);
+        const score = document.querySelector(`input[name="score${i}"]`);
+        if (game && score) {
+          html += `<li class="list-group-item">Game ${i}: ${game.options[game.selectedIndex].text} - Score: ${score.value}</li>`;
+        }
+      }
+      html += '</ul>';
+    
+      document.getElementById('results').innerHTML = html;
+    });
+    </script>
+</body>
+</html>

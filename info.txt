@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body class="bg-dark text-light">
+    <div class="container py-5">
+        <h1 class="mb-4 text-warning">Predict Game Winners</h1>
+        <form id="predictionForm" class="mb-5">
+            <div class="mb-3">
+                <label for="game1" class="form-label">Alabama vs. Georgia</label>
+                <select id="game1" class="form-select">
+                    <option value="Alabama">Alabama</option>
+                    <option value="Georgia">Georgia</option>
+                </select>
+            </div>
+            <div class="mb-3">
+                <label for="game2" class="form-label">Ohio State vs. Michigan</label>
+                <select id="game2" class="form-select">
+                    <option value="Ohio State">Ohio State</option>
+                    <option value="Michigan">Michigan</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-warning">Submit Predictions</button>
+        </form>
+        <h2 class="mb-3 text-warning">Your Predictions</h2>
+        <ul id="predictionsList" class="list-group"></ul>
+    </div>
+    <script>
+        // Store and display predictions using localStorage
+        const form = document.getElementById('predictionForm');
+        const predictionsList = document.getElementById('predictionsList');
+
+        function loadPredictions() {
+            predictionsList.innerHTML = '';
+            const predictions = JSON.parse(localStorage.getItem('predictions') || '[]');
+            predictions.forEach((pred, idx) => {
+                const li = document.createElement('li');
+                li.className = 'list-group-item bg-warning text-dark mb-2';
+                li.textContent = `Game 1: ${pred.game1}, Game 2: ${pred.game2}`;
+                predictionsList.appendChild(li);
+            });
+        }
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const game1 = document.getElementById('game1').value;
+            const game2 = document.getElementById('game2').value;
+            const predictions = JSON.parse(localStorage.getItem('predictions') || '[]');
+            predictions.push({ game1, game2 });
+            localStorage.setItem('predictions', JSON.stringify(predictions));
+            loadPredictions();
+        });
+
+        loadPredictions();
+    </script>
+</body>
+</html>
