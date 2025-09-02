@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Weekly Picks</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <link rel="stylesheet" href="./Resources/Styles/weeklypicks.css">
+</head>
+<body>
+    <h1 class="title">Weekly Picks</h1>
+  <!-- Netlify Form -->
+  <form name="predictions" method="POST" data-netlify="true">
+    <input type="hidden" name="form-name" value="predictions">
+
+    <p>
+      <label>Your Name: 
+        <input type="text" name="user" />
+      </label>
+    </p>
+    
+    <p>
+      <label>Game 1: ULM at Alabama
+        <select name="game1">
+          <option value="win">BAMA</option>
+          <option value="loss">ULM</option>
+        </select>
+      </label>
+    </p>
+
+    <p>
+      <label>Game 2:Michigan at Oklahoma
+        <select name="game2">
+          <option value="win">MICH</option>
+          <option value="loss">OKLA</option>
+        </select>
+      </label>
+    </p>
+
+    <p>
+      <label>Game 3: Iowa at Iowa State
+        <select name="game3">
+          <option value="win">IOWA</option>
+          <option value="loss">ISU</option>
+        </select>
+      </label>
+    </p>
+
+    <p>
+      <label>Game 4: Oklahoma State at Oregon
+        <select name="game4">
+          <option value="win">OSU</option>
+          <option value="loss">ORE</option>
+        </select>
+      </label>
+    </p>
+
+    <p>
+      <label>Game 5: Arizona State at Mississippi State 
+        <select name="game5">
+          <option value="win">ASU</option>
+          <option value="loss">MISSST</option>
+        </select>
+      </label>
+    </p>
+
+    <p>
+      <label>Game 6: Vanderbilt at Virginia Tech
+        <select name="game6">
+          <option value="win">VANDY</option>
+          <option value="loss">VATECH</option>
+        </select>
+      </label>
+    </p>
+
+    <p>
+      <label>Game 7: Ole Miss at Kentucky
+        <select name="game7">
+          <option value="win">OLE</option>
+          <option value="loss">UK</option>
+        </select>
+      </label>
+    </p>
+
+    <p>
+      <label>Game 8: Baylor at SMU
+        <select name="game8">
+          <option value="win">BAY</option>
+          <option value="loss">SMU</option>
+        </select>
+      </label>
+    </p>
+
+    <p>
+      <label>Game 9: Troy @ Clemson
+        <select name="game9">
+          <option value="win">TROY</option>
+          <option value="loss">CLEM</option>
+        </select>
+      </label>
+    </p>
+
+    <p>
+      <label>Game 10: Illinois at Duke
+        <select name="game10">
+          <option value="win">DUKE</option>
+          <option value="loss">ILLI</option>
+        </select>
+      </label>
+    </p>
+
+    <p>
+      <label>Game 11: USF at Florida
+        <select name="game11">
+          <option value="win">USF</option>
+          <option value="loss">UF</option>
+        </select>
+      </label>
+    </p>
+
+    <p>
+      <label>Game 12: Stanford at BYU
+        <select name="game12">
+          <option value="win">BYU</option>
+          <option value="loss">STAN</option>
+        </select>
+      </label>
+    </p>
+
+    <!-- keep adding more games like above -->
+
+    <p>
+      <button type="submit">Submit Predictions</button>
+      <span class="text-white">Scroll Down to See Results!</span>
+    </p>
+  </form>
+  <div id="results"></div>
+  <div class="col-md-10 ps-rg-6 text-end mb-5 mt-up">
+        <img src="https://images.seattletimes.com/wp-content/uploads/2017/05/2459f782f2c946859a21920650fc2c75.jpg?d=2040x1253" alt="Image" class="img-fluid rounded shadow big-img">
+      </div>
+    
+    <script>
+document.querySelector('form[name="predictions"]').addEventListener('submit', function(e) {
+  e.preventDefault(); // stop normal page reload
+
+  const form = e.target;
+  const formData = new FormData(form);
+
+  // ✅ 1. Build preview
+  const user = formData.get("user");
+  let html = `<h2 class="title">Your Predictions</h2><p><strong>Name:</strong> ${user}</p><ul class="list-group">`;
+  for (let i = 1; i <= 12; i++) {
+    html += `<li class="list-group-item">
+      Game ${i}: ${formData.get("game" + i)}
+    </li>`;
+  }
+  html += "</ul>";
+  document.getElementById("results").innerHTML = html;
+
+  // ✅ 2. Send data to Netlify in background
+  fetch("/", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams(formData).toString()
+  })
+  .then(() => console.log("Saved to Netlify"))
+  .catch(err => console.error(err));
+});
+</script>
+
+
+</body>
+</html>
