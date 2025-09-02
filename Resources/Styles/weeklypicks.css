@@ -3,30 +3,42 @@ body{
 }
 
 .title{
-    color: #ffffff;
+    color: gray;
     font-weight: bold;
     font-size: 3rem;
     text-align: left;
 }
-
-input[type="text"] {
-    background-color: #ff9900;
-    color: rgb(65, 225, 25);
-    border: 2px solid #9e1b32; /* Optional: crimson border */
+.text-red {
+    color: gray; /* Crimson color */
     font-weight: bold;
 }
 
+input[type="text"] {
+    background-color: gray;
+    color: rgb(78, 50, 25);
+    border: 2px solid rgb(78, 50, 25); 
+    font-weight: bold;
+}
+
+option {
+    background-color: gray;
+    color: rgb(78, 50, 25);
+    border: 2px solid rgb(78, 50, 25); 
+    font-weight: bold;
+    
+}
+
 label {
-    color: rgb(206, 129, 85);      /* White text */
+    color: gray;   
     font-weight: bold;
 }
 
 .big-img {
-    width: 600px;    /* or any size you want */
-    max-width: 100%; /* keeps it responsive */
+    width: 600px;    
+    max-width: 100%;
     height: auto;
 }
 
 .mt-up {
-    margin-top: -35rem; /* Adjust this value as needed */
+    margin-top: -35rem; 
 }
