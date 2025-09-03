@@ -16,7 +16,7 @@
 
     <p>
       <label>Your Name: 
-        <input type="text" name="user" />
+        <input id= "yourname" name="user" />
       </label>
     </p>
     
@@ -128,11 +128,9 @@
       </label>
     </p>
 
-    <!-- keep adding more games like above -->
-
     <p>
-      <button type="submit">Submit Predictions</button>
-      <span class="text-red">Scroll Down to See Results!</span>
+      <button id="submit" type="submit">Submit Predictions</button>
+      <span class="text">Scroll Down to See Results!</span>
     </p>
   </form>
   <div id="results"></div>
@@ -145,7 +143,7 @@ document.querySelector('form[name="predictions"]').addEventListener('submit', fu
 
   // ✅ 1. Build preview
   const user = formData.get("user");
-  let html = `<h2 class="title">Your Predictions</h2><p><strong>Name:</strong> ${user}</p><ul class="list-group">`;
+  let html = `<h2 class="display-title">Your Predictions</h2><p class="name-display"><strong>Name:</strong> ${user}</p><ul class="list-group">`;
   for (let i = 1; i <= 12; i++) {
     html += `<li class="list-group-item">
       Game ${i}: ${formData.get("game" + i)}

@@ -13,16 +13,9 @@ body{
     font-weight: bold;
 }
 
-input[type="text"] {
-    background-color: #444444;
-    color: #F5F5F5;
-    border: 2px round #CC0000; 
-    font-weight: bold;
-}
-
 option {
-    background-color: #F5F5F5;
-    color:  #444444;
+    background-color: #444444;
+    color:  #F5F5F5;
     border: 2px solid rgb(78, 50, 25); 
     font-weight: bold;
     
@@ -32,18 +25,88 @@ label {
     color: #F5F5F5 ;
     font-weight: bold;
 }
-/* rgb(200, 129, 70) */
+
+input, select {
+  background-color: #3E2723; 
+  color: #F5F5F5;      
+  border: 1px solid #8D6E63;
+  border-radius: 6px;     
+  padding: 6px 10px;     
+  font-size: 14px;
+}
+
+input:focus, select:focus {
+  outline: none;
+  border-color: #FFD700; /* gold highlight */
+  box-shadow: 0 0 4px #FFD700;
+}
+
+#yourname{
+    background-color: #444444;
+    color: #F5F5F5;
+    border: 2px solid #3E2723;
+    box-shadow: 0 0 5px #3E2723, 0 0 15px #3E2723; 
+    font-weight: bold;
+} 
+
 .big-img {
     width: 600px;    
     max-width: 100%;
     height: auto;
 }
 
-.mt-up {
-    margin-top: -35rem; 
+#submit{
+    background-color: #3E2723; 
+    color: #F5F5F5;      
+    border: 1px solid #8D6E63;
+    border-radius: 6px;     
+    padding: 6px 10px;     
+    font-size: 14px;
+    font-weight: bold;
 }
 
-text{
+.mt-up {
+    position: absolute;
+    top: 75px;
+    right: 100px;
+    z-index: -1; /* behind other content */
+}
+
+@media (max-width: 768px) {
+    .mt-up {
+        margin-top: 0;
+        margin-bottom: 2rem;
+    }
+}
+
+.results-shown .mt-up {
+    margin-top: 2rem; /* positive margin instead of negative */
+}
+
+.text{
     color: #F5F5F5;
     font-weight: bold;
+}
+
+.name-display{
+    color: #F5F5F5;
+    text-align: center;
+    font-weight: bold;
+    font-size: 1.5rem;
+}
+
+.list-group-item{
+    background-color: #3E2723;
+    color: #F5F5F5;
+    border: 1px solid #8D6E63;
+    font-weight: bold;
+}
+
+.display-title{
+    color: #F5F5F5;
+    text-align: center;
+    font-weight: bold;
+    font-size: 2rem;
+    margin-top: 1rem;
+    margin-bottom: 1rem;
 }
