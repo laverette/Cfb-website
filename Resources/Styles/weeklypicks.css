@@ -1,38 +1,38 @@
 body{
-    background-color: rgb(78, 50, 25);
+    background-color: #1E1E1E;
 }
-
+/* rgb(78, 50, 25) */
 .title{
-    color: gray;
+    color: #F5F5F5;
     font-weight: bold;
     font-size: 3rem;
     text-align: left;
 }
-.text-red {
-    color: gray; /* Crimson color */
+.text-white {
+    color: #F5F5F5; /* Crimson color */
     font-weight: bold;
 }
 
 input[type="text"] {
-    background-color: gray;
-    color: rgb(78, 50, 25);
-    border: 2px solid rgb(78, 50, 25); 
+    background-color: #444444;
+    color: #F5F5F5;
+    border: 2px round #CC0000; 
     font-weight: bold;
 }
 
 option {
-    background-color: gray;
-    color: rgb(78, 50, 25);
+    background-color: #F5F5F5;
+    color:  #444444;
     border: 2px solid rgb(78, 50, 25); 
     font-weight: bold;
     
 }
 
 label {
-    color: rgb(200, 129, 70);   
+    color: #F5F5F5 ;
     font-weight: bold;
 }
-
+/* rgb(200, 129, 70) */
 .big-img {
     width: 600px;    
     max-width: 100%;
@@ -41,4 +41,9 @@ label {
 
 .mt-up {
     margin-top: -35rem; 
+}
+
+text{
+    color: #F5F5F5;
+    font-weight: bold;
 }
