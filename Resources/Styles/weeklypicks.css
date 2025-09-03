@@ -74,8 +74,7 @@ input:focus, select:focus {
 
 @media (max-width: 768px) {
     .mt-up {
-        margin-top: 0;
-        margin-bottom: 2rem;
+          display: none;
     }
 }
 
