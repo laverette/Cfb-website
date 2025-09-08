@@ -46,3 +46,7 @@ body {
 .me-custom{
     margin-right: 7.5rem;
 }
+
+.me-left{
+    margin-inline-start: 10rem;
+}

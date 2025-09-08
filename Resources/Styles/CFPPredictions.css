@@ -109,26 +109,3 @@ input:focus, select:focus {
     margin-top: 1rem;
     margin-bottom: 1rem;
 }
-
-.Leaderboard-list-item{
-    background-color: #3E2723;
-    border: 1px solid #8D6E63;
-    font-weight: bold;
-    padding: 15px 25px; /* increases the background size */
-    margin: 5px 0; /* adds space between items */
-    border-radius: 8px; /* rounds the corners */
-    width: 200px; 
-}
-
-.Leaderboard{
-    position: absolute;
-    top: 500px;
-    right: 300px;
-    z-index: 10;
-    color: #F5F5F5;
-    text-align: center;
-    font-weight: bold;
-    font-size: 2.8rem;
-    margin-top: 1rem;
-    margin-bottom: 1rem;
-}
