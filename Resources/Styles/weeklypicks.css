@@ -167,13 +167,37 @@ input:focus, select:focus {
 
 .Leaderboard{
     position: absolute;
-    top: 650px;
-    right: 50px;
+    top: 340px;
+    left: 68%;
+    transform: translateX(-50%);
     z-index: 10;
     color: #F5F5F5;
     text-align: center;
     font-weight: bold;
     font-size: 1.8rem;
-    margin-top: 1rem;
+    margin-top: 8rem;
     margin-bottom: 1rem;
+}
+
+@media (max-width: 768px) {
+    .Leaderboard {
+        position: static;
+        top: auto;
+        left: auto;
+        transform: none;
+        margin: 2rem auto;
+        width: 90%;
+        max-width: 300px;
+        font-size: 1.4rem;
+    }
+    
+    .leaderboard-list-item {
+        width: 100%;
+        max-width: 250px;
+        margin: 4px auto;
+    }
+    
+    .leaderboard-title {
+        font-size: 1.3rem;
+    }
 }
