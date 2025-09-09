@@ -67,8 +67,8 @@ input:focus, select:focus {
 
 .mt-up {
     position: absolute;
-    top: 75px;
-    right: 100px;
+    top: 50px;
+    right: 120px;
     z-index: -1; /* behind other content */
 }
 
@@ -167,7 +167,7 @@ input:focus, select:focus {
 
 .Leaderboard{
     position: absolute;
-    top: 340px;
+    top: 310px;
     left: 68%;
     transform: translateX(-50%);
     z-index: 10;
