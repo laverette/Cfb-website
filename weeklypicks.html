@@ -9,7 +9,7 @@
 </head>
 <body>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <h1 class="title">Week 2 Picks</h1>
+    <h1 class="title">Week 4 Picks</h1>
   <!-- Netlify Form -->
   <form name="predictions" method="POST" data-netlify="true">
     <input type="hidden" name="form-name" value="predictions">
@@ -22,7 +22,7 @@
     
     
     <p>
-      <label>Game 1: 17 Texas Tech at 16 Utah -3.5
+      <label><span class="games">Game 1:</span>17 Texas Tech at 16 Utah <span class="betting-line">-3.5</span>
         <select name="game1">
           <option value="TECH">TECH</option>
           <option value="UTAH">UTAH</option>
@@ -31,7 +31,7 @@
     </p>
 
     <p>
-      <label>Game 2: Syracuse at Clemson -17.5
+      <label><span class="games">Game 1:</span>Syracuse at Clemson <span class="betting-line">-17.5</span>
         <select name="game2">
           <option value="CLEM">CLEM</option>
           <option value="CUSE">CUSE</option>
@@ -40,7 +40,7 @@
     </p>
 
     <p>
-      <label>Game 3: SMU at TCU -6.5
+      <label>Game 3: SMU at TCU <span class="betting-line">-6.5</span>
         <select name="game3">
           <option value="SMU">SMU</option>
           <option value="TCU">TCU</option>
@@ -49,7 +49,7 @@
     </p>
 
     <p>
-      <label>Game 4: 22 Auburn at 11 Oklahoma -6.5
+      <label>Game 4: 22 Auburn at 11 Oklahoma <span class="betting-line">-6.5</span>
         <select name="game4">
           <option value="AUB">AUB</option>
           <option value="OU">OU</option>
@@ -58,7 +58,7 @@
     </p>
 
     <p>
-      <label>Game 5: Tulane at Ole Miss -11.5
+      <label>Game 5: Tulane at Ole Miss <span class="betting-line">-11.5</span>
         <select name="game5">
           <option value="OLE">OLE</option>
           <option value="TUL">TUL</option>
@@ -67,7 +67,7 @@
     </p>
 
     <p>
-      <label>Game 6: -2.5 21 Michigan at Nebraska
+      <label>Game 6: <span class="betting-line">-2.5</span> 21 Michigan at Nebraska
         <select name="game6">
           <option value="NEB">NEB</option>
           <option value="MICH">MICH</option>
@@ -76,7 +76,7 @@
     </p>
 
     <p>
-      <label>Game 7: Florida at 4 Miami -3
+      <label>Game 7: Florida at 4 Miami <span class="betting-line">-3</span>
         <select name="game7">
           <option value="MIA">MIA</option>
           <option value="UF">UF</option>
@@ -85,7 +85,7 @@
     </p>
 
     <p>
-      <label>Game 8: 9 Illinois at 19 Indiana -3.5
+      <label>Game 8: 9 Illinois at 19 Indiana <span class="betting-line">-3.5</span>
         <select name="game8">
           <option value="ILLI">ILLI</option>
           <option value="INDY">INDY</option>
@@ -94,7 +94,7 @@
     </p>
 
     <p>
-      <label>Game 9: Michigan State at 25 USC -17.5
+      <label>Game 9: Michigan State at 25 USC <span class="betting-line">-17.5</span>
         <select name="game9">
           <option value="MSU">MSU</option>
           <option value="USC">USC</option>
@@ -103,7 +103,7 @@
     </p>
 
     <p>
-      <label>Game 10: Arizona State at Baylor -2.5
+      <label>Game 10: Arizona State at Baylor <span class="betting-line">-2.5</span>
         <select name="game10">
           <option value="ASU">ASU</option>
           <option value="BAY">BAY</option>
@@ -112,7 +112,7 @@
     </p>
 
     <p>
-      <label>Game 11: South Carolina at 23 Missouri -13.5
+      <label>Game 11: South Carolina at 23 Missouri <span class="betting-line">-13.5</span>
         <select name="game11">
           <option value="SCAR">SCAR</option>
           <option value="MIZZ">MIZZ</option>
@@ -121,7 +121,7 @@
     </p>
 
     <p>
-      <label>Game 12: North Carolina at UCF -6.5
+      <label>Game 12: North Carolina at UCF <span class="betting-line">-6.5</span>
         <select name="game12">
           <option value="UCF">UCF</option>
           <option value="UNC">UNC</option>
@@ -131,7 +131,6 @@
 
     <p>
       <button id="submit" type="submit">Submit Predictions</button>
-      <span class="text">Scroll Down to See Results!</span>
       <a href="prediction-history.html" style="background-color: #3E2723; color: #F5F5F5; padding: 6px 10px; border-radius: 6px; text-decoration: none; border: 1px solid #8D6E63; display: inline-block; font-weight: bold; font-size: 14px; margin-left: 20px;">View Individual History</a>
     </p>
   </form>
@@ -158,7 +157,13 @@ document.querySelector('form[name="predictions"]').addEventListener('submit', fu
   html += "</ul>";
   document.getElementById("results").innerHTML = html;
 
-  // ✅ 2. Send data to Netlify in background
+  // ✅ 2. Auto-scroll to results
+  document.getElementById("results").scrollIntoView({ 
+    behavior: 'smooth',
+    block: 'start'
+  });
+
+  // ✅ 3. Send data to Netlify in background
   fetch("/", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -181,7 +186,7 @@ document.querySelector('form[name="predictions"]').addEventListener('submit', fu
             <li class="leaderboard-list-item">Katelyn 8-4 <span class="percentage">67%</span></li>
             <li class="leaderboard-list-item">Gracie 7-5 <span class="percentage">58%</span></li>
             <li class="leaderboard-list-item">Logan 5-7 <span class="percentage">42%</span></li>
-            <li class="leaderboard-list-item">Sissy 0-0 <span class="percentage">0%</span></li>
+            <li class="leaderboard-list-item">😔Sissy 0-0 <span class="percentage">Outerbanks</span></li>
             
           </ol>
         </div>
