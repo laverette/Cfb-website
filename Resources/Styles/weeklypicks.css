@@ -1,13 +1,17 @@
 body{
     background-color: #1E1E1E;
 }
-/* rgb(78, 50, 25) */
+
 .title{
-    color: #F5F5F5;
+    color: #f5deb3;
     font-weight: bold;
     font-size: 3rem;
     text-align: left;
-}
+} 
+
+
+
+
 .text-white {
     color: #F5F5F5; /* Crimson color */
     font-weight: bold;
@@ -22,7 +26,7 @@ option {
 }
 
 label {
-    color: #F5F5F5 ;
+    color: #f5deb3 ;
     font-weight: bold;
 }
 
@@ -232,4 +236,24 @@ input:focus, select:focus {
         font-size: 0.8em;
         padding: 2px 4px;
     }
+}
+
+.games {
+    display: inline-block;
+    font-size: 0.95em;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 9999px;              /* pill shape */
+    background: linear-gradient(135deg, #6d4c41, #4e342e); /* stylish brown gradient */
+    color: #f5deb3;                     /* warm gold text */
+    letter-spacing: 0.5px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.25); /* subtle depth */
+    margin-right: 6px;
+    transition: all 0.2s ease-in-out;
+}
+
+.games:hover {
+    background: linear-gradient(135deg, #795548, #3e2723);
+    transform: translateY(-2px);  /* small hover lift */
+    box-shadow: 0 4px 10px rgba(0,0,0,0.35);
 }
