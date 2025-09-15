@@ -9,7 +9,7 @@
 </head>
 <body>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <h1 class="title">Weekly Picks</h1>
+    <h1 class="title">Week 2 Picks</h1>
   <!-- Netlify Form -->
   <form name="predictions" method="POST" data-netlify="true">
     <input type="hidden" name="form-name" value="predictions">
@@ -20,110 +20,111 @@
       </label>
     </p>
     
+    
     <p>
-      <label>Game 1: Wisconsin at 19 Alabama
+      <label>Game 1: 17 Texas Tech at 16 Utah -3.5
         <select name="game1">
-          <option value="Bama">BAMA</option>
-          <option value="WISC">WISC</option>
+          <option value="TECH">TECH</option>
+          <option value="UTAH">UTAH</option>
         </select>
       </label>
     </p>
 
     <p>
-      <label>Game 2: 12 Clemson at Georgia Tech
+      <label>Game 2: Syracuse at Clemson -17.5
         <select name="game2">
           <option value="CLEM">CLEM</option>
-          <option value="GT">GT</option>
+          <option value="CUSE">CUSE</option>
         </select>
       </label>
     </p>
 
     <p>
-      <label>Game 3: 6 Georgia at 15 Tennessee
+      <label>Game 3: SMU at TCU -6.5
         <select name="game3">
-          <option value="UGA">UGA</option>
-          <option value="TENN">TENN</option>
+          <option value="SMU">SMU</option>
+          <option value="TCU">TCU</option>
         </select>
       </label>
     </p>
 
     <p>
-      <label>Game 4: 18 USF at 5 Miami
+      <label>Game 4: 22 Auburn at 11 Oklahoma -6.5
         <select name="game4">
-          <option value="USF">USF</option>
-          <option value="MIA">MIA</option>
+          <option value="AUB">AUB</option>
+          <option value="OU">OU</option>
         </select>
       </label>
     </p>
 
     <p>
-      <label>Game 5: 16 Texas A&M at 8 Notre Dame
+      <label>Game 5: Tulane at Ole Miss -11.5
         <select name="game5">
-          <option value="ND">ND</option>
-          <option value="TEXAM">TEXAM</option>
-        </select>
-      </label>
-    </p>
-
-    <p>
-      <label>Game 6: Florida at 3 LSU
-        <select name="game6">
-          <option value="UF">UF</option>
-          <option value="LSU">LSU</option>
-        </select>
-      </label>
-    </p>
-
-    <p>
-      <label>Game 7: Vanderbilt at 11 South Carolina
-        <select name="game7">
-          <option value="VANDY">VANDY</option>
-          <option value="SC">SC</option>
-        </select>
-      </label>
-    </p>
-
-    <p>
-      <label>Game 8: Arkansas at 17 Ole Miss
-        <select name="game8">
-          <option value="ARK">ARK</option>
-          <option value="Ole">Ole</option>
-        </select>
-      </label>
-    </p>
-
-    <p>
-      <label>Game 9: Duke at Tulane
-        <select name="game9">
-          <option value="DUKE">DUKE</option>
+          <option value="OLE">OLE</option>
           <option value="TUL">TUL</option>
         </select>
       </label>
     </p>
 
     <p>
-      <label>Game 10: Pittsburgh at West Virginia
-        <select name="game10">
-          <option value="PITT">PITT</option>
-          <option value="WVU">WVU</option>
+      <label>Game 6: -2.5 21 Michigan at Nebraska
+        <select name="game6">
+          <option value="NEB">NEB</option>
+          <option value="MICH">MICH</option>
         </select>
       </label>
     </p>
 
     <p>
-      <label>Game 11: Colorado at Houston
-        <select name="game11">
-          <option value="COLO">COLO</option>
-          <option value="HOU">HOU</option>
+      <label>Game 7: Florida at 4 Miami -3
+        <select name="game7">
+          <option value="MIA">MIA</option>
+          <option value="UF">UF</option>
         </select>
       </label>
     </p>
 
     <p>
-      <label>Game 12: USC at Purdue
-        <select name="game12">
+      <label>Game 8: 9 Illinois at 19 Indiana -3.5
+        <select name="game8">
+          <option value="ILLI">ILLI</option>
+          <option value="INDY">INDY</option>
+        </select>
+      </label>
+    </p>
+
+    <p>
+      <label>Game 9: Michigan State at 25 USC -17.5
+        <select name="game9">
+          <option value="MSU">MSU</option>
           <option value="USC">USC</option>
-          <option value="PUR">PUR</option>
+        </select>
+      </label>
+    </p>
+
+    <p>
+      <label>Game 10: Arizona State at Baylor -2.5
+        <select name="game10">
+          <option value="ASU">ASU</option>
+          <option value="BAY">BAY</option>
+        </select>
+      </label>
+    </p>
+
+    <p>
+      <label>Game 11: South Carolina at 23 Missouri -13.5
+        <select name="game11">
+          <option value="SCAR">SCAR</option>
+          <option value="MIZZ">MIZZ</option>
+        </select>
+      </label>
+    </p>
+
+    <p>
+      <label>Game 12: North Carolina at UCF -6.5
+        <select name="game12">
+          <option value="UCF">UCF</option>
+          <option value="UNC">UNC</option>
         </select>
       </label>
     </p>
@@ -131,9 +132,14 @@
     <p>
       <button id="submit" type="submit">Submit Predictions</button>
       <span class="text">Scroll Down to See Results!</span>
+      <a href="prediction-history.html" style="background-color: #3E2723; color: #F5F5F5; padding: 6px 10px; border-radius: 6px; text-decoration: none; border: 1px solid #8D6E63; display: inline-block; font-weight: bold; font-size: 14px; margin-left: 20px;">View Individual History</a>
     </p>
   </form>
   <div id="results"></div>
+  
+
+
+
     <script>
 document.querySelector('form[name="predictions"]').addEventListener('submit', function(e) {
   e.preventDefault(); // stop normal page reload
@@ -161,20 +167,22 @@ document.querySelector('form[name="predictions"]').addEventListener('submit', fu
   .then(() => console.log("Saved to Netlify"))
   .catch(err => console.error(err));
 });
+
 </script>
-
-
 </body>
 <div class="col-md-10 ps-rg-6 text-end mb-5 mt-up">
         <img width= 100% src="https://images.seattletimes.com/wp-content/uploads/2017/05/2459f782f2c946859a21920650fc2c75.jpg?d=2040x1253" alt="Image" class="img-fluid rounded shadow big-img">
       </div>
        <div class="Leaderboard">
-          <h3 class="leaderboard-title">🏆 Leaderboard</h3>
+          <h3 class="leaderboard-title">🏆 Last Week's Leaderboard</h3>
           <ol class="leaderboard-list">
-            <li class="leaderboard-list-item">Sissy 10-2 <span class="percentage">83%</span></li>
-            <li class="leaderboard-list-item">Logan 9-3 <span class="percentage">75%</span></li>
-            <li class="leaderboard-list-item">Blake 7-5 <span class="percentage">58%</span></li>
-            <li class="leaderboard-list-item">😔Gracie 7-5 <span class="percentage">58%</span></li>
+  
+            <li class="leaderboard-list-item">Blake 9-3 <span class="percentage">75%</span></li>
+            <li class="leaderboard-list-item">Katelyn 8-4 <span class="percentage">67%</span></li>
+            <li class="leaderboard-list-item">Gracie 7-5 <span class="percentage">58%</span></li>
+            <li class="leaderboard-list-item">Logan 5-7 <span class="percentage">42%</span></li>
+            <li class="leaderboard-list-item">Sissy 0-0 <span class="percentage">0%</span></li>
+            
           </ol>
         </div>
 </html>

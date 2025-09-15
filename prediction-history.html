@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prediction History</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <link rel="stylesheet" href="./Resources/Styles/weeklypicks.css">
+</head>
+<body>
+  <div class="container mt-4">
+    <h1 class="title">📊 Your Prediction History</h1>
+    
+    <!-- User Selection -->
+    <div style="background-color: #2E2E2E; padding: 1rem; border-radius: 8px; margin: 2rem 0;">
+      <h3 style="color: #FFD700; text-align: center;">Select User</h3>
+      <div style="text-align: center; margin: 1rem 0;">
+        <select id="userDropdown" style="margin: 0 10px; padding: 8px; border-radius: 4px; border: 1px solid #8D6E63; background-color: #3E2723; color: #F5F5F5; min-width: 200px;">
+          <option value="">Choose a person...</option>
+        </select>
+        <button id="loadUserHistory" style="margin: 0 5px; padding: 8px 15px; background-color: #3E2723; color: #F5F5F5; border: 1px solid #8D6E63; border-radius: 4px; cursor: pointer;">View History</button>
+      </div>
+    </div>
+
+    <!-- History Display -->
+    <div id="historyDisplay" style="margin-top: 2rem;"></div>
+    
+    <!-- Back Button -->
+    <div style="text-align: center; margin: 2rem 0;">
+      <a href="weeklypicks.html" style="background-color: #3E2723; color: #F5F5F5; padding: 10px 20px; border-radius: 6px; text-decoration: none; border: 1px solid #8D6E63;">← Back to Weekly Picks</a>
+    </div>
+  </div>
+
+  <script>
+    let allPredictions = [];
+
+    // Load predictions from the repository file
+    async function loadPredictionsFile() {
+      try {
+        const response = await fetch('predictions.txt');
+        if (!response.ok) {
+          throw new Error('Could not load predictions file');
+        }
+        const content = await response.text();
+        parsePredictions(content);
+        populateUserDropdown();
+      } catch (error) {
+        console.error('Error loading predictions:', error);
+        document.getElementById('historyDisplay').innerHTML = `
+          <div style="background-color: #2E2E2E; padding: 2rem; border-radius: 8px; text-align: center;">
+            <h3 style="color: #F5F5F5;">Could not load predictions</h3>
+            <p style="color: #F5F5F5;">Make sure predictions.txt exists in the repository.</p>
+          </div>
+        `;
+      }
+    }
+  
+
+    // Parse the predictions.txt content
+    function parsePredictions(content) {
+      allPredictions = [];
+      const lines = content.split('\n');
+      let currentUser = null;
+      let currentWeek = null;
+      let currentDate = null;
+      let currentPicks = {};
+
+      for (let line of lines) {
+        line = line.trim();
+        
+        if (line.startsWith('Name:')) {
+          // Save previous user if exists
+          if (currentUser) {
+            allPredictions.push({
+              name: currentUser,
+              week: currentWeek,
+              date: currentDate,
+              picks: { ...currentPicks }
+            });
+          }
+          
+          // Start new user
+          currentUser = line.replace('Name:', '').trim();
+          currentPicks = {};
+        } else if (line.startsWith('Week:')) {
+          currentWeek = parseInt(line.replace('Week:', '').trim());
+        } else if (line.startsWith('Date:')) {
+          currentDate = line.replace('Date:', '').trim();
+        } else if (line.startsWith('Game')) {
+          const gameMatch = line.match(/Game (\d+): (.+)/);
+          if (gameMatch) {
+            currentPicks[`game${gameMatch[1]}`] = gameMatch[2];
+          }
+        }
+      }
+      
+      // Don't forget the last user
+      if (currentUser) {
+        allPredictions.push({
+          name: currentUser,
+          week: currentWeek,
+          date: currentDate,
+          picks: { ...currentPicks }
+        });
+      }
+    }
+
+    // Populate the user dropdown
+    function populateUserDropdown() {
+      const dropdown = document.getElementById('userDropdown');
+      
+      // Clear existing options except the first one
+      dropdown.innerHTML = '<option value="">Choose a person...</option>';
+      
+      // Add sample users (you can edit this list)
+      const sampleUsers = ['Logan', 'Sissy', 'Blake', 'Gracie'];
+      
+      sampleUsers.forEach(user => {
+        const option = document.createElement('option');
+        option.value = user;
+        option.textContent = user;
+        dropdown.appendChild(option);
+      });
+    }
+
+    // Load user's individual history
+    function loadUserHistory() {
+      const selectedUser = document.getElementById('userDropdown').value;
+      if (!selectedUser) {
+        alert('Please select a person from the dropdown!');
+        return;
+      }
+
+      const userHistory = allPredictions.filter(entry => entry.name === selectedUser);
+      
+      if (userHistory.length === 0) {
+        document.getElementById('historyDisplay').innerHTML = `
+          <div style="background-color: #2E2E2E; padding: 2rem; border-radius: 8px; text-align: center;">
+            <h3 style="color: #F5F5F5;">No history found for "${selectedUser}"</h3>
+            <p style="color: #F5F5F5;">Make sure they've submitted picks before!</p>
+          </div>
+        `;
+        return;
+      }
+
+      // Sort by week (newest first)
+      userHistory.sort((a, b) => (b.week || 0) - (a.week || 0));
+
+      let html = `
+        <div style="background-color: #2E2E2E; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+          <h2 style="color: #FFD700; text-align: center; margin: 0;">${selectedUser}'s Prediction History</h2>
+          <p style="color: #F5F5F5; text-align: center; margin: 5px 0;">${userHistory.length} week(s) of picks</p>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 20px;">
+      `;
+
+      userHistory.forEach(entry => {
+        html += `
+          <div style="background-color: #3E2723; padding: 20px; border-radius: 8px; border: 1px solid #8D6E63;">
+            <h3 style="color: #FFD700; margin: 0 0 15px 0; text-align: center;">Week ${entry.week || 'Unknown'}</h3>
+            <p style="color: #F5F5F5; margin: 0 0 15px 0; text-align: center; font-size: 0.9rem;">Submitted: ${entry.date || 'Unknown'}</p>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
+        `;
+        
+        // Show all picks in a nice grid
+        for (let i = 1; i <= 12; i++) {
+          const pick = entry.picks[`game${i}`];
+          if (pick) {
+            html += `
+              <div style="background-color: #2E2E2E; padding: 8px; border-radius: 4px; border: 1px solid #8D6E63; text-align: center;">
+                <span style="color: #FFD700; font-weight: bold;">Game ${i}</span><br>
+                <span style="color: #F5F5F5;">${pick}</span>
+              </div>
+            `;
+          }
+        }
+        
+        html += `
+            </div>
+          </div>
+        `;
+      });
+
+      html += '</div>';
+      document.getElementById('historyDisplay').innerHTML = html;
+    }
+
+    // Event Listeners
+    document.getElementById('loadUserHistory').addEventListener('click', loadUserHistory);
+    
+    // Load predictions when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+      // For now, populate with sample users since we're not using the file
+      populateUserDropdown();
+    });
+  </script>
+</body>
+</html>
+
