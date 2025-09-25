@@ -8,12 +8,9 @@
   <link rel="stylesheet" href="./Resources/Styles/CFPPredictions.css">
 </head>
 <body>
+  <form name="predictions" class="form-container">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <h1 class="title">Weekly Picks</h1>
-  <!-- Netlify Form -->
-  <form name="predictions" method="POST" data-netlify="true">
-    <input type="hidden" name="form-name" value="predictions">
-
     <p>
       <label>Your Name: 
         <input id= "yourname" name="user" />
@@ -150,19 +147,8 @@ document.querySelector('form[name="predictions"]').addEventListener('submit', fu
     </li>`;
   }
   html += "</ul>";
-  document.getElementById("results").innerHTML = html;
-
-  // ✅ 2. Send data to Netlify in background
-  fetch("/", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams(formData).toString()
-  })
-  .then(() => console.log("Saved to Netlify"))
-  .catch(err => console.error(err));
-});
 </script>
-
+});
 
 </body>
 <div class="col-md-10 ps-rg-6 text-end mb-5 mt-up">

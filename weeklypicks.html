@@ -11,9 +11,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <h1 class="title">Week 4 Picks</h1>
   <!-- Netlify Form -->
-  <form name="predictions" method="POST" data-netlify="true">
-    <input type="hidden" name="form-name" value="predictions">
-
+  <form name="predictions" method="POST" action="http://localhost:3000/submit-predictions">    
     <p>
       <label>Your Name: 
         <input id= "yourname" name="user" />
@@ -22,121 +20,121 @@
     
     
     <p>
-      <label><span class="games">Game 1:</span>17 Texas Tech at 16 Utah 
+      <label><span class="games">Game 1:</span> 17 Alabama at 5 Georgia
         <span class="betting-line">-3.5</span>
         <select name="game1">
-          <option value="TECH">TECH</option>
-          <option value="UTAH">UTAH</option>
+          <option value="BAMA">BAMA</option>
+          <option value="UGA">UGA</option>
         </select>
       </label>
     </p>
 
     <p>
-      <label><span class="games">Game 2:</span>Syracuse at Clemson 
-        <span class="betting-line">-17.5</span>
-        <select name="game2">
-          <option value="CLEM">CLEM</option>
-          <option value="CUSE">CUSE</option>
-        </select>
-      </label>
-    </p>
-
-    <p>
-      <label><span class="games">Game 3:</span> SMU at TCU 
-        <span class="betting-line">-6.5</span>
-        <select name="game3">
-          <option value="SMU">SMU</option>
-          <option value="TCU">TCU</option>
-        </select>
-      </label>
-    </p>
-
-    <p>
-      <label><span class="games">Game 4:</span> 22 Auburn at 11 Oklahoma 
-        <span class="betting-line">-6.5</span>
-        <select name="game4">
-          <option value="AUB">AUB</option>
-          <option value="OU">OU</option>
-        </select>
-      </label>
-    </p>
-
-    <p>
-      <label><span class="games">Game 5:</span> Tulane at Ole Miss 
-        <span class="betting-line">-11.5</span>
-        <select name="game5">
-          <option value="OLE">OLE</option>
-          <option value="TUL">TUL</option>
-        </select>
-      </label>
-    </p>
-
-    <p>
-      <label><span class="games">Game 6:</span> Nebraska at 21 Michigan 
-        <span class="betting-line">-2.5</span>
-        <select name="game6">
-          <option value="NEB">NEB</option>
-          <option value="MICH">MICH</option>
-        </select>
-      </label>
-    </p>
-
-    <p>
-      <label><span class="games">Game 7:</span> Florida at 4 Miami
-        <span class="betting-line">-3</span>
-        <select name="game7">
-          <option value="MIA">MIA</option>
-          <option value="UF">UF</option>
-        </select>
-      </label>
-    </p>
-
-    <p>
-      <label><span class="games">Game 8:</span> 9 Illinois at 19 Indiana 
+      <label><span class="games">Game 2:</span> 6 Oregon at 3 Penn State
         <span class="betting-line">-3.5</span>
+        <select name="game2">
+          <option value="OREG">OREG</option>
+          <option value="PSU">PSU</option>
+        </select>
+      </label>
+    </p>
+
+    <p>
+      <label><span class="games">Game 3:</span> 4 LSU at 13 Ole Miss 
+        <span class="betting-line">-1.5</span>
+        <select name="game3">
+          <option value="LSU">LSU</option>
+          <option value="OLE">OLE</option>
+        </select>
+      </label>
+    </p>
+
+    <p>
+      <label><span class="games">Game 4:</span> 1 Ohio State at Washington 
+        <span class="betting-line">+8.5</span>
+        <select name="game4">
+          <option value="OSU">OSU</option>
+          <option value="UW">UW</option>
+        </select>
+      </label>
+    </p>
+
+    <p>
+      <label><span class="games">Game 5:</span> Auburn at 9 Texas A&M
+        <span class="betting-line">-6.5</span>
+        <select name="game5">
+          <option value="AUB">AUB</option>
+          <option value="A&M">A&M</option>
+        </select>
+      </label>
+    </p>
+
+    <p>
+      <label><span class="games">Game 6:</span> 11 Indiana at Iowa
+        <span class="betting-line">+7.5</span>
+        <select name="game6">
+          <option value="INDY">INDY</option>
+          <option value="IOWA">IOWA</option>
+        </select>
+      </label>
+    </p>
+
+    <p>
+      <label><span class="games">Game 7:</span> 15 Tennessee at Mississippi State
+        <span class="betting-line">+7.5</span>
+        <select name="game7">
+          <option value="UT">UT</option>
+          <option value="MISSST">MISSST</option>
+        </select>
+      </label>
+    </p>
+
+    <p>
+      <label><span class="games">Game 8:</span> 21 USC at 23 Illinois
+        <span class="betting-line">+6.5</span>
         <select name="game8">
           <option value="ILLI">ILLI</option>
-          <option value="INDY">INDY</option>
-        </select>
-      </label>
-    </p>
-
-    <p>
-      <label><span class="games">Game 9:</span> Michigan State at 25 USC 
-        <span class="betting-line">-17.5</span>
-        <select name="game9">
-          <option value="MSU">MSU</option>
           <option value="USC">USC</option>
         </select>
       </label>
     </p>
 
     <p>
-      <label><span class="games">Game 10:</span> Arizona State at Baylor 
-        <span class="betting-line">-2.5</span>
+      <label><span class="games">Game 9:</span> 22 Notre Dame at Arkansas 
+        <span class="betting-line">+4.5</span>
+        <select name="game9">
+          <option value="ND">ND</option>
+          <option value="ARK">ARK</option>
+        </select>
+      </label>
+    </p>
+
+    <p>
+      <label><span class="games">Game 10:</span> Kentucky at South Carolina 
+        <span class="betting-line">-5.5</span>
         <select name="game10">
-          <option value="ASU">ASU</option>
-          <option value="BAY">BAY</option>
-        </select>
-      </label>
-    </p>
-
-    <p>
-      <label><span class="games">Game 11:</span> South Carolina at 23 Missouri 
-        <span class="betting-line">-13.5</span>
-        <select name="game11">
           <option value="SCAR">SCAR</option>
-          <option value="MIZZ">MIZZ</option>
+          <option value="UK">UK</option>
         </select>
       </label>
     </p>
 
     <p>
-      <label><span class="games">Game 12:</span> North Carolina at UCF 
-        <span class="betting-line">-6.5</span>
+      <label><span class="games">Game 11:</span> BYU at Colorado
+        <span class="betting-line">+6.5</span>
+        <select name="game11">
+          <option value="BYU">BYU</option>
+          <option value="COLO">COLO</option>
+        </select>
+      </label>
+    </p>
+
+    <p>
+      <label><span class="games">Game 12:</span> Arizona at 14 Iowa State 
+        <span class="betting-line">-5.5</span>
         <select name="game12">
-          <option value="UCF">UCF</option>
-          <option value="UNC">UNC</option>
+          <option value="AZ">AZ</option>
+          <option value="ISU">ISU</option>
         </select>
       </label>
     </p>
@@ -155,12 +153,12 @@
 
     <script>
 document.querySelector('form[name="predictions"]').addEventListener('submit', function(e) {
-  e.preventDefault(); // stop normal page reload
+  e.preventDefault();
 
   const form = e.target;
   const formData = new FormData(form);
-
-  // ✅ 1. Build preview
+ 
+  // Build preview
   const user = formData.get("user");
   let html = `<h2 class="display-title">Your Predictions</h2><p class="name-display"><strong>Name:</strong> ${user}</p><ul class="list-group">`;
   for (let i = 1; i <= 12; i++) {
@@ -171,24 +169,25 @@ document.querySelector('form[name="predictions"]').addEventListener('submit', fu
   html += "</ul>";
   document.getElementById("results").innerHTML = html;
 
-  // ✅ 2. Auto-scroll to results
-  document.getElementById("results").scrollIntoView({ 
-    behavior: 'smooth',
-    block: 'start'
-  });
-
-  // ✅ 3. Send data to Netlify in background
-  fetch("/", {
+  // Submit to backend
+  fetch("http://localhost:3000/submit-predictions", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams(formData).toString()
   })
-  .then(() => console.log("Saved to Netlify"))
+  .then(() => {
+    // Scroll after fetch completes
+    setTimeout(() => {
+      document.getElementById("results").scrollIntoView({ 
+        behavior: 'smooth',
+        block: 'start'
+      });
+    }, 100); // slight delay for smoother experience
+  })
   .catch(err => console.error(err));
 });
 
 </script>
-</body>
 <div class="col-md-10 ps-rg-6 text-end mb-5 mt-up">
         <img width= 100% src="https://images.seattletimes.com/wp-content/uploads/2017/05/2459f782f2c946859a21920650fc2c75.jpg?d=2040x1253" alt="Image" class="img-fluid rounded shadow big-img">
       </div>
@@ -204,4 +203,5 @@ document.querySelector('form[name="predictions"]').addEventListener('submit', fu
             
           </ol>
         </div>
+</body>
 </html>
