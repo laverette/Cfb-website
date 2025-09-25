@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login/Register - CFB Predictions</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <link rel="stylesheet" href="./Resources/Styles/weeklypicks.css">
+</head>
+<body>
+  <div class="container mt-4">
+    <h1 class="title" id="pageTitle">🏈 Login to CFB Predictions</h1>
+    
+    <div class="row justify-content-center">
+      <div class="col-md-6">
+        <!-- Login Form -->
+        <div id="loginFormContainer" style="background-color: #2E2E2E; padding: 2rem; border-radius: 8px; margin: 2rem 0;">
+          <h3 style="color: #FFD700; text-align: center; margin-bottom: 2rem;">Sign In</h3>
+          
+          <form id="loginForm">
+            <div class="mb-3">
+              <label for="loginEmail" style="color: #F5F5F5; font-weight: bold;">Username or Email:</label>
+              <input type="text" id="loginEmail" name="usernameOrEmail" class="form-control" style="background-color: #3E2723; color: #F5F5F5; border: 1px solid #8D6E63;" required>
+            </div>
+            
+            <div class="mb-3">
+              <label for="loginPassword" style="color: #F5F5F5; font-weight: bold;">Password:</label>
+              <input type="password" id="loginPassword" name="password" class="form-control" style="background-color: #3E2723; color: #F5F5F5; border: 1px solid #8D6E63;" required>
+            </div>
+            
+            <div class="text-center">
+              <button type="submit" class="btn" style="background-color: #3E2723; color: #F5F5F5; border: 1px solid #8D6E63; padding: 10px 30px; font-weight: bold;">Login</button>
+            </div>
+          </form>
+          
+          <div style="text-align: center; margin-top: 1rem;">
+            <p style="color: #F5F5F5; margin: 0;">Don't have an account?</p>
+            <a href="#" id="switchToRegister" style="color: #FFD700; text-decoration: none; font-weight: bold;">Register here</a>
+          </div>
+        </div>
+
+        <!-- Register Form -->
+        <div id="registerFormContainer" style="background-color: #2E2E2E; padding: 2rem; border-radius: 8px; margin: 2rem 0; display: none;">
+          <h3 style="color: #FFD700; text-align: center; margin-bottom: 2rem;">Create Account</h3>
+          
+          <form id="registerForm">
+            <div class="mb-3">
+              <label for="registerUsername" style="color: #F5F5F5; font-weight: bold;">Username:</label>
+              <input type="text" id="registerUsername" name="username" class="form-control" style="background-color: #3E2723; color: #F5F5F5; border: 1px solid #8D6E63;" required>
+            </div>
+            
+            <div class="mb-3">
+              <label for="registerEmail" style="color: #F5F5F5; font-weight: bold;">Email:</label>
+              <input type="email" id="registerEmail" name="email" class="form-control" style="background-color: #3E2723; color: #F5F5F5; border: 1px solid #8D6E63;" required>
+            </div>
+            
+            <div class="mb-3">
+              <label for="registerPassword" style="color: #F5F5F5; font-weight: bold;">Password:</label>
+              <input type="password" id="registerPassword" name="password" class="form-control" style="background-color: #3E2723; color: #F5F5F5; border: 1px solid #8D6E63;" required>
+            </div>
+            
+            <div class="text-center">
+              <button type="submit" class="btn" style="background-color: #3E2723; color: #F5F5F5; border: 1px solid #8D6E63; padding: 10px 30px; font-weight: bold;">Register</button>
+            </div>
+          </form>
+          
+          <div style="text-align: center; margin-top: 1rem;">
+            <p style="color: #F5F5F5; margin: 0;">Already have an account?</p>
+            <a href="#" id="switchToLogin" style="color: #FFD700; text-decoration: none; font-weight: bold;">Login here</a>
+          </div>
+        </div>
+        
+        <div id="message" style="margin-top: 1rem; text-align: center;"></div>
+        
+        <div style="text-align: center; margin: 2rem 0;">
+          <a href="weeklypicks.html" style="background-color: #3E2723; color: #F5F5F5; padding: 10px 20px; border-radius: 6px; text-decoration: none; border: 1px solid #8D6E63;">Back to Weekly Picks</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Toggle between login and register forms
+    document.getElementById('switchToRegister').addEventListener('click', function(e) {
+      e.preventDefault();
+      showRegisterForm();
+    });
+
+    document.getElementById('switchToLogin').addEventListener('click', function(e) {
+      e.preventDefault();
+      showLoginForm();
+    });
+
+    function showLoginForm() {
+      document.getElementById('loginFormContainer').style.display = 'block';
+      document.getElementById('registerFormContainer').style.display = 'none';
+      document.getElementById('pageTitle').textContent = '🏈 Login to CFB Predictions';
+      clearMessage();
+    }
+
+    function showRegisterForm() {
+      document.getElementById('loginFormContainer').style.display = 'none';
+      document.getElementById('registerFormContainer').style.display = 'block';
+      document.getElementById('pageTitle').textContent = '🏈 Register for CFB Predictions';
+      clearMessage();
+    }
+
+    function showMessage(message, type) {
+      const messageDiv = document.getElementById('message');
+      messageDiv.innerHTML = `
+        <div style="color: ${type === 'success' ? '#4CAF50' : '#f44336'}; font-weight: bold;">
+          ${message}
+        </div>
+      `;
+    }
+
+    function clearMessage() {
+      document.getElementById('message').innerHTML = '';
+    }
+
+    // Login form handler
+    document.getElementById('loginForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      const formData = new FormData(e.target);
+      const loginData = {
+        usernameOrEmail: formData.get('usernameOrEmail'),
+        password: formData.get('password')
+      };
+      
+      try {
+        const response = await fetch('http://localhost:5107/api/User/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(loginData)
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+          // Save user to localStorage
+          localStorage.setItem('currentUser', JSON.stringify(result));
+          
+          showMessage('✅ Login successful! Redirecting...', 'success');
+          
+          // Redirect to weekly picks after 1 second
+          setTimeout(() => {
+            window.location.href = 'weeklypicks.html';
+          }, 1000);
+        } else {
+          showMessage(`❌ ${result.message || 'Login failed'}`, 'error');
+        }
+      } catch (error) {
+        console.error('Login error:', error);
+        showMessage('❌ Network error. Please try again.', 'error');
+      }
+    });
+
+    // Register form handler
+    document.getElementById('registerForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      const formData = new FormData(e.target);
+      const registerData = {
+        username: formData.get('username'),
+        email: formData.get('email'),
+        password: formData.get('password')
+      };
+      
+      try {
+        const response = await fetch('http://localhost:5107/api/User/register', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(registerData)
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+          showMessage('✅ Registration successful! You can now login.', 'success');
+          
+          // Clear form and switch to login
+          e.target.reset();
+          setTimeout(() => {
+            showLoginForm();
+          }, 1500);
+        } else {
+          showMessage(`❌ ${result.message || 'Registration failed'}`, 'error');
+        }
+      } catch (error) {
+        console.error('Registration error:', error);
+        showMessage('❌ Network error. Please try again.', 'error');
+      }
+    });
+  </script>
+</body>
+</html>

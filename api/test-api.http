@@ -1,0 +1,36 @@
+### Test User Registration
+POST http://localhost:5107/api/User/register
+Content-Type: application/json
+
+{
+  "username": "Logan",
+  "email": "logan@example.com",
+  "password": "password123"
+}
+
+### Test User Login
+POST http://localhost:5107/api/User/login
+Content-Type: application/json
+
+{
+  "usernameOrEmail": "logan@example.com",
+  "password": "password123"
+}
+
+### Get All Users
+GET http://localhost:5107/api/User
+
+### Get User by ID
+GET http://localhost:5107/api/User/1
+
+### Submit Prediction (using form data)
+POST http://localhost:5107/api/Prediction/submit
+Content-Type: application/x-www-form-urlencoded
+
+user=Logan&game1=BAMA&game2=OREG&game3=LSU&game4=OSU&game5=A&M&game6=IOWA&game7=UT&game8=USC&game9=ND&game10=SCAR&game11=BYU&game12=ISU
+
+### Get All Predictions
+GET http://localhost:5107/api/Prediction
+
+### Get Predictions by User ID
+GET http://localhost:5107/api/Prediction/user/1

@@ -51,6 +51,14 @@ input:focus, select:focus {
     border: 2px solid #3E2723;
     box-shadow: 0 0 5px #3E2723, 0 0 15px #3E2723; 
     font-weight: bold;
+}
+
+#yourname[readonly] {
+    background-color: #2E2E2E;
+    color: #FFD700;
+    border: 2px solid #FFD700;
+    cursor: not-allowed;
+    opacity: 0.8;
 } 
 
 .big-img {
@@ -78,7 +86,81 @@ input:focus, select:focus {
 
 @media (max-width: 768px) {
     .mt-up {
-          display: none;
+        position: fixed;
+        top: 10px;
+        left: 10px;
+        width: 60px;
+        height: 60px;
+        z-index: 999;
+    }
+    
+    .mt-up .big-img {
+        width: 60px;
+        height: 60px;
+        object-fit: cover;
+        border-radius: 50%;
+        border: 2px solid #FFD700;
+    }
+    
+    .leaderboards-container {
+        position: static;
+        top: auto;
+        left: auto;
+        transform: none;
+        margin: 2rem auto;
+        width: 90%;
+        max-width: 300px;
+        font-size: 1.4rem;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .Leaderboard {
+        width: 100%;
+        font-size: 1.4rem;
+    }
+    
+    .leaderboard-list-item {
+        width: 100%;
+        max-width: 280px;
+        margin: 4px auto;
+    }
+    
+    .leaderboard-title {
+        font-size: 1.3rem;
+    }
+    
+    .betting-line {
+        font-size: 0.8em;
+        padding: 2px 4px;
+    }
+    
+    /* Mobile game layout improvements */
+    label {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-bottom: 15px;
+    }
+    
+    .games {
+        font-size: 0.85em;
+        padding: 3px 8px;
+        margin-bottom: 5px;
+        display: inline-block;
+    }
+    
+    select {
+        width: 100%;
+        max-width: 120px;
+        margin-top: 5px;
+    }
+    
+    .betting-line {
+        font-size: 0.75em;
+        padding: 2px 4px;
+        margin: 0 5px;
     }
 }
 
@@ -137,16 +219,39 @@ input:focus, select:focus {
     padding: 10px 18px;
     margin: 5px 0;
     border-radius: 8px;
-    width: 200px;
+    width: 220px;
     position: relative;
     box-shadow: 0 3px 6px rgba(0,0,0,0.3);
     transition: transform 0.2s ease;
     font-size: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
 .leaderboard-list-item:hover {
     transform: translateX(5px);
     box-shadow: 0 6px 12px rgba(0,0,0,0.4);
+}
+
+.percentage {
+    background: linear-gradient(135deg, #FFD700, #FFA000);
+    color: #1E1E1E;
+    font-weight: bold;
+    padding: 2px 6px;
+    border-radius: 6px;
+    margin-left: 8px;
+    box-shadow: 0 2px 4px rgba(255, 215, 0, 0.3);
+    border: 1px solid #FFA000;
+    transition: all 0.3s ease;
+    display: inline-block;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.percentage:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 8px rgba(255, 215, 0, 0.5);
 }
 
 .leaderboard-list-item::before {
@@ -169,7 +274,7 @@ input:focus, select:focus {
     box-shadow: 0 2px 4px rgba(0,0,0,0.3);
 }
 
-.Leaderboard{
+.leaderboards-container {
     position: absolute;
     top: 310px;
     left: 68%;
@@ -181,6 +286,24 @@ input:focus, select:focus {
     font-size: 1.8rem;
     margin-top: 8rem;
     margin-bottom: 1rem;
+    display: flex;
+    gap: 50px;
+}
+
+.Leaderboard{
+    color: #F5F5F5;
+    text-align: center;
+    font-weight: bold;
+    font-size: 1.8rem;
+    margin-bottom: 1rem;
+}
+
+.Leaderboard .leaderboard-list-item {
+    font-size: 1rem !important;
+}
+
+.Leaderboard .leaderboard-list-item .percentage {
+    font-size: 1rem !important;
 }
 
 .betting-line {
@@ -210,33 +333,6 @@ input:focus, select:focus {
 }
 
 
-@media (max-width: 768px) {
-    .Leaderboard {
-        position: static;
-        top: auto;
-        left: auto;
-        transform: none;
-        margin: 2rem auto;
-        width: 90%;
-        max-width: 300px;
-        font-size: 1.4rem;
-    }
-    
-    .leaderboard-list-item {
-        width: 100%;
-        max-width: 250px;
-        margin: 4px auto;
-    }
-    
-    .leaderboard-title {
-        font-size: 1.3rem;
-    }
-    
-    .betting-line {
-        font-size: 0.8em;
-        padding: 2px 4px;
-    }
-}
 
 .games {
     display: inline-block;

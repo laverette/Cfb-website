@@ -8,6 +8,20 @@
   <link rel="stylesheet" href="./Resources/Styles/weeklypicks.css">
 </head>
 <body>
+  <!-- Login Button - Upper Right -->
+  <div style="position: fixed; top: 10px; right: 10px; z-index: 1000;">
+    <div id="loginButtonSection">
+      <a href="login.html" style="background-color: #3E2723; color: #F5F5F5; padding: 8px 16px; border-radius: 6px; text-decoration: none; border: 1px solid #8D6E63; font-weight: bold;">Login</a>
+    </div>
+    
+    <div id="userSection" style="display: none; background-color: #2E2E2E; padding: 10px; border-radius: 8px; border: 1px solid #8D6E63; min-width: 200px;">
+      <p style="color: #FFD700; margin: 0 0 8px 0; text-align: center; font-weight: bold;" id="userName"></p>
+      <div style="text-align: center;">
+        <button id="logoutBtn" style="background-color: #3E2723; color: #F5F5F5; border: 1px solid #8D6E63; padding: 5px 15px; border-radius: 4px; font-size: 12px;">Logout</button>
+      </div>
+    </div>
+  </div>
+
   <div class="container mt-4">
     <h1 class="title">📊 Your Prediction History</h1>
     
@@ -33,166 +47,182 @@
 
   <script>
     let allPredictions = [];
+    let currentUser = null;
 
-    // Load predictions from the repository file
-    async function loadPredictionsFile() {
+    // Check if user is logged in on page load
+    document.addEventListener('DOMContentLoaded', function() {
+      const savedUser = localStorage.getItem('currentUser');
+      if (savedUser) {
+        currentUser = JSON.parse(savedUser);
+        showUserSection();
+      } else {
+        showLoginButton();
+      }
+      loadUsersAndPredictions();
+    });
+
+    // Logout handler
+    document.getElementById('logoutBtn').addEventListener('click', function() {
+      currentUser = null;
+      localStorage.removeItem('currentUser');
+      showLoginButton();
+    });
+
+    function showUserSection() {
+      document.getElementById('loginButtonSection').style.display = 'none';
+      document.getElementById('userSection').style.display = 'block';
+      document.getElementById('userName').textContent = currentUser.username;
+    }
+
+    function showLoginButton() {
+      document.getElementById('loginButtonSection').style.display = 'block';
+      document.getElementById('userSection').style.display = 'none';
+    }
+
+    // Load users and predictions from the API
+    async function loadUsersAndPredictions() {
       try {
-        const response = await fetch('predictions.txt');
-        if (!response.ok) {
-          throw new Error('Could not load predictions file');
+        // Load users
+        const usersResponse = await fetch('http://localhost:5107/api/User');
+        if (!usersResponse.ok) {
+          throw new Error('Could not load users');
         }
-        const content = await response.text();
-        parsePredictions(content);
-        populateUserDropdown();
+        const users = await usersResponse.json();
+        
+        // Load all predictions
+        const predictionsResponse = await fetch('http://localhost:5107/api/Prediction');
+        if (!predictionsResponse.ok) {
+          throw new Error('Could not load predictions');
+        }
+        const predictions = await predictionsResponse.json();
+        
+        allPredictions = predictions;
+        populateUserDropdown(users);
       } catch (error) {
-        console.error('Error loading predictions:', error);
+        console.error('Error loading data:', error);
         document.getElementById('historyDisplay').innerHTML = `
           <div style="background-color: #2E2E2E; padding: 2rem; border-radius: 8px; text-align: center;">
-            <h3 style="color: #F5F5F5;">Could not load predictions</h3>
-            <p style="color: #F5F5F5;">Make sure predictions.txt exists in the repository.</p>
+            <h3 style="color: #F5F5F5;">Could not load data</h3>
+            <p style="color: #F5F5F5;">Make sure the API is running and accessible.</p>
           </div>
         `;
       }
     }
   
 
-    // Parse the predictions.txt content
-    function parsePredictions(content) {
-      allPredictions = [];
-      const lines = content.split('\n');
-      let currentUser = null;
-      let currentWeek = null;
-      let currentDate = null;
-      let currentPicks = {};
-
-      for (let line of lines) {
-        line = line.trim();
-        
-        if (line.startsWith('Name:')) {
-          // Save previous user if exists
-          if (currentUser) {
-            allPredictions.push({
-              name: currentUser,
-              week: currentWeek,
-              date: currentDate,
-              picks: { ...currentPicks }
-            });
-          }
-          
-          // Start new user
-          currentUser = line.replace('Name:', '').trim();
-          currentPicks = {};
-        } else if (line.startsWith('Week:')) {
-          currentWeek = parseInt(line.replace('Week:', '').trim());
-        } else if (line.startsWith('Date:')) {
-          currentDate = line.replace('Date:', '').trim();
-        } else if (line.startsWith('Game')) {
-          const gameMatch = line.match(/Game (\d+): (.+)/);
-          if (gameMatch) {
-            currentPicks[`game${gameMatch[1]}`] = gameMatch[2];
-          }
-        }
-      }
-      
-      // Don't forget the last user
-      if (currentUser) {
-        allPredictions.push({
-          name: currentUser,
-          week: currentWeek,
-          date: currentDate,
-          picks: { ...currentPicks }
-        });
-      }
+    // Get user name by ID
+    function getUserNameById(userId, users) {
+      const user = users.find(u => u.id === userId);
+      return user ? user.name : `User ${userId}`;
     }
 
     // Populate the user dropdown
-    function populateUserDropdown() {
+    function populateUserDropdown(users) {
       const dropdown = document.getElementById('userDropdown');
       
       // Clear existing options except the first one
       dropdown.innerHTML = '<option value="">Choose a person...</option>';
       
-      // Add sample users (you can edit this list)
-      const sampleUsers = ['Logan', 'Sissy', 'Blake', 'Gracie'];
-      
-      sampleUsers.forEach(user => {
-        const option = document.createElement('option');
-        option.value = user;
-        option.textContent = user;
-        dropdown.appendChild(option);
-      });
+        // Add users from API
+        users.forEach(user => {
+          const option = document.createElement('option');
+          option.value = user.id;
+          option.textContent = user.username;
+          dropdown.appendChild(option);
+        });
     }
 
     // Load user's individual history
-    function loadUserHistory() {
-      const selectedUser = document.getElementById('userDropdown').value;
-      if (!selectedUser) {
+    async function loadUserHistory() {
+      const selectedUserId = document.getElementById('userDropdown').value;
+      if (!selectedUserId) {
         alert('Please select a person from the dropdown!');
         return;
       }
 
-      const userHistory = allPredictions.filter(entry => entry.name === selectedUser);
-      
-      if (userHistory.length === 0) {
+      try {
+        // Get user details
+        const userResponse = await fetch(`http://localhost:5107/api/User/${selectedUserId}`);
+        if (!userResponse.ok) {
+          throw new Error('Could not load user details');
+        }
+        const user = await userResponse.json();
+
+        // Get user's predictions
+        const predictionsResponse = await fetch(`http://localhost:5107/api/Prediction/user/${selectedUserId}`);
+        if (!predictionsResponse.ok) {
+          throw new Error('Could not load user predictions');
+        }
+        const userHistory = await predictionsResponse.json();
+        
+        if (userHistory.length === 0) {
+          document.getElementById('historyDisplay').innerHTML = `
+            <div style="background-color: #2E2E2E; padding: 2rem; border-radius: 8px; text-align: center;">
+              <h3 style="color: #F5F5F5;">No history found for "${user.username}"</h3>
+              <p style="color: #F5F5F5;">Make sure they've submitted picks before!</p>
+            </div>
+          `;
+          return;
+        }
+
+        // Sort by week (newest first)
+        userHistory.sort((a, b) => (b.week || 0) - (a.week || 0));
+
+        let html = `
+          <div style="background-color: #2E2E2E; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+            <h2 style="color: #FFD700; text-align: center; margin: 0;">${user.username}'s Prediction History</h2>
+            <p style="color: #F5F5F5; text-align: center; margin: 5px 0;">${userHistory.length} week(s) of picks</p>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 20px;">
+        `;
+
+        userHistory.forEach(entry => {
+          html += `
+            <div style="background-color: #3E2723; padding: 20px; border-radius: 8px; border: 1px solid #8D6E63;">
+              <h3 style="color: #FFD700; margin: 0 0 15px 0; text-align: center;">Week ${entry.week || 'Unknown'}</h3>
+              <p style="color: #F5F5F5; margin: 0 0 15px 0; text-align: center; font-size: 0.9rem;">Submitted: ${new Date(entry.submittedAt).toLocaleDateString()}</p>
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
+          `;
+          
+          // Show all picks in a nice grid
+          const games = [
+            entry.game1, entry.game2, entry.game3, entry.game4, entry.game5, entry.game6,
+            entry.game7, entry.game8, entry.game9, entry.game10, entry.game11, entry.game12
+          ];
+          
+          games.forEach((game, index) => {
+            if (game && game.trim() !== '') {
+              html += `
+                <div style="background-color: #2E2E2E; padding: 8px; border-radius: 4px; border: 1px solid #8D6E63; text-align: center;">
+                  <span style="color: #FFD700; font-weight: bold;">Game ${index + 1}</span><br>
+                  <span style="color: #F5F5F5;">${game}</span>
+                </div>
+              `;
+            }
+          });
+          
+          html += `
+              </div>
+            </div>
+          `;
+        });
+
+        html += '</div>';
+        document.getElementById('historyDisplay').innerHTML = html;
+      } catch (error) {
+        console.error('Error loading user history:', error);
         document.getElementById('historyDisplay').innerHTML = `
           <div style="background-color: #2E2E2E; padding: 2rem; border-radius: 8px; text-align: center;">
-            <h3 style="color: #F5F5F5;">No history found for "${selectedUser}"</h3>
-            <p style="color: #F5F5F5;">Make sure they've submitted picks before!</p>
+            <h3 style="color: #F5F5F5;">Error loading history</h3>
+            <p style="color: #F5F5F5;">Could not load user prediction history.</p>
           </div>
         `;
-        return;
       }
-
-      // Sort by week (newest first)
-      userHistory.sort((a, b) => (b.week || 0) - (a.week || 0));
-
-      let html = `
-        <div style="background-color: #2E2E2E; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
-          <h2 style="color: #FFD700; text-align: center; margin: 0;">${selectedUser}'s Prediction History</h2>
-          <p style="color: #F5F5F5; text-align: center; margin: 5px 0;">${userHistory.length} week(s) of picks</p>
-        </div>
-        <div style="display: flex; flex-direction: column; gap: 20px;">
-      `;
-
-      userHistory.forEach(entry => {
-        html += `
-          <div style="background-color: #3E2723; padding: 20px; border-radius: 8px; border: 1px solid #8D6E63;">
-            <h3 style="color: #FFD700; margin: 0 0 15px 0; text-align: center;">Week ${entry.week || 'Unknown'}</h3>
-            <p style="color: #F5F5F5; margin: 0 0 15px 0; text-align: center; font-size: 0.9rem;">Submitted: ${entry.date || 'Unknown'}</p>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
-        `;
-        
-        // Show all picks in a nice grid
-        for (let i = 1; i <= 12; i++) {
-          const pick = entry.picks[`game${i}`];
-          if (pick) {
-            html += `
-              <div style="background-color: #2E2E2E; padding: 8px; border-radius: 4px; border: 1px solid #8D6E63; text-align: center;">
-                <span style="color: #FFD700; font-weight: bold;">Game ${i}</span><br>
-                <span style="color: #F5F5F5;">${pick}</span>
-              </div>
-            `;
-          }
-        }
-        
-        html += `
-            </div>
-          </div>
-        `;
-      });
-
-      html += '</div>';
-      document.getElementById('historyDisplay').innerHTML = html;
     }
 
     // Event Listeners
     document.getElementById('loadUserHistory').addEventListener('click', loadUserHistory);
     
-    // Load predictions when page loads
-    document.addEventListener('DOMContentLoaded', function() {
-      // For now, populate with sample users since we're not using the file
-      populateUserDropdown();
-    });
   </script>
 </body>
 </html>

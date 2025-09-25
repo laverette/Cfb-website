@@ -9,12 +9,27 @@
 </head>
 <body>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <!-- Login Button - Upper Right -->
+  <div style="position: fixed; top: 10px; right: 10px; z-index: 1000;">
+    <div id="loginButtonSection">
+      <a href="login.html" style="background-color: #3E2723; color: #F5F5F5; padding: 8px 16px; border-radius: 6px; text-decoration: none; border: 1px solid #8D6E63; font-weight: bold;">Login</a>
+    </div>
+    
+    <div id="userSection" style="display: none; background-color: #2E2E2E; padding: 10px; border-radius: 8px; border: 1px solid #8D6E63; min-width: 200px;">
+      <p style="color: #FFD700; margin: 0 0 8px 0; text-align: center; font-weight: bold;" id="userName"></p>
+      <div style="text-align: center;">
+        <button id="logoutBtn" style="background-color: #3E2723; color: #F5F5F5; border: 1px solid #8D6E63; padding: 5px 15px; border-radius: 4px; font-size: 12px;">Logout</button>
+      </div>
+    </div>
+  </div>
+
   <h1 class="title">Week 4 Picks</h1>
-  <!-- Netlify Form -->
-  <form name="predictions" method="POST" action="http://localhost:3000/submit-predictions">    
+  <!-- Prediction Form -->
+  <form name="predictions" method="POST" action="http://localhost:5107/api/Prediction/submit">    
     <p>
       <label>Your Name: 
-        <input id= "yourname" name="user" />
+        <input id="yourname" name="user" readonly />
       </label>
     </p>
     
@@ -152,56 +167,110 @@
 
 
     <script>
-document.querySelector('form[name="predictions"]').addEventListener('submit', function(e) {
-  e.preventDefault();
+    // Login/Logout functionality
+    let currentUser = null;
 
-  const form = e.target;
-  const formData = new FormData(form);
- 
-  // Build preview
-  const user = formData.get("user");
-  let html = `<h2 class="display-title">Your Predictions</h2><p class="name-display"><strong>Name:</strong> ${user}</p><ul class="list-group">`;
-  for (let i = 1; i <= 12; i++) {
-    html += `<li class="list-group-item">
-      Game ${i}: ${formData.get("game" + i)}
-    </li>`;
-  }
-  html += "</ul>";
-  document.getElementById("results").innerHTML = html;
+    // Check if user is logged in on page load
+    document.addEventListener('DOMContentLoaded', function() {
+      const savedUser = localStorage.getItem('currentUser');
+      if (savedUser) {
+        currentUser = JSON.parse(savedUser);
+        showUserSection();
+        // Auto-fill the name field
+        document.getElementById('yourname').value = currentUser.username;
+      } else {
+        showLoginButton();
+      }
+    });
 
-  // Submit to backend
-  fetch("http://localhost:3000/submit-predictions", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams(formData).toString()
-  })
-  .then(() => {
-    // Scroll after fetch completes
-    setTimeout(() => {
-      document.getElementById("results").scrollIntoView({ 
-        behavior: 'smooth',
-        block: 'start'
-      });
-    }, 100); // slight delay for smoother experience
-  })
-  .catch(err => console.error(err));
-});
+    // Logout handler
+    document.getElementById('logoutBtn').addEventListener('click', function() {
+      currentUser = null;
+      localStorage.removeItem('currentUser');
+      showLoginButton();
+      document.getElementById('yourname').value = '';
+    });
+
+    function showUserSection() {
+      document.getElementById('loginButtonSection').style.display = 'none';
+      document.getElementById('userSection').style.display = 'block';
+      document.getElementById('userName').textContent = currentUser.username;
+    }
+
+    function showLoginButton() {
+      document.getElementById('loginButtonSection').style.display = 'block';
+      document.getElementById('userSection').style.display = 'none';
+    }
+
+    // Prediction form handler
+    document.querySelector('form[name="predictions"]').addEventListener('submit', function(e) {
+      e.preventDefault();
+
+      // Check if user is logged in
+      if (!currentUser) {
+        alert('You must be logged in to submit predictions. Please login first.');
+        window.location.href = 'login.html';
+        return;
+      }
+
+      const form = e.target;
+      const formData = new FormData(form);
+     
+      // Build preview
+      const user = formData.get("user");
+      let html = `<h2 class="display-title">Your Predictions</h2><p class="name-display"><strong>Name:</strong> ${user}</p><ul class="list-group">`;
+      for (let i = 1; i <= 12; i++) {
+        html += `<li class="list-group-item">
+          Game ${i}: ${formData.get("game" + i)}
+        </li>`;
+      }
+      html += "</ul>";
+      document.getElementById("results").innerHTML = html;
+
+      // Submit to backend
+      fetch("http://localhost:5107/api/Prediction/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams(formData).toString()
+      })
+      .then(() => {
+        // Scroll after fetch completes
+        setTimeout(() => {
+          document.getElementById("results").scrollIntoView({ 
+            behavior: 'smooth',
+            block: 'start'
+          });
+        }, 100); // slight delay for smoother experience
+      })
+      .catch(err => console.error(err));
+    });
 
 </script>
 <div class="col-md-10 ps-rg-6 text-end mb-5 mt-up">
         <img width= 100% src="https://images.seattletimes.com/wp-content/uploads/2017/05/2459f782f2c946859a21920650fc2c75.jpg?d=2040x1253" alt="Image" class="img-fluid rounded shadow big-img">
       </div>
-       <div class="Leaderboard">
-          <h3 class="leaderboard-title">🏆 Leaderboard</h3>
-          <ol class="leaderboard-list">
-  
-            <li class="leaderboard-list-item">Gracie 11-1 <span class="percentage">92%</span></li>
-            <li class="leaderboard-list-item">Michaela 9-3 <span class="percentage">75%</span></li>
-            <li class="leaderboard-list-item">Katelyn 8-4 <span class="percentage">67%</span></li>
-            <li class="leaderboard-list-item">Blake 8-4 <span class="percentage">67%</span></li>
-            <li class="leaderboard-list-item">😔Logan 6-6 <span class="percentage">50%</span></li>
-            
-          </ol>
+       <div class="leaderboards-container">
+          <div class="Leaderboard last-week">
+            <h3 class="leaderboard-title">🏆 Last Week</h3>
+            <ol class="leaderboard-list">
+              <li class="leaderboard-list-item">Gracie 11-1 <span class="percentage">92%</span></li>
+              <li class="leaderboard-list-item">Michaela 9-3 <span class="percentage">75%</span></li>
+              <li class="leaderboard-list-item">Katelyn 8-4 <span class="percentage">67%</span></li>
+              <li class="leaderboard-list-item">Blake 8-4 <span class="percentage">67%</span></li>
+              <li class="leaderboard-list-item">😔Logan 6-6 <span class="percentage">50%</span></li>
+            </ol>
+          </div>
+          
+          <div class="Leaderboard all-time">
+            <h3 class="leaderboard-title">🏆 All Time</h3>
+            <ol class="leaderboard-list">
+              <li class="leaderboard-list-item">Gracie 45-12 <span class="percentage">79%</span></li>
+              <li class="leaderboard-list-item">Michaela 38-19 <span class="percentage">67%</span></li>
+              <li class="leaderboard-list-item">Katelyn 35-22 <span class="percentage">61%</span></li>
+              <li class="leaderboard-list-item">Blake 32-25 <span class="percentage">56%</span></li>
+              <li class="leaderboard-list-item">😔Logan 28-29 <span class="percentage">49%</span></li>
+            </ol>
+          </div>
         </div>
 </body>
 </html>

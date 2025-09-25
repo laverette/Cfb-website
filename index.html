@@ -8,6 +8,20 @@
     <link rel="stylesheet" href="./Resources/Styles/index.css">
 </head>
 <body>
+    <!-- Login Button - Upper Right -->
+    <div style="position: fixed; top: 10px; right: 10px; z-index: 1000;">
+      <div id="loginButtonSection">
+        <a href="login.html" style="background-color: #3E2723; color: #F5F5F5; padding: 8px 16px; border-radius: 6px; text-decoration: none; border: 1px solid #8D6E63; font-weight: bold;">Login</a>
+      </div>
+      
+      <div id="userSection" style="display: none; background-color: #2E2E2E; padding: 10px; border-radius: 8px; border: 1px solid #8D6E63; min-width: 200px;">
+        <p style="color: #FFD700; margin: 0 0 8px 0; text-align: center; font-weight: bold;" id="userName"></p>
+        <div style="text-align: center;">
+          <button id="logoutBtn" style="background-color: #3E2723; color: #F5F5F5; border: 1px solid #8D6E63; padding: 5px 15px; border-radius: 4px; font-size: 12px;">Logout</button>
+        </div>
+      </div>
+    </div>
+
     <nav class="navbar bg-gold">
         <div class="container">
             <h1 class="navbar-brand text-Black h2 mb-0 fw-bold" href="#">
@@ -68,5 +82,39 @@
         </div>
         </div>
     </main>
+
+    <script>
+      // Login/Logout functionality
+      let currentUser = null;
+
+      // Check if user is logged in on page load
+      document.addEventListener('DOMContentLoaded', function() {
+        const savedUser = localStorage.getItem('currentUser');
+        if (savedUser) {
+          currentUser = JSON.parse(savedUser);
+          showUserSection();
+        } else {
+          showLoginButton();
+        }
+      });
+
+      // Logout handler
+      document.getElementById('logoutBtn').addEventListener('click', function() {
+        currentUser = null;
+        localStorage.removeItem('currentUser');
+        showLoginButton();
+      });
+
+      function showUserSection() {
+        document.getElementById('loginButtonSection').style.display = 'none';
+        document.getElementById('userSection').style.display = 'block';
+        document.getElementById('userName').textContent = currentUser.username;
+      }
+
+      function showLoginButton() {
+        document.getElementById('loginButtonSection').style.display = 'block';
+        document.getElementById('userSection').style.display = 'none';
+      }
+    </script>
 </body>
 </html>
