@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: cfb-api
+    env: dotnet
+    buildCommand: cd Client/api && dotnet publish -c Release
+    startCommand: cd Client/api && dotnet run
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ConnectionStrings__DefaultConnection
+        value: Data Source=./predictions.db
+
+  - type: static
+    name: cfb-frontend
+    buildCommand: echo "Static site - no build needed"
+    staticPublishPath: ./Client

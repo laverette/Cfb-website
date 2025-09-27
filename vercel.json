@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "api/submit-picks.js": {
+      "maxDuration": 10
+    }
+  }
+}

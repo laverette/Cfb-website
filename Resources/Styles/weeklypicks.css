@@ -85,21 +85,111 @@ input:focus, select:focus {
 }
 
 @media (max-width: 768px) {
+    /* Header improvements */
+    .title {
+        font-size: 2rem;
+        margin-bottom: 1rem;
+        padding: 0 1rem;
+    }
+    
+    /* Login button positioning - fixed at top right */
+    .login-button {
+        position: fixed;
+        top: 15px;
+        right: 15px;
+        z-index: 1000;
+        padding: 8px 16px;
+        font-size: 0.9rem;
+    }
+    
+    /* Image positioning - fixed at top left of login button */
     .mt-up {
         position: fixed;
-        top: 10px;
-        left: 10px;
-        width: 60px;
-        height: 60px;
+        top: 15px;
+        right: 120px; /* Position to the left of login button */
+        width: 50px;
+        height: 50px;
         z-index: 999;
     }
     
     .mt-up .big-img {
-        width: 60px;
-        height: 60px;
+        width: 50px;
+        height: 50px;
         object-fit: cover;
         border-radius: 50%;
         border: 2px solid #FFD700;
+    }
+    
+    /* Remove title padding since image is no longer relative to it */
+    .title {
+        position: relative;
+        padding-right: 0;
+    }
+    
+    /* Form improvements */
+    form {
+        padding: 0 1rem;
+        margin-bottom: 2rem;
+    }
+    
+    form p {
+        margin-bottom: 1.5rem;
+    }
+    
+    form label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: bold;
+        color: #F5F5F5;
+    }
+    
+    form input[type="text"], 
+    form select {
+        width: 100%;
+        padding: 12px;
+        font-size: 1rem;
+        border-radius: 8px;
+        border: 2px solid #8D6E63;
+        background-color: #3E2723;
+        color: #F5F5F5;
+        box-sizing: border-box;
+    }
+    
+    form input[type="text"]:focus, 
+    form select:focus {
+        outline: none;
+        border-color: #FFD700;
+        box-shadow: 0 0 8px rgba(255, 215, 0, 0.3);
+    }
+    
+    .betting-line {
+        font-size: 0.9rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .games {
+        font-size: 1rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    /* Submit button */
+    input[type="submit"] {
+        width: 100%;
+        padding: 15px;
+        font-size: 1.1rem;
+        font-weight: bold;
+        background: linear-gradient(135deg, #FFD700, #FFA000);
+        color: #1E1E1E;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        margin-top: 1rem;
+    }
+    
+    input[type="submit"]:hover {
+        background: linear-gradient(135deg, #FFA000, #FFD700);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(255, 215, 0, 0.3);
     }
     
     .leaderboards-container {
@@ -109,11 +199,11 @@ input:focus, select:focus {
         transform: none;
         margin: 2rem auto;
         width: 90%;
-        max-width: 300px;
+        max-width: 320px;
         font-size: 1.4rem;
         display: flex;
         flex-direction: column;
-        gap: 15px;
+        gap: 20px;
     }
     
     .Leaderboard {
@@ -124,16 +214,81 @@ input:focus, select:focus {
     .leaderboard-list-item {
         width: 100%;
         max-width: 280px;
-        margin: 4px auto;
+        margin: 6px auto; /* Center the items */
+        padding: 12px 16px;
+        font-size: 1rem;
     }
     
     .leaderboard-title {
         font-size: 1.3rem;
+        margin-bottom: 1rem;
+        text-align: center;
+    }
+    
+    .leaderboard-list {
+        padding: 0;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center; /* Center all list items */
     }
     
     .betting-line {
         font-size: 0.8em;
         padding: 2px 4px;
+    }
+    
+    /* General mobile improvements */
+    body {
+        padding: 0;
+        margin: 0;
+        overflow-x: hidden;
+    }
+    
+    .container {
+        padding: 0 1rem;
+        max-width: 100%;
+    }
+    
+    /* Better spacing for game sections */
+    .game-section {
+        margin-bottom: 1.5rem;
+        padding: 1rem;
+        background: rgba(62, 39, 35, 0.3);
+        border-radius: 8px;
+        border: 1px solid #8D6E63;
+    }
+    
+    /* Results section */
+    #results {
+        margin: 2rem 1rem;
+        padding: 1rem;
+        background: rgba(62, 39, 35, 0.5);
+        border-radius: 8px;
+        border: 1px solid #FFD700;
+    }
+    
+    #results .display-title {
+        color: #FFD700;
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+        text-align: center;
+    }
+    
+    #results .name-display {
+        color: #F5F5F5;
+        font-size: 1.1rem;
+        margin-bottom: 1rem;
+        text-align: center;
+    }
+    
+    #results .list-group-item {
+        background: rgba(62, 39, 35, 0.7);
+        color: #F5F5F5;
+        border: 1px solid #8D6E63;
+        margin-bottom: 0.5rem;
+        padding: 0.75rem;
+        border-radius: 4px;
     }
     
     /* Mobile game layout improvements */
@@ -275,19 +430,17 @@ input:focus, select:focus {
 }
 
 .leaderboards-container {
-    position: absolute;
-    top: 310px;
-    left: 68%;
-    transform: translateX(-50%);
-    z-index: 10;
+    position: static;
+    margin: 3rem auto;
     color: #F5F5F5;
     text-align: center;
     font-weight: bold;
     font-size: 1.8rem;
-    margin-top: 8rem;
-    margin-bottom: 1rem;
     display: flex;
     gap: 50px;
+    justify-content: center;
+    max-width: 1200px;
+    padding: 0 2rem;
 }
 
 .Leaderboard{

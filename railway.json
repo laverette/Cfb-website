@@ -1,0 +1,10 @@
+{
+  "build": {
+    "builder": "NIXPACKS"
+  },
+  "deploy": {
+    "startCommand": "cd Client/api && dotnet run",
+    "healthcheckPath": "/api/weatherforecast",
+    "healthcheckTimeout": 100
+  }
+}

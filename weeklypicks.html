@@ -24,12 +24,12 @@
     </div>
   </div>
 
-  <h1 class="title">Week 4 Picks</h1>
+  <h1 class="title">Week 5 Picks</h1>
   <!-- Prediction Form -->
   <form name="predictions" method="POST" netlify>    
     <p>
       <label>Your Name: 
-        <input id="yourname" name="user" readonly />
+        <input id="yourname" name="user" type="text" required />
       </label>
     </p>
     
@@ -176,8 +176,7 @@
       if (savedUser) {
         currentUser = JSON.parse(savedUser);
         showUserSection();
-        // Auto-fill the name field
-        document.getElementById('yourname').value = currentUser.username;
+        // Name field is now user-editable
       } else {
         showLoginButton();
       }
@@ -188,7 +187,7 @@
       currentUser = null;
       localStorage.removeItem('currentUser');
       showLoginButton();
-      document.getElementById('yourname').value = '';
+      // Name field remains user-editable
     });
 
     function showUserSection() {
@@ -206,12 +205,7 @@
     document.querySelector('form[name="predictions"]').addEventListener('submit', function(e) {
       e.preventDefault();
 
-      // Check if user is logged in
-      if (!currentUser) {
-        alert('You must be logged in to submit predictions. Please login first.');
-        window.location.href = 'login.html';
-        return;
-      }
+      // No login required for Netlify Forms
 
       const form = e.target;
       const formData = new FormData(form);
@@ -252,28 +246,30 @@
 <div class="col-md-10 ps-rg-6 text-end mb-5 mt-up">
         <img width= 100% src="https://images.seattletimes.com/wp-content/uploads/2017/05/2459f782f2c946859a21920650fc2c75.jpg?d=2040x1253" alt="Image" class="img-fluid rounded shadow big-img">
       </div>
-       <div class="leaderboards-container">
-          <div class="Leaderboard last-week">
-            <h3 class="leaderboard-title">🏆 Last Week</h3>
-            <ol class="leaderboard-list">
-              <li class="leaderboard-list-item">Gracie 11-1 <span class="percentage">92%</span></li>
-              <li class="leaderboard-list-item">Michaela 9-3 <span class="percentage">75%</span></li>
-              <li class="leaderboard-list-item">Katelyn 8-4 <span class="percentage">67%</span></li>
-              <li class="leaderboard-list-item">Blake 8-4 <span class="percentage">67%</span></li>
-              <li class="leaderboard-list-item">😔Logan 6-6 <span class="percentage">50%</span></li>
-            </ol>
-          </div>
+       
           
-          <div class="Leaderboard all-time">
-            <h3 class="leaderboard-title">🏆 All Time</h3>
-            <ol class="leaderboard-list">
-              <li class="leaderboard-list-item">Gracie 25-11 <span class="percentage">70%</span></li>
-              <li class="leaderboard-list-item">Blake 24-12 <span class="percentage">67%</span></li>
-              <li class="leaderboard-list-item">Logan 20-16 <span class="percentage">56%</span></li>
-              <li class="leaderboard-list-item">Michaela 19-5 <span class="percentage">79%</span></li>
-              <li class="leaderboard-list-item">Katelyn 16-8 <span class="percentage">67%</span></li>
-            </ol>
-          </div>
-        </div>
+          
 </body>
+<div class="leaderboards-container">
+  <div class="Leaderboard last-week">
+    <h3 class="leaderboard-title">🏆 Last Week</h3>
+    <ol class="leaderboard-list">
+      <li class="leaderboard-list-item">Gracie 11-1 <span class="percentage">92%</span></li>
+      <li class="leaderboard-list-item">Michaela 9-3 <span class="percentage">75%</span></li>
+      <li class="leaderboard-list-item">Katelyn 8-4 <span class="percentage">67%</span></li>
+      <li class="leaderboard-list-item">Blake 8-4 <span class="percentage">67%</span></li>
+      <li class="leaderboard-list-item">😔Logan 6-6 <span class="percentage">50%</span></li>
+    </ol>
+  </div>
+  <div class="Leaderboard all-time">
+    <h3 class="leaderboard-title">🏆 All Time</h3>
+    <ol class="leaderboard-list">
+      <li class="leaderboard-list-item">Gracie 25-11 <span class="percentage">70%</span></li>
+      <li class="leaderboard-list-item">Blake 24-12 <span class="percentage">67%</span></li>
+      <li class="leaderboard-list-item">Logan 20-16 <span class="percentage">56%</span></li>
+      <li class="leaderboard-list-item">Michaela 19-5 <span class="percentage">79%</span></li>
+      <li class="leaderboard-list-item">Katelyn 16-8 <span class="percentage">67%</span></li>
+    </ol>
+  </div>
+</div>
 </html>
