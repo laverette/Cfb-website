@@ -172,9 +172,21 @@ input:focus, select:focus {
         margin-bottom: 0.5rem;
     }
     
-    /* Submit button */
-    input[type="submit"] {
+    /* Navigation buttons container */
+    form p:last-of-type {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 15px;
+        margin-top: 2rem;
+        padding: 0;
+    }
+    
+    /* Submit button - Gold (Primary Action) */
+    input[type="submit"], 
+    #submit {
         width: 100%;
+        max-width: 280px;
         padding: 15px;
         font-size: 1.1rem;
         font-weight: bold;
@@ -183,13 +195,47 @@ input:focus, select:focus {
         border: none;
         border-radius: 8px;
         cursor: pointer;
-        margin-top: 1rem;
+        margin: 0 auto;
+        text-decoration: none;
+        display: block;
+        text-align: center;
+        transition: all 0.3s ease;
+        box-sizing: border-box;
     }
     
-    input[type="submit"]:hover {
+    /* Submit button hover */
+    input[type="submit"]:hover, 
+    #submit:hover {
         background: linear-gradient(135deg, #FFA000, #FFD700);
         transform: translateY(-2px);
         box-shadow: 0 4px 8px rgba(255, 215, 0, 0.3);
+    }
+    
+    /* Navigation links - Original brown styling */
+    form p:last-of-type a {
+        width: 100%;
+        max-width: 280px;
+        padding: 15px;
+        font-size: 1.1rem;
+        font-weight: bold;
+        background-color: #3E2723;
+        color: #F5F5F5;
+        border: 1px solid #8D6E63;
+        border-radius: 8px;
+        text-decoration: none;
+        display: block;
+        text-align: center;
+        margin: 0 auto;
+        transition: all 0.3s ease;
+        box-sizing: border-box;
+    }
+    
+    /* Navigation links hover */
+    form p:last-of-type a:hover {
+        background-color: #4E342E;
+        border-color: #FFD700;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(255, 215, 0, 0.2);
     }
     
     .leaderboards-container {
@@ -469,7 +515,7 @@ input:focus, select:focus {
     display: inline-block;
     margin: 0 3px;
     box-shadow: 0 1px 3px rgba(255, 215, 0, 0.3);
-    border: 1px solid #FFA000;
+    border: none;
     transition: all 0.3s ease;
 }
 
@@ -478,12 +524,7 @@ input:focus, select:focus {
     box-shadow: 0 2px 6px rgba(255, 215, 0, 0.5);
 }
 
-.betting-line {
-    background: linear-gradient(135deg, #8D6E63, #5D4037);
-    color: #F5F5F5;
-    border: 1px solid #5D4037;
-    box-shadow: 0 1px 3px rgba(141, 110, 99, 0.3);
-}
+/* Removed duplicate betting-line style that was causing brown line */
 
 
 
