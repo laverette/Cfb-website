@@ -32,3 +32,5 @@ namespace MyApp.Namespace.Models
         public DateTime SubmittedAt { get; set; } = DateTime.UtcNow;
     }
 }
+
+
