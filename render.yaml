@@ -14,3 +14,5 @@ services:
     name: cfb-frontend
     buildCommand: echo "Static site - no build needed"
     staticPublishPath: ./Client
+
+
