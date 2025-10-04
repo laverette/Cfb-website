@@ -654,14 +654,14 @@ input:focus, select:focus {
     letter-spacing: 0.5px;
 }
 
-.prediction-choice.bama, .prediction-choice.uga, .prediction-choice.oreg, 
-.prediction-choice.psu, .prediction-choice.lsu, .prediction-choice.ole,
-.prediction-choice.osu, .prediction-choice.uw, .prediction-choice.aub,
-.prediction-choice.a&m, .prediction-choice.indy, .prediction-choice.iowa,
-.prediction-choice.ut, .prediction-choice.missst, .prediction-choice.illi,
-.prediction-choice.usc, .prediction-choice.nd, .prediction-choice.ark,
-.prediction-choice.scar, .prediction-choice.uk, .prediction-choice.byu,
-.prediction-choice.colo, .prediction-choice.az, .prediction-choice.isu {
+.prediction-choice.bama, .prediction-choice.vandy, .prediction-choice.clem, 
+.prediction-choice.nc, .prediction-choice.uk, .prediction-choice.uga,
+.prediction-choice.mia, .prediction-choice.fsu, .prediction-choice.msst,
+.prediction-choice.a&m, .prediction-choice.ttu, .prediction-choice.hou,
+.prediction-choice.ut, .prediction-choice.flor, .prediction-choice.isu,
+.prediction-choice.cin, .prediction-choice.uva, .prediction-choice.lou,
+.prediction-choice.uw, .prediction-choice.md, .prediction-choice.tcu,
+.prediction-choice.colo, .prediction-choice.illi, .prediction-choice.pur {
     background: linear-gradient(135deg, #FFD700, #FFA000);
     color: #1E1E1E;
     box-shadow: 0 2px 4px rgba(255, 215, 0, 0.3);
