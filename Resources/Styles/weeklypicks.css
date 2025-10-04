@@ -853,4 +853,78 @@ input:focus, select:focus {
         margin-top: 1rem;
         padding-top: 0.75rem;
     }
+    
+    /* Mobile screenshot optimization - better layout for image capture */
+    .prediction-results-container {
+        max-width: 100%;
+        padding: 1rem;
+    }
+    
+    .predictions-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .prediction-card {
+        padding: 0.75rem;
+        margin-bottom: 0;
+    }
+    
+    .game-info {
+        margin-bottom: 0.75rem;
+    }
+    
+    .game-number {
+        font-size: 0.8rem;
+        padding: 1px 6px;
+    }
+    
+    .game-matchup {
+        font-size: 0.9rem;
+        line-height: 1.2;
+    }
+    
+    .prediction-result {
+        padding: 0.4rem;
+    }
+    
+    .prediction-choice {
+        font-size: 1rem;
+        padding: 3px 8px;
+    }
+    
+    .prediction-status {
+        font-size: 1.2rem;
+        width: 28px;
+        height: 28px;
+    }
+    
+    .summary-stats {
+        flex-direction: row;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+    }
+    
+    .stat-item {
+        flex: 1;
+        padding: 0.4rem;
+        background: rgba(255, 215, 0, 0.1);
+        border-radius: 6px;
+    }
+    
+    .stat-number {
+        font-size: 1.2rem;
+        margin-bottom: 0.1rem;
+    }
+    
+    .stat-label {
+        font-size: 0.7rem;
+    }
+    
+    .prediction-title {
+        font-size: 1.5rem;
+        margin-bottom: 0.75rem;
+    }
 }
