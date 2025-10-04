@@ -157,7 +157,7 @@
     <p>
       <button id="submit" type="submit">Submit Predictions</button>
       <a href="prediction-history.html" style="background-color: #3E2723; color: #F5F5F5; padding: 6px 10px; border-radius: 6px; text-decoration: none; border: 1px solid #8D6E63; display: inline-block; font-weight: bold; font-size: 14px; margin-left: 10px; margin-right: 10px;">View Individual History</a>
-      <a href="index.html" style="background-color: #3E2723; color: #F5F5F5; padding: 6px 10px; border-radius: 6px; text-decoration: none; border: 1px solid #8D6E63; display: inline-block; font-weight: bold; font-size: 14px; margin-left: 10px;">Back to Main Site</a> 
+      <a href="index.html" style="background-color: #3E2723; color: #F5F5F5; padding: 6px 10px; border-radius: 6px; text-decoration: none; border: 1px solid #8D6E63; display: inline-block; font-weight: bold; font-size: 14px; margin-left: 10px; margin-right: 10px;">Back to Main Site</a> 
       
     </p>
   </form>
@@ -331,15 +331,41 @@
     function captureScreenshot() {
       const resultsContainer = document.getElementById('results');
       
-      html2canvas(resultsContainer, {
+      // Create a temporary container with only the content we want to screenshot
+      const tempContainer = document.createElement('div');
+      tempContainer.style.position = 'absolute';
+      tempContainer.style.left = '-9999px';
+      tempContainer.style.top = '-9999px';
+      tempContainer.style.width = resultsContainer.offsetWidth + 'px';
+      tempContainer.style.backgroundColor = '#1E1E1E';
+      tempContainer.style.padding = '2rem';
+      tempContainer.style.borderRadius = '15px';
+      tempContainer.style.border = '2px solid #FFD700';
+      
+      // Clone the content we want (exclude success messages and screenshot button)
+      const predictionContainer = resultsContainer.querySelector('.prediction-results-container');
+      if (predictionContainer) {
+        const clone = predictionContainer.cloneNode(true);
+        
+        // Remove the prediction footer (success messages and screenshot button)
+        const footer = clone.querySelector('.prediction-footer');
+        if (footer) {
+          footer.remove();
+        }
+        
+        tempContainer.appendChild(clone);
+        document.body.appendChild(tempContainer);
+      }
+      
+      html2canvas(tempContainer, {
         backgroundColor: '#1E1E1E',
         scale: 2, // Higher quality
         useCORS: true,
         allowTaint: true,
         scrollX: 0,
         scrollY: 0,
-        width: resultsContainer.scrollWidth,
-        height: resultsContainer.scrollHeight
+        width: tempContainer.scrollWidth,
+        height: tempContainer.scrollHeight
       }).then(canvas => {
         // Check if Web Share API is supported (mobile)
         if (navigator.share && navigator.canShare) {
@@ -371,6 +397,11 @@
       }).catch(err => {
         console.error('Screenshot failed:', err);
         alert('Screenshot failed. Please try again.');
+      }).finally(() => {
+        // Clean up temporary container
+        if (tempContainer && tempContainer.parentNode) {
+          tempContainer.parentNode.removeChild(tempContainer);
+        }
       });
     }
 
