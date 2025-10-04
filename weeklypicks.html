@@ -24,7 +24,7 @@
     </div>
   </div>
 
-  <h1 class="title">Week 5 Picks</h1>
+  <h1 class="title">Week 6 Picks</h1>
   <!-- Prediction Form -->
   <form name="predictions" method="POST" netlify>    
     <p>
@@ -212,14 +212,85 @@
      
       // Build preview
       const user = formData.get("user");
-      let html = `<h2 class="display-title">Your Predictions</h2><p class="name-display"><strong>Name:</strong> ${user}</p><ul class="list-group">`;
+      let html = `
+        <div class="prediction-results-container">
+          <div class="prediction-header">
+            <h2 class="prediction-title">🏆 ${user}'s Week 6 Predictions</h2>
+          </div>
+          <div class="predictions-grid">
+      `;
+      
       for (let i = 1; i <= 12; i++) {
-        html += `<li class="list-group-item">
-          Game ${i}: ${formData.get("game" + i)}
-        </li>`;
+        const gameData = [
+          "17 Alabama at 5 Georgia",
+          "6 Oregon at 3 Penn State", 
+          "4 LSU at 13 Ole Miss",
+          "1 Ohio State at Washington",
+          "Auburn at 9 Texas A&M",
+          "11 Indiana at Iowa",
+          "15 Tennessee at Mississippi State",
+          "21 USC at 23 Illinois",
+          "22 Notre Dame at Arkansas",
+          "Kentucky at South Carolina",
+          "BYU at Colorado",
+          "Arizona at 14 Iowa State"
+        ];
+        
+        const prediction = formData.get("game" + i);
+        
+        html += `
+          <div class="prediction-card">
+            <div class="game-info">
+              <span class="game-number">Game ${i}</span>
+              <span class="game-matchup">${gameData[i-1]}</span>
+            </div>
+            <div class="prediction-result">
+              <span class="prediction-choice ${prediction.toLowerCase()}">${prediction}</span>
+              <span class="prediction-status pending">
+                ?
+              </span>
+            </div>
+          </div>
+        `;
       }
-      html += "</ul>";
+      
+      html += `
+          </div>
+          <div class="prediction-summary">
+          <div class="summary-stats">
+            <div class="stat-item">
+              <span class="stat-number">12</span>
+              <span class="stat-label">Total Picks</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-number">-</span>
+              <span class="stat-label">Correct</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-number">-</span>
+              <span class="stat-label">Accuracy</span>
+            </div>
+          </div>
+            <div class="prediction-footer">
+              <p class="success-message">✅ Predictions submitted successfully!</p>
+              <p class="next-steps">Check back after the games to see how you did!</p>
+              <div class="screenshot-section">
+                <button id="screenshotBtn" class="screenshot-button">
+                  📸 Take Screenshot
+                </button>
+                <p class="screenshot-note">Share your predictions!</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+      
       document.getElementById("results").innerHTML = html;
+
+      // Add screenshot functionality
+      document.getElementById('screenshotBtn').addEventListener('click', function() {
+        takeScreenshot();
+      });
 
       // Submit to Netlify Forms
       fetch("/", {
@@ -241,6 +312,63 @@
       })
       .catch(err => console.error(err));
     });
+
+    // Screenshot functionality
+    function takeScreenshot() {
+      const resultsContainer = document.getElementById('results');
+      
+      // Check if html2canvas is available (we'll add it via CDN)
+      if (typeof html2canvas === 'undefined') {
+        // Load html2canvas library
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+        script.onload = function() {
+          captureScreenshot();
+        };
+        document.head.appendChild(script);
+      } else {
+        captureScreenshot();
+      }
+    }
+
+    function captureScreenshot() {
+      const resultsContainer = document.getElementById('results');
+      
+      html2canvas(resultsContainer, {
+        backgroundColor: '#1E1E1E',
+        scale: 2, // Higher quality
+        useCORS: true,
+        allowTaint: true,
+        scrollX: 0,
+        scrollY: 0,
+        width: resultsContainer.scrollWidth,
+        height: resultsContainer.scrollHeight
+      }).then(canvas => {
+        // Create download link
+        const link = document.createElement('a');
+        link.download = `week6-predictions-${new Date().toISOString().split('T')[0]}.png`;
+        link.href = canvas.toDataURL();
+        
+        // Trigger download
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // Show success message
+        const btn = document.getElementById('screenshotBtn');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '✅ Downloaded!';
+        btn.style.backgroundColor = '#4CAF50';
+        
+        setTimeout(() => {
+          btn.innerHTML = originalText;
+          btn.style.backgroundColor = '';
+        }, 2000);
+      }).catch(err => {
+        console.error('Screenshot failed:', err);
+        alert('Screenshot failed. Please try again.');
+      });
+    }
 
 </script>
 <div class="col-md-10 ps-rg-6 text-end mb-5 mt-up">

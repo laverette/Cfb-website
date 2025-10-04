@@ -10,9 +10,9 @@ namespace MyApp.Namespace.Controllers
     [ApiController]
     public class UserController : ControllerBase
     {
-        private readonly DatabaseService _databaseService;
+        private readonly SupabaseDatabaseService _databaseService;
 
-        public UserController(DatabaseService databaseService)
+        public UserController(SupabaseDatabaseService databaseService)
         {
             _databaseService = databaseService;
         }
@@ -36,7 +36,7 @@ namespace MyApp.Namespace.Controllers
 
         // GET: api/User/5
         [HttpGet("{id}")]
-        public async Task<ActionResult<User>> GetUser(int id)
+        public async Task<ActionResult<User>> GetUser(Guid id)
         {
             try
             {

@@ -6,8 +6,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddCors(options => { options.AddPolicy("OpenPolicy", builder => { builder.AllowAnyOrigin() .AllowAnyMethod() .AllowAnyHeader(); }); });
 
-// Register database service
-builder.Services.AddScoped<DatabaseService>();
+// Register Supabase database service
+builder.Services.AddScoped<SupabaseDatabaseService>();
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();

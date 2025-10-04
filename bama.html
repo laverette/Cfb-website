@@ -184,13 +184,78 @@ document.querySelector('form[name="predictions"]').addEventListener('submit', fu
 
   // ✅ 1. Build preview
   const user = formData.get("user");
-  let html = `<h2 class="title">Your Predictions</h2><p><strong>Name:</strong> ${user}</p><ul class="list-group">`;
+  let html = `
+    <div class="prediction-results-container">
+      <div class="prediction-header">
+        <h2 class="prediction-title">🏈 Your Alabama Predictions</h2>
+        <p class="prediction-subtitle">Submitted by: <strong>${user}</strong></p>
+      </div>
+      <div class="predictions-grid">
+  `;
+  
+  const gameData = [
+    "Alabama at Florida State",
+    "Alabama vs LA-Monroe", 
+    "Alabama vs Wisconsin",
+    "Alabama at Georgia",
+    "Alabama vs Vanderbilt",
+    "Alabama at Missouri",
+    "Alabama vs Tennessee",
+    "Alabama at South Carolina",
+    "Alabama vs LSU",
+    "Alabama vs Oklahoma",
+    "Alabama vs Eastern Illinois",
+    "Alabama at Auburn"
+  ];
+  
   for (let i = 1; i <= 12; i++) {
-    html += `<li class="list-group-item">
-      Game ${i}: ${formData.get("game" + i)} - Score: ${formData.get("score" + i)}
-    </li>`;
+    const prediction = formData.get("game" + i);
+    const score = formData.get("score" + i);
+    
+    html += `
+      <div class="prediction-card">
+        <div class="game-info">
+          <span class="game-number">Game ${i}</span>
+          <span class="game-matchup">${gameData[i-1]}</span>
+        </div>
+        <div class="prediction-result">
+          <div class="prediction-details">
+            <span class="prediction-choice ${prediction.toLowerCase()}">${prediction}</span>
+            <span class="prediction-score">${score || 'TBD'}</span>
+          </div>
+          <span class="prediction-status pending">
+            ?
+          </span>
+        </div>
+      </div>
+    `;
   }
-  html += "</ul>";
+  
+  html += `
+      </div>
+      <div class="prediction-summary">
+        <div class="summary-stats">
+          <div class="stat-item">
+            <span class="stat-number">12</span>
+            <span class="stat-label">Total Games</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-number">-</span>
+            <span class="stat-label">Predicted Wins</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-number">-</span>
+            <span class="stat-label">Win Rate</span>
+          </div>
+        </div>
+        <div class="prediction-footer">
+          <p class="success-message">✅ Alabama predictions submitted successfully!</p>
+          <p class="next-steps">Roll Tide! Check back after the season to see how you did!</p>
+        </div>
+      </div>
+    </div>
+  `;
+  
   document.getElementById("results").innerHTML = html;
 
   // ✅ 2. Send data to Netlify in background

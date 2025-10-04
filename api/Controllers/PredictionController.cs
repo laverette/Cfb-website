@@ -8,9 +8,9 @@ namespace MyApp.Namespace.Controllers
     [ApiController]
     public class PredictionController : ControllerBase
     {
-        private readonly DatabaseService _databaseService;
+        private readonly SupabaseDatabaseService _databaseService;
 
-        public PredictionController(DatabaseService databaseService)
+        public PredictionController(SupabaseDatabaseService databaseService)
         {
             _databaseService = databaseService;
         }
@@ -32,7 +32,7 @@ namespace MyApp.Namespace.Controllers
 
         // GET: api/Prediction/user/5
         [HttpGet("user/{userId}")]
-        public async Task<ActionResult<IEnumerable<Prediction>>> GetPredictionsByUser(int userId)
+        public async Task<ActionResult<IEnumerable<Prediction>>> GetPredictionsByUser(Guid userId)
         {
             try
             {
@@ -51,7 +51,7 @@ namespace MyApp.Namespace.Controllers
         {
             try
             {
-                if (request.UserId <= 0)
+                if (request.UserId == Guid.Empty)
                 {
                     return BadRequest("Valid UserId is required");
                 }
@@ -167,7 +167,7 @@ namespace MyApp.Namespace.Controllers
 
     public class CreatePredictionRequest
     {
-        public int UserId { get; set; }
+        public Guid UserId { get; set; }
         public int Week { get; set; }
         public string? Game1 { get; set; }
         public string? Score1 { get; set; }
