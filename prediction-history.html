@@ -55,42 +55,83 @@
       if (savedUser) {
         currentUser = JSON.parse(savedUser);
         showUserSection();
-      } else {
-        showLoginButton();
       }
       loadUsersAndPredictions();
+    });
+
+    // Login form handler
+    document.getElementById('loginForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      const email = document.getElementById('loginEmail').value;
+      const password = document.getElementById('loginPassword').value;
+      
+      try {
+        const response = await fetch('http://localhost:5000/api/User/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ email, password })
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+          currentUser = result;
+          localStorage.setItem('currentUser', JSON.stringify(currentUser));
+          showUserSection();
+          showMessage('Login successful!', 'success');
+        } else {
+          showMessage(result.message || 'Login failed', 'error');
+        }
+      } catch (error) {
+        console.error('Login error:', error);
+        showMessage('Network error. Please try again.', 'error');
+      }
     });
 
     // Logout handler
     document.getElementById('logoutBtn').addEventListener('click', function() {
       currentUser = null;
       localStorage.removeItem('currentUser');
-      showLoginButton();
+      showLoginSection();
+      showMessage('Logged out successfully', 'success');
     });
 
     function showUserSection() {
-      document.getElementById('loginButtonSection').style.display = 'none';
+      document.getElementById('loginSection').style.display = 'none';
       document.getElementById('userSection').style.display = 'block';
-      document.getElementById('userName').textContent = currentUser.username;
+      document.getElementById('userName').textContent = currentUser.name;
     }
 
-    function showLoginButton() {
-      document.getElementById('loginButtonSection').style.display = 'block';
+    function showLoginSection() {
+      document.getElementById('loginSection').style.display = 'block';
       document.getElementById('userSection').style.display = 'none';
+    }
+
+    function showMessage(message, type) {
+      const messageDiv = document.getElementById('loginMessage');
+      messageDiv.textContent = message;
+      messageDiv.style.color = type === 'success' ? '#4CAF50' : '#f44336';
+      
+      setTimeout(() => {
+        messageDiv.textContent = '';
+      }, 3000);
     }
 
     // Load users and predictions from the API
     async function loadUsersAndPredictions() {
       try {
         // Load users
-        const usersResponse = await fetch('http://localhost:5107/api/User');
+        const usersResponse = await fetch('http://localhost:5000/api/User');
         if (!usersResponse.ok) {
           throw new Error('Could not load users');
         }
         const users = await usersResponse.json();
         
         // Load all predictions
-        const predictionsResponse = await fetch('http://localhost:5107/api/Prediction');
+        const predictionsResponse = await fetch('http://localhost:5000/api/Prediction');
         if (!predictionsResponse.ok) {
           throw new Error('Could not load predictions');
         }
@@ -123,13 +164,13 @@
       // Clear existing options except the first one
       dropdown.innerHTML = '<option value="">Choose a person...</option>';
       
-        // Add users from API
-        users.forEach(user => {
-          const option = document.createElement('option');
-          option.value = user.id;
-          option.textContent = user.username;
-          dropdown.appendChild(option);
-        });
+      // Add users from API
+      users.forEach(user => {
+        const option = document.createElement('option');
+        option.value = user.id;
+        option.textContent = user.name;
+        dropdown.appendChild(option);
+      });
     }
 
     // Load user's individual history
@@ -142,14 +183,14 @@
 
       try {
         // Get user details
-        const userResponse = await fetch(`http://localhost:5107/api/User/${selectedUserId}`);
+        const userResponse = await fetch(`http://localhost:5000/api/User/${selectedUserId}`);
         if (!userResponse.ok) {
           throw new Error('Could not load user details');
         }
         const user = await userResponse.json();
 
         // Get user's predictions
-        const predictionsResponse = await fetch(`http://localhost:5107/api/Prediction/user/${selectedUserId}`);
+        const predictionsResponse = await fetch(`http://localhost:5000/api/Prediction/user/${selectedUserId}`);
         if (!predictionsResponse.ok) {
           throw new Error('Could not load user predictions');
         }
@@ -158,7 +199,7 @@
         if (userHistory.length === 0) {
           document.getElementById('historyDisplay').innerHTML = `
             <div style="background-color: #2E2E2E; padding: 2rem; border-radius: 8px; text-align: center;">
-              <h3 style="color: #F5F5F5;">No history found for "${user.username}"</h3>
+              <h3 style="color: #F5F5F5;">No history found for "${user.name}"</h3>
               <p style="color: #F5F5F5;">Make sure they've submitted picks before!</p>
             </div>
           `;
@@ -170,7 +211,7 @@
 
         let html = `
           <div style="background-color: #2E2E2E; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
-            <h2 style="color: #FFD700; text-align: center; margin: 0;">${user.username}'s Prediction History</h2>
+            <h2 style="color: #FFD700; text-align: center; margin: 0;">${user.name}'s Prediction History</h2>
             <p style="color: #F5F5F5; text-align: center; margin: 5px 0;">${userHistory.length} week(s) of picks</p>
           </div>
           <div style="display: flex; flex-direction: column; gap: 20px;">

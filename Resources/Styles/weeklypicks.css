@@ -945,3 +945,173 @@ input:focus, select:focus {
         margin-bottom: 0.5rem;
     }
 }
+
+/* WEEK 6 Analysis Section Styles */
+.analysis-container {
+    background: linear-gradient(135deg, #2E2E2E, #1E1E1E);
+    border: 2px solid #FFD700;
+    border-radius: 15px;
+    padding: 2rem;
+    margin: 3rem auto;
+    max-width: 1000px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+    position: relative;
+    overflow: hidden;
+}
+
+.analysis-container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #FFD700, #FFA000, #FFD700);
+}
+
+.analysis-title {
+    color: #FFD700;
+    font-size: 2.2rem;
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 2rem;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.analysis-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+.analysis-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.stat-highlight {
+    background: linear-gradient(135deg, #3E2723, #4E342E);
+    border: 1px solid #8D6E63;
+    border-radius: 12px;
+    padding: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.stat-highlight:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.4);
+    border-color: #FFD700;
+}
+
+.stat-icon {
+    font-size: 2rem;
+    flex-shrink: 0;
+}
+
+.stat-text {
+    color: #F5F5F5;
+    font-weight: 600;
+    font-size: 1.1rem;
+    line-height: 1.4;
+}
+
+.analysis-insights {
+    background: linear-gradient(135deg, #1E1E1E, #2E2E2E);
+    border: 1px solid #8D6E63;
+    border-radius: 12px;
+    padding: 1.5rem;
+}
+
+.insights-title {
+    color: #FFD700;
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin-bottom: 1rem;
+    text-align: center;
+}
+
+.insights-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.insights-list li {
+    color: #F5F5F5;
+    font-size: 1rem;
+    line-height: 1.6;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid rgba(255, 215, 0, 0.2);
+    position: relative;
+    padding-left: 2rem;
+}
+
+.insights-list li:last-child {
+    border-bottom: none;
+}
+
+.insights-list li::before {
+    content: '💡';
+    position: absolute;
+    left: 0;
+    top: 0.75rem;
+    font-size: 1.2rem;
+}
+
+/* Mobile responsiveness for analysis section */
+@media (max-width: 768px) {
+    .analysis-container {
+        margin: 2rem 1rem;
+        padding: 1.5rem;
+    }
+    
+    .analysis-title {
+        font-size: 1.8rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .analysis-stats {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    .stat-highlight {
+        padding: 1rem;
+        flex-direction: column;
+        text-align: center;
+        gap: 0.5rem;
+    }
+    
+    .stat-icon {
+        font-size: 1.5rem;
+    }
+    
+    .stat-text {
+        font-size: 1rem;
+    }
+    
+    .analysis-insights {
+        padding: 1rem;
+    }
+    
+    .insights-title {
+        font-size: 1.3rem;
+    }
+    
+    .insights-list li {
+        font-size: 0.9rem;
+        padding: 0.5rem 0;
+        padding-left: 1.5rem;
+    }
+    
+    .insights-list li::before {
+        font-size: 1rem;
+        top: 0.5rem;
+    }
+}

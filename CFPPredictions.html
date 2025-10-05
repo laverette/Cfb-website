@@ -140,73 +140,13 @@ document.querySelector('form[name="predictions"]').addEventListener('submit', fu
 
   // ✅ 1. Build preview
   const user = formData.get("user");
-  let html = `
-    <div class="prediction-results-container">
-      <div class="prediction-header">
-        <h2 class="prediction-title">🏆 Your CFP Predictions</h2>
-        <p class="prediction-subtitle">Submitted by: <strong>${user}</strong></p>
-      </div>
-      <div class="predictions-grid">
-  `;
-  
-  const gameData = [
-    "ULM at Alabama",
-    "Michigan at Oklahoma", 
-    "Iowa at Iowa State",
-    "Oklahoma State at Oregon",
-    "Arizona State at Mississippi State",
-    "Vanderbilt at Virginia Tech",
-    "Ole Miss at Kentucky",
-    "Baylor at SMU",
-    "Troy @ Clemson",
-    "Illinois at Duke",
-    "USF at Florida",
-    "Stanford at BYU"
-  ];
-  
+  let html = `<h2 class="display-title">Your Predictions</h2><p class="name-display"><strong>Name:</strong> ${user}</p><ul class="list-group">`;
   for (let i = 1; i <= 12; i++) {
-    const prediction = formData.get("game" + i);
-    
-    html += `
-      <div class="prediction-card">
-        <div class="game-info">
-          <span class="game-number">Game ${i}</span>
-          <span class="game-matchup">${gameData[i-1]}</span>
-        </div>
-        <div class="prediction-result">
-          <span class="prediction-choice ${prediction.toLowerCase()}">${prediction}</span>
-          <span class="prediction-status pending">
-            ?
-          </span>
-        </div>
-      </div>
-    `;
+    html += `<li class="list-group-item">
+      Game ${i}: ${formData.get("game" + i)}
+    </li>`;
   }
-  
-  html += `
-      </div>
-      <div class="prediction-summary">
-        <div class="summary-stats">
-          <div class="stat-item">
-            <span class="stat-number">12</span>
-            <span class="stat-label">Total Picks</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-number">-</span>
-            <span class="stat-label">Correct</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-number">-</span>
-            <span class="stat-label">Accuracy</span>
-          </div>
-        </div>
-        <div class="prediction-footer">
-          <p class="success-message">✅ CFP predictions submitted successfully!</p>
-          <p class="next-steps">Check back after the games to see how you did!</p>
-        </div>
-      </div>
-    </div>
-  `;
+  html += "</ul>";
 </script>
 });
 

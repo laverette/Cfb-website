@@ -82,39 +82,5 @@
         </div>
         </div>
     </main>
-
-    <script>
-      // Login/Logout functionality
-      let currentUser = null;
-
-      // Check if user is logged in on page load
-      document.addEventListener('DOMContentLoaded', function() {
-        const savedUser = localStorage.getItem('currentUser');
-        if (savedUser) {
-          currentUser = JSON.parse(savedUser);
-          showUserSection();
-        } else {
-          showLoginButton();
-        }
-      });
-
-      // Logout handler
-      document.getElementById('logoutBtn').addEventListener('click', function() {
-        currentUser = null;
-        localStorage.removeItem('currentUser');
-        showLoginButton();
-      });
-
-      function showUserSection() {
-        document.getElementById('loginButtonSection').style.display = 'none';
-        document.getElementById('userSection').style.display = 'block';
-        document.getElementById('userName').textContent = currentUser.username;
-      }
-
-      function showLoginButton() {
-        document.getElementById('loginButtonSection').style.display = 'block';
-        document.getElementById('userSection').style.display = 'none';
-      }
-    </script>
 </body>
 </html>
