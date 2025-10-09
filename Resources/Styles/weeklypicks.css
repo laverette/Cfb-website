@@ -1497,13 +1497,14 @@ input:focus, select:focus {
         margin-top: 0;
         border-radius: 20px;
         position: relative;
-        z-index: 1;
+        z-index: 10;
         max-width: 300px;
         display: flex;
         align-items: center;
         justify-content: center;
         text-align: center;
         line-height: 1.2;
+        pointer-events: auto;
     }
     
     .week7-layout {
