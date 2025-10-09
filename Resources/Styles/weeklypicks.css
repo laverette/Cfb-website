@@ -145,6 +145,11 @@ input:focus, select:focus {
         margin-bottom: 1.5rem;
     }
     
+    /* Add extra margin to name field on mobile */
+    form p:first-of-type {
+        margin-bottom: 2rem;
+    }
+    
     form label {
         display: block;
         margin-bottom: 0.5rem;
@@ -1463,6 +1468,9 @@ input:focus, select:focus {
         display: block;
         margin: 20px auto;
         text-align: center;
+        clear: both;
+        position: relative;
+        z-index: 5;
     }
     
     /* Hide only the image in the mobile coach corso section */
