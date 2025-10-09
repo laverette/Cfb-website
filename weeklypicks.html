@@ -11,7 +11,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
   <!-- Login Button - Upper Right -->
-  <div style="position: fixed; top: 10px; right: 10px; z-index: 1000;">
+  <div style="position: fixed; top: 10px; right: 10px; z-index: 1000; display: none;">
     <div id="loginButtonSection">
       <a href="login.html" style="background-color: #3E2723; color: #F5F5F5; padding: 8px 16px; border-radius: 6px; text-decoration: none; border: 1px solid #8D6E63; font-weight: bold;">Login</a>
     </div>
@@ -24,144 +24,279 @@
     </div>
   </div>
 
-  <h1 class="title">Week 6 Picks</h1>
-  <!-- Prediction Form -->
-  <form name="predictions" method="POST" netlify>    
-    <p>
-      <label>Your Name: 
-        <input id="yourname" name="user" type="text" required />
-      </label>
-    </p>
+  <!-- Tab Navigation -->
+  <div class="tab-container">
+    <div class="tab-header">
+      <button class="tab-button active" onclick="openTab(event, 'week7-picks')">Week 7 Picks</button>
+      <button class="tab-button" onclick="openTab(event, 'week6-results')">Week 6 Results</button>
+    </div>
+  </div>
+
+  <!-- Week 7 Picks Tab -->
+  <div id="week7-picks" class="tab-content active">
+    <div class="title-section">
+      <h1 class="title">Week 7 Picks</h1>
+      <!-- Mobile Coach Corso Image (appears next to title) -->
+      <div class="mobile-title-image">
+        <img width="100%" height="auto" src="https://images.seattletimes.com/wp-content/uploads/2017/05/2459f782f2c946859a21920650fc2c75.jpg?d=2040x1253" alt="Image" class="img-fluid rounded shadow big-img" style="max-height: 300px; object-fit: cover;">
+      </div>
+    </div>
     
-    
-    <p>
-      <label><span class="games">Game 1:</span> 16 Vanderbilt at 10 Alabama
-        <span class="betting-line">-11.5</span>
-        <select name="game1">
-          <option value="BAMA">BAMA</option>
-          <option value="VANDY">VANDY</option>
-        </select>
-      </label>
-    </p>
+    <div class="week7-layout">
+      <div class="form-section">
+        <!-- Prediction Form -->
+        <form name="predictions" method="POST" netlify>    
+          <p>
+            <label>Your Name: 
+              <input id="yourname" name="user" type="text" required />
+            </label>
+          </p>
+          
+          <!-- Mobile Coach Corso Button (appears after name field) -->
+          <div class="mobile-coach-corso">
+            <div class="image-section">
+              <img width="100%" height="auto" src="https://images.seattletimes.com/wp-content/uploads/2017/05/2459f782f2c946859a21920650fc2c75.jpg?d=2040x1253" alt="Image" class="img-fluid rounded shadow big-img" style="max-height: 300px; object-fit: cover;">
+              <button class="coach-corso-btn" onclick="scrollToCoachCorso()">Need Help? Ask Coach Corso!</button>
+            </div>
+          </div>
+          
+          <p>
+            <label><span class="games">Game 1:</span> <span class="game-text">8 Alabama at 14 Missouri</span>
+              <span class="betting-line">+3.5</span>
+              <select name="game1">
+                <option value="BAMA">BAMA</option>
+                <option value="MIZZ">MIZZ</option>
+              </select>
+            </label>
+          </p>
 
-    <p>
-      <label><span class="games">Game 2:</span> Clemson at North Carolina
-        <span class="betting-line">+14.5</span>
-        <select name="game2">
-          <option value="CLEM">CLEM</option>
-          <option value="NC">NC</option>
-        </select>
-      </label>
-    </p>
+          <p>
+            <label><span class="games">Game 2:</span> 1 Ohio State at 17 Illinois
+              <span class="betting-line">+14.5</span>
+              <select name="game2">
+                <option value="OSU">OSU</option>
+                <option value="ILLI">ILLI</option>
+              </select>
+            </label>
+          </p>
 
-    <p>
-      <label><span class="games">Game 3:</span> Kentucky at 12 Georgia 
-        <span class="betting-line">-19.5</span>
-        <select name="game3">
-          <option value="UK">UK</option>
-          <option value="UGA">UGA</option>
-        </select>
-      </label>
-    </p>
+          <p>
+            <label><span class="games">Game 3:</span> 6 Oklahoma at Texas
+              <span class="betting-line">+1.5</span>
+              <select name="game3">
+                <option value="OKLA">OKLA</option>
+                <option value="TEX">TEX</option>
+              </select>
+            </label>
+          </p>
 
-    <p>
-      <label><span class="games">Game 4:</span> 3 Miami at 18 Florida State 
-        <span class="betting-line">+4.5</span>
-        <select name="game4">
-          <option value="MIA">MIA</option>
-          <option value="FSU">FSU</option>
-        </select>
-      </label>
-    </p>
+          <p>
+            <label><span class="games">Game 4:</span> 7 Indiana at 3 Oregon 
+              <span class="betting-line">-7.5</span>
+              <select name="game4">
+                <option value="IND">IND</option>
+                <option value="ORE">ORE</option>
+              </select>
+            </label>
+          </p>
 
-    <p>
-      <label><span class="games">Game 5:</span> Mississippi State at 16 Texas A&M
-        <span class="betting-line">-16.5</span>
-        <select name="game5">
-          <option value="MSST">MSST</option>
-          <option value="A&M">A&M</option>
-        </select>
-      </label>
-    </p>
+          <p>
+            <label><span class="games">Game 5:</span> Florida at 5 Texas A&M
+              <span class="betting-line">-7.5</span>
+              <select name="game5">
+                <option value="FLOR">FLOR</option>
+                <option value="A&M">A&M</option>
+              </select>
+            </label>
+          </p>
 
-    <p>
-      <label><span class="games">Game 6:</span> 11 Texas Tech at Houston
-        <span class="betting-line">+11.5</span>
-        <select name="game6">
-          <option value="TTU">TTU</option>
-          <option value="HOU">HOU</option>
-        </select>
-      </label>
-    </p>
+          <p>
+            <label><span class="games">Game 6:</span> Arkansas at 12 Tennessee
+              <span class="betting-line">-11.5</span>
+              <select name="game6">
+                <option value="ARK">ARK</option>
+                <option value="TENN">TENN</option>
+              </select>
+            </label>
+          </p>
 
-    <p>
-    <label><span class="games">Game 7:</span> 9 Texas at Florida
-        <span class="betting-line">+5.5</span>
-        <select name="game7">
-          <option value="UT">UT</option>
-          <option value="FLOR">FLOR</option>
-        </select>
-      </label>
-    </p>
+          <p>
+          <label><span class="games">Game 7:</span> 10 Georgia at Auburn
+              <span class="betting-line">+3.5</span>
+              <select name="game7">
+                <option value="UGA">UGA</option>
+                <option value="AUB">AUB</option>
+              </select>
+            </label>
+          </p>
 
-    <p>
-      <label><span class="games">Game 8:</span> 14 Iowa State at Cincinnati
-        <span class="betting-line">-1.5</span>
-        <select name="game8">
-          <option value="ISU">ISU</option>
-          <option value="CIN">CIN</option>
-        </select>
-      </label>
-    </p>
+          <p>
+            <label><span class="games">Game 8:</span> 15 Michigan at USC
+              <span class="betting-line">-2.5</span>
+              <select name="game8">
+                <option value="MICH">MICH</option>
+                <option value="USC">USC</option>
+              </select>
+            </label>
+          </p>
 
-    <p>
-      <label><span class="games">Game 9:</span> 24 Virginia at Louisville
-        <span class="betting-line">-6.5</span>
-        <select name="game9">
-          <option value="UVA">UVA</option>
-          <option value="LOU">LOU</option>
-        </select>
-      </label>
-    </p>
+          <p>
+            <label><span class="games">Game 9:</span> South Carolina at 11 LSU
+              <span class="betting-line">-9.5</span>
+              <select name="game9">
+                <option value="SCAR">SCAR</option>
+                <option value="LSU">LSU</option>
+              </select>
+            </label>
+          </p>
 
-    <p>
-      <label><span class="games">Game 10:</span> Washington at Maryland
-        <span class="betting-line">+5.5</span>
-        <select name="game10">
-          <option value="UW">UW</option>
-          <option value="MD">MD</option>
-        </select>
-      </label>
-    </p>
+          <p>
+            <label><span class="games">Game 10:</span> 21 Arizona State at Utah
+              <span class="betting-line">-5.5</span>
+              <select name="game10">
+                <option value="AZST">AZST</option>
+                <option value="UTAH">UTAH</option>
+              </select>
+            </label>
+          </p>
 
-    <p>
-      <label><span class="games">Game 11:</span> Colorado at TCU
-        <span class="betting-line">-13.5</span>
-        <select name="game11">
-          <option value="TCU">TCU</option>
-          <option value="COLO">COLO</option>
-        </select>
-      </label>
-    </p>
+          <p>
+            <label><span class="games">Game 11:</span> Pitt at 25 Florida State
+              <span class="betting-line">-10.5</span>
+              <select name="game11">
+                <option value="PITT">PITT</option>
+                <option value="FSU">FSU</option>
+              </select>
+            </label>
+          </p>
 
-    <p>
-      <label><span class="games">Game 12:</span> 22 Illinois at Purdue
-        <span class="betting-line">+8.5</span>
-        <select name="game12">
-          <option value="ILLI">ILLI</option>
-          <option value="PUR">PUR</option>
-        </select>
-      </label>
-    </p>
+          <p>
+            <label><span class="games">Game 12:</span> 18 BYU at Arizona
+              <span class="betting-line">+1.5</span>
+              <select name="game12">
+                <option value="BYU">BYU</option>
+                <option value="AZ">AZ</option>
+              </select>
+            </label>
+          </p>
 
-    <p>
-      <button id="submit" type="submit">Submit Predictions</button>
-      <a href="prediction-history.html" style="background-color: #3E2723; color: #F5F5F5; padding: 6px 10px; border-radius: 6px; text-decoration: none; border: 1px solid #8D6E63; display: inline-block; font-weight: bold; font-size: 14px; margin-left: 10px; margin-right: 10px;">View Individual History</a>
-      <a href="index.html" style="background-color: #3E2723; color: #F5F5F5; padding: 6px 10px; border-radius: 6px; text-decoration: none; border: 1px solid #8D6E63; display: inline-block; font-weight: bold; font-size: 14px; margin-left: 10px; margin-right: 10px;">Back to Main Site</a> 
+          <p>
+            <button id="submit" type="submit">Submit Predictions</button>
+            <a href="prediction-history.html" style="background-color: #3E2723; color: #F5F5F5; padding: 6px 10px; border-radius: 6px; text-decoration: none; border: 1px solid #8D6E63; display: inline-block; font-weight: bold; font-size: 14px; margin-left: 10px; margin-right: 10px;">View Individual History</a>
+            <a href="index.html" style="background-color: #3E2723; color: #F5F5F5; padding: 6px 10px; border-radius: 6px; text-decoration: none; border: 1px solid #8D6E63; display: inline-block; font-weight: bold; font-size: 14px; margin-left: 10px; margin-right: 10px;">Back to Main Site</a> 
+            
+          </p>
+        </form>
+        <div id="results"></div>
+      </div>
       
-    </p>
-  </form>
-  <div id="results"></div>
+      <div class="image-section">
+        <img width="100%" height="auto" src="https://images.seattletimes.com/wp-content/uploads/2017/05/2459f782f2c946859a21920650fc2c75.jpg?d=2040x1253" alt="Image" class="img-fluid rounded shadow big-img" style="max-height: 300px; object-fit: cover;">
+        <button class="coach-corso-btn" onclick="scrollToCoachCorso()">Need Help? Ask Coach Corso!</button>
+      </div>
+    </div>
+    
+    <!-- Coach Corso Says Section -->
+    <div id="coach-corso-section" class="coach-corso-container">
+      <h2 class="coach-corso-title">🏈 Coach Corso Says...</h2>
+      <div class="coach-corso-content">
+          <div class="corso-tip">
+            <span class="tip-icon">🏃‍♂️</span>
+            <span class="tip-text">Alabama faces Missouri's explosive rushing attack - keep your eyes on #29 and #3!</span>
+          </div>
+          <div class="corso-tip">
+            <span class="tip-icon">🤕</span>
+            <span class="tip-text">The Red River Shootout is a toss-up with John Mateer returning from thumb surgery, is he healthy?</span>
+          </div>
+          <div class="corso-tip">
+            <span class="tip-icon">👻</span>
+            <span class="tip-text">Georgia vs Auburn: Kirby Smart travels to the haunted plains and voodoo at Jordan-Hare!</span>
+          </div>
+          <div class="corso-tip">
+            <span class="tip-icon">🏍️</span>
+            <span class="tip-text">Bobby Petrino is back as Arkansas HC - stay on the lookout for motorcycles!</span>
+          </div>
+          <div class="corso-tip">
+            <span class="tip-icon">💼</span>
+            <span class="tip-text">Will Florida revive their season or will Billy Napier be fired?</span>
+          </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Week 6 Results Tab -->
+  <div id="week6-results" class="tab-content">
+    <h1 class="title">Week 6 Results</h1>
+    
+    <div class="leaderboards-container">
+      <div class="Leaderboard last-week">
+        <h3 class="leaderboard-title">🏆 Last Week</h3>
+        <ol class="leaderboard-list">
+          <li class="leaderboard-list-item">Logan 11-1 <span class="percentage">92%</span></li>
+          <li class="leaderboard-list-item">Michaela 10-2 <span class="percentage">83%</span></li>
+          <li class="leaderboard-list-item">Katelyn 9-3 <span class="percentage">75%</span></li>
+          <li class="leaderboard-list-item">Gracie 9-3 <span class="percentage">75%</span></li>
+          <li class="leaderboard-list-item">Allie 8-4 <span class="percentage">67%</span></li>
+          <li class="leaderboard-list-item">Blake 8-4 <span class="percentage">67%</span></li>
+          <li class="leaderboard-list-item">😔Chase 7-5 <span class="percentage">58%</span></li>
+        </ol>
+      </div>
+      <div class="Leaderboard all-time">
+        <h3 class="leaderboard-title">🏆 All Time</h3>
+        <ol class="leaderboard-list">
+          <li class="leaderboard-list-item">Michaela 39-9 <span class="percentage">81.25%</span></li>
+          <li class="leaderboard-list-item">Blake 42-18 <span class="percentage">70%</span></li>
+          <li class="leaderboard-list-item">Gracie 41-19 <span class="percentage">68.33%</span></li>
+          <li class="leaderboard-list-item">Logan 40-20 <span class="percentage">66.67%</span></li>
+          <li class="leaderboard-list-item">Katelyn 32-16 <span class="percentage">66.67%</span></li>
+          <li class="leaderboard-list-item">Allie 8-4 <span class="percentage">66.67%</span></li>
+          <li class="leaderboard-list-item">Chase 15-9 <span class="percentage">62.5%</span></li>
+        </ol>
+      </div>
+    </div>
+
+    <!-- WEEK 6 Analysis Section -->
+    <div class="analysis-container">
+      <h3 class="analysis-title">📊 WEEK 6 Analysis</h3>
+      <div class="analysis-content">
+        <div class="analysis-stats">
+          <div class="stat-highlight">
+            <span class="stat-icon">🎯</span>
+            <span class="stat-text">Katelyn and Logan are the only users to correctly pick Florida to upset Texas</span>
+          </div>
+          <div class="stat-highlight">
+            <span class="stat-icon">🔥</span>
+            <span class="stat-text">100% consensus on Alabama Beating Vanderbilt</span>
+          </div>
+          <div class="stat-highlight">
+            <span class="stat-icon">🏆</span>
+            <span class="stat-text">Michaela's dominance: Is 10-2 for the 3rd week this season</span>
+          </div>
+          <div class="stat-highlight">
+            <span class="stat-icon">📈</span>
+            <span class="stat-text">All users combined this week went 62-22 (73.8%)</span>
+          </div>
+          <div class="stat-highlight">
+            <span class="stat-icon">❌</span>
+            <span class="stat-text">I didn't even bother putting Penn State in this week because I thought they had an easy win. (Wrong)</span>
+          </div>
+          <div class="stat-highlight">
+            <span class="stat-icon">🏆</span>
+            <span class="stat-text">Blake the only user to correctly pick Cincinnati to beat Iowa State</span>
+          </div>
+        </div>
+        
+        <div class="analysis-insights">
+          <h4 class="insights-title">🔑 Keys for Next Week</h4>
+          <ul class="insights-list">
+            <li>Alabama will play against the best running back in CFB, Ahmad Hardy</li>
+            <li>Oklahoma QB (John Mateer) coming back from thumb surgery against Texas</li>
+            <li>More to come...</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
   
 
 
@@ -215,25 +350,25 @@
       let html = `
         <div class="prediction-results-container">
           <div class="prediction-header">
-            <h2 class="prediction-title">🏆 ${user}'s Week 6 Predictions</h2>
+            <h2 class="prediction-title">🏆 ${user}'s Week 7 Predictions</h2>
           </div>
           <div class="predictions-grid">
       `;
       
       for (let i = 1; i <= 12; i++) {
         const gameData = [
-          "16 Vanderbilt at 10 Alabama",
-          "Clemson at North Carolina", 
-          "Kentucky at 12 Georgia",
-          "3 Miami at 18 Florida State",
-          "Mississippi State at 16 Texas A&M",
-          "11 Texas Tech at Houston",
-          "9 Texas at Florida",
-          "14 Iowa State at Cincinnati",
-          "24 Virginia at Louisville",
-          "Washington at Maryland",
-          "Colorado at TCU",
-          "22 Illinois at Purdue"
+          "8 Alabama at 14 Missouri",
+          "1 Ohio State at 17 Illinois",
+          "6 Oklahoma at Texas",
+          "7 Indiana at 3 Oregon",
+          "Florida at 5 Texas A&M",
+          "Arkansas at 12 Tennessee",
+          "10 Georgia at Auburn",
+          "15 Michigan at USC",
+          "South Carolina at 11 LSU",
+          "21 Arizona State at Utah",
+          "Pittsburgh at 25 Florida State",
+          "18 BYU at Arizona"
         ];
         
         const prediction = formData.get("game" + i);
@@ -370,7 +505,7 @@
         // Check if Web Share API is supported (mobile)
         if (navigator.share && navigator.canShare) {
           canvas.toBlob(function(blob) {
-            const file = new File([blob], `week6-predictions-${new Date().toISOString().split('T')[0]}.png`, { 
+            const file = new File([blob], `week7-predictions-${new Date().toISOString().split('T')[0]}.png`, { 
               type: 'image/png' 
             });
             
@@ -378,7 +513,7 @@
             if (navigator.canShare({ files: [file] })) {
               navigator.share({
                 files: [file],
-                title: 'My Week 6 Predictions',
+                title: 'My Week 7 Predictions',
                 text: 'Check out my college football predictions!'
               }).then(() => {
                 showSuccessMessage('Shared! Check your share options to save to photos.');
@@ -408,7 +543,7 @@
     function fallbackDownload(canvas) {
       // Create download link for desktop/fallback
       const link = document.createElement('a');
-      link.download = `week6-predictions-${new Date().toISOString().split('T')[0]}.png`;
+      link.download = `week7-predictions-${new Date().toISOString().split('T')[0]}.png`;
       link.href = canvas.toDataURL();
       
       // Trigger download
@@ -431,80 +566,35 @@
       }, 3000);
     }
 
-</script>
-<div class="col-md-10 ps-rg-6 text-end mb-5 mt-up">
-        <img width= 100% src="https://images.seattletimes.com/wp-content/uploads/2017/05/2459f782f2c946859a21920650fc2c75.jpg?d=2040x1253" alt="Image" class="img-fluid rounded shadow big-img">
-      </div>
-       
-          
-          
-</body>
-<div class="leaderboards-container">
-  <div class="Leaderboard last-week">
-    <h3 class="leaderboard-title">🏆 Last Week</h3>
-    <ol class="leaderboard-list">
-      <li class="leaderboard-list-item">Logan 11-1 <span class="percentage">92%</span></li>
-      <li class="leaderboard-list-item">Michaela 10-2 <span class="percentage">83%</span></li>
-      <li class="leaderboard-list-item">Katelyn 9-3 <span class="percentage">75%</span></li>
-      <li class="leaderboard-list-item">Gracie 9-3 <span class="percentage">75%</span></li>
-      <li class="leaderboard-list-item">Allie 8-4 <span class="percentage">67%</span></li>
-      <li class="leaderboard-list-item">Blake 8-4 <span class="percentage">67%</span></li>
-      <li class="leaderboard-list-item">😔Chase 7-5 <span class="percentage">58%</span></li>
-    </ol>
-  </div>
-  <div class="Leaderboard all-time">
-    <h3 class="leaderboard-title">🏆 All Time</h3>
-    <ol class="leaderboard-list">
-      <li class="leaderboard-list-item">Michaela 39-9 <span class="percentage">81.25%</span></li>
-      <li class="leaderboard-list-item">Blake 42-18 <span class="percentage">70%</span></li>
-      <li class="leaderboard-list-item">Gracie 41-19 <span class="percentage">68.33%</span></li>
-      <li class="leaderboard-list-item">Logan 40-20 <span class="percentage">66.67%</span></li>
-      <li class="leaderboard-list-item">Katelyn 32-16 <span class="percentage">66.67%</span></li>
-      <li class="leaderboard-list-item">Allie 8-4 <span class="percentage">66.67%</span></li>
-      <li class="leaderboard-list-item">Chase 15-9 <span class="percentage">62.5%</span></li>
-    </ol>
-  </div>
-</div>
+    // Tab functionality
+    function openTab(evt, tabName) {
+      var i, tabcontent, tablinks;
+      
+      // Hide all tab content
+      tabcontent = document.getElementsByClassName("tab-content");
+      for (i = 0; i < tabcontent.length; i++) {
+        tabcontent[i].classList.remove("active");
+      }
+      
+      // Remove active class from all tab buttons
+      tablinks = document.getElementsByClassName("tab-button");
+      for (i = 0; i < tablinks.length; i++) {
+        tablinks[i].classList.remove("active");
+      }
+      
+      // Show the selected tab content and mark the button as active
+      document.getElementById(tabName).classList.add("active");
+      evt.currentTarget.classList.add("active");
+    }
 
-<!-- WEEK 6 Analysis Section -->
-<div class="analysis-container">
-  <h3 class="analysis-title">📊 WEEK 6 Analysis</h3>
-  <div class="analysis-content">
-    <div class="analysis-stats">
-      <div class="stat-highlight">
-        <span class="stat-icon">🎯</span>
-        <span class="stat-text">Katelyn and Logan are the only users to correctly pick Florida to upset Texas</span>
-      </div>
-      <div class="stat-highlight">
-        <span class="stat-icon">🔥</span>
-        <span class="stat-text">100% consensus on Alabama Beating Vanderbilt</span>
-      </div>
-      <div class="stat-highlight">
-        <span class="stat-icon">🏆</span>
-        <span class="stat-text">Michaela's dominance: Is 10-2 for the 3rd week this season</span>
-      </div>
-      <div class="stat-highlight">
-        <span class="stat-icon">📈</span>
-        <span class="stat-text">All users combined this week went 62-22 (73.8%)</span>
-      </div>
-      <div class="stat-highlight">
-        <span class="stat-icon">❌</span>
-        <span class="stat-text">I didn't even bother putting Penn State in this week because I thought they had an easy win. (Wrong)</span>
-      </div>
-      <div class="stat-highlight">
-        <span class="stat-icon">🏆</span>
-        <span class="stat-text">Blake the only user to correctly pick Cincinnati to beat Iowa State</span>
-      </div>
-    </div>
-    
-    <div class="analysis-insights">
-      <h4 class="insights-title">🔑 Keys for Next Week</h4>
-      <ul class="insights-list">
-        <li>Alabama will play against the best running back in CFB, Ahmad Hardy</li>
-        <li>Oklahoma likely doesn't have their starting QB vs Texas</li>
-        <li>More to come...</li>
-      </ul>
-    </div>
-  </div>
-</div>
+    // Coach Corso scroll functionality
+    function scrollToCoachCorso() {
+      document.getElementById('coach-corso-section').scrollIntoView({ 
+        behavior: 'smooth',
+        block: 'start'
+      });
+    }
+
+</script>
+</body>
 </html>
