@@ -160,7 +160,7 @@ input:focus, select:focus {
     form input[type="text"], 
     form select {
         width: 100%;
-        padding: 12px;
+        padding: 8px 12px;
         font-size: 1rem;
         border-radius: 8px;
         border: 2px solid #3E2723;
@@ -1466,7 +1466,7 @@ input:focus, select:focus {
     /* Show the mobile coach corso button but hide the image */
     .mobile-coach-corso {
         display: block;
-        margin: 20px auto;
+        margin: 10px auto;
         text-align: center;
         clear: both;
         position: relative;
