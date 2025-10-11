@@ -46,19 +46,19 @@
       <div class="form-section">
         <!-- Prediction Form -->
         <form name="predictions" method="POST" netlify>    
-          <p>
-            <label>Your Name: 
-              <input id="yourname" name="user" type="text" required />
-            </label>
-          </p>
-          
-          <!-- Mobile Coach Corso Button (appears after name field) -->
+          <!-- Mobile Coach Corso Button (appears before name field) -->
           <div class="mobile-coach-corso">
             <div class="image-section">
               <img width="100%" height="auto" src="https://images.seattletimes.com/wp-content/uploads/2017/05/2459f782f2c946859a21920650fc2c75.jpg?d=2040x1253" alt="Image" class="img-fluid rounded shadow big-img" style="max-height: 300px; object-fit: cover;">
               <button class="coach-corso-btn" onclick="scrollToCoachCorso()">Need Help? Ask Coach Corso!</button>
             </div>
           </div>
+          
+          <p>
+            <label>Your Name: 
+              <input id="yourname" name="user" type="text" required />
+            </label>
+          </p>
           
           <p>
             <label><span class="games">Game 1:</span> <span class="game-text">8 Alabama at 14 Missouri</span>
