@@ -46,22 +46,22 @@
       <div class="form-section">
         <!-- Prediction Form -->
         <form name="predictions" method="POST" netlify>    
-          <!-- Mobile Coach Corso Button (appears before name field) -->
-          <div class="mobile-coach-corso">
-            <div class="image-section">
-              <img width="100%" height="auto" src="https://images.seattletimes.com/wp-content/uploads/2017/05/2459f782f2c946859a21920650fc2c75.jpg?d=2040x1253" alt="Image" class="img-fluid rounded shadow big-img" style="max-height: 300px; object-fit: cover;">
-              <button class="coach-corso-btn" onclick="scrollToCoachCorso()">Need Help? Ask Coach Corso!</button>
-            </div>
-          </div>
-          
           <p>
             <label>Your Name: 
               <input id="yourname" name="user" type="text" required />
             </label>
           </p>
           
+          <!-- Mobile Coach Corso Button (appears after name field, before Game 1) -->
+          <div class="mobile-coach-corso">
+            <div class="image-section">
+              <img width="100%" height="auto" src="https://images.seattletimes.com/wp-content/uploads/2017/05/2459f782f2c946859a21920650fc2c75.jpg?d=2040x1253" alt="Image" class="img-fluid rounded shadow big-img" style="max-height: 300px; object-fit: cover;">
+              <button type="button" class="coach-corso-btn" onclick="scrollToCoachCorso(event)">Need Help? Ask Coach Corso!</button>
+            </div>
+          </div>
+          
           <p>
-            <label><span class="games">Game 1:</span> <span class="game-text">8 Alabama at 14 Missouri</span>
+            <label><span class="games">Game 1:</span> 8 Alabama at 14 Missouri
               <span class="betting-line">+3.5</span>
               <select name="game1">
                 <option value="BAMA">BAMA</option>
@@ -192,7 +192,7 @@
       
       <div class="image-section">
         <img width="100%" height="auto" src="https://images.seattletimes.com/wp-content/uploads/2017/05/2459f782f2c946859a21920650fc2c75.jpg?d=2040x1253" alt="Image" class="img-fluid rounded shadow big-img" style="max-height: 300px; object-fit: cover;">
-        <button class="coach-corso-btn" onclick="scrollToCoachCorso()">Need Help? Ask Coach Corso!</button>
+        <button type="button" class="coach-corso-btn" onclick="scrollToCoachCorso(event)">Need Help? Ask Coach Corso!</button>
       </div>
     </div>
     
@@ -592,7 +592,11 @@
     }
 
     // Coach Corso scroll functionality
-    function scrollToCoachCorso() {
+    function scrollToCoachCorso(event) {
+      if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
       document.getElementById('coach-corso-section').scrollIntoView({ 
         behavior: 'smooth',
         block: 'start'

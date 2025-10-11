@@ -17,10 +17,6 @@ body{
 
 
 
-.text-white {
-    color: #f5deb3; /* Crimson color */
-    font-weight: bold;
-}
 
 option {
     background-color: #444444;
@@ -86,12 +82,6 @@ input:focus, select:focus {
     margin-right: 10px;
 }
 
-.mt-up {
-    position: absolute;
-    top: 50px;
-    right: 120px;
-    z-index: -1; /* behind other content */
-}
 
 @media (max-width: 768px) {
     /* Header improvements */
@@ -111,29 +101,7 @@ input:focus, select:focus {
         font-size: 0.9rem;
     }
     
-    /* Image positioning - fixed at top left of login button */
-    .mt-up {
-        position: fixed;
-        top: 15px;
-        right: 120px; /* Position to the left of login button */
-        width: 50px;
-        height: 50px;
-        z-index: 999;
-    }
     
-    .mt-up .big-img {
-        width: 50px;
-        height: 50px;
-        object-fit: cover;
-        border-radius: 50%;
-        border: 2px solid #FFD700;
-    }
-    
-    /* Remove title padding since image is no longer relative to it */
-    .title {
-        position: relative;
-        padding-right: 0;
-    }
     
     /* Form improvements */
     form {
@@ -304,63 +272,10 @@ input:focus, select:focus {
         padding: 2px 4px;
     }
     
-    /* General mobile improvements */
-    body {
-        padding: 0;
-        margin: 0;
-        overflow-x: hidden;
-    }
     
-    .container {
-        padding: 0 1rem;
-        max-width: 100%;
-    }
     
-    /* Better spacing for game sections */
-    .game-section {
-        margin-bottom: 1.5rem;
-        padding: 1rem;
-        background: rgba(62, 39, 35, 0.3);
-        border-radius: 8px;
-        border: 1px solid #8D6E63;
-    }
     
-    /* Results section */
-    #results {
-        margin: 2rem 1rem;
-        padding: 1rem;
-        background: rgba(62, 39, 35, 0.5);
-        border-radius: 8px;
-        border: 1px solid #FFD700;
-    }
     
-    /* Hide empty results div */
-    #results:empty {
-        display: none;
-    }
-    
-    #results .display-title {
-        color: #FFD700;
-        font-size: 1.5rem;
-        margin-bottom: 1rem;
-        text-align: center;
-    }
-    
-    #results .name-display {
-        color: #f5deb3;
-        font-size: 1.1rem;
-        margin-bottom: 1rem;
-        text-align: center;
-    }
-    
-    #results .list-group-item {
-        background: rgba(62, 39, 35, 0.7);
-        color: #f5deb3;
-        border: 1px solid #8D6E63;
-        margin-bottom: 0.5rem;
-        padding: 0.75rem;
-        border-radius: 4px;
-    }
     
     /* Mobile game layout improvements */
     label {
@@ -410,21 +325,8 @@ input:focus, select:focus {
     }
 }
 
-.results-shown .mt-up {
-    margin-top: 2rem; /* positive margin instead of negative */
-}
 
-.text{
-    color: #f5deb3;
-    font-weight: bold;
-}
 
-.name-display{
-    color: #f5deb3;
-    text-align: center;
-    font-weight: bold;
-    font-size: 1.5rem;
-}
 
 .list-group-item{
     background-color: #3E2723;
@@ -433,14 +335,6 @@ input:focus, select:focus {
     font-weight: bold;
 }
 
-.display-title{
-    color: #f5deb3;
-    text-align: center;
-    font-weight: bold;
-    font-size: 2rem;
-    margin-top: 1rem;
-    margin-bottom: 1rem;
-}
 
 .leaderboard-title {
     color: #FFD700; /* Gold color for the title */
@@ -1261,6 +1155,12 @@ input:focus, select:focus {
     margin-top: 20px;
     width: 100%;
     max-width: 380px;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
 }
 
 .coach-corso-btn:hover {
