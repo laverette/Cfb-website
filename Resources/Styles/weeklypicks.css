@@ -1467,7 +1467,7 @@ input:focus, select:focus {
     /* Show the mobile coach corso button but hide the image */
     .mobile-coach-corso {
         display: block;
-        margin: 0 auto 20px auto;
+        margin: 10px auto 20px auto;
         text-align: center;
         clear: both;
         position: relative;
