@@ -1,13 +1,44 @@
-using MyApp.Namespace.Services;
+using Microsoft.Data.Sqlite;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllers();
-builder.Services.AddCors(options => { options.AddPolicy("OpenPolicy", builder => { builder.AllowAnyOrigin() .AllowAnyMethod() .AllowAnyHeader(); }); });
+builder.Services.AddCors(options => { 
+    options.AddPolicy("OpenPolicy", builder => { 
+        builder.AllowAnyOrigin()
+               .AllowAnyMethod()
+               .AllowAnyHeader(); 
+    }); 
+});
 
-// Register Supabase database service
-builder.Services.AddScoped<SupabaseDatabaseService>();
+// Add SQLite database service
+builder.Services.AddScoped<MyApp.Namespace.Services.DatabaseService>();
+
+// Add JWT Authentication
+var jwtKey = builder.Configuration["Jwt:Key"];
+var jwtIssuer = builder.Configuration["Jwt:Issuer"];
+var jwtAudience = builder.Configuration["Jwt:Audience"];
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = jwtIssuer,
+            ValidAudience = jwtAudience,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey ?? ""))
+        };
+    });
+
+builder.Services.AddAuthorization();
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
@@ -24,9 +55,10 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-app.UseAuthorization();
-
 app.UseCors("OpenPolicy");
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapControllers();
 

@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\logan\\Documents\\Source\\Repos\\MIS321\\CFB\\Client\\api\\api.csproj": {}
+    "C:\\Schoolwork\\MIS321\\GroupProject2\\Client\\api\\api.csproj": {}
   },
   "projects": {
-    "C:\\Users\\logan\\Documents\\Source\\Repos\\MIS321\\CFB\\Client\\api\\api.csproj": {
+    "C:\\Schoolwork\\MIS321\\GroupProject2\\Client\\api\\api.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\logan\\Documents\\Source\\Repos\\MIS321\\CFB\\Client\\api\\api.csproj",
+        "projectUniqueName": "C:\\Schoolwork\\MIS321\\GroupProject2\\Client\\api\\api.csproj",
         "projectName": "api",
-        "projectPath": "C:\\Users\\logan\\Documents\\Source\\Repos\\MIS321\\CFB\\Client\\api\\api.csproj",
+        "projectPath": "C:\\Schoolwork\\MIS321\\GroupProject2\\Client\\api\\api.csproj",
         "packagesPath": "C:\\Users\\logan\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\logan\\Documents\\Source\\Repos\\MIS321\\CFB\\Client\\api\\obj\\",
+        "outputPath": "C:\\Schoolwork\\MIS321\\GroupProject2\\Client\\api\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\logan\\AppData\\Roaming\\NuGet\\NuGet.Config"
@@ -43,13 +43,25 @@
         "net8.0": {
           "targetAlias": "net8.0",
           "dependencies": {
-            "Supabase": {
+            "BCrypt.Net-Next": {
               "target": "Package",
-              "version": "[1.0.0, )"
+              "version": "[4.0.3, )"
+            },
+            "Microsoft.AspNetCore.Authentication.JwtBearer": {
+              "target": "Package",
+              "version": "[8.0.0, )"
+            },
+            "Microsoft.Data.Sqlite": {
+              "target": "Package",
+              "version": "[8.0.0, )"
             },
             "Swashbuckle.AspNetCore": {
               "target": "Package",
               "version": "[6.6.2, )"
+            },
+            "System.IdentityModel.Tokens.Jwt": {
+              "target": "Package",
+              "version": "[8.0.0, )"
             }
           },
           "imports": [
