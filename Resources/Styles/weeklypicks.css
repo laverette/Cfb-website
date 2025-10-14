@@ -259,6 +259,12 @@ input:focus, select:focus {
         padding: 1px 4px;
     }
     
+    .team-logo {
+        width: 16px;
+        height: 16px;
+        margin: 0 2px;
+    }
+    
     .leaderboard-title {
         font-size: 1.3rem;
         margin-bottom: 1rem;
@@ -304,8 +310,8 @@ input:focus, select:focus {
     }
     
     .games {
-        font-size: 0.95em !important;
-        padding: 3px 5px 3px 5px !important;
+        font-size: 0.75em !important;
+        padding: 2px 4px 2px 4px !important;
         margin: 0 -1px 0 -10px !important;
         display: inline !important;
         text-indent: 0 !important;
