@@ -543,6 +543,24 @@ input:focus, select:focus {
     box-shadow: 0 4px 10px rgba(0,0,0,0.35);
 }
 
+/* Team Logo Styling */
+.team-logo {
+    width: 20px;
+    height: 20px;
+    vertical-align: middle;
+    margin: 0 3px;
+    border-radius: 3px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    transition: all 0.3s ease;
+    display: inline-block;
+}
+
+.team-logo:hover {
+    transform: scale(1.15);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+}
+
+
 /* Enhanced Prediction Results Display */
 .prediction-results-container {
     background: linear-gradient(135deg, #2E2E2E, #1E1E1E);
