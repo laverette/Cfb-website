@@ -6,7 +6,7 @@ body{
     color: #f5deb3;
     font-weight: bold;
     font-size: 3rem;
-    text-align: left;
+    text-align: center !important;
 }
 
 /* Center the Week 6 Results title */
@@ -89,6 +89,7 @@ input:focus, select:focus {
         font-size: 2rem;
         margin-bottom: 1rem;
         padding: 0 1rem;
+        text-align: center !important;
     }
     
     /* Login button positioning - fixed at top right */
@@ -564,6 +565,138 @@ input:focus, select:focus {
 .team-logo:hover {
     transform: scale(1.15);
     box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+}
+
+/* Rivalry Game Styling */
+.rivalry-game {
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.1), rgba(255, 160, 0, 0.1));
+    border: 2px solid #FFD700;
+    border-radius: 12px;
+    padding: 15px;
+    margin: 10px 0;
+    position: relative;
+    box-shadow: 0 4px 12px rgba(255, 215, 0, 0.2);
+    transition: all 0.3s ease;
+}
+
+.rivalry-game:hover {
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(255, 160, 0, 0.15));
+    box-shadow: 0 6px 16px rgba(255, 215, 0, 0.3);
+    transform: translateY(-2px);
+}
+
+.rivalry-info {
+    text-align: center;
+    margin-top: 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.rivalry-name {
+    background: linear-gradient(135deg, #FFD700, #FFA000);
+    color: #1E1E1E;
+    font-weight: bold;
+    font-size: 0.9rem;
+    padding: 6px 12px;
+    border-radius: 20px;
+    display: inline-block;
+    box-shadow: 0 2px 6px rgba(255, 215, 0, 0.4);
+    transition: all 0.3s ease;
+}
+
+.rivalry-name:hover {
+    background: linear-gradient(135deg, #FFA000, #FFD700);
+    transform: scale(1.05);
+    box-shadow: 0 4px 10px rgba(255, 215, 0, 0.6);
+}
+
+/* Rivalry Modal Styling */
+.rivalry-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+    animation: modalFadeIn 0.3s ease;
+}
+
+.rivalry-modal-content {
+    background: linear-gradient(135deg, #2E2E2E, #1E1E1E);
+    border: 2px solid #FFD700;
+    border-radius: 15px;
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    animation: modalSlideIn 0.3s ease;
+}
+
+.rivalry-modal-header {
+    background: linear-gradient(135deg, #FFD700, #FFA000);
+    color: #1E1E1E;
+    padding: 15px 20px;
+    border-radius: 13px 13px 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.rivalry-modal-header h3 {
+    margin: 0;
+    font-size: 1.3rem;
+    font-weight: bold;
+}
+
+.close-modal {
+    font-size: 2rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    line-height: 1;
+}
+
+.close-modal:hover {
+    transform: scale(1.2);
+    color: #1E1E1E;
+}
+
+.rivalry-modal-body {
+    padding: 20px;
+    color: #f5deb3;
+    line-height: 1.6;
+}
+
+.rivalry-modal-body p {
+    margin-bottom: 15px;
+}
+
+.rivalry-modal-body ul {
+    margin: 10px 0 15px 20px;
+}
+
+.rivalry-modal-body li {
+    margin-bottom: 8px;
+}
+
+@keyframes modalFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes modalSlideIn {
+    from { 
+        opacity: 0;
+        transform: translateY(-50px) scale(0.9);
+    }
+    to { 
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
 }
 
 
@@ -1181,20 +1314,27 @@ input:focus, select:focus {
 /* Week 7 Side-by-Side Layout */
 .week7-layout {
     display: flex;
-    gap: 2rem;
+    gap: 1rem;
     align-items: flex-start;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 2rem;
 }
 
 .form-section {
     flex: 1;
     min-width: 0;
+    max-width: 600px;
+}
+
+.form-section .title {
+    text-align: center !important;
+    width: 100%;
 }
 
 .image-section {
-    flex: 0 0 500px;
-    position: absolute;
-    top: 0;
-    right: 12rem;
+    flex: 0 0 400px;
+    position: static;
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
@@ -1204,7 +1344,7 @@ input:focus, select:focus {
 
 .image-section img {
     width: 100%;
-    max-width: 450px;
+    max-width: 380px;
     height: auto;
     border-radius: 15px;
     border: 2px solid #FFD700;
@@ -1384,11 +1524,12 @@ input:focus, select:focus {
 }
 
 /* Title Section Layout */
-.title-section {
-    display: flex;
-    align-items: center;
-    gap: 2rem;
-}
+    .title-section {
+        display: flex;
+        align-items: center;
+        gap: 2rem;
+        justify-content: flex-start;
+    }
 
 /* Mobile Coach Corso Button - Hidden on desktop */
 .mobile-coach-corso {

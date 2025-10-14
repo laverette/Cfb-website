@@ -60,7 +60,7 @@
             </div>
           </div>
           
-          <p>
+          <p class="rivalry-game">
             <label><span class="games">Game 1:</span> 
               <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/2633.png" alt="Tennessee" class="team-logo"> 11 Tennessee at 
               <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/333.png" alt="Alabama" class="team-logo"> 6 Alabama
@@ -70,6 +70,9 @@
                 <option value="TENN">TENN</option>
               </select>
             </label>
+            <div class="rivalry-info" onclick="showAlabamaTennesseeRivalry()">
+              <span class="rivalry-name">🚬 The Third Saturday in October</span>
+            </div>
           </p>
 
           <p>
@@ -192,7 +195,7 @@
             </label>
           </p>
 
-          <p>
+          <p class="rivalry-game">
             <label><span class="games">Game 12:</span> 
               <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/254.png" alt="Utah" class="team-logo"> 23 Utah at 
               <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/252.png" alt="BYU" class="team-logo"> 15 BYU
@@ -202,6 +205,9 @@
                 <option value="BYU">BYU</option>
               </select>
             </label>
+            <div class="rivalry-info" onclick="showRivalryHistory()">
+              <span class="rivalry-name">⚔️ The Holy War</span>
+            </div>
           </p>
 
           <p>
@@ -624,6 +630,69 @@
         behavior: 'smooth',
         block: 'start'
       });
+    }
+
+    // Rivalry History Modal
+    function showRivalryHistory() {
+      const modal = document.createElement('div');
+      modal.className = 'rivalry-modal';
+      modal.innerHTML = `
+        <div class="rivalry-modal-content">
+          <div class="rivalry-modal-header">
+            <h3>⚔️ The Holy War</h3>
+            <span class="close-modal" onclick="closeRivalryModal()">&times;</span>
+          </div>
+          <div class="rivalry-modal-body">
+            <p><strong>Utah vs BYU</strong> - One of college football's most intense rivalries!</p>
+            <p><strong>History:</strong> Dating back to 1896, this rivalry represents more than just football - it's a battle between the University of Utah (public, Heathens) and Brigham Young University (private, LDS-affiliated).</p>
+            <p><strong>Notable Moments:</strong></p>
+            <ul>
+              <li>2004: Utah's perfect season with Urban Meyer</li>
+              <li>2008: BYU's 48-24 victory in Provo</li>
+              <li>2015: Utah's 35-28 thriller in Las Vegas Bowl</li>
+            </ul>
+            <p><strong>Series Record:</strong> Utah leads 62-31-4</p>
+            <p><strong>Why "Holy War":</strong> The nickname reflects the religious and cultural differences between the two institutions, making every game a battle for state supremacy.</p>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+    }
+
+    function closeRivalryModal() {
+      const modal = document.querySelector('.rivalry-modal');
+      if (modal) {
+        modal.remove();
+      }
+    }
+
+    // Alabama vs Tennessee Rivalry Modal
+    function showAlabamaTennesseeRivalry() {
+      const modal = document.createElement('div');
+      modal.className = 'rivalry-modal';
+      modal.innerHTML = `
+        <div class="rivalry-modal-content">
+          <div class="rivalry-modal-header">
+            <h3>🚬 The Third Saturday in October</h3>
+            <span class="close-modal" onclick="closeRivalryModal()">&times;</span>
+          </div>
+          <div class="rivalry-modal-body">
+            <p><strong>Alabama vs Tennessee</strong> - One of the SEC's most storied rivalries!</p>
+            <p><strong>History:</strong> Dating back to 1901, this rivalry is traditionally played on the third Saturday in October. It's a battle between two of the SEC's most successful programs.</p>
+            <p><strong>Famous Moments:</strong></p>
+            <ul>
+              <li><strong>The Famous Interview:</strong> "I hate Tennessee! I hate their orange! I hate their garbage truck colors! I hate everything about them!" - A legendary Alabama fan's passionate rant that became internet famous</li>
+              <li><strong>Cigar Tradition:</strong> The wiining teams players and fans celebrate victories by smoking cigars, a tradition that started in the 1950s with athletic trainer Jim Goostree</li>
+              <li>2022: Tennessee's thrilling 52-49 victory, ending Alabama's 15-game winning streak</li>
+              <li>2024: Tennessee's 24-17 victory - UT has won 2 of the last 3 meetings</li>
+            </ul>
+            <p><strong>Series Record:</strong> Alabama leads 59-40-7</p>
+            <p><strong>Why "Third Saturday in October":</strong> The game was traditionally scheduled for the third Saturday in October, though modern scheduling has sometimes moved it. The rivalry represents the deep-seated animosity between two proud football programs.</p>
+            <p><strong>Fun Fact:</strong> The cigar tradition began in the 1950s when Alabama's athletic trainer Jim Goostree started handing out cigars after victories over Tennessee!</p>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
     }
 
 </script>
