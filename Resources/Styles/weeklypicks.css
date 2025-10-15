@@ -1,5 +1,77 @@
 body{
     background-color: #1E1E1E;
+    overflow-x: hidden;
+}
+
+/* Bouncing Football Background Animation */
+.bouncing-football {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 40px;
+    height: 40px;
+    z-index: 1;
+    animation: bounceAround 15s linear infinite;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+@keyframes bounceAround {
+    0% {
+        transform: translate(0, 0) rotate(0deg);
+        animation-timing-function: ease-in;
+    }
+    8% {
+        transform: translate(15vw, 25vh) rotate(29deg);
+        animation-timing-function: ease-out;
+    }
+    16% {
+        transform: translate(35vw, 5vh) rotate(58deg);
+        animation-timing-function: ease-out;
+    }
+    24% {
+        transform: translate(55vw, 35vh) rotate(87deg);
+        animation-timing-function: ease-out;
+    }
+    32% {
+        transform: translate(75vw, 10vh) rotate(116deg);
+        animation-timing-function: ease-out;
+    }
+    40% {
+        transform: translate(90vw, 40vh) rotate(144deg);
+        animation-timing-function: ease-out;
+    }
+    48% {
+        transform: translate(85vw, 70vh) rotate(173deg);
+        animation-timing-function: ease-out;
+    }
+    56% {
+        transform: translate(65vw, 85vh) rotate(202deg);
+        animation-timing-function: ease-out;
+    }
+    64% {
+        transform: translate(40vw, 80vh) rotate(231deg);
+        animation-timing-function: ease-out;
+    }
+    72% {
+        transform: translate(15vw, 70vh) rotate(260deg);
+        animation-timing-function: ease-out;
+    }
+    80% {
+        transform: translate(5vw, 50vh) rotate(289deg);
+        animation-timing-function: ease-out;
+    }
+    88% {
+        transform: translate(10vw, 20vh) rotate(318deg);
+        animation-timing-function: ease-out;
+    }
+    96% {
+        transform: translate(5vw, 5vh) rotate(347deg);
+        animation-timing-function: ease-out;
+    }
+    100% {
+        transform: translate(0, 0) rotate(360deg);
+        animation-timing-function: ease-out;
+    }
 }
 
 .title{
@@ -339,21 +411,6 @@ input:focus, select:focus {
         line-height: 1.1;
     }
     
-    .rivalry-preview {
-        padding: 4px;
-        margin: 4px 0;
-    }
-    
-    .rivalry-preview p {
-        font-size: 0.65rem;
-        line-height: 1.1;
-        margin-bottom: 2px;
-    }
-    
-    .rivalry-history-btn {
-        font-size: 0.6rem;
-        padding: 4px 8px;
-    }
     
     .game-controls {
         flex-direction: row;
@@ -684,7 +741,6 @@ input:focus, select:focus {
     position: relative;
     box-shadow: 0 4px 12px rgba(255, 215, 0, 0.2);
     transition: all 0.3s ease;
-    cursor: pointer;
 }
 
 .rivalry-card:hover {
@@ -722,6 +778,14 @@ input:focus, select:focus {
     box-shadow: 0 2px 6px rgba(255, 215, 0, 0.4);
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.rivalry-name:hover {
+    background: linear-gradient(135deg, #FFA000, #FF8C00);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(255, 215, 0, 0.5);
 }
 
 .rivalry-teams {
@@ -788,43 +852,6 @@ input:focus, select:focus {
     white-space: nowrap;
 }
 
-.rivalry-preview {
-    background: rgba(0, 0, 0, 0.2);
-    border-radius: 8px;
-    padding: 8px;
-    margin: 8px 0;
-    text-align: center;
-    border: 1px solid rgba(255, 215, 0, 0.2);
-}
-
-.rivalry-preview p {
-    color: #f5deb3;
-    font-style: italic;
-    margin: 0 0 4px 0;
-    font-size: 0.8rem;
-    line-height: 1.3;
-}
-
-.rivalry-history-btn {
-    background: linear-gradient(135deg, #FFD700, #FFA000);
-    color: #1E1E1E;
-    border: none;
-    border-radius: 8px;
-    padding: 6px 12px;
-    font-size: 0.7rem;
-    font-weight: bold;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    box-shadow: 0 2px 4px rgba(255, 215, 0, 0.3);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.rivalry-history-btn:hover {
-    background: linear-gradient(135deg, #FFA000, #FF8C00);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(255, 215, 0, 0.4);
-}
 
 .game-controls {
     display: flex;
@@ -996,6 +1023,7 @@ input:focus, select:focus {
     box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
     position: relative;
     overflow: hidden;
+    z-index: 2;
 }
 
 .prediction-results-container::before {
@@ -1380,6 +1408,7 @@ input:focus, select:focus {
     box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
     position: relative;
     overflow: hidden;
+    z-index: 2;
 }
 
 .analysis-container::before {
@@ -1719,6 +1748,7 @@ input:focus, select:focus {
     box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
     position: relative;
     overflow: hidden;
+    z-index: 2;
 }
 
 .coach-corso-container::before {

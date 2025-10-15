@@ -10,6 +10,11 @@
 <body>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
+  <!-- Bouncing Football Background -->
+  <div class="bouncing-football">
+    <img src="https://cdn-icons-png.flaticon.com/512/1133/1133780.png" alt="American Football" style="width: 100%; height: 100%; object-fit: contain;">
+  </div>
+  
   <!-- Login Button - Upper Right -->
   <div style="position: fixed; top: 10px; right: 10px; z-index: 1000; display: none;">
     <div id="loginButtonSection">
@@ -61,11 +66,11 @@
           </div>
           
           <!-- Rivalry Game Card -->
-          <div class="rivalry-card" onclick="showAlabamaTennesseeRivalry()">
+          <div class="rivalry-card">
             <div class="rivalry-header">
               <div class="rivalry-title">
                 <span class="rivalry-icon">🚬</span>
-                <span class="rivalry-name">The Third Saturday in October</span>
+                <span class="rivalry-name" onclick="showAlabamaTennesseeRivalry()">The Third Saturday in October</span>
               </div>
               <div class="rivalry-teams">
                 <div class="team-info">
@@ -80,9 +85,6 @@
                 <span class="betting-line">-7.5</span>
               </div>
             </div>
-        <div class="rivalry-preview">
-          <button class="rivalry-history-btn">Rivalry History</button>
-        </div>
             <div class="game-controls">
               <select name="game1">
                 <option value="BAMA">BAMA</option>
@@ -212,11 +214,11 @@
           </p>
 
           <!-- Rivalry Game Card -->
-          <div class="rivalry-card" onclick="showRivalryHistory()">
+          <div class="rivalry-card">
             <div class="rivalry-header">
               <div class="rivalry-title">
                 <span class="rivalry-icon">⚔️</span>
-                <span class="rivalry-name">The Holy War</span>
+                <span class="rivalry-name" onclick="showRivalryHistory()">The Holy War</span>
               </div>
               <div class="rivalry-teams">
                 <div class="team-info">
@@ -230,9 +232,6 @@
                 </div>
                 <span class="betting-line">+3.5</span>
               </div>
-            </div>
-            <div class="rivalry-preview">
-              <button class="rivalry-history-btn">Rivalry History</button>
             </div>
             <div class="game-controls">
               <select name="game12">
@@ -714,7 +713,7 @@
             <p><strong>Famous Moments:</strong></p>
             <ul>
               <li><strong>The Famous Interview:</strong> "I hate Tennessee! I hate their orange! I hate their garbage truck colors! I hate everything about them!" - A legendary Alabama fan's passionate rant that became internet famous</li>
-              <li><strong>Cigar Tradition:</strong> The wiining teams players and fans celebrate victories by smoking cigars, a tradition that started in the 1950s with athletic trainer Jim Goostree</li>
+              <li><strong>Cigar Tradition:</strong> The winning teams players and fans celebrate victories by smoking cigars, a tradition that started in the 1950s with athletic trainer Jim Goostree</li>
               <li>2022: Tennessee's thrilling 52-49 victory, ending Alabama's 15-game winning streak</li>
               <li>2024: Tennessee's 24-17 victory - UT has won 2 of the last 3 meetings</li>
             </ul>
