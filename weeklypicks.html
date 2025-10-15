@@ -60,20 +60,36 @@
             </div>
           </div>
           
-          <p class="rivalry-game">
-            <label><span class="games">Game 1:</span> 
-              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/2633.png" alt="Tennessee" class="team-logo"> 11 Tennessee at 
-              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/333.png" alt="Alabama" class="team-logo"> 6 Alabama
-              <span class="betting-line">-7.5</span>
+          <!-- Rivalry Game Card -->
+          <div class="rivalry-card" onclick="showAlabamaTennesseeRivalry()">
+            <div class="rivalry-header">
+              <div class="rivalry-title">
+                <span class="rivalry-icon">🚬</span>
+                <span class="rivalry-name">The Third Saturday in October</span>
+              </div>
+              <div class="rivalry-teams">
+                <div class="team-info">
+                  <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/2633.png" alt="Tennessee" class="rivalry-logo">
+                  <span class="team-name">11 Tennessee</span>
+                </div>
+                <span class="vs">VS</span>
+                <div class="team-info">
+                  <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/333.png" alt="Alabama" class="rivalry-logo">
+                  <span class="team-name">6 Alabama</span>
+                </div>
+                <span class="betting-line">-7.5</span>
+              </div>
+            </div>
+        <div class="rivalry-preview">
+          <button class="rivalry-history-btn">Rivalry History</button>
+        </div>
+            <div class="game-controls">
               <select name="game1">
                 <option value="BAMA">BAMA</option>
                 <option value="TENN">TENN</option>
               </select>
-            </label>
-            <div class="rivalry-info" onclick="showAlabamaTennesseeRivalry()">
-              <span class="rivalry-name">🚬 The Third Saturday in October</span>
             </div>
-          </p>
+          </div>
 
           <p>
             <label><span class="games">Game 2:</span> 
@@ -195,20 +211,36 @@
             </label>
           </p>
 
-          <p class="rivalry-game">
-            <label><span class="games">Game 12:</span> 
-              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/254.png" alt="Utah" class="team-logo"> 23 Utah at 
-              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/252.png" alt="BYU" class="team-logo"> 15 BYU
-              <span class="betting-line">+3.5</span>
+          <!-- Rivalry Game Card -->
+          <div class="rivalry-card" onclick="showRivalryHistory()">
+            <div class="rivalry-header">
+              <div class="rivalry-title">
+                <span class="rivalry-icon">⚔️</span>
+                <span class="rivalry-name">The Holy War</span>
+              </div>
+              <div class="rivalry-teams">
+                <div class="team-info">
+                  <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/254.png" alt="Utah" class="rivalry-logo">
+                  <span class="team-name">23 Utah</span>
+                </div>
+                <span class="vs">VS</span>
+                <div class="team-info">
+                  <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/252.png" alt="BYU" class="rivalry-logo">
+                  <span class="team-name">15 BYU</span>
+                </div>
+                <span class="betting-line">+3.5</span>
+              </div>
+            </div>
+            <div class="rivalry-preview">
+              <button class="rivalry-history-btn">Rivalry History</button>
+            </div>
+            <div class="game-controls">
               <select name="game12">
                 <option value="UTAH">UTAH</option>
                 <option value="BYU">BYU</option>
               </select>
-            </label>
-            <div class="rivalry-info" onclick="showRivalryHistory()">
-              <span class="rivalry-name">⚔️ The Holy War</span>
             </div>
-          </p>
+          </div>
 
           <p>
             <button id="submit" type="submit">Submit Predictions</button>
