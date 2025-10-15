@@ -1771,7 +1771,17 @@ input:focus, select:focus {
     box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
     position: relative;
     overflow: hidden;
+    z-index: 0;
+}
+
+.coach-corso-title {
     z-index: 2;
+    position: relative;
+}
+
+.coach-corso-content {
+    z-index: 2;
+    position: relative;
 }
 
 /* Mobile Coach Corso Section - ensure football appears above background */
