@@ -500,22 +500,22 @@ input:focus, select:focus {
     
     select {
         width: auto !important;
-        max-width: 120px !important;
-        min-width: 120px !important;
+        max-width: 140px !important;
+        min-width: 140px !important;
         margin: 6px auto 0 auto !important;
         align-self: center !important;
-        padding: 8px 12px !important;
-        font-size: 0.9em !important;
+        padding: 10px 14px !important;
+        font-size: 1em !important;
     }
     
     form select {
         width: auto !important;
-        max-width: 120px !important;
-        min-width: 120px !important;
+        max-width: 140px !important;
+        min-width: 140px !important;
         margin: 6px auto 0 auto !important;
         align-self: center !important;
-        padding: 8px 12px !important;
-        font-size: 0.9em !important;
+        padding: 10px 14px !important;
+        font-size: 1em !important;
     }
 }
 
