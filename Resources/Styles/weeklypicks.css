@@ -198,9 +198,9 @@ input:focus, select:focus {
         margin-bottom: 0.5rem;
         font-weight: bold;
         color: #f5deb3;
-        margin-left: -8px;
+        margin-left: -15px;
         margin-right: -8px;
-        width: calc(100% + 16px);
+        width: calc(100% + 23px);
         text-align: left;
     }
     
@@ -481,7 +481,7 @@ input:focus, select:focus {
     
     /* Move the game text closer to the games label */
     label {
-        text-indent: 8px;
+        text-indent: 0px;
     }
     
     .games {
@@ -489,8 +489,8 @@ input:focus, select:focus {
     }
     
     .betting-line {
-        font-size: 0.8em !important;
-        padding: 1px 2px !important;
+        font-size: 0.9em !important;
+        padding: 2px 4px !important;
         margin: 0 5px 0 0 !important;
         display: inline !important;
         white-space: nowrap !important;
