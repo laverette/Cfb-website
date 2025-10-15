@@ -340,8 +340,8 @@ input:focus, select:focus {
     
     /* Mobile Rivalry Card Styling */
     .rivalry-card {
-        padding: 20px !important;
-        margin: 3px auto !important;
+        padding: 20px 10px !important;
+        margin: 3px 0 !important;
         border-radius: 10px !important;
         border-width: 2px !important;
         max-width: 100% !important;
@@ -369,25 +369,27 @@ input:focus, select:focus {
     }
     
     .rivalry-teams {
-        gap: 2px !important;
+        gap: 1px !important;
         flex-direction: row !important;
         justify-content: center !important;
         margin: 3px 0 !important;
         padding: 0 !important;
         overflow-x: hidden !important;
-        flex-wrap: wrap !important;
+        flex-wrap: nowrap !important;
         width: 100% !important;
     }
     
     .rivalry-teams .betting-line {
-        font-size: 0.65rem;
-        padding: 2px 4px;
-        margin-left: 3px;
+        font-size: 0.6rem;
+        padding: 1px 3px;
+        margin-left: 2px;
+        flex-shrink: 0;
     }
     
     .team-name {
-        font-size: 0.65rem;
+        font-size: 0.6rem;
         line-height: 1.0;
+        flex-shrink: 1;
     }
     
     .rivalry-logo {
@@ -464,13 +466,13 @@ input:focus, select:focus {
     
     /* Move the game text closer to the games label */
     label {
-        text-indent: -6px;
+        text-indent: -12px;
     }
     
     .games {
         font-size: 0.7em !important;
         padding: 1px 3px 1px 3px !important;
-        margin: 0 -1px 0 -12px !important;
+        margin: 0 -1px 0 -20px !important;
         display: inline !important;
         text-indent: 0 !important;
     }
