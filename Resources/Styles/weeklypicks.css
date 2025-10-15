@@ -760,12 +760,15 @@ input:focus, select:focus {
     transition: all 0.3s ease;
     max-width: 80%;
     text-align: center;
+    overflow: hidden;
 }
 
 .rivalry-card:hover {
     background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(255, 160, 0, 0.15));
     box-shadow: 0 6px 16px rgba(255, 215, 0, 0.3);
     border-color: #FFA000;
+    overflow: hidden !important;
+    transform: none !important;
 }
 
 .rivalry-header {
@@ -1769,6 +1772,23 @@ input:focus, select:focus {
     position: relative;
     overflow: hidden;
     z-index: 2;
+}
+
+/* Mobile Coach Corso Section - ensure football appears above background */
+@media (max-width: 768px) {
+    .coach-corso-container {
+        z-index: 0;
+    }
+    
+    .coach-corso-title {
+        z-index: 2;
+        position: relative;
+    }
+    
+    .coach-corso-content {
+        z-index: 2;
+        position: relative;
+    }
 }
 
 .coach-corso-container::before {
