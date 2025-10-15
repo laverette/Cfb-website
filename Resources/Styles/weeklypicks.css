@@ -178,7 +178,7 @@ input:focus, select:focus {
     
     /* Form improvements */
     form {
-        padding: 0 0.25rem;
+        padding: 0 0.1rem;
         margin-bottom: 1rem;
     }
     
@@ -340,9 +340,9 @@ input:focus, select:focus {
     
     /* Mobile Rivalry Card Styling */
     .rivalry-card {
-        padding: 12px !important;
+        padding: 16px !important;
         margin: 3px auto !important;
-        border-radius: 6px !important;
+        border-radius: 8px !important;
         border-width: 1px !important;
         max-width: 100% !important;
         text-align: center !important;
@@ -741,7 +741,6 @@ input:focus, select:focus {
 .rivalry-card:hover {
     background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(255, 160, 0, 0.15));
     box-shadow: 0 6px 16px rgba(255, 215, 0, 0.3);
-    transform: translateY(-2px);
     border-color: #FFA000;
 }
 
@@ -1857,7 +1856,7 @@ input:focus, select:focus {
 /* Additional mobile optimizations for smaller screens */
 @media (max-width: 768px) {
     .tab-container {
-        padding: 5px;
+        padding: 2px;
     }
     
     .tab-button {
