@@ -391,7 +391,7 @@ input:focus, select:focus {
     .rivalry-teams .betting-line {
         font-size: 0.6rem;
         padding: 1px 3px;
-        margin-left: 2px;
+        margin-left: 8px;
         flex-shrink: 0;
     }
     
@@ -471,6 +471,12 @@ input:focus, select:focus {
     label > *:not(select) {
         display: inline;
         white-space: nowrap;
+    }
+    
+    /* Force select elements to be on their own line */
+    label select {
+        display: block !important;
+        margin: 6px auto 0 auto !important;
     }
     
     /* Move the game text closer to the games label */
