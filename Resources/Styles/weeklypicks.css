@@ -179,16 +179,16 @@ input:focus, select:focus {
     /* Form improvements */
     form {
         padding: 0 0.5rem;
-        margin-bottom: 1.5rem;
+        margin-bottom: 1rem;
     }
     
     form p {
-        margin-bottom: 1rem;
+        margin-bottom: 0.75rem;
     }
     
     /* Add extra margin to name field on mobile to prevent overlap with Coach Corso button */
     form p:nth-of-type(2) {
-        margin-bottom: 2.5rem;
+        margin-bottom: 1.5rem;
     }
     
     form label {
@@ -340,94 +340,77 @@ input:focus, select:focus {
     
     /* Mobile Rivalry Card Styling */
     .rivalry-card {
-        padding: 8px;
-        margin: 4px 0;
-        border-radius: 8px;
+        padding: 6px;
+        margin: 3px 0;
+        border-radius: 6px;
         border-width: 1px;
     }
     
     .rivalry-title {
         flex-direction: row;
-        gap: 4px;
-        margin-bottom: 4px;
+        gap: 3px;
+        margin-bottom: 3px;
     }
     
     .rivalry-icon {
-        font-size: 0.9rem;
+        font-size: 0.8rem;
     }
     
     .rivalry-name {
-        font-size: 0.7rem;
-        padding: 2px 6px;
-        letter-spacing: 0.2px;
+        font-size: 0.65rem;
+        padding: 1px 4px;
+        letter-spacing: 0.1px;
     }
     
     .rivalry-teams {
-        gap: 4px;
+        gap: 3px;
         flex-direction: row;
         justify-content: center;
-        margin: 4px 0;
-        padding: 0 2px;
+        margin: 3px 0;
+        padding: 0 1px;
     }
     
     .rivalry-teams .betting-line {
-        font-size: 0.7rem;
-        padding: 3px 6px;
-        margin-left: 4px;
+        font-size: 0.65rem;
+        padding: 2px 4px;
+        margin-left: 3px;
     }
     
     .team-name {
-        font-size: 0.7rem;
-        line-height: 1.1;
+        font-size: 0.65rem;
+        line-height: 1.0;
     }
     
     .rivalry-logo {
-        width: 18px;
-        height: 18px;
+        width: 16px;
+        height: 16px;
     }
     
     .vs {
-        font-size: 0.6rem;
-        padding: 2px 6px;
+        font-size: 0.55rem;
+        padding: 1px 4px;
     }
     
     .team-info {
-        gap: 3px;
+        gap: 2px;
     }
-    
-    .vs {
-        font-size: 0.5rem;
-        padding: 1px 4px;
-        margin: 0 2px;
-    }
-    
-    .rivalry-logo {
-        width: 18px;
-        height: 18px;
-    }
-    
-    .team-name {
-        font-size: 0.7rem;
-        line-height: 1.1;
-    }
-    
     
     .game-controls {
         flex-direction: row;
-        gap: 4px;
-        margin-top: 4px;
+        gap: 3px;
+        margin-top: 3px;
         justify-content: center;
     }
     
     .game-controls .betting-line {
-        font-size: 0.7rem;
-        padding: 3px 5px;
+        font-size: 0.65rem;
+        padding: 2px 4px;
     }
     
     .game-controls select {
-        font-size: 0.7rem;
-        padding: 3px 5px;
-        min-width: 45px;
+        font-size: 0.65rem;
+        padding: 2px 4px;
+        min-width: 40px;
     }
     
     .leaderboard-title {
@@ -458,8 +441,8 @@ input:focus, select:focus {
     label {
         display: flex;
         flex-direction: column;
-        gap: 8px;
-        margin-bottom: 15px;
+        gap: 6px;
+        margin-bottom: 10px;
         width: 100%;
     }
     
@@ -475,16 +458,16 @@ input:focus, select:focus {
     }
     
     .games {
-        font-size: 0.75em !important;
-        padding: 2px 4px 2px 4px !important;
-        margin: 0 -1px 0 -10px !important;
+        font-size: 0.7em !important;
+        padding: 1px 3px 1px 3px !important;
+        margin: 0 -1px 0 -8px !important;
         display: inline !important;
         text-indent: 0 !important;
     }
     
     .betting-line {
-        font-size: 0.9em !important;
-        padding: 2px 2.5px !important;
+        font-size: 0.8em !important;
+        padding: 1px 2px !important;
         margin: 0 1px !important;
         display: inline !important;
         white-space: nowrap !important;
@@ -494,11 +477,11 @@ input:focus, select:focus {
     
     select {
         width: 100%;
-        max-width: 140px;
-        margin-top: 8px;
+        max-width: 120px;
+        margin-top: 6px;
         align-self: flex-start;
-        padding: 8px 12px;
-        font-size: 0.9em;
+        padding: 6px 10px;
+        font-size: 0.85em;
     }
 }
 
