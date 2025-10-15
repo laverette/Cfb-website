@@ -501,6 +501,7 @@ input:focus, select:focus {
     select {
         width: auto !important;
         max-width: 120px !important;
+        min-width: 120px !important;
         margin: 6px auto 0 auto !important;
         align-self: center !important;
         padding: 8px 12px !important;
@@ -510,6 +511,7 @@ input:focus, select:focus {
     form select {
         width: auto !important;
         max-width: 120px !important;
+        min-width: 120px !important;
         margin: 6px auto 0 auto !important;
         align-self: center !important;
         padding: 8px 12px !important;
