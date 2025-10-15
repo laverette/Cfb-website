@@ -498,14 +498,16 @@ input:focus, select:focus {
         -webkit-flex-shrink: 0 !important;
     }
     
+    /* Mobile-specific dropdown styling - longer buttons */
     select {
         width: auto !important;
         max-width: 140px !important;
         min-width: 140px !important;
         margin: 6px auto 0 auto !important;
         align-self: center !important;
-        padding: 10px 14px !important;
+        padding: 20px 14px !important;
         font-size: 1em !important;
+        min-height: 50px !important;
     }
     
     form select {
@@ -514,8 +516,9 @@ input:focus, select:focus {
         min-width: 140px !important;
         margin: 6px auto 0 auto !important;
         align-self: center !important;
-        padding: 10px 14px !important;
+        padding: 20px 14px !important;
         font-size: 1em !important;
+        min-height: 50px !important;
     }
 }
 
