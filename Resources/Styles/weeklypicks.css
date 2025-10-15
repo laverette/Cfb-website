@@ -178,7 +178,7 @@ input:focus, select:focus {
     
     /* Form improvements */
     form {
-        padding: 0 0.5rem;
+        padding: 0 0.25rem;
         margin-bottom: 1rem;
     }
     
@@ -340,16 +340,22 @@ input:focus, select:focus {
     
     /* Mobile Rivalry Card Styling */
     .rivalry-card {
-        padding: 6px;
-        margin: 3px 0;
-        border-radius: 6px;
-        border-width: 1px;
+        padding: 12px !important;
+        margin: 3px auto !important;
+        border-radius: 6px !important;
+        border-width: 1px !important;
+        max-width: 100% !important;
+        text-align: center !important;
+        overflow-x: hidden !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
     }
     
     .rivalry-title {
         flex-direction: row;
         gap: 3px;
         margin-bottom: 3px;
+        justify-content: center;
     }
     
     .rivalry-icon {
@@ -363,11 +369,14 @@ input:focus, select:focus {
     }
     
     .rivalry-teams {
-        gap: 3px;
-        flex-direction: row;
-        justify-content: center;
-        margin: 3px 0;
-        padding: 0 1px;
+        gap: 2px !important;
+        flex-direction: row !important;
+        justify-content: center !important;
+        margin: 3px 0 !important;
+        padding: 0 !important;
+        overflow-x: hidden !important;
+        flex-wrap: wrap !important;
+        width: 100% !important;
     }
     
     .rivalry-teams .betting-line {
@@ -388,7 +397,8 @@ input:focus, select:focus {
     
     .vs {
         font-size: 0.55rem;
-        padding: 1px 4px;
+        padding: 1px 6px;
+        margin: 0 4px;
     }
     
     .team-info {
@@ -454,13 +464,13 @@ input:focus, select:focus {
     
     /* Move the game text closer to the games label */
     label {
-        text-indent: -3px;
+        text-indent: -6px;
     }
     
     .games {
         font-size: 0.7em !important;
         padding: 1px 3px 1px 3px !important;
-        margin: 0 -1px 0 -8px !important;
+        margin: 0 -1px 0 -12px !important;
         display: inline !important;
         text-indent: 0 !important;
     }
@@ -720,10 +730,12 @@ input:focus, select:focus {
     border: 2px solid #FFD700;
     border-radius: 12px;
     padding: 12px;
-    margin: 8px 0;
+    margin: 8px 0 8px 0;
     position: relative;
     box-shadow: 0 4px 12px rgba(255, 215, 0, 0.2);
     transition: all 0.3s ease;
+    max-width: 80%;
+    text-align: center;
 }
 
 .rivalry-card:hover {
@@ -736,6 +748,7 @@ input:focus, select:focus {
 .rivalry-header {
     text-align: center;
     margin-bottom: 8px;
+    width: 100%;
 }
 
 .rivalry-title {
@@ -842,6 +855,7 @@ input:focus, select:focus {
     align-items: center;
     gap: 10px;
     margin-top: 8px;
+    width: 100%;
 }
 
 .game-controls .betting-line {
@@ -1843,7 +1857,7 @@ input:focus, select:focus {
 /* Additional mobile optimizations for smaller screens */
 @media (max-width: 768px) {
     .tab-container {
-        padding: 10px;
+        padding: 5px;
     }
     
     .tab-button {
