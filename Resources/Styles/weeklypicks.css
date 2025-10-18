@@ -207,8 +207,8 @@ input:focus, select:focus {
     form input[type="text"], 
     form select {
         width: 100%;
-        padding: 8px 12px;
-        font-size: 1.1rem;
+        padding: 10px 14px;
+        font-size: 1.2rem;
         border-radius: 8px;
         border: 2px solid #3E2723;
         background-color: #3E2723;
@@ -342,9 +342,9 @@ input:focus, select:focus {
     }
     
     .team-logo {
-        width: 24px;
-        height: 24px;
-        margin: 0 4px;
+        width: 28px;
+        height: 28px;
+        margin: 0 5px;
     }
     
     /* Mobile Rivalry Card Styling */
@@ -489,8 +489,8 @@ input:focus, select:focus {
     }
     
     .betting-line {
-        font-size: 1em !important;
-        padding: 3px 6px !important;
+        font-size: 1.1em !important;
+        padding: 4px 8px !important;
         margin: 0 5px 0 0 !important;
         display: inline !important;
         white-space: nowrap !important;
