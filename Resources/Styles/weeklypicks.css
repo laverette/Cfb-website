@@ -389,9 +389,9 @@ input:focus, select:focus {
     }
     
     .rivalry-teams .betting-line {
-        font-size: 0.6rem;
-        padding: 1px 3px;
-        margin-left: 8px;
+        font-size: 0.9em !important;
+        padding: 2px 5px !important;
+        margin-left: 5px !important;
         flex-shrink: 0;
     }
     
@@ -489,8 +489,8 @@ input:focus, select:focus {
     }
     
     .betting-line {
-        font-size: 1em !important;
-        padding: 3px 6px !important;
+        font-size: 0.9em !important;
+        padding: 2px 5px !important;
         margin: 0 5px 0 0 !important;
         display: inline !important;
         white-space: nowrap !important;
