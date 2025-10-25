@@ -342,9 +342,9 @@ input:focus, select:focus {
     }
     
     .team-logo {
-        width: 28px;
-        height: 28px;
-        margin: 0 5px;
+        width: 40px;
+        height: 40px;
+        margin: 0 8px;
     }
     
     /* Mobile Rivalry Card Styling */
@@ -449,8 +449,9 @@ input:focus, select:focus {
     }
     
     .betting-line {
-        font-size: 0.8em;
-        padding: 2px 4px;
+        font-size: 1.1em;
+        padding: 4px 8px;
+        font-weight: bold;
     }
     
     
@@ -462,9 +463,11 @@ input:focus, select:focus {
     label {
         display: flex;
         flex-direction: column;
-        gap: 6px;
-        margin-bottom: 10px;
+        gap: 8px;
+        margin-bottom: 15px;
         width: 100%;
+        font-size: 1.1rem;
+        line-height: 1.4;
     }
     
     /* Create a flex container for the first line */

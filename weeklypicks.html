@@ -541,23 +541,26 @@
           footer.remove();
         }
         
-        // Ensure the predictions grid uses full width
+        // Ensure the predictions grid uses full width with 3 columns on mobile
         const predictionsGrid = clone.querySelector('.predictions-grid');
         if (predictionsGrid) {
           predictionsGrid.style.width = '100%';
           predictionsGrid.style.maxWidth = '100%';
           predictionsGrid.style.display = 'grid';
-          predictionsGrid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(300px, 1fr))';
-          predictionsGrid.style.gap = '1rem';
+          predictionsGrid.style.gridTemplateColumns = 'repeat(3, 1fr)';
+          predictionsGrid.style.gap = '0.5rem';
+          predictionsGrid.style.padding = '0.5rem';
         }
         
-        // Ensure each prediction card uses full available width
+        // Ensure each prediction card fits properly in 3 columns
         const predictionCards = clone.querySelectorAll('.prediction-card');
         predictionCards.forEach(card => {
           card.style.width = '100%';
-          card.style.minWidth = '280px';
+          card.style.minWidth = '120px';
           card.style.maxWidth = '100%';
           card.style.boxSizing = 'border-box';
+          card.style.padding = '0.5rem';
+          card.style.fontSize = '0.8rem';
         });
         
         tempContainer.appendChild(clone);
