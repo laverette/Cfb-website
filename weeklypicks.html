@@ -525,10 +525,11 @@
       tempContainer.style.width = '100vw'; // Use full viewport width
       tempContainer.style.maxWidth = '100vw';
       tempContainer.style.backgroundColor = '#1E1E1E';
-      tempContainer.style.padding = '2rem';
+      tempContainer.style.padding = '1rem';
       tempContainer.style.borderRadius = '15px';
       tempContainer.style.border = '2px solid #FFD700';
       tempContainer.style.boxSizing = 'border-box';
+      tempContainer.style.overflow = 'visible';
       
       // Clone the content we want (exclude success messages and screenshot button)
       const predictionContainer = resultsContainer.querySelector('.prediction-results-container');
@@ -548,19 +549,23 @@
           predictionsGrid.style.maxWidth = '100%';
           predictionsGrid.style.display = 'grid';
           predictionsGrid.style.gridTemplateColumns = 'repeat(3, 1fr)';
-          predictionsGrid.style.gap = '0.5rem';
-          predictionsGrid.style.padding = '0.5rem';
+          predictionsGrid.style.gap = '0.3rem';
+          predictionsGrid.style.padding = '0.3rem';
+          predictionsGrid.style.margin = '0';
+          predictionsGrid.style.boxSizing = 'border-box';
         }
         
         // Ensure each prediction card fits properly in 3 columns
         const predictionCards = clone.querySelectorAll('.prediction-card');
         predictionCards.forEach(card => {
           card.style.width = '100%';
-          card.style.minWidth = '120px';
+          card.style.minWidth = '100px';
           card.style.maxWidth = '100%';
           card.style.boxSizing = 'border-box';
-          card.style.padding = '0.5rem';
-          card.style.fontSize = '0.8rem';
+          card.style.padding = '0.3rem';
+          card.style.fontSize = '0.7rem';
+          card.style.margin = '0';
+          card.style.overflow = 'visible';
         });
         
         tempContainer.appendChild(clone);
@@ -569,7 +574,7 @@
       
       html2canvas(tempContainer, {
         backgroundColor: '#1E1E1E',
-        scale: 1.5, // Balanced quality and performance
+        scale: 1.2, // Slightly reduced scale for better fit
         useCORS: true,
         allowTaint: true,
         scrollX: 0,
@@ -577,7 +582,9 @@
         width: tempContainer.scrollWidth,
         height: tempContainer.scrollHeight,
         logging: false,
-        removeContainer: false
+        removeContainer: false,
+        x: 0,
+        y: 0
       }).then(canvas => {
         // Check if Web Share API is supported (mobile)
         if (navigator.share && navigator.canShare) {
