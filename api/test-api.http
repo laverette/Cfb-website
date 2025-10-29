@@ -1,36 +1,24 @@
-### Test User Registration
-POST http://localhost:5107/api/User/register
+### Test Registration
+POST http://localhost:5107/api/auth/register
 Content-Type: application/json
 
 {
-  "username": "Logan",
-  "email": "logan@example.com",
-  "password": "password123"
+  "username": "testuser",
+  "email": "test@test.com",
+  "password": "password123",
+  "displayName": "Test User"
 }
 
-### Test User Login
-POST http://localhost:5107/api/User/login
+### Test Login
+POST http://localhost:5107/api/auth/login
 Content-Type: application/json
 
 {
-  "usernameOrEmail": "logan@example.com",
+  "username": "testuser",
   "password": "password123"
 }
 
-### Get All Users
-GET http://localhost:5107/api/User
+### Test Profile (requires token - replace YOUR_TOKEN_HERE with actual token)
+GET http://localhost:5107/api/auth/profile
+Authorization: Bearer eylllJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1laWRlbnRpZmllciI6IjEiLCJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1lIjoidGVzdHVzZXIiLCJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9lbWFpbGFkZHJlc3MiOiJ0ZXN0QHRlc3QuY29tIiwiZXhwIjoxNzYxNzUzNDM5LCJpc3MiOiJIaXJlU3dpcGUiLCJhdWQiOiJIaXJlU3dpcGVVc2VycyJ9.H3dvT5Ixq9FPIJ-QncuFp-RFH7hcMjTTVm-myl-1bvQ
 
-### Get User by ID
-GET http://localhost:5107/api/User/1
-
-### Submit Prediction (using form data)
-POST http://localhost:5107/api/Prediction/submit
-Content-Type: application/x-www-form-urlencoded
-
-user=Logan&game1=BAMA&game2=OREG&game3=LSU&game4=OSU&game5=A&M&game6=IOWA&game7=UT&game8=USC&game9=ND&game10=SCAR&game11=BYU&game12=ISU
-
-### Get All Predictions
-GET http://localhost:5107/api/Prediction
-
-### Get Predictions by User ID
-GET http://localhost:5107/api/Prediction/user/1

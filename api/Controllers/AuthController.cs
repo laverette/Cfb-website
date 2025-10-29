@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Data.Sqlite;
+using MySqlConnector;
 using Microsoft.IdentityModel.Tokens;
 using MyApp.Namespace.Models;
 using MyApp.Namespace.Services;
@@ -28,24 +28,29 @@ namespace MyApp.Namespace.Controllers
         {
             try
             {
-                // Validate user type
-                if (request.UserType != "Applicant" && request.UserType != "Employer")
-                {
-                    return BadRequest("UserType must be either 'Applicant' or 'Employer'");
-                }
-
                 using var connection = _databaseService.GetConnection();
                 await connection.OpenAsync();
 
-                // Check if email already exists
-                var checkEmailQuery = "SELECT COUNT(*) FROM Users WHERE Email = @Email";
-                using var checkCommand = new SqliteCommand(checkEmailQuery, connection);
-                checkCommand.Parameters.AddWithValue("@Email", request.Email);
+                // Check if username already exists
+                var checkUsernameQuery = "SELECT COUNT(*) FROM Users WHERE username = @Username";
+                using var checkUsernameCommand = new MySqlCommand(checkUsernameQuery, connection);
+                checkUsernameCommand.Parameters.AddWithValue("@Username", request.Username);
                 
-                var emailExists = Convert.ToInt32(await checkCommand.ExecuteScalarAsync()) > 0;
+                var usernameExists = Convert.ToInt32(await checkUsernameCommand.ExecuteScalarAsync()) > 0;
+                if (usernameExists)
+                {
+                    return BadRequest(new { message = "Username already exists" });
+                }
+
+                // Check if email already exists
+                var checkEmailQuery = "SELECT COUNT(*) FROM Users WHERE email = @Email";
+                using var checkEmailCommand = new MySqlCommand(checkEmailQuery, connection);
+                checkEmailCommand.Parameters.AddWithValue("@Email", request.Email);
+                
+                var emailExists = Convert.ToInt32(await checkEmailCommand.ExecuteScalarAsync()) > 0;
                 if (emailExists)
                 {
-                    return BadRequest("Email already exists");
+                    return BadRequest(new { message = "Email already exists" });
                 }
 
                 // Hash password
@@ -53,72 +58,66 @@ namespace MyApp.Namespace.Controllers
 
                 // Insert user
                 var insertUserQuery = @"
-                    INSERT INTO Users (Email, PasswordHash, FirstName, LastName, UserType, CreatedAt, UpdatedAt)
-                    VALUES (@Email, @PasswordHash, @FirstName, @LastName, @UserType, @CreatedAt, @UpdatedAt);
-                    SELECT last_insert_rowid();";
+                    INSERT INTO Users (username, email, password_hash, display_name, created_at, updated_at)
+                    VALUES (@Username, @Email, @PasswordHash, @DisplayName, @CreatedAt, @UpdatedAt);
+                    SELECT LAST_INSERT_ID();";
 
-                using var insertCommand = new SqliteCommand(insertUserQuery, connection);
+                using var insertCommand = new MySqlCommand(insertUserQuery, connection);
+                insertCommand.Parameters.AddWithValue("@Username", request.Username);
                 insertCommand.Parameters.AddWithValue("@Email", request.Email);
                 insertCommand.Parameters.AddWithValue("@PasswordHash", passwordHash);
-                insertCommand.Parameters.AddWithValue("@FirstName", request.FirstName);
-                insertCommand.Parameters.AddWithValue("@LastName", request.LastName);
-                insertCommand.Parameters.AddWithValue("@UserType", request.UserType);
+                insertCommand.Parameters.AddWithValue("@DisplayName", request.DisplayName ?? request.Username);
                 insertCommand.Parameters.AddWithValue("@CreatedAt", DateTime.UtcNow);
                 insertCommand.Parameters.AddWithValue("@UpdatedAt", DateTime.UtcNow);
 
                 var userId = Convert.ToInt32(await insertCommand.ExecuteScalarAsync());
 
-                // Create user profile based on type
-                if (request.UserType == "Applicant")
-                {
-                    var insertApplicantQuery = @"
-                        INSERT INTO Applicants (UserId)
-                        VALUES (@UserId)";
-                    
-                    using var applicantCommand = new SqliteCommand(insertApplicantQuery, connection);
-                    applicantCommand.Parameters.AddWithValue("@UserId", userId);
-                    await applicantCommand.ExecuteNonQueryAsync();
-                }
-                else if (request.UserType == "Employer")
-                {
-                    var insertEmployerQuery = @"
-                        INSERT INTO Employers (UserId, CompanyName)
-                        VALUES (@UserId, @CompanyName)";
-                    
-                    using var employerCommand = new SqliteCommand(insertEmployerQuery, connection);
-                    employerCommand.Parameters.AddWithValue("@UserId", userId);
-                    employerCommand.Parameters.AddWithValue("@CompanyName", "Your Company"); // Default value
-                    await employerCommand.ExecuteNonQueryAsync();
-                }
+                // Create user profile
+                var insertProfileQuery = @"
+                    INSERT INTO UserProfiles (user_id, total_picks, correct_picks, accuracy)
+                    VALUES (@UserId, 0, 0, 0.00)";
+                
+                using var profileCommand = new MySqlCommand(insertProfileQuery, connection);
+                profileCommand.Parameters.AddWithValue("@UserId", userId);
+                await profileCommand.ExecuteNonQueryAsync();
+
+                // Create user settings
+                var insertSettingsQuery = @"
+                    INSERT INTO UserSettings (user_id, email_notifications, theme, notifications_enabled)
+                    VALUES (@UserId, TRUE, 'dark', TRUE)";
+                
+                using var settingsCommand = new MySqlCommand(insertSettingsQuery, connection);
+                settingsCommand.Parameters.AddWithValue("@UserId", userId);
+                await settingsCommand.ExecuteNonQueryAsync();
 
                 // Get the created user
-                var getUserQuery = "SELECT * FROM Users WHERE Id = @Id";
-                using var getUserCommand = new SqliteCommand(getUserQuery, connection);
+                var getUserQuery = "SELECT * FROM Users WHERE id = @Id";
+                using var getUserCommand = new MySqlCommand(getUserQuery, connection);
                 getUserCommand.Parameters.AddWithValue("@Id", userId);
                 
                 using var reader = await getUserCommand.ExecuteReaderAsync();
                 if (await reader.ReadAsync())
                 {
-                    var user = new User
+                    var user = new UserResponse
                     {
-                        Id = Convert.ToInt32(reader["Id"]),
-                        Email = reader["Email"].ToString() ?? "",
-                        FirstName = reader["FirstName"].ToString() ?? "",
-                        LastName = reader["LastName"].ToString() ?? "",
-                        UserType = reader["UserType"].ToString() ?? "",
-                        CreatedAt = Convert.ToDateTime(reader["CreatedAt"]),
-                        UpdatedAt = Convert.ToDateTime(reader["UpdatedAt"])
+                        Id = Convert.ToInt32(reader["id"]),
+                        Username = reader["username"].ToString() ?? "",
+                        Email = reader["email"].ToString() ?? "",
+                        DisplayName = reader["display_name"]?.ToString(),
+                        AvatarUrl = reader["avatar_url"]?.ToString(),
+                        Bio = reader["bio"]?.ToString(),
+                        CreatedAt = Convert.ToDateTime(reader["created_at"])
                     };
 
-                    var token = GenerateJwtToken(user);
+                    var token = GenerateJwtToken(userId, user.Username, user.Email);
                     return Ok(new AuthResponse { Token = token, User = user });
                 }
 
-                return BadRequest("Failed to create user");
+                return BadRequest(new { message = "Failed to create user" });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"Internal server error: {ex.Message}");
+                return StatusCode(500, new { message = $"Internal server error: {ex.Message}" });
             }
         }
 
@@ -130,42 +129,139 @@ namespace MyApp.Namespace.Controllers
                 using var connection = _databaseService.GetConnection();
                 await connection.OpenAsync();
 
-                var query = "SELECT * FROM Users WHERE Email = @Email";
-                using var command = new SqliteCommand(query, connection);
-                command.Parameters.AddWithValue("@Email", request.Email);
+                var query = "SELECT * FROM Users WHERE username = @Username OR email = @Username";
+                using var command = new MySqlCommand(query, connection);
+                command.Parameters.AddWithValue("@Username", request.Username);
 
                 using var reader = await command.ExecuteReaderAsync();
                 if (await reader.ReadAsync())
                 {
-                    var user = new User
-                    {
-                        Id = Convert.ToInt32(reader["Id"]),
-                        Email = reader["Email"].ToString() ?? "",
-                        PasswordHash = reader["PasswordHash"].ToString() ?? "",
-                        FirstName = reader["FirstName"].ToString() ?? "",
-                        LastName = reader["LastName"].ToString() ?? "",
-                        UserType = reader["UserType"].ToString() ?? "",
-                        CreatedAt = Convert.ToDateTime(reader["CreatedAt"]),
-                        UpdatedAt = Convert.ToDateTime(reader["UpdatedAt"])
-                    };
+                    var userId = Convert.ToInt32(reader["id"]);
+                    var username = reader["username"].ToString() ?? "";
+                    var email = reader["email"].ToString() ?? "";
+                    var passwordHash = reader["password_hash"].ToString() ?? "";
+                    var displayName = reader["display_name"]?.ToString();
+                    var avatarUrl = reader["avatar_url"]?.ToString();
+                    var bio = reader["bio"]?.ToString();
+                    var createdAt = Convert.ToDateTime(reader["created_at"]);
 
                     // Verify password
-                    if (BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
+                    if (BCrypt.Net.BCrypt.Verify(request.Password, passwordHash))
                     {
-                        var token = GenerateJwtToken(user);
+                        var user = new UserResponse
+                        {
+                            Id = userId,
+                            Username = username,
+                            Email = email,
+                            DisplayName = displayName,
+                            AvatarUrl = avatarUrl,
+                            Bio = bio,
+                            CreatedAt = createdAt
+                        };
+
+                        // Update last login activity
+                        await reader.CloseAsync();
+                        await UpdateLastLogin(connection, userId);
+
+                        var token = GenerateJwtToken(userId, username, email);
                         return Ok(new AuthResponse { Token = token, User = user });
                     }
                 }
 
-                return Unauthorized("Invalid email or password");
+                return Unauthorized(new { message = "Invalid username or password" });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"Internal server error: {ex.Message}");
+                return StatusCode(500, new { message = $"Internal server error: {ex.Message}" });
             }
         }
 
-        private string GenerateJwtToken(User user)
+        [HttpGet("profile")]
+        [Microsoft.AspNetCore.Authorization.Authorize]
+        public async Task<ActionResult<ProfileResponse>> GetProfile()
+        {
+            try
+            {
+                var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
+                {
+                    return Unauthorized(new { message = "Invalid token" });
+                }
+
+                using var connection = _databaseService.GetConnection();
+                await connection.OpenAsync();
+
+                // Get user
+                var userQuery = "SELECT * FROM Users WHERE id = @Id";
+                using var userCommand = new MySqlCommand(userQuery, connection);
+                userCommand.Parameters.AddWithValue("@Id", userId);
+
+                using var userReader = await userCommand.ExecuteReaderAsync();
+                if (!await userReader.ReadAsync())
+                {
+                    return NotFound(new { message = "User not found" });
+                }
+
+                var user = new UserResponse
+                {
+                    Id = Convert.ToInt32(userReader["id"]),
+                    Username = userReader["username"].ToString() ?? "",
+                    Email = userReader["email"].ToString() ?? "",
+                    DisplayName = userReader["display_name"]?.ToString(),
+                    AvatarUrl = userReader["avatar_url"]?.ToString(),
+                    Bio = userReader["bio"]?.ToString(),
+                    CreatedAt = Convert.ToDateTime(userReader["created_at"])
+                };
+
+                await userReader.CloseAsync();
+
+                // Get profile
+                var profileQuery = "SELECT * FROM UserProfiles WHERE user_id = @UserId";
+                using var profileCommand = new MySqlCommand(profileQuery, connection);
+                profileCommand.Parameters.AddWithValue("@UserId", userId);
+
+                using var profileReader = await profileCommand.ExecuteReaderAsync();
+                UserProfile? profile = null;
+
+                if (await profileReader.ReadAsync())
+                {
+                    profile = new UserProfile
+                    {
+                        Id = Convert.ToInt32(profileReader["id"]),
+                        UserId = Convert.ToInt32(profileReader["user_id"]),
+                        FavoriteTeamEspnId = profileReader["favorite_team_espn_id"] as int?,
+                        FavoriteConference = profileReader["favorite_conference"]?.ToString(),
+                        Location = profileReader["location"]?.ToString(),
+                        TotalPicks = Convert.ToInt32(profileReader["total_picks"]),
+                        CorrectPicks = Convert.ToInt32(profileReader["correct_picks"]),
+                        Accuracy = Convert.ToDecimal(profileReader["accuracy"]),
+                        CurrentStreak = Convert.ToInt32(profileReader["current_streak"]),
+                        BestStreak = Convert.ToInt32(profileReader["best_streak"]),
+                        Ranking = profileReader["ranking"] as int?,
+                        LastPickDate = profileReader["last_pick_date"] as DateTime?
+                    };
+                }
+
+                return Ok(new ProfileResponse { User = user, Profile = profile });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = $"Internal server error: {ex.Message}" });
+            }
+        }
+
+        private async Task UpdateLastLogin(MySqlConnection connection, int userId)
+        {
+            var activityQuery = @"
+                INSERT INTO UserActivity (user_id, activity_type, activity_data, created_at)
+                VALUES (@UserId, 'login', JSON_OBJECT('login_time', NOW()), NOW())";
+            
+            using var activityCommand = new MySqlCommand(activityQuery, connection);
+            activityCommand.Parameters.AddWithValue("@UserId", userId);
+            await activityCommand.ExecuteNonQueryAsync();
+        }
+
+        private string GenerateJwtToken(int userId, string username, string email)
         {
             var jwtKey = _configuration["Jwt:Key"];
             var jwtIssuer = _configuration["Jwt:Issuer"];
@@ -177,10 +273,9 @@ namespace MyApp.Namespace.Controllers
 
             var claims = new[]
             {
-                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new Claim(ClaimTypes.Email, user.Email),
-                new Claim(ClaimTypes.Name, $"{user.FirstName} {user.LastName}"),
-                new Claim("UserType", user.UserType)
+                new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
+                new Claim(ClaimTypes.Name, username),
+                new Claim(ClaimTypes.Email, email)
             };
 
             var token = new JwtSecurityToken(
@@ -195,3 +290,4 @@ namespace MyApp.Namespace.Controllers
         }
     }
 }
+

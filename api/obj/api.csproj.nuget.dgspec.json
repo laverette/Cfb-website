@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Schoolwork\\MIS321\\GroupProject2\\Client\\api\\api.csproj": {}
+    "C:\\Users\\logan\\Documents\\Source\\Repos\\MIS321\\CFB\\Client\\api\\api.csproj": {}
   },
   "projects": {
-    "C:\\Schoolwork\\MIS321\\GroupProject2\\Client\\api\\api.csproj": {
+    "C:\\Users\\logan\\Documents\\Source\\Repos\\MIS321\\CFB\\Client\\api\\api.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Schoolwork\\MIS321\\GroupProject2\\Client\\api\\api.csproj",
+        "projectUniqueName": "C:\\Users\\logan\\Documents\\Source\\Repos\\MIS321\\CFB\\Client\\api\\api.csproj",
         "projectName": "api",
-        "projectPath": "C:\\Schoolwork\\MIS321\\GroupProject2\\Client\\api\\api.csproj",
+        "projectPath": "C:\\Users\\logan\\Documents\\Source\\Repos\\MIS321\\CFB\\Client\\api\\api.csproj",
         "packagesPath": "C:\\Users\\logan\\.nuget\\packages\\",
-        "outputPath": "C:\\Schoolwork\\MIS321\\GroupProject2\\Client\\api\\obj\\",
+        "outputPath": "C:\\Users\\logan\\Documents\\Source\\Repos\\MIS321\\CFB\\Client\\api\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\logan\\AppData\\Roaming\\NuGet\\NuGet.Config"
@@ -51,9 +51,9 @@
               "target": "Package",
               "version": "[8.0.0, )"
             },
-            "Microsoft.Data.Sqlite": {
+            "MySqlConnector": {
               "target": "Package",
-              "version": "[8.0.0, )"
+              "version": "[2.3.5, )"
             },
             "Swashbuckle.AspNetCore": {
               "target": "Package",
