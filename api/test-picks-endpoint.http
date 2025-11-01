@@ -1,0 +1,7 @@
+### Test Get Games for Week 1 (should work without auth)
+GET https://cfb-website.onrender.com/api/picks/games/week/1
+
+### Test Check Submission Status (requires auth - replace YOUR_TOKEN)
+GET https://cfb-website.onrender.com/api/picks/check-submission/1
+Authorization: Bearer YOUR_TOKEN_HERE
+
