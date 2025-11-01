@@ -121,15 +121,15 @@ namespace MyApp.Namespace.Controllers
                 {
                     try
                     {
-                        // Get game info to verify it exists and get team info
+                        // Get game info using game_number instead of game_id
                         var gameQuery = @"
                             SELECT id, week_id, home_team_espn_id, away_team_espn_id, 
                                    home_team_name, away_team_name
                             FROM Games 
-                            WHERE id = @GameId AND week_id = @WeekId";
+                            WHERE game_number = @GameNumber AND week_id = @WeekId";
                         
                         using var gameCommand = new MySqlCommand(gameQuery, connection);
-                        gameCommand.Parameters.AddWithValue("@GameId", pick.GameId);
+                        gameCommand.Parameters.AddWithValue("@GameNumber", pick.GameNumber);
                         gameCommand.Parameters.AddWithValue("@WeekId", request.WeekId);
                         
                         using var gameReader = await gameCommand.ExecuteReaderAsync();
@@ -199,7 +199,7 @@ namespace MyApp.Namespace.Controllers
                     {
                         errorCount++;
                         // Log error but continue with other picks
-                        Console.WriteLine($"Error saving pick for game {pick.GameId}: {ex.Message}");
+                        Console.WriteLine($"Error saving pick for game {pick.GameNumber}: {ex.Message}");
                     }
                 }
 
@@ -350,7 +350,7 @@ namespace MyApp.Namespace.Controllers
 
     public class GamePick
     {
-        public int GameId { get; set; }
+        public int GameNumber { get; set; }  // 1-12 instead of database game_id
         public int PickedTeamEspnId { get; set; }
     }
 }

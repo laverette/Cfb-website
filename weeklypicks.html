@@ -433,11 +433,7 @@
       document.getElementById('userSection').style.display = 'none';
     }
 
-    // Game data mapping - maps dropdown codes to ESPN IDs and game info
-    // This will be populated from the API
-    let weekGames = [];
-    let gamesLoaded = false;
-    const weekId = 1; // TODO: Update this to match your week_id from database (check Weeks table)
+    const weekId = 1; // Update this to match your week_id from database (check Weeks table)
 
     // Team code to ESPN ID mapping (for the dropdown values)
     const teamCodeToEspnId = {
@@ -467,46 +463,7 @@
       'IND': 84, 'MD': 120
     };
 
-    // Load games from API on page load
-    async function loadGamesForWeek() {
-      try {
-        const response = await fetch(`https://cfb-website.onrender.com/api/picks/games/week/${weekId}`);
-        if (response.ok) {
-          const data = await response.json();
-          weekGames = data.games;
-          
-          console.log(`Loaded ${weekGames.length} games for week ${weekId}`);
-          
-          // Add data attributes to selects with game IDs
-          weekGames.forEach((game, index) => {
-            const select = document.querySelector(`select[name="game${game.gameNumber}"]`);
-            if (select) {
-              select.setAttribute('data-game-id', game.id);
-              select.setAttribute('data-home-espn-id', game.homeTeamEspnId);
-              select.setAttribute('data-away-espn-id', game.awayTeamEspnId);
-              console.log(`Set game ${game.gameNumber} with ID: ${game.id}`);
-            } else {
-              console.warn(`Select element for game ${game.gameNumber} not found`);
-            }
-          });
-          
-          if (weekGames.length === 0) {
-            console.error('No games loaded! Week ID might be incorrect. Current weekId:', weekId);
-            alert(`No games found for week ${weekId}. Please check that:\n1. The week exists in your database\n2. The weekId variable is set correctly\n3. Games are inserted for this week`);
-          } else {
-            gamesLoaded = true;
-            console.log('Games loaded successfully!');
-          }
-        } else {
-          const errorText = await response.text();
-          console.error('Failed to load games:', response.status, errorText);
-          alert(`Failed to load games (Status ${response.status}). Please check:\n1. API is running\n2. Week ID is correct\n\nCurrent weekId: ${weekId}`);
-        }
-      } catch (error) {
-        console.error('Error loading games:', error);
-        alert('Failed to load games. Please refresh the page.\n\nError: ' + error.message);
-      }
-    }
+    // No longer need to load games from API - we use game_number (1-12) directly
 
     // Check if user has already submitted picks for this week
     async function checkSubmissionStatus() {
@@ -573,9 +530,8 @@
       }
     }
 
-    // Load games when page loads
+    // Load submission status when page loads
     document.addEventListener('DOMContentLoaded', function() {
-      loadGamesForWeek();
       checkSubmissionStatus();
     });
 
@@ -593,17 +549,13 @@
         return;
       }
 
-      // Check if games are loaded
-      if (!gamesLoaded || weekGames.length === 0) {
-        alert('Games are still loading or failed to load. Please wait a moment and try again, or refresh the page.\n\nIf this persists, check the browser console for errors.');
-        return;
-      }
+      // No need to check if games are loaded - we use game_number instead of game_id
 
       const user = JSON.parse(savedUser);
       const form = e.target;
       const formData = new FormData(form);
       
-      // Build picks array for API
+      // Build picks array for API - using game_number (1-12) instead of game_id
       const picks = [];
       const missingPicks = [];
       
@@ -614,13 +566,7 @@
           continue;
         }
         
-        const gameId = select.getAttribute('data-game-id');
         const pickedCode = formData.get(`game${i}`);
-        
-        if (!gameId) {
-          missingPicks.push(`Game ${i} (game ID not loaded - please refresh the page)`);
-          continue;
-        }
         
         if (!pickedCode) {
           missingPicks.push(`Game ${i} (no selection made)`);
@@ -633,16 +579,15 @@
         }
         
         picks.push({
-          gameId: parseInt(gameId),
+          gameNumber: i,  // Use game number (1-12) instead of database game_id
           pickedTeamEspnId: teamCodeToEspnId[pickedCode]
         });
       }
 
       if (picks.length < 12) {
         console.error('Missing picks:', missingPicks);
-        console.error('Week games loaded:', weekGames.length);
         console.error('Week ID:', weekId);
-        alert(`Please select picks for all 12 games!\n\nMissing: ${missingPicks.length} games\n\nIf you see "(game ID not loaded)", please refresh the page and wait for games to load.`);
+        alert(`Please select picks for all 12 games!\n\nMissing: ${missingPicks.length} games`);
         return;
       }
 
