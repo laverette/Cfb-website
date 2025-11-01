@@ -50,7 +50,8 @@
     <div class="week7-layout">
       <div class="form-section">
         <!-- Prediction Form -->
-        <form name="predictions" method="POST" id="predictionsForm">    
+        <form name="predictions" method="POST" id="predictionsForm" netlify data-netlify="true">
+          <input type="hidden" name="form-name" value="predictions" />
           <p>
             <label>Your Name: 
               <input id="yourname" name="user" type="text" required />
@@ -82,7 +83,7 @@
                   <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/57.png" alt="Florida" class="rivalry-logo">
                   <span class="team-name">Florida</span>
                 </div>
-                <span class="betting-line">-8.5</span>
+                <span class="betting-line">+7.5</span>
               </div>
             </div>
             <div class="game-controls">
@@ -383,10 +384,10 @@
 
 
     <script>
-    // Login/Logout functionality
+    // Login/Logout functionality - simplified, no authentication required
     let currentUser = null;
 
-    // Check if user is logged in on page load
+    // Check if user is logged in on page load (optional, no requirement)
     document.addEventListener('DOMContentLoaded', function() {
       const savedUser = localStorage.getItem('currentUser');
       const authToken = localStorage.getItem('authToken');
@@ -406,7 +407,7 @@
     });
 
     // Logout handler
-    document.getElementById('logoutBtn').addEventListener('click', function() {
+    document.getElementById('logoutBtn')?.addEventListener('click', function() {
       currentUser = null;
       localStorage.removeItem('currentUser');
       localStorage.removeItem('authToken');
@@ -420,17 +421,23 @@
     });
 
     function showUserSection() {
-      document.getElementById('loginButtonSection').style.display = 'none';
-      document.getElementById('userSection').style.display = 'block';
-      
-      // Display username or displayName
-      const displayName = currentUser?.displayName || currentUser?.username || 'User';
-      document.getElementById('userName').textContent = displayName;
+      const loginSection = document.getElementById('loginButtonSection');
+      const userSection = document.getElementById('userSection');
+      if (loginSection) loginSection.style.display = 'none';
+      if (userSection) {
+        userSection.style.display = 'block';
+        // Display username or displayName
+        const displayName = currentUser?.displayName || currentUser?.username || 'User';
+        const userNameEl = document.getElementById('userName');
+        if (userNameEl) userNameEl.textContent = displayName;
+      }
     }
 
     function showLoginButton() {
-      document.getElementById('loginButtonSection').style.display = 'block';
-      document.getElementById('userSection').style.display = 'none';
+      const loginSection = document.getElementById('loginButtonSection');
+      const userSection = document.getElementById('userSection');
+      if (loginSection) loginSection.style.display = 'block';
+      if (userSection) userSection.style.display = 'none';
     }
 
     const weekId = 1; // Update this to match your week_id from database (check Weeks table)
@@ -465,128 +472,26 @@
 
     // No longer need to load games from API - we use game_number (1-12) directly
 
-    // Check if user has already submitted picks for this week
-    async function checkSubmissionStatus() {
-      const authToken = localStorage.getItem('authToken');
-      if (!authToken) return;
+    // Submission status check removed - no authentication required
 
-      try {
-        const response = await fetch(`https://cfb-website.onrender.com/api/picks/check-submission/${weekId}`, {
-          headers: {
-            'Authorization': `Bearer ${authToken}`
-          }
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          if (data.hasSubmitted) {
-            // Disable form and show message
-            const form = document.getElementById('predictionsForm');
-            const submitBtn = document.getElementById('submit');
-            
-            // Disable all select dropdowns
-            for (let i = 1; i <= 12; i++) {
-              const select = document.querySelector(`select[name="game${i}"]`);
-              if (select) {
-                select.disabled = true;
-                select.style.cursor = 'not-allowed';
-                select.style.opacity = '0.6';
-              }
-            }
-            
-            // Disable name input
-            const nameInput = document.getElementById('yourname');
-            if (nameInput) {
-              nameInput.disabled = true;
-              nameInput.style.cursor = 'not-allowed';
-              nameInput.style.opacity = '0.6';
-            }
-            
-            if (submitBtn) {
-              submitBtn.disabled = true;
-              submitBtn.textContent = '✓ Already Submitted';
-              submitBtn.style.backgroundColor = '#6c757d';
-              submitBtn.style.cursor = 'not-allowed';
-            }
-
-            // Show info message
-            const formSection = document.querySelector('.form-section');
-            if (formSection && !document.getElementById('alreadySubmittedMsg')) {
-              const msg = document.createElement('div');
-              msg.id = 'alreadySubmittedMsg';
-              msg.style.cssText = 'background-color: #d4edda; color: #155724; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #c3e6cb;';
-              msg.innerHTML = `
-                <strong>✓ You've already submitted your picks for this week!</strong>
-                <p style="margin: 5px 0 0 0; font-size: 14px;">
-                  Only one submission per week is allowed. You can view your picks below.
-                </p>
-              `;
-              formSection.insertBefore(msg, formSection.firstChild);
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Error checking submission status:', error);
-      }
-    }
-
-    // Load submission status when page loads
-    document.addEventListener('DOMContentLoaded', function() {
-      checkSubmissionStatus();
-    });
-
-    // Prediction form handler
+    // Prediction form handler - Submit to Netlify Forms
     document.querySelector('form[name="predictions"]').addEventListener('submit', async function(e) {
       e.preventDefault();
 
-      // Check if user is logged in
-      const authToken = localStorage.getItem('authToken');
-      const savedUser = localStorage.getItem('currentUser');
-      
-      if (!authToken || !savedUser) {
-        alert('Please log in to submit your picks!');
-        window.location.href = 'login.html';
-        return;
-      }
-
-      // No need to check if games are loaded - we use game_number instead of game_id
-
-      const user = JSON.parse(savedUser);
       const form = e.target;
       const formData = new FormData(form);
       
-      // Build picks array for API - using game_number (1-12) instead of game_id
-      const picks = [];
+      // Validate all picks are selected
       const missingPicks = [];
       
       for (let i = 1; i <= 12; i++) {
-        const select = document.querySelector(`select[name="game${i}"]`);
-        if (!select) {
-          missingPicks.push(`Game ${i} (select element not found)`);
-          continue;
-        }
-        
         const pickedCode = formData.get(`game${i}`);
-        
         if (!pickedCode) {
-          missingPicks.push(`Game ${i} (no selection made)`);
-          continue;
+          missingPicks.push(`Game ${i}`);
         }
-        
-        if (!teamCodeToEspnId[pickedCode]) {
-          missingPicks.push(`Game ${i} (invalid team code: ${pickedCode})`);
-          continue;
-        }
-        
-        picks.push({
-          gameNumber: i,  // Use game number (1-12) instead of database game_id
-          pickedTeamEspnId: teamCodeToEspnId[pickedCode]
-        });
       }
 
-      if (picks.length < 12) {
-        console.error('Missing picks:', missingPicks);
-        console.error('Week ID:', weekId);
+      if (missingPicks.length > 0) {
         alert(`Please select picks for all 12 games!\n\nMissing: ${missingPicks.length} games`);
         return;
       }
@@ -598,41 +503,20 @@
       submitBtn.disabled = true;
       
       try {
-        // Submit picks to API
-        const response = await fetch('https://cfb-website.onrender.com/api/picks/submit', {
+        // Submit to Netlify Forms using fetch
+        // Add form-name for Netlify to recognize the form
+        const formDataWithName = new URLSearchParams(formData);
+        formDataWithName.append('form-name', 'predictions');
+        
+        const response = await fetch('/', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${authToken}`
-          },
-          body: JSON.stringify({
-            weekId: weekId,
-            picks: picks
-          })
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: formDataWithName.toString()
         });
 
-        // Check if response has content before parsing JSON
-        const responseText = await response.text();
-        let result;
-        
-        if (responseText) {
-          try {
-            result = JSON.parse(responseText);
-          } catch (parseError) {
-            console.error('Failed to parse response:', responseText);
-            throw new Error(`Server returned invalid JSON. Status: ${response.status}. Response: ${responseText.substring(0, 200)}`);
-          }
-        } else {
-          // Empty response - create a default result object
-          result = { 
-            message: response.ok ? 'Request succeeded but no response body' : `Server error (Status ${response.status})`,
-            status: response.status 
-          };
-        }
-        
         if (response.ok) {
           // Build preview (keep the existing preview functionality)
-          const userName = formData.get("user") || user.username || user.displayName;
+          const userName = formData.get("user") || "Guest";
           let html = `
         <div class="prediction-results-container">
           <div class="prediction-header">
@@ -725,23 +609,13 @@
           submitBtn.textContent = originalText;
           submitBtn.disabled = false;
         } else {
-          // Handle specific error codes
-          if (result.code === 'ALREADY_SUBMITTED') {
-            alert('⚠️ You have already submitted your picks for this week!\n\nOnly one submission per week is allowed.');
-          } else {
-            alert(`Error submitting picks: ${result.message || 'Unknown error'}`);
-          }
+          alert(`Error submitting picks. Please try again.`);
           submitBtn.textContent = originalText;
           submitBtn.disabled = false;
         }
       } catch (error) {
         console.error('Error submitting picks:', error);
-        console.error('Error details:', {
-          message: error.message,
-          stack: error.stack,
-          picksSubmitted: picks.length
-        });
-        alert(`Error submitting picks: ${error.message}\n\nPlease check the browser console for more details.`);
+        alert(`Error submitting picks. Please try again.`);
         submitBtn.textContent = originalText;
         submitBtn.disabled = false;
       }
