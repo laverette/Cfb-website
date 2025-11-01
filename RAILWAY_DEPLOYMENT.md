@@ -124,3 +124,4 @@ const API_URL = 'https://yourapp.up.railway.app/api';
 3. Update your frontend to call Railway API
 4. Test full user flow
 
+

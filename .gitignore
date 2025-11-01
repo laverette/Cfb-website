@@ -1,0 +1,32 @@
+# .NET build artifacts
+bin/
+obj/
+*.dll
+*.exe
+*.pdb
+
+# Database files (local)
+*.db
+*.db-shm
+*.db-wal
+
+# User-specific files
+*.user
+*.suo
+
+# IDE files
+.vs/
+.idea/
+
+# Environment variables (keep template, ignore actual)
+appsettings.Development.json
+*.env
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+

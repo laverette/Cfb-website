@@ -69,17 +69,17 @@
           <div class="rivalry-card">
             <div class="rivalry-header">
               <div class="rivalry-title">
-                <img src="https://upload.wikimedia.org/wikipedia/en/thumb/4/42/Floyd_of_rosedale.jpg/500px-Floyd_of_rosedale.jpg" alt="Floyd of Rosedale Trophy" class="rivalry-icon" style="width: 32px; height: 32px; object-fit: cover; border-radius: 4px;">
-                <span class="rivalry-name" onclick="showFloydOfRosedaleRivalry()">The Worlds Largest Outdoor Cocktail Party</span>
+                <span class="rivalry-icon" style="font-size: 32px;">🍹</span>
+                <span class="rivalry-name" onclick="showCocktailPartyRivalry()">The World's Largest Outdoor Cocktail Party</span>
               </div>
               <div class="rivalry-teams">
                 <div class="team-info">
-                  <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/2579.png" alt="Georgia" class="rivalry-logo">
+                  <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/61.png" alt="Georgia" class="rivalry-logo">
                   <span class="team-name">Georgia</span>
                 </div>
-                <span class="vs">AT</span>
+                <span class="vs">VS</span>
                 <div class="team-info">
-                  <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/18.png" alt="Florida" class="rivalry-logo">
+                  <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/57.png" alt="Florida" class="rivalry-logo">
                   <span class="team-name">Florida</span>
                 </div>
                 <span class="betting-line">-8.5</span>
@@ -87,8 +87,8 @@
             </div>
             <div class="game-controls">
               <select name="game1">
-                <option value="MINN">MINN</option>
-                <option value="IOWA">IOWA</option>
+                <option value="UGA">UGA</option>
+                <option value="FLA">FLA</option>
               </select>
             </div>
           </div>
@@ -246,8 +246,8 @@
       <h2 class="coach-corso-title">🏈 Coach Corso Says...</h2>
       <div class="coach-corso-content">
           <div class="corso-tip">
-            <span class="tip-icon">🐷</span>
-            <span class="tip-text">The Battle for Floyd of Rosedale! Minnesota's defense has been stout this season, but Iowa's offense is finally clicking. Give me the Hawkeyes at home!</span>
+            <span class="tip-icon">🍹</span>
+            <span class="tip-text">The World's Largest Outdoor Cocktail Party! Georgia vs Florida in Jacksonville! This is THE game of the week! The Dawgs have been dominant, but Florida's been playing with fire. Give me Georgia to cover in this classic SEC showdown!</span>
           </div>
           <div class="corso-tip">
             <span class="tip-icon">🐘</span>
@@ -413,9 +413,9 @@
       `;
       
       for (let i = 1; i <= 12; i++) {
-        const gameData = [
-          "Minnesota at Iowa",
-          "4 Alabama at South Carolina",
+      const gameData = [
+        "Georgia vs Florida",
+        "4 Alabama at South Carolina",
           "8 Ole Miss at 13 Oklahoma",
           "3 Texas A&M at 20 LSU",
           "15 Missouri at 10 Vanderbilt",
@@ -723,29 +723,36 @@
       }
     }
 
-    // Floyd of Rosedale Rivalry Modal
-    function showFloydOfRosedaleRivalry() {
+    // The World's Largest Outdoor Cocktail Party Rivalry Modal
+    function showCocktailPartyRivalry() {
       const modal = document.createElement('div');
       modal.className = 'rivalry-modal';
       modal.innerHTML = `
         <div class="rivalry-modal-content">
           <div class="rivalry-modal-header">
-            <h3><img src="https://upload.wikimedia.org/wikipedia/en/thumb/4/42/Floyd_of_rosedale.jpg/500px-Floyd_of_rosedale.jpg" alt="Floyd of Rosedale Trophy" style="width: 24px; height: 24px; object-fit: cover; border-radius: 4px; vertical-align: middle; margin-right: 8px;"> The Battle for Floyd of Rosedale</h3>
+            <h3><span style="font-size: 24px; margin-right: 8px;">🍹</span> The World's Largest Outdoor Cocktail Party</h3>
             <span class="close-modal" onclick="closeRivalryModal()">&times;</span>
           </div>
           <div class="rivalry-modal-body">
-            <p><strong>Minnesota vs Iowa</strong> - One of college football's most unique trophy games!</p>
-            <p><strong>History:</strong> Dating back to 1935, this rivalry centers around Floyd of Rosedale, a bronze pig trophy that represents one of college football's most unusual and beloved traditions.</p>
-            <p><strong>The Trophy Story:</strong></p>
+            <p><strong>Georgia vs Florida</strong> - One of college football's most iconic SEC rivalries!</p>
+            <p><strong>History:</strong> Dating back to 1915, this fierce rivalry between the Georgia Bulldogs and Florida Gators has become one of the most anticipated games of the SEC season. The game is traditionally played on a neutral site at TIAA Bank Field (formerly EverBank Field) in Jacksonville, Florida, creating a unique split-stadium atmosphere.</p>
+            <p><strong>The "Cocktail Party" Nickname:</strong></p>
             <ul>
-              <li><strong>1935 Origin:</strong> The rivalry began when Minnesota Governor Floyd B. Olson and Iowa Governor Clyde Herring made a bet on the game, with the loser having to present the winner with a live pig</li>
-              <li><strong>Floyd of Rosedale:</strong> The original pig was named Floyd of Rosedale after Governor Olson, and the tradition has continued ever since</li>
-              <li><strong>Bronze Replica:</strong> The current trophy is a bronze replica of a pig, created in 1936 to replace the live pig tradition</li>
-              <li><strong>Unique Design:</strong> The trophy features a bronze pig on a walnut base, making it one of the most distinctive rivalry trophies in college football</li>
+              <li><strong>1930s Origin:</strong> The nickname "World's Largest Outdoor Cocktail Party" was coined by a local columnist in the 1930s, referencing the massive tailgating scene that developed around this neutral-site game</li>
+              <li><strong>Official Distance:</strong> While the schools don't officially use the nickname anymore (preferring just "Georgia-Florida Game"), fans and media still affectionately call it the Cocktail Party</li>
+              <li><strong>Jacksonville Tradition:</strong> The neutral-site location in Jacksonville has hosted the game since 1933, except for brief interruptions during WWII and 1994-1995 when renovations were needed</li>
+              <li><strong>Split Stadium:</strong> The stadium is divided right down the middle - Georgia fans on one side, Florida fans on the other, creating an electric atmosphere</li>
             </ul>
-            <p><strong>Series Record:</strong> Minnesota leads 62-51-2</p>
-            <p><strong>Why "Floyd of Rosedale":</strong> This rivalry represents the friendly but competitive spirit between two neighboring states, with the pig trophy symbolizing the agricultural heritage of both Minnesota and Iowa. It's one of the few rivalries where the trophy itself has become more famous than the teams!</p>
-            <p><strong>Fun Fact:</strong> The original Floyd of Rosedale was a real pig that was presented to the winning team in 1935. The bronze trophy was created the following year to make the tradition more practical!</p>
+            <p><strong>Series Record:</strong> Georgia leads the overall series 55-44-2 (as of 2024)</p>
+            <p><strong>Memorable Moments:</strong></p>
+            <ul>
+              <li><strong>1980:</strong> Herschel Walker's legendary 92-yard touchdown run in a 26-21 Georgia victory during their National Championship season</li>
+              <li><strong>1995:</strong> Florida's 52-17 rout of Georgia, part of Steve Spurrier's dominance of the series (11-1 record vs Georgia)</li>
+              <li><strong>2007:</strong> Georgia's 42-30 upset of #9 Florida, marked by the entire team rushing the field after Knowshon Moreno's first touchdown</li>
+              <li><strong>2020-2021:</strong> Georgia snapped a three-game losing streak with back-to-back victories, reasserting dominance in the Kirby Smart era</li>
+            </ul>
+            <p><strong>Why It Matters:</strong> This game often decides the SEC East division title and has produced countless memorable moments. The neutral-site, split-stadium environment creates one of the most unique and intense atmospheres in all of college football. Whether you're a Bulldog or a Gator, this game represents everything that makes SEC football special!</p>
+            <p><strong>Fun Fact:</strong> The game was originally played in various locations including Savannah, Macon, and Gainesville before settling in Jacksonville. The neutral site tradition has become so beloved that attempts to move it to home-and-home have been strongly resisted by both fan bases!</p>
           </div>
         </div>
       `;

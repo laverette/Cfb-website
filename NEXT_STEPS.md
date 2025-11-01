@@ -123,3 +123,4 @@ Authorization: Bearer <your-jwt-token>
 - Database credentials should be in environment variables (not committed to git)
 - For production, use Railway's environment variables instead of `appsettings.json`
 
+

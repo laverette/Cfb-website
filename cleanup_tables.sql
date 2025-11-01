@@ -16,3 +16,4 @@ DROP TABLE IF EXISTS Users;
 
 -- Now you can safely re-run the main database_schema.sql file
 
+
