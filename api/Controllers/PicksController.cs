@@ -68,6 +68,7 @@ namespace MyApp.Namespace.Controllers
         }
 
         [HttpPost("submit")]
+        [Authorize]
         public async Task<ActionResult> SubmitPicks([FromBody] SubmitPicksRequest request)
         {
             try

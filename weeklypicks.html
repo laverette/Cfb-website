@@ -611,7 +611,24 @@
           })
         });
 
-        const result = await response.json();
+        // Check if response has content before parsing JSON
+        const responseText = await response.text();
+        let result;
+        
+        if (responseText) {
+          try {
+            result = JSON.parse(responseText);
+          } catch (parseError) {
+            console.error('Failed to parse response:', responseText);
+            throw new Error(`Server returned invalid JSON. Status: ${response.status}. Response: ${responseText.substring(0, 200)}`);
+          }
+        } else {
+          // Empty response - create a default result object
+          result = { 
+            message: response.ok ? 'Request succeeded but no response body' : `Server error (Status ${response.status})`,
+            status: response.status 
+          };
+        }
         
         if (response.ok) {
           // Build preview (keep the existing preview functionality)
@@ -719,7 +736,12 @@
         }
       } catch (error) {
         console.error('Error submitting picks:', error);
-        alert('Error submitting picks. Please try again.');
+        console.error('Error details:', {
+          message: error.message,
+          stack: error.stack,
+          picksSubmitted: picks.length
+        });
+        alert(`Error submitting picks: ${error.message}\n\nPlease check the browser console for more details.`);
         submitBtn.textContent = originalText;
         submitBtn.disabled = false;
       }
