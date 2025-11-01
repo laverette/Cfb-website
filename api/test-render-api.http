@@ -1,0 +1,24 @@
+### Test Registration on Render
+POST https://cfb-website.onrender.com/api/auth/register
+Content-Type: application/json
+
+{
+  "username": "renderuser",
+  "email": "render@test.com",
+  "password": "password123",
+  "displayName": "Render Test User"
+}
+
+### Test Login on Render
+POST https://cfb-website.onrender.com/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "renderuser",
+  "password": "password123"
+}
+
+### Test Profile on Render (requires token - replace YOUR_TOKEN_HERE with actual token from login)
+GET https://cfb-website.onrender.com/api/auth/profile
+Authorization: Bearer YOUR_TOKEN_HERE
+

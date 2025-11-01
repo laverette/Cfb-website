@@ -124,12 +124,12 @@
       
       const formData = new FormData(e.target);
       const loginData = {
-        usernameOrEmail: formData.get('usernameOrEmail'),
+        username: formData.get('usernameOrEmail'), // API accepts username or email in username field
         password: formData.get('password')
       };
       
       try {
-        const response = await fetch('http://localhost:5107/api/User/login', {
+        const response = await fetch('https://cfb-website.onrender.com/api/auth/login', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -140,8 +140,9 @@
         const result = await response.json();
         
         if (response.ok) {
-          // Save user to localStorage
-          localStorage.setItem('currentUser', JSON.stringify(result));
+          // Save token and user to localStorage
+          localStorage.setItem('authToken', result.token);
+          localStorage.setItem('currentUser', JSON.stringify(result.user));
           
           showMessage('✅ Login successful! Redirecting...', 'success');
           
@@ -170,7 +171,7 @@
       };
       
       try {
-        const response = await fetch('http://localhost:5107/api/User/register', {
+        const response = await fetch('https://cfb-website.onrender.com/api/auth/register', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -181,12 +182,16 @@
         const result = await response.json();
         
         if (response.ok) {
-          showMessage('✅ Registration successful! You can now login.', 'success');
+          // Save token and user to localStorage automatically
+          localStorage.setItem('authToken', result.token);
+          localStorage.setItem('currentUser', JSON.stringify(result.user));
           
-          // Clear form and switch to login
+          showMessage('✅ Registration successful! You are now logged in. Redirecting...', 'success');
+          
+          // Clear form and redirect to weekly picks
           e.target.reset();
           setTimeout(() => {
-            showLoginForm();
+            window.location.href = 'weeklypicks.html';
           }, 1500);
         } else {
           showMessage(`❌ ${result.message || 'Registration failed'}`, 'error');

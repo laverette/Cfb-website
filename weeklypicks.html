@@ -16,7 +16,7 @@
   </div>
   
   <!-- Login Button - Upper Right -->
-  <div style="position: fixed; top: 10px; right: 10px; z-index: 1000; display: none;">
+  <div style="position: fixed; top: 10px; right: 10px; z-index: 1000; display: block;">
     <div id="loginButtonSection">
       <a href="login.html" style="background-color: #3E2723; color: #F5F5F5; padding: 8px 16px; border-radius: 6px; text-decoration: none; border: 1px solid #8D6E63; font-weight: bold;">Login</a>
     </div>
@@ -365,10 +365,17 @@
     // Check if user is logged in on page load
     document.addEventListener('DOMContentLoaded', function() {
       const savedUser = localStorage.getItem('currentUser');
-      if (savedUser) {
+      const authToken = localStorage.getItem('authToken');
+      
+      if (savedUser && authToken) {
         currentUser = JSON.parse(savedUser);
         showUserSection();
-        // Name field is now user-editable
+        
+        // Pre-fill name field with username or displayName if available
+        const nameInput = document.getElementById('yourname');
+        if (nameInput && currentUser) {
+          nameInput.value = currentUser.displayName || currentUser.username || '';
+        }
       } else {
         showLoginButton();
       }
@@ -378,14 +385,23 @@
     document.getElementById('logoutBtn').addEventListener('click', function() {
       currentUser = null;
       localStorage.removeItem('currentUser');
+      localStorage.removeItem('authToken');
       showLoginButton();
-      // Name field remains user-editable
+      
+      // Clear name field
+      const nameInput = document.getElementById('yourname');
+      if (nameInput) {
+        nameInput.value = '';
+      }
     });
 
     function showUserSection() {
       document.getElementById('loginButtonSection').style.display = 'none';
       document.getElementById('userSection').style.display = 'block';
-      document.getElementById('userName').textContent = currentUser.username;
+      
+      // Display username or displayName
+      const displayName = currentUser?.displayName || currentUser?.username || 'User';
+      document.getElementById('userName').textContent = displayName;
     }
 
     function showLoginButton() {
