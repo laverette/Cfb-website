@@ -1,0 +1,623 @@
+body {
+    background-color: #1E1E1E;
+    overflow-x: hidden;
+    min-height: 100vh;
+}
+
+
+.bg-gold {
+    background-color: #baba27;
+}
+
+.text-gold {
+    color: #baba27;
+}
+
+/* Ensure navbar is positioned relative for absolute positioning of login button */
+.navbar {
+    position: relative;
+}
+
+/* Login button in navbar - centered vertically */
+.navbar-login-button {
+    position: absolute;
+    top: 50%;
+    right: 10px;
+    transform: translateY(-50%);
+    z-index: 1000;
+}
+
+/* Navbar Navigation Buttons */
+.navbar-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 1rem;
+    padding-right: 150px; /* Make room for login button */
+}
+
+.navbar-nav-buttons {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    margin-right: auto; /* Push buttons to the left */
+}
+
+.navbar-nav-btn {
+    display: inline-block;
+    color: #000000;
+    text-decoration: none;
+    font-size: 0.95rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    background-color: rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    text-align: center;
+}
+
+.navbar-nav-btn:hover {
+    background-color: rgba(0, 0, 0, 0.2);
+    border-color: rgba(0, 0, 0, 0.3);
+    transform: translateY(-2px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    color: #000000;
+}
+
+/* Teams Header */
+.teams-header {
+    text-align: center;
+    margin-bottom: 3rem;
+    padding: 2rem 0;
+}
+
+.teams-title {
+    color: #FFD700;
+    font-size: 3rem;
+    font-weight: bold;
+    margin-bottom: 1rem;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.teams-subtitle {
+    color: #f5deb3;
+    font-size: 1.2rem;
+    margin: 0;
+    opacity: 0.9;
+}
+
+/* Teams Grid */
+.teams-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 1rem;
+    padding: 2rem 0;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+/* Team Widget */
+.team-widget {
+    display: block;
+    text-decoration: none;
+    background: linear-gradient(135deg, #3E2723, #4E342E);
+    border: 2px solid #8D6E63;
+    border-radius: 12px;
+    padding: 0.75rem;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    position: relative;
+    overflow: hidden;
+}
+
+.team-widget::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #FFD700, #FFA000, #FFD700);
+    transform: scaleX(0);
+    transition: transform 0.3s ease;
+}
+
+.team-widget:hover {
+    transform: translateY(-5px);
+    border-color: #FFD700;
+    box-shadow: 0 8px 20px rgba(255, 215, 0, 0.4);
+}
+
+.team-widget:hover::before {
+    transform: scaleX(1);
+}
+
+.team-widget-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    text-align: center;
+}
+
+.team-widget-logo {
+    width: 60px;
+    height: 60px;
+    object-fit: contain;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 5px;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.team-widget:hover .team-widget-logo {
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+}
+
+.team-widget-logo-fallback {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    color: #1E1E1E;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s ease;
+}
+
+.team-widget:hover .team-widget-logo-fallback {
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+}
+
+.team-widget-info {
+    width: 100%;
+}
+
+.team-widget-name {
+    color: #FFD700;
+    font-size: 0.85rem;
+    font-weight: bold;
+    margin: 0 0 0.25rem 0;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+    transition: color 0.3s ease;
+    line-height: 1.2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.team-widget:hover .team-widget-name {
+    color: #FFA000;
+}
+
+.team-widget-conference {
+    color: #f5deb3;
+    font-size: 0.7rem;
+    margin: 0;
+    opacity: 0.9;
+    font-weight: 500;
+    line-height: 1.2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Search Container */
+.search-container {
+    position: relative;
+    max-width: 600px;
+    margin: 2rem auto 1rem;
+    display: flex;
+    align-items: center;
+}
+
+.search-input {
+    width: 100%;
+    padding: 12px 45px 12px 20px;
+    background-color: #3E2723;
+    color: #f5deb3;
+    border: 2px solid #8D6E63;
+    border-radius: 25px;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: #FFD700;
+    box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+    background-color: #4E342E;
+}
+
+.search-input::placeholder {
+    color: #8D6E63;
+    opacity: 0.7;
+}
+
+.search-icon {
+    position: absolute;
+    right: 50px;
+    font-size: 1.2rem;
+    pointer-events: none;
+    opacity: 0.7;
+}
+
+.clear-search-btn {
+    position: absolute;
+    right: 15px;
+    background: transparent;
+    border: none;
+    color: #f5deb3;
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 5px 10px;
+    border-radius: 50%;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+}
+
+.clear-search-btn:hover {
+    background-color: rgba(255, 215, 0, 0.2);
+    color: #FFD700;
+    transform: scale(1.1);
+}
+
+.results-count {
+    text-align: center;
+    color: #f5deb3;
+    font-size: 0.9rem;
+    margin-top: 0.5rem;
+    opacity: 0.8;
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+    .navbar-content {
+        flex-direction: column;
+        align-items: flex-start;
+        padding-right: 0; /* Remove padding on mobile */
+    }
+
+    .navbar-nav-buttons {
+        width: 100%;
+        justify-content: flex-start;
+        flex-wrap: wrap;
+        margin-right: 0;
+    }
+
+    .navbar-nav-btn {
+        flex: 1;
+        min-width: 120px;
+        text-align: center;
+    }
+
+    .teams-title {
+        font-size: 2rem;
+    }
+
+    .teams-subtitle {
+        font-size: 1rem;
+    }
+
+    .teams-grid {
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 0.75rem;
+        padding: 1rem 0;
+    }
+
+    .team-widget {
+        padding: 0.6rem;
+    }
+
+    .team-widget-logo {
+        width: 50px;
+        height: 50px;
+    }
+
+    .team-widget-name {
+        font-size: 0.75rem;
+    }
+
+    .team-widget-conference {
+        font-size: 0.65rem;
+    }
+
+    .search-container {
+        max-width: 100%;
+        margin: 1.5rem 1rem 1rem;
+    }
+
+    .search-input {
+        padding: 10px 40px 10px 15px;
+        font-size: 0.9rem;
+    }
+
+    .search-icon {
+        right: 45px;
+        font-size: 1rem;
+    }
+
+    .clear-search-btn {
+        right: 12px;
+        width: 25px;
+        height: 25px;
+        font-size: 1rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .teams-grid {
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        gap: 0.5rem;
+    }
+
+    .team-widget {
+        padding: 0.5rem;
+    }
+
+    .team-widget-logo {
+        width: 45px;
+        height: 45px;
+    }
+
+    .team-widget-name {
+        font-size: 0.7rem;
+    }
+
+    .team-widget-conference {
+        font-size: 0.6rem;
+    }
+}
+
+/* Team Detail Page Styles */
+.team-page-header {
+    margin-bottom: 3rem;
+}
+
+.navigation-buttons {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+}
+
+.nav-button {
+    display: inline-block;
+    color: #FFD700;
+    text-decoration: none;
+    font-size: 1rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    padding: 0.6rem 1.2rem;
+    border-radius: 8px;
+    background: rgba(255, 215, 0, 0.1);
+    border: 1px solid rgba(255, 215, 0, 0.3);
+    text-align: center;
+}
+
+.nav-button:hover {
+    color: #FFA000;
+    background: rgba(255, 215, 0, 0.2);
+    border-color: #FFD700;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(255, 215, 0, 0.2);
+}
+
+.back-link {
+    display: inline-block;
+    color: #FFD700;
+    text-decoration: none;
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 2rem;
+    transition: all 0.3s ease;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    background: rgba(255, 215, 0, 0.1);
+    border: 1px solid rgba(255, 215, 0, 0.3);
+}
+
+.back-link:hover {
+    color: #FFA000;
+    background: rgba(255, 215, 0, 0.2);
+    border-color: #FFD700;
+    transform: translateX(-5px);
+}
+
+.team-header-content {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    padding: 2rem;
+    background: linear-gradient(135deg, #3E2723, #4E342E);
+    border: 2px solid #8D6E63;
+    border-radius: 15px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.team-page-logo {
+    width: 150px;
+    height: 150px;
+    object-fit: contain;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 15px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.team-header-info {
+    flex: 1;
+}
+
+.team-page-name {
+    color: #FFD700;
+    font-size: 2.5rem;
+    font-weight: bold;
+    margin: 0 0 0.5rem 0;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.team-page-conference {
+    color: #f5deb3;
+    font-size: 1.3rem;
+    margin: 0;
+    opacity: 0.9;
+    font-weight: 500;
+}
+
+.team-content {
+    display: flex;
+    flex-direction: column;
+    gap: 3rem;
+}
+
+.section-title {
+    color: #FFD700;
+    font-size: 2rem;
+    font-weight: bold;
+    margin-bottom: 1.5rem;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    padding-bottom: 1rem;
+    border-bottom: 2px solid rgba(255, 215, 0, 0.3);
+}
+
+.team-stats-section {
+    background: linear-gradient(135deg, #2E2E2E, #1E1E1E);
+    border: 2px solid #8D6E63;
+    border-radius: 15px;
+    padding: 2rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+}
+
+.stat-card {
+    background: linear-gradient(135deg, #3E2723, #4E342E);
+    border: 1px solid #8D6E63;
+    border-radius: 12px;
+    padding: 1.5rem;
+    text-align: center;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.stat-card:hover {
+    transform: translateY(-3px);
+    border-color: #FFD700;
+    box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+}
+
+.stat-value {
+    color: #FFD700;
+    font-size: 2.5rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.stat-label {
+    color: #f5deb3;
+    font-size: 1rem;
+    font-weight: 500;
+    opacity: 0.9;
+}
+
+.team-writeup-section {
+    background: linear-gradient(135deg, #2E2E2E, #1E1E1E);
+    border: 2px solid #8D6E63;
+    border-radius: 15px;
+    padding: 2rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.writeup-content {
+    color: #f5deb3;
+    line-height: 1.8;
+    font-size: 1.1rem;
+}
+
+.writeup-text {
+    margin-bottom: 1.5rem;
+    opacity: 0.9;
+}
+
+.writeup-text:last-child {
+    margin-bottom: 0;
+}
+
+/* Mobile Responsiveness for Team Detail Page */
+@media (max-width: 768px) {
+    .navigation-buttons {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .nav-button {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        font-size: 0.95rem;
+    }
+
+    .team-header-content {
+        flex-direction: column;
+        text-align: center;
+        padding: 1.5rem;
+    }
+
+    .team-page-logo {
+        width: 120px;
+        height: 120px;
+    }
+
+    .team-page-name {
+        font-size: 2rem;
+    }
+
+    .team-page-conference {
+        font-size: 1.1rem;
+    }
+
+    .section-title {
+        font-size: 1.5rem;
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .stat-card {
+        padding: 1rem;
+    }
+
+    .stat-value {
+        font-size: 2rem;
+    }
+
+    .writeup-content {
+        font-size: 1rem;
+    }
+
+    .team-stats-section,
+    .team-writeup-section {
+        padding: 1.5rem;
+    }
+}
+

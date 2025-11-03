@@ -754,6 +754,48 @@ input:focus, select:focus {
     box-shadow: 0 2px 5px rgba(0,0,0,0.3);
 }
 
+/* Team Link Styling */
+.team-link {
+    text-decoration: none;
+    color: inherit;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.3s ease;
+}
+
+.team-link:hover {
+    color: #FFD700;
+}
+
+.team-link:hover .team-name {
+    color: #FFD700;
+}
+
+.team-link:hover .rivalry-logo {
+    transform: scale(1.15);
+    box-shadow: 0 2px 5px rgba(255, 215, 0, 0.3);
+}
+
+.team-link-inline {
+    text-decoration: none;
+    color: #f5deb3;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    display: inline-block;
+}
+
+.team-link-inline:hover {
+    color: #FFD700;
+    text-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
+}
+
+.team-link-inline:hover .team-logo {
+    transform: scale(1.15);
+    box-shadow: 0 2px 5px rgba(255, 215, 0, 0.3);
+}
+
 /* Rivalry Card Styling */
 .rivalry-card {
     background: transparent;
@@ -2019,5 +2061,210 @@ input:focus, select:focus {
     .week7-layout,
     .week11-layout {
         gap: 0.5rem;
+    }
+}
+
+/* Weekly Picks Navbar Styles */
+.weeklypicks-navbar {
+    position: relative;
+    background: linear-gradient(135deg, #3E2723, #4E342E) !important;
+    border-bottom: 2px solid #8D6E63;
+    padding: 0.75rem 1rem;
+    z-index: 1000;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.navbar-content-weekly {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    gap: 1rem;
+}
+
+/* Hamburger Menu Button */
+.hamburger-menu-btn {
+    background: transparent;
+    border: 2px solid #8D6E63;
+    border-radius: 6px;
+    padding: 8px 10px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    transition: all 0.3s ease;
+    z-index: 1001;
+}
+
+.hamburger-menu-btn:hover {
+    background-color: rgba(255, 215, 0, 0.1);
+    border-color: #FFD700;
+}
+
+.hamburger-menu-btn span {
+    width: 25px;
+    height: 3px;
+    background-color: #f5deb3;
+    border-radius: 2px;
+    transition: all 0.3s ease;
+}
+
+.hamburger-menu-btn:hover span {
+    background-color: #FFD700;
+}
+
+.hamburger-menu-btn.active span:nth-child(1) {
+    transform: rotate(45deg) translate(8px, 8px);
+}
+
+.hamburger-menu-btn.active span:nth-child(2) {
+    opacity: 0;
+}
+
+.hamburger-menu-btn.active span:nth-child(3) {
+    transform: rotate(-45deg) translate(7px, -7px);
+}
+
+/* Dropdown Menu */
+.dropdown-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background: linear-gradient(135deg, #3E2723, #4E342E);
+    border: 2px solid #8D6E63;
+    border-radius: 8px;
+    min-width: 200px;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+    display: none;
+    z-index: 1002;
+    margin-top: 0.5rem;
+    padding: 0.5rem 0;
+}
+
+.dropdown-menu.show {
+    display: block;
+}
+
+.dropdown-item {
+    display: block;
+    padding: 0.75rem 1.5rem;
+    color: #f5deb3;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    border-bottom: 1px solid rgba(255, 215, 0, 0.1);
+}
+
+.dropdown-item:last-child {
+    border-bottom: none;
+}
+
+.dropdown-item:hover {
+    background-color: rgba(255, 215, 0, 0.2);
+    color: #FFD700;
+    padding-left: 2rem;
+}
+
+/* Navbar Tabs */
+.navbar-tabs {
+    display: flex;
+    gap: 0.5rem;
+    flex: 1;
+    justify-content: center;
+    align-items: center;
+}
+
+.navbar-tabs .tab-button {
+    padding: 8px 20px;
+    font-size: 0.95rem;
+    margin: 0;
+}
+
+/* Navbar Login Section */
+.navbar-login-section {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.navbar-login-section #userSection {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.5rem;
+    background-color: #2E2E2E;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #8D6E63;
+    min-width: 200px;
+}
+
+.navbar-login-btn {
+    background-color: #3E2723;
+    color: #F5F5F5;
+    padding: 8px 16px;
+    border-radius: 6px;
+    text-decoration: none;
+    border: 1px solid #8D6E63;
+    font-weight: bold;
+    transition: all 0.3s ease;
+}
+
+.navbar-login-btn:hover {
+    background-color: #4E342E;
+    border-color: #FFD700;
+    color: #FFD700;
+}
+
+.navbar-user-name {
+    color: #FFD700;
+    margin: 0;
+    font-weight: bold;
+    font-size: 0.9rem;
+}
+
+.navbar-logout-btn {
+    background-color: #3E2723;
+    color: #F5F5F5;
+    border: 1px solid #8D6E63;
+    padding: 5px 15px;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.navbar-logout-btn:hover {
+    background-color: #4E342E;
+    border-color: #FFD700;
+    color: #FFD700;
+}
+
+/* Mobile Responsiveness for Navbar */
+@media (max-width: 768px) {
+    .navbar-content-weekly {
+        flex-wrap: wrap;
+    }
+    
+    .navbar-tabs {
+        order: 3;
+        width: 100%;
+        justify-content: center;
+        margin-top: 0.5rem;
+    }
+    
+    .navbar-tabs .tab-button {
+        flex: 1;
+        font-size: 0.85rem;
+        padding: 6px 12px;
+    }
+    
+    .navbar-login-section {
+        margin-left: auto;
+    }
+    
+    .dropdown-menu {
+        width: 100%;
+        left: 0;
+        right: 0;
     }
 }

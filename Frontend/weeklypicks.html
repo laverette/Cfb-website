@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Weekly Picks</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
-  <link rel="stylesheet" href="./Resources/Styles/weeklypicks.css">
+  <link rel="stylesheet" href="../Resources/Styles/weeklypicks.css">
 </head>
 <body>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -15,27 +15,47 @@
     <img src="https://cdn-icons-png.flaticon.com/512/1133/1133780.png" alt="American Football" style="width: 100%; height: 100%; object-fit: contain;">
   </div>
   
-  <!-- Login Button - Upper Right -->
-  <div style="position: fixed; top: 10px; right: 10px; z-index: 1000; display: block;">
-    <div id="loginButtonSection">
-      <a href="login.html" style="background-color: #3E2723; color: #F5F5F5; padding: 8px 16px; border-radius: 6px; text-decoration: none; border: 1px solid #8D6E63; font-weight: bold;">Login</a>
-    </div>
-    
-    <div id="userSection" style="display: none; background-color: #2E2E2E; padding: 10px; border-radius: 8px; border: 1px solid #8D6E63; min-width: 200px;">
-      <p style="color: #FFD700; margin: 0 0 8px 0; text-align: center; font-weight: bold;" id="userName"></p>
-      <div style="text-align: center;">
-        <button id="logoutBtn" style="background-color: #3E2723; color: #F5F5F5; border: 1px solid #8D6E63; padding: 5px 15px; border-radius: 4px; font-size: 12px;">Logout</button>
+  <!-- Navbar -->
+  <nav class="navbar bg-gold weeklypicks-navbar">
+    <div class="container-fluid">
+      <div class="navbar-content-weekly">
+        <!-- Hamburger Menu Button -->
+        <button class="hamburger-menu-btn" onclick="toggleMenu()" aria-label="Menu">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+        
+        <!-- Dropdown Menu -->
+        <div class="dropdown-menu" id="dropdownMenu">
+          <a href="index.html" class="dropdown-item">🏠 Home</a>
+          <a href="teams.HTML" class="dropdown-item">🏈 Teams</a>
+          <a href="weeklypicks.html" class="dropdown-item">📅 Weekly Picks</a>
+          <a href="mypredictions.html" class="dropdown-item">📊 My Predictions</a>
+          <a href="predictor.html" class="dropdown-item">🤖 Model</a>
+          <a href="CFPPredictions.html" class="dropdown-item">🏆 CFP Picks</a>
+          <a href="list.html" class="dropdown-item">👑 Heisman Players</a>
+        </div>
+        
+        <!-- Tab Buttons in Navbar -->
+        <div class="navbar-tabs">
+          <button class="tab-button active" onclick="openTab(event, 'week11-picks')">Week 11 Picks</button>
+          <button class="tab-button" onclick="openTab(event, 'week10-results')">Week 10 Results</button>
+        </div>
+        
+        <!-- Login Button -->
+        <div class="navbar-login-section">
+          <div id="loginButtonSection">
+            <a href="login.html" class="navbar-login-btn">Login</a>
+          </div>
+          <div id="userSection" style="display: none;">
+            <p id="userName" class="navbar-user-name"></p>
+            <button id="logoutBtn" class="navbar-logout-btn">Logout</button>
+          </div>
+        </div>
       </div>
     </div>
-  </div>
-
-  <!-- Tab Navigation -->
-  <div class="tab-container">
-    <div class="tab-header">
-      <button class="tab-button active" onclick="openTab(event, 'week11-picks')">Week 11 Picks</button>
-      <button class="tab-button" onclick="openTab(event, 'week10-results')">Week 10 Results</button>
-    </div>
-  </div>
+  </nav>
 
   <!-- Week 11 Picks Tab -->
   <div id="week11-picks" class="tab-content active">
@@ -75,13 +95,17 @@
               </div>
               <div class="rivalry-teams">
                 <div class="team-info">
-                  <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/333.png" alt="Alabama" class="rivalry-logo">
-                  <span class="team-name">Alabama</span>
+                  <a href="team.html?name=Alabama%20Crimson%20Tide" class="team-link">
+                    <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/333.png" alt="Alabama" class="rivalry-logo">
+                    <span class="team-name">Alabama</span>
+                  </a>
                 </div>
                 <span class="vs">VS</span>
                 <div class="team-info">
-                  <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/99.png" alt="LSU" class="rivalry-logo">
-                  <span class="team-name">LSU</span>
+                  <a href="team.html?name=LSU%20Tigers" class="team-link">
+                    <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/99.png" alt="LSU" class="rivalry-logo">
+                    <span class="team-name">LSU</span>
+                  </a>
                 </div>
                 <span class="betting-line">+14.5</span>
               </div>
@@ -96,8 +120,8 @@
 
           <p>
             <label><span class="games">Game 2:</span> 
-              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/61.png" alt="Georgia" class="team-logo"> 5 Georgia at 
-              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/344.png" alt="Mississippi State" class="team-logo"> Mississippi State
+              <a href="team.html?name=Georgia%20Bulldogs" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/61.png" alt="Georgia" class="team-logo"></a> 5 <a href="team.html?name=Georgia%20Bulldogs" class="team-link-inline">Georgia</a> at 
+              <a href="team.html?name=Mississippi%20State%20Bulldogs" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/344.png" alt="Mississippi State" class="team-logo"></a> <a href="team.html?name=Mississippi%20State%20Bulldogs" class="team-link-inline">Mississippi State</a>
               <span class="betting-line">+7.5</span>
               <select name="game2">
                 <option value="UGA">UGA</option>
@@ -108,8 +132,8 @@
 
           <p>
             <label><span class="games">Game 3:</span> 
-              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/252.png" alt="BYU" class="team-logo"> 8 BYU at 
-              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/2641.png" alt="Texas Tech" class="team-logo"> 9 Texas Tech
+              <a href="team.html?name=BYU%20Cougars" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/252.png" alt="BYU" class="team-logo"></a> 8 <a href="team.html?name=BYU%20Cougars" class="team-link-inline">BYU</a> at 
+              <a href="team.html?name=Texas%20Tech%20Red%20Raiders" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/2641.png" alt="Texas Tech" class="team-logo"></a> 9 <a href="team.html?name=Texas%20Tech%20Red%20Raiders" class="team-link-inline">Texas Tech</a>
               <span class="betting-line">-10.5</span>
               <select name="game3">
                 <option value="BYU">BYU</option>
@@ -120,8 +144,8 @@
 
           <p>
             <label><span class="games">Game 4:</span> 
-              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/84.png" alt="Indiana" class="team-logo"> 2 Indiana at 
-              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/213.png" alt="Penn State" class="team-logo"> 6 Penn State
+              <a href="team.html?name=Indiana%20Hoosiers" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/84.png" alt="Indiana" class="team-logo"></a> 2 <a href="team.html?name=Indiana%20Hoosiers" class="team-link-inline">Indiana</a> at 
+              <a href="team.html?name=Penn%20State%20Nittany%20Lions" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/213.png" alt="Penn State" class="team-logo"></a> 6 <a href="team.html?name=Penn%20State%20Nittany%20Lions" class="team-link-inline">Penn State</a>
               <span class="betting-line">+14.5</span>
               <select name="game4">
                 <option value="IND">IND</option>
@@ -132,8 +156,8 @@
 
           <p>
             <label><span class="games">Game 5:</span> 
-              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/245.png" alt="Texas A&M" class="team-logo"> 3 Texas A&M at 
-              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/142.png" alt="Missouri" class="team-logo"> Missouri
+              <a href="team.html?name=Texas%20A%26M%20Aggies" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/245.png" alt="Texas A&M" class="team-logo"></a> 3 <a href="team.html?name=Texas%20A%26M%20Aggies" class="team-link-inline">Texas A&M</a> at 
+              <a href="team.html?name=Missouri%20Tigers" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/142.png" alt="Missouri" class="team-logo"></a> <a href="team.html?name=Missouri%20Tigers" class="team-link-inline">Missouri</a>
               <span class="betting-line">+6.5</span>
               <select name="game5">
                 <option value="TAMU">TAMU</option>
@@ -144,8 +168,8 @@
 
           <p>
             <label><span class="games">Game 6:</span> 
-              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/2483.png" alt="Oregon" class="team-logo"> 4 Oregon at 
-              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/2294.png" alt="Iowa" class="team-logo"> Iowa
+              <a href="team.html?name=Oregon%20Ducks" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/2483.png" alt="Oregon" class="team-logo"></a> 4 <a href="team.html?name=Oregon%20Ducks" class="team-link-inline">Oregon</a> at 
+              <a href="team.html?name=Iowa%20Hawkeyes" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/2294.png" alt="Iowa" class="team-logo"></a> <a href="team.html?name=Iowa%20Hawkeyes" class="team-link-inline">Iowa</a>
               <span class="betting-line">+6.5</span>
               <select name="game6">
                 <option value="ORE">ORE</option>
@@ -156,8 +180,8 @@
 
           <p>
           <label><span class="games">Game 7:</span> 
-              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/2.png" alt="Auburn" class="team-logo"> Auburn at 
-              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/238.png" alt="Vanderbilt" class="team-logo"> Vanderbilt
+              <a href="team.html?name=Auburn%20Tigers" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/2.png" alt="Auburn" class="team-logo"></a> <a href="team.html?name=Auburn%20Tigers" class="team-link-inline">Auburn</a> at 
+              <a href="team.html?name=Vanderbilt%20Commodores" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/238.png" alt="Vanderbilt" class="team-logo"></a> <a href="team.html?name=Vanderbilt%20Commodores" class="team-link-inline">Vanderbilt</a>
               <span class="betting-line">-7.5</span>
               <select name="game7">
                 <option value="AUB">AUB</option>
@@ -168,8 +192,8 @@
 
           <p>
             <label><span class="games">Game 8:</span> 
-              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/264.png" alt="Washington" class="team-logo"> Washington at 
-              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/275.png" alt="Wisconsin" class="team-logo"> Wisconsin
+              <a href="team.html?name=Washington%20Huskies" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/264.png" alt="Washington" class="team-logo"></a> <a href="team.html?name=Washington%20Huskies" class="team-link-inline">Washington</a> at 
+              <a href="team.html?name=Wisconsin%20Badgers" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/275.png" alt="Wisconsin" class="team-logo"></a> <a href="team.html?name=Wisconsin%20Badgers" class="team-link-inline">Wisconsin</a>
               <span class="betting-line">+11.5</span>
               <select name="game8">
                 <option value="WASH">WASH</option>
@@ -180,8 +204,8 @@
 
           <p>
             <label><span class="games">Game 9:</span> 
-              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/154.png" alt="Wake Forest" class="team-logo"> Wake Forest at 
-              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/258.png" alt="Virginia" class="team-logo"> Virginia
+              <a href="team.html?name=Wake%20Forest%20Demon%20Deacons" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/154.png" alt="Wake Forest" class="team-logo"></a> <a href="team.html?name=Wake%20Forest%20Demon%20Deacons" class="team-link-inline">Wake Forest</a> at 
+              <a href="team.html?name=Virginia%20Cavaliers" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/258.png" alt="Virginia" class="team-logo"></a> <a href="team.html?name=Virginia%20Cavaliers" class="team-link-inline">Virginia</a>
               <span class="betting-line">-6.5</span>
               <select name="game9">
                 <option value="WAKE">WAKE</option>
@@ -192,8 +216,8 @@
 
           <p>
             <label><span class="games">Game 10:</span> 
-              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/25.png" alt="California" class="team-logo"> California at 
-              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/97.png" alt="Louisville" class="team-logo"> Louisville
+              <a href="team.html?name=California%20Golden%20Bears" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/25.png" alt="California" class="team-logo"></a> <a href="team.html?name=California%20Golden%20Bears" class="team-link-inline">California</a> at 
+              <a href="team.html?name=Louisville%20Cardinals" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/97.png" alt="Louisville" class="team-logo"></a> <a href="team.html?name=Louisville%20Cardinals" class="team-link-inline">Louisville</a>
               <span class="betting-line">-18.5</span>
               <select name="game10">
                 <option value="CAL">CAL</option>
@@ -204,8 +228,8 @@
 
           <p>
             <label><span class="games">Game 11:</span> 
-              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/2426.png" alt="Navy" class="team-logo"> Navy at 
-              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/87.png" alt="Notre Dame" class="team-logo"> 10 Notre Dame
+              <a href="team.html?name=Navy%20Midshipmen" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/2426.png" alt="Navy" class="team-logo"></a> <a href="team.html?name=Navy%20Midshipmen" class="team-link-inline">Navy</a> at 
+              <a href="team.html?name=Notre%20Dame%20Fighting%20Irish" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/87.png" alt="Notre Dame" class="team-logo"></a> 10 <a href="team.html?name=Notre%20Dame%20Fighting%20Irish" class="team-link-inline">Notre Dame</a>
               <span class="betting-line">-24.5</span>
               <select name="game11">
                 <option value="NAVY">NAVY</option>
@@ -216,8 +240,8 @@
 
           <p>
             <label><span class="games">Game 12:</span> 
-              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/66.png" alt="Iowa State" class="team-logo"> Iowa State at 
-              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/2628.png" alt="TCU" class="team-logo"> TCU
+              <a href="team.html?name=Iowa%20State%20Cyclones" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/66.png" alt="Iowa State" class="team-logo"></a> <a href="team.html?name=Iowa%20State%20Cyclones" class="team-link-inline">Iowa State</a> at 
+              <a href="team.html?name=TCU%20Horned%20Frogs" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/2628.png" alt="TCU" class="team-logo"></a> <a href="team.html?name=TCU%20Horned%20Frogs" class="team-link-inline">TCU</a>
               <span class="betting-line">-6.5</span>
               <select name="game12">
                 <option value="ISU">ISU</option>
@@ -768,6 +792,24 @@
         btn.style.backgroundColor = '';
       }, 3000);
     }
+
+    // Hamburger Menu Toggle
+    function toggleMenu() {
+      const menu = document.getElementById('dropdownMenu');
+      const button = document.querySelector('.hamburger-menu-btn');
+      menu.classList.toggle('show');
+      button.classList.toggle('active');
+    }
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function(event) {
+      const menu = document.getElementById('dropdownMenu');
+      const button = document.querySelector('.hamburger-menu-btn');
+      if (!menu.contains(event.target) && !button.contains(event.target)) {
+        menu.classList.remove('show');
+        button.classList.remove('active');
+      }
+    });
 
     // Tab functionality
     function openTab(evt, tabName) {
