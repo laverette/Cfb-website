@@ -1695,6 +1695,8 @@ input:focus, select:focus {
 
 .tab-content.active {
     display: block;
+    margin-top: 2rem;
+    padding-top: 1rem;
 }
 
 /* Week 7 Side-by-Side Layout */
@@ -1947,6 +1949,7 @@ input:focus, select:focus {
         align-items: center;
         gap: 2rem;
         justify-content: flex-start;
+        margin-top: 1.5rem;
     }
 
 /* Mobile Coach Corso Button - Hidden on desktop */
@@ -1978,6 +1981,7 @@ input:focus, select:focus {
         align-items: center;
         justify-content: space-between;
         gap: 1rem;
+        margin-top: 2rem;
     }
     
     /* Show the mobile title image */
