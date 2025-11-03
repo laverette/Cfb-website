@@ -389,21 +389,21 @@ input:focus, select:focus {
     }
     
     .rivalry-teams .betting-line {
-        font-size: 0.9em !important;
+        font-size: 1em !important;
         padding: 2px 5px !important;
         margin-left: 5px !important;
         flex-shrink: 0;
     }
     
     .team-name {
-        font-size: 0.6rem;
+        font-size: 0.75rem;
         line-height: 1.0;
         flex-shrink: 1;
     }
     
     .rivalry-logo {
-        width: 16px;
-        height: 16px;
+        width: 22px;
+        height: 22px;
     }
     
     .vs {
@@ -832,7 +832,7 @@ input:focus, select:focus {
     background: linear-gradient(135deg, #FFD700, #FFA000);
     color: #1E1E1E;
     font-weight: bold;
-    font-size: 0.8rem;
+    font-size: 1rem;
     padding: 4px 8px;
     border-radius: 6px;
     box-shadow: 0 2px 4px rgba(255, 215, 0, 0.4);
@@ -850,8 +850,8 @@ input:focus, select:focus {
 }
 
 .rivalry-logo {
-    width: 24px;
-    height: 24px;
+    width: 30px;
+    height: 30px;
     border-radius: 4px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.3);
     transition: all 0.3s ease;
@@ -864,7 +864,7 @@ input:focus, select:focus {
 
 .team-name {
     font-weight: bold;
-    font-size: 0.9rem;
+    font-size: 1rem;
     color: #f5deb3;
 }
 
@@ -1656,7 +1656,8 @@ input:focus, select:focus {
 }
 
 /* Week 7 Side-by-Side Layout */
-.week7-layout {
+.week7-layout,
+.week11-layout {
     display: flex;
     gap: 1rem;
     align-items: flex-start;
@@ -1735,7 +1736,8 @@ input:focus, select:focus {
 
 /* Mobile responsiveness for side-by-side layout */
 @media (max-width: 1024px) {
-    .week7-layout {
+    .week7-layout,
+    .week11-layout {
         flex-direction: column;
         gap: 1rem;
     }
@@ -1957,7 +1959,8 @@ input:focus, select:focus {
     }
     
     /* Hide the original image section on mobile */
-    .week7-layout .image-section {
+    .week7-layout .image-section,
+    .week11-layout .image-section {
         display: none;
     }
     
@@ -2013,7 +2016,8 @@ input:focus, select:focus {
         pointer-events: auto;
     }
     
-    .week7-layout {
+    .week7-layout,
+    .week11-layout {
         gap: 0.5rem;
     }
 }

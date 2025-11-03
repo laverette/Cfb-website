@@ -105,3 +105,4 @@ After extracting the data:
 - Game dates may need to be converted to proper DATETIME format for your database
 - Team IDs are extracted from ESPN's team profile URLs
 
+

@@ -46,3 +46,4 @@ Invoke-RestMethod -Uri "http://localhost:5000/api/auth/register" -Method POST -C
 For registration, we use **POST** because we're creating/sending new user data.
 
 
+

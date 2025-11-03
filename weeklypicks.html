@@ -32,22 +32,22 @@
   <!-- Tab Navigation -->
   <div class="tab-container">
     <div class="tab-header">
-      <button class="tab-button active" onclick="openTab(event, 'week7-picks')">Week 10 Picks</button>
-      <button class="tab-button" onclick="openTab(event, 'week6-results')">Week 9 Results</button>
+      <button class="tab-button active" onclick="openTab(event, 'week11-picks')">Week 11 Picks</button>
+      <button class="tab-button" onclick="openTab(event, 'week10-results')">Week 10 Results</button>
     </div>
   </div>
 
-  <!-- Week 7 Picks Tab -->
-  <div id="week7-picks" class="tab-content active">
+  <!-- Week 11 Picks Tab -->
+  <div id="week11-picks" class="tab-content active">
     <div class="title-section">
-      <h1 class="title">Week 10 Picks</h1>
+      <h1 class="title">Week 11 Picks</h1>
       <!-- Mobile Coach Corso Image (appears next to title) -->
       <div class="mobile-title-image">
         <img width="100%" height="auto" src="https://images.seattletimes.com/wp-content/uploads/2017/05/2459f782f2c946859a21920650fc2c75.jpg?d=2040x1253" alt="Image" class="img-fluid rounded shadow big-img" style="max-height: 300px; object-fit: cover;">
       </div>
     </div>
     
-    <div class="week7-layout">
+    <div class="week11-layout">
       <div class="form-section">
         <!-- Prediction Form -->
         <form name="predictions" method="POST" id="predictionsForm" netlify data-netlify="true">
@@ -70,158 +70,158 @@
           <div class="rivalry-card">
             <div class="rivalry-header">
               <div class="rivalry-title">
-                <span class="rivalry-icon" style="font-size: 32px;">🎉</span>
-                <span class="rivalry-name" onclick="showCocktailPartyRivalry()">The World's Largest Outdoor Cocktail Party</span>
+                <span class="rivalry-icon" style="font-size: 32px;">🍁</span>
+                <span class="rivalry-name" onclick="showFirstSaturdayRivalry()">The First Saturday in November</span>
               </div>
               <div class="rivalry-teams">
                 <div class="team-info">
-                  <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/61.png" alt="Georgia" class="rivalry-logo">
-                  <span class="team-name">Georgia</span>
+                  <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/333.png" alt="Alabama" class="rivalry-logo">
+                  <span class="team-name">Alabama</span>
                 </div>
                 <span class="vs">VS</span>
                 <div class="team-info">
-                  <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/57.png" alt="Florida" class="rivalry-logo">
-                  <span class="team-name">Florida</span>
+                  <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/99.png" alt="LSU" class="rivalry-logo">
+                  <span class="team-name">LSU</span>
                 </div>
-                <span class="betting-line">+7.5</span>
+                <span class="betting-line">+14.5</span>
               </div>
             </div>
             <div class="game-controls">
               <select name="game1">
-                <option value="UGA">UGA</option>
-                <option value="FLA">FLA</option>
+                <option value="ALA">ALA</option>
+                <option value="LSU">LSU</option>
               </select>
             </div>
           </div>
 
           <p>
             <label><span class="games">Game 2:</span> 
-              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/238.png" alt="Vanderbilt" class="team-logo"> 9 Vanderbilt at 
-              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/251.png" alt="Texas" class="team-logo"> 20 Texas
-              <span class="betting-line">-3.5</span>
+              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/61.png" alt="Georgia" class="team-logo"> 5 Georgia at 
+              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/344.png" alt="Mississippi State" class="team-logo"> Mississippi State
+              <span class="betting-line">+7.5</span>
               <select name="game2">
-                <option value="VANDY">VANDY</option>
-                <option value="TEX">TEX</option>
+                <option value="UGA">UGA</option>
+                <option value="MSST">MSST</option>
               </select>
             </label>
           </p>
 
           <p>
             <label><span class="games">Game 3:</span> 
-              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/2390.png" alt="Miami" class="team-logo"> 10 Miami at 
-              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/2567.png" alt="SMU" class="team-logo"> SMU
-              <span class="betting-line">+10.5</span>
+              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/252.png" alt="BYU" class="team-logo"> 8 BYU at 
+              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/2641.png" alt="Texas Tech" class="team-logo"> 9 Texas Tech
+              <span class="betting-line">-10.5</span>
               <select name="game3">
-                <option value="MIA">MIA</option>
-                <option value="SMU">SMU</option>
+                <option value="BYU">BYU</option>
+                <option value="TTU">TTU</option>
               </select>
             </label>
           </p>
 
           <p>
             <label><span class="games">Game 4:</span> 
-              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/2579.png" alt="South Carolina" class="team-logo"> South Carolina at 
-              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/145.png" alt="Ole Miss" class="team-logo"> 7 Ole Miss
-              <span class="betting-line">-11.5</span>
+              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/84.png" alt="Indiana" class="team-logo"> 2 Indiana at 
+              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/213.png" alt="Penn State" class="team-logo"> 6 Penn State
+              <span class="betting-line">+14.5</span>
               <select name="game4">
-                <option value="SCAR">SCAR</option>
-                <option value="OLE">OLE</option>
+                <option value="IND">IND</option>
+                <option value="PSU">PSU</option>
               </select>
             </label>
           </p>
 
           <p>
             <label><span class="games">Game 5:</span> 
-              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/59.png" alt="Georgia Tech" class="team-logo"> 8 Georgia Tech at 
-              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/152.png" alt="NC State" class="team-logo"> NC State
-              <span class="betting-line">+5.5</span>
+              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/245.png" alt="Texas A&M" class="team-logo"> 3 Texas A&M at 
+              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/142.png" alt="Missouri" class="team-logo"> Missouri
+              <span class="betting-line">+6.5</span>
               <select name="game5">
-                <option value="GT">GT</option>
-                <option value="NCST">NCST</option>
+                <option value="TAMU">TAMU</option>
+                <option value="MIZ">MIZ</option>
               </select>
             </label>
           </p>
 
           <p>
             <label><span class="games">Game 6:</span> 
-              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/201.png" alt="Oklahoma" class="team-logo"> 18 Oklahoma at 
-              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/2633.png" alt="Tennessee" class="team-logo"> 14 Tennessee
-              <span class="betting-line">-2.5</span>
+              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/2483.png" alt="Oregon" class="team-logo"> 4 Oregon at 
+              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/2294.png" alt="Iowa" class="team-logo"> Iowa
+              <span class="betting-line">+6.5</span>
               <select name="game6">
-                <option value="OKLA">OKLA</option>
-                <option value="TENN">TENN</option>
+                <option value="ORE">ORE</option>
+                <option value="IOWA">IOWA</option>
               </select>
             </label>
           </p>
 
           <p>
           <label><span class="games">Game 7:</span> 
-              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/30.png" alt="USC" class="team-logo"> 23 USC at 
-              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/158.png" alt="Nebraska" class="team-logo"> Nebraska
-              <span class="betting-line">+4.5</span>
+              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/2.png" alt="Auburn" class="team-logo"> Auburn at 
+              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/238.png" alt="Vanderbilt" class="team-logo"> Vanderbilt
+              <span class="betting-line">-7.5</span>
               <select name="game7">
-                <option value="USC">USC</option>
-                <option value="NEB">NEB</option>
+                <option value="AUB">AUB</option>
+                <option value="VANDY">VANDY</option>
               </select>
             </label>
           </p>
 
           <p>
             <label><span class="games">Game 8:</span> 
-              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/2132.png" alt="Cincinnati" class="team-logo"> 17 Cincinnati at 
-              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/254.png" alt="Utah" class="team-logo"> 24 Utah
-              <span class="betting-line">-10.5</span>
+              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/264.png" alt="Washington" class="team-logo"> Washington at 
+              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/275.png" alt="Wisconsin" class="team-logo"> Wisconsin
+              <span class="betting-line">+11.5</span>
               <select name="game8">
-                <option value="CIN">CIN</option>
-                <option value="UTAH">UTAH</option>
+                <option value="WASH">WASH</option>
+                <option value="WISC">WISC</option>
               </select>
             </label>
           </p>
 
           <p>
             <label><span class="games">Game 9:</span> 
-              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/258.png" alt="Virginia" class="team-logo"> 15 Virginia at 
-              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/25.png" alt="California" class="team-logo"> California
-              <span class="betting-line">+5.5</span>
+              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/154.png" alt="Wake Forest" class="team-logo"> Wake Forest at 
+              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/258.png" alt="Virginia" class="team-logo"> Virginia
+              <span class="betting-line">-6.5</span>
               <select name="game9">
+                <option value="WAKE">WAKE</option>
                 <option value="UVA">UVA</option>
-                <option value="CAL">CAL</option>
               </select>
             </label>
           </p>
 
           <p>
             <label><span class="games">Game 10:</span> 
-              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/2641.png" alt="Texas Tech" class="team-logo"> 13 Texas Tech at 
-              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/2306.png" alt="Kansas State" class="team-logo"> Kansas State
-              <span class="betting-line">+7.5</span>
+              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/25.png" alt="California" class="team-logo"> California at 
+              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/97.png" alt="Louisville" class="team-logo"> Louisville
+              <span class="betting-line">-18.5</span>
               <select name="game10">
-                <option value="TTU">TTU</option>
-                <option value="KSU">KSU</option>
+                <option value="CAL">CAL</option>
+                <option value="LOU">LOU</option>
               </select>
             </label>
           </p>
 
           <p>
             <label><span class="games">Game 11:</span> 
-              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/97.png" alt="Louisville" class="team-logo"> 16 Louisville at 
-              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/259.png" alt="Virginia Tech" class="team-logo"> Virginia Tech
-              <span class="betting-line">+11.5</span>
+              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/2426.png" alt="Navy" class="team-logo"> Navy at 
+              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/87.png" alt="Notre Dame" class="team-logo"> 10 Notre Dame
+              <span class="betting-line">-24.5</span>
               <select name="game11">
-                <option value="LOU">LOU</option>
-                <option value="VT">VT</option>
+                <option value="NAVY">NAVY</option>
+                <option value="ND">ND</option>
               </select>
             </label>
           </p>
 
           <p>
             <label><span class="games">Game 12:</span> 
-              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/84.png" alt="Indiana" class="team-logo"> 2 Indiana at 
-              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/120.png" alt="Maryland" class="team-logo"> Maryland
-              <span class="betting-line">+21.5</span>
+              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/66.png" alt="Iowa State" class="team-logo"> Iowa State at 
+              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/2628.png" alt="TCU" class="team-logo"> TCU
+              <span class="betting-line">-6.5</span>
               <select name="game12">
-                <option value="IND">IND</option>
-                <option value="MD">MD</option>
+                <option value="ISU">ISU</option>
+                <option value="TCU">TCU</option>
               </select>
             </label>
           </p>
@@ -247,121 +247,117 @@
       <h2 class="coach-corso-title">🏈 Coach Corso Says...</h2>
       <div class="coach-corso-content">
           <div class="corso-tip">
-            <span class="tip-icon">🎉</span>
-            <span class="tip-text">The World's Largest Outdoor Cocktail Party! Georgia vs Florida in Jacksonville! The Dawgs have been dominant, but Florida's been playing with fire. Give me Georgia to cover in this classic!</span>
+            <span class="tip-icon">🍁</span>
+            <span class="tip-text">The First Saturday in November! Alabama vs LSU! The Tide's defense is locked in, and LSU just lost their head coach. This one might not be as close as the 2019 classic, but it's still the biggest game in the SEC West! Roll Tide!</span>
           </div>
           <div class="corso-tip">
-            <span class="tip-icon">💪</span>
-            <span class="tip-text">Vanderbilt at Texas! Texas just had another overtime win, Arch Manning will be playing, but it doesn't matter. These Commodores are Serious! Vanderbilt!</span>
+            <span class="tip-icon">🐕</span>
+            <span class="tip-text">Georgia at Mississippi State! The Dawgs are #5 and rolling, but playing in Starkville is never easy. Still, Georgia should cover that 10-point spread!</span>
           </div>
           <div class="corso-tip">
-            <span class="tip-icon">⚔️</span>
-            <span class="tip-text">Miami at SMU! The Hurricanes are ranked #10 but Carson Beck has been struggling. The Mustangs better be ready for the convicts coming into town!</span>
+            <span class="tip-icon">🔥</span>
+            <span class="tip-text">BYU at Texas Tech! Both teams are ranked in the top 10, but the Red Raiders are at home and favored by 10.5. Tech wins big!</span>
           </div>
           <div class="corso-tip">
-            <span class="tip-icon">🐓</span>
-            <span class="tip-text">South Carolina at Ole Miss! South Carolina just pushed Alabama to the brink. Lane kiffins team knows he's getting ready to head to Louisiana. Gamecocks get the win!</span>
+            <span class="tip-icon">🔵</span>
+            <span class="tip-text">Indiana at Penn State! The Hoosiers are #2 and favored, but Happy Valley is a tough place to play! Give me Indiana but it'll be close!</span>
           </div>
           <div class="corso-tip">
-            <span class="tip-icon">🐝</span>
-            <span class="tip-text">The Yellow Jackets are on fire, but vegas seems to know something with the spread only at 5 points. I don't think they know nothin! Yellow Jackets! </span>
+            <span class="tip-icon">🐅</span>
+            <span class="tip-text">Texas A&M at Missouri! The Aggies are #3 and rolling, but the Tigers are at home. Still, A&M should handle business in Columbia!</span>
           </div>
           <div class="corso-tip">
-            <span class="tip-icon">🧡</span>
-            <span class="tip-text">Oklahoma at Tennessee! The Volunteers are #14 at home in Neyland Stadium. That place is going to be LOUD! Go Vols!</span>
+            <span class="tip-icon">🦆</span>
+            <span class="tip-text">Oregon at Iowa! The Ducks are #4 and favored by 7, but Kinnick Stadium at night is no joke. Oregon wins but Iowa covers!</span>
           </div>
           <div class="corso-tip">
-            <span class="tip-icon">🌽</span>
-            <span class="tip-text">USC at Nebraska! The Trojans are #23 and looking ahead, look out for the cornhuskers!</span>
+            <span class="tip-icon">🐅</span>
+            <span class="tip-text">Auburn at Vanderbilt! The Tigers are favored by 8, but Vandy has been playing tough at home. Give me Auburn to cover!</span>
+          </div>
+          <div class="corso-tip">
+            <span class="tip-icon">🔴</span>
+            <span class="tip-text">Washington at Wisconsin! The Badgers are favored by 3.5 at home in Camp Randall. That place gets LOUD! Wisconsin wins!</span>
+          </div>
+          <div class="corso-tip">
+            <span class="tip-icon">🌊</span>
+            <span class="tip-text">Wake Forest at Virginia! The Cavaliers are favored by 4.5 at home. UVA takes care of business in Charlottesville!</span>
           </div>
           <div class="corso-tip">
             <span class="tip-icon">🐻</span>
-            <span class="tip-text">Cincinnati at Utah! The Utes are playing away from home. The road has not been kind to them this year, Bearcats win!</span>
+            <span class="tip-text">California at Louisville! The Cardinals are favored by 6 at home. Louisville's offense should be too much for Cal!</span>
           </div>
           <div class="corso-tip">
-            <span class="tip-icon">⚔️</span>
-            <span class="tip-text">Virginia at California! The Cavaliers are #15 but the Golden Bears are at home. This could be a close one, but the Cavs win!</span>
+            <span class="tip-icon">⛪</span>
+            <span class="tip-text">Navy at Notre Dame! The Fighting Irish are #10 and favored by 7. Navy always plays ND tough, but the Irish win at home!</span>
           </div>
           <div class="corso-tip">
-            <span class="tip-icon">🐱</span>
-            <span class="tip-text">Texas Tech at Kansas State! The Red Raiders are #13 but the Wildcats at home are always tough! </span>
-          </div>
-          <div class="corso-tip">
-            <span class="tip-icon">🦃</span>
-            <span class="tip-text">Louisville at Virginia Tech! The Cardinals are #16 but playing in Blacksburg. The Hokies win behind the home field magic!</span>
-          </div>
-          <div class="corso-tip">
-            <span class="tip-icon">🐢</span>
-            <span class="tip-text">Indiana at Maryland! The Hoosiers are #2! They're one of the best teams in the country. Maryland has a great quarterback but Hoosiers win!</span>
+            <span class="tip-icon">🐸</span>
+            <span class="tip-text">Iowa State at TCU! The Horned Frogs are favored by 2 at home. This is a toss-up, but give me TCU in Fort Worth!</span>
           </div>
       </div>
     </div>
   </div>
 
-  <!-- Week 6 Results Tab -->
-  <div id="week6-results" class="tab-content">
-    <h1 class="title">Week 9 Results</h1>
+  <!-- Week 10 Results Tab -->
+  <div id="week10-results" class="tab-content">
+    <h1 class="title">Week 10 Results</h1>
     
     <div class="leaderboards-container">
       <div class="Leaderboard last-week">
         <h3 class="leaderboard-title">🏆 Last Week</h3>
         <ol class="leaderboard-list">
-          <li class="leaderboard-list-item">Blake 12-0 <span class="percentage">100%</span><span class="ranking-change up">▲ 1</span></li>
-          <li class="leaderboard-list-item">Katelyn 10-2 <span class="percentage">91.67%</span><span class="ranking-change up">▲ 1</span></li>
-          <li class="leaderboard-list-item">Michaela 9-3 <span class="percentage">75%</span><span class="ranking-change up">▲ 3</span></li>
           <li class="leaderboard-list-item">Logan 9-3 <span class="percentage">75%</span><span class="ranking-change up">▲ 3</span></li>
-          <li class="leaderboard-list-item">Blake's Model 8-4 <span class="percentage">67%</span><span class="ranking-change none">-</span></li>
-          <!-- <li class="leaderboard-list-item">Allie 7-5 <span class="percentage">58%</span><span class="ranking-change down">▼ 2</span></li> -->
+          <li class="leaderboard-list-item">Gracie 8-4 <span class="percentage">67%</span><span class="ranking-change none">-</span></li>
+          <li class="leaderboard-list-item">Blake's AI Model 8-4 <span class="percentage">67%</span><span class="ranking-change up">▲ 2</span></li>
+          <li class="leaderboard-list-item">(Cliff Sheep Murderer) 7-5 <span class="percentage">58%</span><span class="ranking-change down">▼ 1</span></li>
+          <li class="leaderboard-list-item">Blake 7-5 <span class="percentage">58%</span><span class="ranking-change down">▼ 4</span></li>
+          <li class="leaderboard-list-item">Katelyn 7-5 <span class="percentage">58%</span><span class="ranking-change down">▼ 4</span></li>
+          <li class="leaderboard-list-item">Chase 7-5 <span class="percentage">58%</span><span class="ranking-change none">-</span></li> 
         </ol>
       </div>
       <div class="Leaderboard all-time">
         <h3 class="leaderboard-title">🏆 All Time</h3>
         <ol class="leaderboard-list">
-          <li class="leaderboard-list-item">Blake 73-23 <span class="percentage">76.04%</span><span class="ranking-change up">▲ 1</span></li>
-          <li class="leaderboard-list-item">Michaela 63-21 <span class="percentage">75%</span><span class="ranking-change down">▼ 1</span></li>
-          <li class="leaderboard-list-item">Katelyn 60-24 <span class="percentage">71.43%</span><span class="ranking-change up">▲ 1</span></li>
-          <li class="leaderboard-list-item">Gracie 59-25 <span class="percentage">70.24%</span><span class="ranking-change down">▼ 1</span></li>
-          <li class="leaderboard-list-item">Logan 64-32 <span class="percentage">69.57%</span><span class="ranking-change up">▲ 1</span></li>
-          <li class="leaderboard-list-item">Chase 24-12 <span class="percentage">66.7%</span><span class="ranking-change down">▼ 1</span></li>
+          <li class="leaderboard-list-item">Blake 80-28 <span class="percentage">74.07%</span><span class="ranking-change none">-</span></li>
+          <li class="leaderboard-list-item">Michaela 70-26 <span class="percentage">72.92%</span><span class="ranking-change none">-</span></li>
+          <li class="leaderboard-list-item">Katelyn 67-29 <span class="percentage">69.79%</span><span class="ranking-change none">-</span></li>
+          <li class="leaderboard-list-item">Gracie 67-29 <span class="percentage">69.79%</span><span class="ranking-change none">-</span></li>
+          <li class="leaderboard-list-item">Logan 73-35 <span class="percentage">67.59%</span><span class="ranking-change none">-</span></li>
+          <li class="leaderboard-list-item">Chase 31-17 <span class="percentage">64.58%</span><span class="ranking-change none">-</span></li>
           <li class="leaderboard-list-item">Allie 22-14 <span class="percentage">61.1%</span><span class="ranking-change none">-</span></li>
-          <li class="leaderboard-list-item">Blake's Model 17-7 <span class="percentage">70.83%</span><span class="ranking-change none">—</span></li>
+          <li class="leaderboard-list-item">Blake's AI Model 25-11 <span class="percentage">69.44%</span><span class="ranking-change none">—</span></li>
         </ol>
       </div>
     </div>
 
-    <!-- WEEK 8 Analysis Section -->
+    <!-- WEEK 10 Analysis Section -->
     <div class="analysis-container">
-      <h3 class="analysis-title">📊 WEEK 8 Analysis</h3>
+      <h3 class="analysis-title">📊 WEEK 10 Analysis</h3>
       <div class="analysis-content">
         <div class="analysis-stats">
           <div class="stat-highlight">
             <span class="stat-icon">👑</span>
-            <span class="stat-text">We have a new All Time Leader! Blake is now at 73-23 (76.04%) passing Michaela who is at 63-21 (75%) for now...</span>
-          </div>
-          <div class="stat-highlight" style="flex-direction: column; align-items: flex-start;">
-            <div style="display: flex; align-items: center; gap: 1rem; width: 100%;">
-              <span class="stat-icon">😤</span>
-              <span class="stat-text">This is the first week a user has been perfect on their picks! Blake went 12-0</span>
-            </div>
-            <div style="margin-top: 15px; width: 100%; position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 8px;">
-              <iframe style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;" src="https://www.youtube.com/embed/pviYWzu0dzk" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-            </div>
+            <span class="stat-text">Nobody moved a single spot on the all time leaderboard this week.</span>
           </div>
           <div class="stat-highlight">
+              <span class="stat-icon">😤</span>
+              <span class="stat-text">No one correctly picked SMU to upset Miami this week</span>
+            </div>
+          <div class="stat-highlight">
             <span class="stat-icon">🐘</span>
-            <span class="stat-text">100% consensus on Alabama Beating South Carolina, Lanorris Sellers is the most talented QB in the SEC.</span>
+            <span class="stat-text">Logan and Blake's AI model were the only two users to correctly pick Texas to beat Vanderbilt this week.</span>
           </div>
           <div class="stat-highlight">
             <span class="stat-icon">📊</span>
-            <span class="stat-text">All users combined this week went 48-12 (80.00%). Up 9.17% from last week.</span>
+            <span class="stat-text">All users combined this week went 53-31 (63.1%). Down 16.9% from last week.</span>
           </div>
           <div class="stat-highlight">
             <span class="stat-icon">💀</span>
-            <span class="stat-text">LSU football has flatlined this week. Dead. Gone. We will keep them and Penn State in our memories.</span>
+            <span class="stat-text">No one correcly picked Oklahoma to beat Tennessee this week.</span>
           </div>
           <div class="stat-highlight">
             <span class="stat-icon">⛪</span>
-            <span class="stat-text">Blake's AI Model was the only user foolish enough to pick against the Mormons. And he was wrong.</span>
+            <span class="stat-text">No one correctly picked NC State to beat Georgia Tech this week. (Vegas did know something)</span>
           </div>
         </div>
         
@@ -444,30 +440,30 @@
 
     // Team code to ESPN ID mapping (for the dropdown values)
     const teamCodeToEspnId = {
-      // Game 1: Georgia vs Florida
-      'UGA': 61, 'FLA': 57,
-      // Game 2: Vanderbilt at Texas
-      'VANDY': 238, 'TEX': 251,
-      // Game 3: Miami at SMU
-      'MIA': 2390, 'SMU': 2567,
-      // Game 4: South Carolina at Ole Miss
-      'SCAR': 2579, 'OLE': 145,
-      // Game 5: Georgia Tech at NC State
-      'GT': 59, 'NCST': 152,
-      // Game 6: Oklahoma at Tennessee
-      'OKLA': 201, 'TENN': 2633,
-      // Game 7: USC at Nebraska
-      'USC': 30, 'NEB': 158,
-      // Game 8: Cincinnati at Utah
-      'CIN': 2132, 'UTAH': 254,
-      // Game 9: Virginia at California
-      'UVA': 258, 'CAL': 25,
-      // Game 10: Texas Tech at Kansas State
-      'TTU': 2641, 'KSU': 2306,
-      // Game 11: Louisville at Virginia Tech
-      'LOU': 97, 'VT': 259,
-      // Game 12: Indiana at Maryland
-      'IND': 84, 'MD': 120
+      // Game 1: Alabama vs LSU
+      'ALA': 333, 'LSU': 99,
+      // Game 2: Georgia at Mississippi State
+      'UGA': 61, 'MSST': 344,
+      // Game 3: BYU at Texas Tech
+      'BYU': 252, 'TTU': 2641,
+      // Game 4: Indiana at Penn State
+      'IND': 84, 'PSU': 213,
+      // Game 5: Texas A&M at Missouri
+      'TAMU': 245, 'MIZ': 142,
+      // Game 6: Oregon at Iowa
+      'ORE': 2483, 'IOWA': 2294,
+      // Game 7: Auburn at Vanderbilt
+      'AUB': 2, 'VANDY': 238,
+      // Game 8: Washington at Wisconsin
+      'WASH': 264, 'WISC': 275,
+      // Game 9: Wake Forest at Virginia
+      'WAKE': 154, 'UVA': 258,
+      // Game 10: California at Louisville
+      'CAL': 25, 'LOU': 97,
+      // Game 11: Navy at Notre Dame
+      'NAVY': 2426, 'ND': 87,
+      // Game 12: Iowa State at TCU
+      'ISU': 66, 'TCU': 2628
     };
 
     // No longer need to load games from API - we use game_number (1-12) directly
@@ -520,25 +516,25 @@
           let html = `
         <div class="prediction-results-container">
           <div class="prediction-header">
-            <h2 class="prediction-title">🏆 ${userName}'s Week 10 Predictions</h2>
+            <h2 class="prediction-title">🏆 ${userName}'s Week 11 Predictions</h2>
           </div>
           <div class="predictions-grid">
       `;
       
       for (let i = 1; i <= 12; i++) {
-      const gameData = [
-        "Georgia vs Florida",
-        "9 Vanderbilt at 20 Texas",
-        "10 Miami at SMU",
-        "South Carolina at 7 Ole Miss",
-        "8 Georgia Tech at NC State",
-        "18 Oklahoma at 14 Tennessee",
-        "23 USC at Nebraska",
-        "17 Cincinnati at 24 Utah",
-        "15 Virginia at California",
-        "13 Texas Tech at Kansas State",
-        "16 Louisville at Virginia Tech",
-        "2 Indiana at Maryland"
+        const gameData = [
+        "Alabama vs LSU",
+        "5 Georgia at Mississippi State",
+        "8 BYU at 9 Texas Tech",
+        "2 Indiana at 6 Penn State",
+        "3 Texas A&M at Missouri",
+        "4 Oregon at Iowa",
+        "Auburn at Vanderbilt",
+        "Washington at Wisconsin",
+        "Wake Forest at Virginia",
+        "California at Louisville",
+        "Navy at 10 Notre Dame",
+        "Iowa State at TCU"
         ];
         
         const prediction = formData.get("game" + i);
@@ -714,7 +710,7 @@
         // Check if Web Share API is supported (mobile)
         if (navigator.share && navigator.canShare) {
           canvas.toBlob(function(blob) {
-            const file = new File([blob], `week7-predictions-${new Date().toISOString().split('T')[0]}.png`, { 
+            const file = new File([blob], `week11-predictions-${new Date().toISOString().split('T')[0]}.png`, { 
               type: 'image/png' 
             });
             
@@ -722,7 +718,7 @@
             if (navigator.canShare({ files: [file] })) {
               navigator.share({
                 files: [file],
-                title: 'My Week 7 Predictions',
+                title: 'My Week 11 Predictions',
                 text: 'Check out my college football predictions!'
               }).then(() => {
                 showSuccessMessage('Shared! Check your share options to save to photos.');
@@ -752,7 +748,7 @@
     function fallbackDownload(canvas) {
       // Create download link for desktop/fallback
       const link = document.createElement('a');
-      link.download = `week7-predictions-${new Date().toISOString().split('T')[0]}.png`;
+      link.download = `week11-predictions-${new Date().toISOString().split('T')[0]}.png`;
       link.href = canvas.toDataURL();
       
       // Trigger download
@@ -842,36 +838,23 @@
       }
     }
 
-    // The World's Largest Outdoor Cocktail Party Rivalry Modal
-    function showCocktailPartyRivalry() {
+    // The First Saturday in November Rivalry Modal
+    function showFirstSaturdayRivalry() {
       const modal = document.createElement('div');
       modal.className = 'rivalry-modal';
       modal.innerHTML = `
         <div class="rivalry-modal-content">
           <div class="rivalry-modal-header">
-            <h3><span style="font-size: 24px; margin-right: 8px;">🍹</span> The World's Largest Outdoor Cocktail Party</h3>
+            <h3><span style="font-size: 24px; margin-right: 8px;">🍁</span> The First Saturday in November</h3>
             <span class="close-modal" onclick="closeRivalryModal()">&times;</span>
           </div>
           <div class="rivalry-modal-body">
-            <p><strong>Georgia vs Florida</strong> - One of college football's most iconic SEC rivalries!</p>
-            <p><strong>History:</strong> Dating back to 1915, this fierce rivalry between the Georgia Bulldogs and Florida Gators has become one of the most anticipated games of the SEC season. The game is traditionally played on a neutral site at TIAA Bank Field (formerly EverBank Field) in Jacksonville, Florida, creating a unique split-stadium atmosphere.</p>
-            <p><strong>The "Cocktail Party" Nickname:</strong></p>
-            <ul>
-              <li><strong>1930s Origin:</strong> The nickname "World's Largest Outdoor Cocktail Party" was coined by a local columnist in the 1930s, referencing the massive tailgating scene that developed around this neutral-site game</li>
-              <li><strong>Official Distance:</strong> While the schools don't officially use the nickname anymore (preferring just "Georgia-Florida Game"), fans and media still affectionately call it the Cocktail Party</li>
-              <li><strong>Jacksonville Tradition:</strong> The neutral-site location in Jacksonville has hosted the game since 1933, except for brief interruptions during WWII and 1994-1995 when renovations were needed</li>
-              <li><strong>Split Stadium:</strong> The stadium is divided right down the middle - Georgia fans on one side, Florida fans on the other, creating an electric atmosphere</li>
-            </ul>
-            <p><strong>Series Record:</strong> Georgia leads the overall series 55-44-2 (as of 2024)</p>
-            <p><strong>Memorable Moments:</strong></p>
-            <ul>
-              <li><strong>1980:</strong> Herschel Walker's legendary 92-yard touchdown run in a 26-21 Georgia victory during their National Championship season</li>
-              <li><strong>1995:</strong> Florida's 52-17 rout of Georgia, part of Steve Spurrier's dominance of the series (11-1 record vs Georgia)</li>
-              <li><strong>2007:</strong> Georgia's 42-30 upset of #9 Florida, marked by the entire team rushing the field after Knowshon Moreno's first touchdown</li>
-              <li><strong>2020-2021:</strong> Georgia snapped a three-game losing streak with back-to-back victories, reasserting dominance in the Kirby Smart era</li>
-            </ul>
-            <p><strong>Why It Matters:</strong> This game often decides the SEC East division title and has produced countless memorable moments. The neutral-site, split-stadium environment creates one of the most unique and intense atmospheres in all of college football. Whether you're a Bulldog or a Gator, this game represents everything that makes SEC football special!</p>
-            <p><strong>Fun Fact:</strong> The game was originally played in various locations including Savannah, Macon, and Gainesville before settling in Jacksonville. The neutral site tradition has become so beloved that attempts to move it to home-and-home have been strongly resisted by both fan bases!</p>
+            <p><strong>Alabama vs LSU</strong> - The annual SEC West heavyweight bout that somehow always lives up to the hype.</p>
+            <p><strong>This Year's Edition:</strong> Well, 2025's version looks a bit different than the 2019 "Game of the Century II" we all remember (you know, the one where Joe Burrow went nuclear and scored 46 points in Tuscaloosa). Fast forward six years and things have changed: LSU's head coach Brian Kelly got the boot after their shaky start, and now the Tigers are rolling with an interim coach who's probably still figuring out where the water cooler is.</p>
+            <p><strong>What to Expect:</strong> The Crimson Tide defense is looking sharp this season, while LSU is... well, they're trying their best. The Tigers have that whole "spirited underdog" thing going for them, which is great for motivational speeches but not so great for actually winning football games against a well-coached Alabama team.</p>
+            <p><strong>The Rivalry History:</strong> Dating back to 1895, this showdown has produced some absolute classics. Since Nick Saban arrived in Tuscaloosa in 2007, Alabama has dominated the series 12-4. Ten of those 16 games featured both teams in the top-10, and half were decided by a touchdown or less. This year might be slightly less dramatic, but hey, that's why they play the games.</p>
+            <p><strong>Why It Still Matters:</strong> Even with LSU's current situation, this game means everything in the SEC West. Alabama's looking to secure their spot, while LSU's interim coach is probably hoping to keep the job for more than just this weekend. The stakes might be different, but the intensity? That never changes.</p>
+            <p><strong>The Bottom Line:</strong> It's November in the SEC. Alabama's rolling. LSU's... regrouping. Time to see if the Tigers can channel some of that 2019 magic, or if the Tide will keep rolling right through Baton Rouge's coaching carousel.</p>
           </div>
         </div>
       `;

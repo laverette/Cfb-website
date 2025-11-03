@@ -5,3 +5,4 @@ GET https://cfb-website.onrender.com/api/picks/games/week/1
 GET https://cfb-website.onrender.com/api/picks/check-submission/1
 Authorization: Bearer YOUR_TOKEN_HERE
 
+

@@ -22,3 +22,4 @@ Content-Type: application/json
 GET https://cfb-website.onrender.com/api/auth/profile
 Authorization: Bearer YOUR_TOKEN_HERE
 
+

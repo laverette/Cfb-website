@@ -59,3 +59,4 @@ Once you have the `week_id`, you can:
 
 Or manually use the SQL INSERT statements the script generates.
 
+
