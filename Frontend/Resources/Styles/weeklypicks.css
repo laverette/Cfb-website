@@ -10,7 +10,7 @@ body{
     left: 0;
     width: 40px;
     height: 40px;
-    z-index: 1;
+    z-index: 1001;
     animation: bounceAround 15s linear infinite;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
@@ -2254,8 +2254,11 @@ input:focus, select:focus {
     
     .navbar-tabs .tab-button {
         flex: 1;
+        min-width: 0;
+        width: 50%;
         font-size: 0.85rem;
         padding: 6px 12px;
+        text-align: center;
     }
     
     .navbar-login-section {
