@@ -2193,7 +2193,7 @@ input:focus, select:focus {
 .navbar-login-section #userSection {
     display: flex;
     flex-direction: column;
-    align-items: flex-end;
+    align-items: center;
     gap: 0.5rem;
     background-color: #2E2E2E;
     padding: 10px;
@@ -2224,6 +2224,8 @@ input:focus, select:focus {
     margin: 0;
     font-weight: bold;
     font-size: 0.9rem;
+    text-align: center;
+    width: 100%;
 }
 
 .navbar-logout-btn {
@@ -2235,6 +2237,7 @@ input:focus, select:focus {
     font-size: 12px;
     cursor: pointer;
     transition: all 0.3s ease;
+    align-self: center;
 }
 
 .navbar-logout-btn:hover {
@@ -2273,8 +2276,10 @@ input:focus, select:focus {
     }
     
     .dropdown-menu {
-        width: 100%;
+        width: auto;
+        min-width: 200px;
+        max-width: fit-content;
         left: 0;
-        right: 0;
+        right: auto;
     }
 }
