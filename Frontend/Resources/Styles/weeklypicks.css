@@ -2199,7 +2199,9 @@ input:focus, select:focus {
     padding: 10px;
     border-radius: 8px;
     border: 1px solid #8D6E63;
-    min-width: 200px;
+    width: fit-content;
+    min-width: 120px;
+    max-width: 250px;
 }
 
 .navbar-login-btn {
@@ -2226,6 +2228,8 @@ input:focus, select:focus {
     font-size: 0.9rem;
     text-align: center;
     width: 100%;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 }
 
 .navbar-logout-btn {
@@ -2237,7 +2241,7 @@ input:focus, select:focus {
     font-size: 12px;
     cursor: pointer;
     transition: all 0.3s ease;
-    align-self: center;
+    margin: 0 auto;
 }
 
 .navbar-logout-btn:hover {
@@ -2265,7 +2269,7 @@ input:focus, select:focus {
         flex: 1 1 auto;
         min-width: 0;
         font-size: 0.85rem;
-        padding: 6px 12px;
+        padding: 12px 12px;
         text-align: center;
         box-sizing: border-box;
         white-space: nowrap;
