@@ -761,11 +761,19 @@ input:focus, select:focus {
     display: flex;
     align-items: center;
     gap: 6px;
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
+    padding: 4px 8px;
+    border-radius: 6px;
+    background-color: rgba(255, 215, 0, 0.1);
 }
 
 .team-link:hover {
     color: #FFD700;
+    background-color: rgba(255, 215, 0, 0.2);
+}
+
+.team-link:active {
+    background-color: rgba(255, 215, 0, 0.25);
 }
 
 .team-link:hover .team-name {
@@ -779,16 +787,32 @@ input:focus, select:focus {
 
 .team-link-inline {
     text-decoration: none;
-    color: #f5deb3;
+    color: #FFD700;
     font-weight: 600;
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
     cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 4px;
+    border-radius: 4px;
+    background-color: rgba(255, 215, 0, 0.1);
+    vertical-align: middle;
+}
+
+.team-link-inline .team-logo {
     display: inline-block;
+    vertical-align: middle;
+    margin: 0;
 }
 
 .team-link-inline:hover {
-    color: #FFD700;
-    text-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
+    color: #FFA000;
+    background-color: rgba(255, 215, 0, 0.2);
+}
+
+.team-link-inline:active {
+    background-color: rgba(255, 215, 0, 0.25);
 }
 
 .team-link-inline:hover .team-logo {
@@ -2065,6 +2089,33 @@ input:focus, select:focus {
     .week7-layout,
     .week11-layout {
         gap: 0.5rem;
+    }
+    
+    /* Enhanced mobile clickability for team links */
+    .team-link-inline {
+        padding: 4px 6px;
+        background-color: rgba(255, 215, 0, 0.15);
+        min-height: 32px;
+        display: inline-flex;
+        align-items: center;
+        -webkit-tap-highlight-color: rgba(255, 215, 0, 0.3);
+        touch-action: manipulation;
+    }
+    
+    .team-link-inline:active {
+        background-color: rgba(255, 215, 0, 0.25);
+    }
+    
+    .team-link {
+        padding: 6px 10px;
+        background-color: rgba(255, 215, 0, 0.15);
+        min-height: 44px;
+        -webkit-tap-highlight-color: rgba(255, 215, 0, 0.3);
+        touch-action: manipulation;
+    }
+    
+    .team-link:active {
+        background-color: rgba(255, 215, 0, 0.25);
     }
 }
 
