@@ -111,9 +111,11 @@
 
     function showMessage(message, type) {
       const messageDiv = document.getElementById('message');
+      // Replace newlines with <br> for HTML display
+      const formattedMessage = message.replace(/\n/g, '<br>');
       messageDiv.innerHTML = `
-        <div style="color: ${type === 'success' ? '#4CAF50' : '#f44336'}; font-weight: bold;">
-          ${message}
+        <div style="color: ${type === 'success' ? '#4CAF50' : '#f44336'}; font-weight: bold; white-space: pre-line;">
+          ${formattedMessage}
         </div>
       `;
     }
@@ -168,10 +170,35 @@
       e.preventDefault();
       
       const formData = new FormData(e.target);
+      const username = formData.get('username')?.toString().trim() || '';
+      const email = formData.get('email')?.toString().trim() || '';
+      const password = formData.get('password')?.toString() || '';
+      
+      // Client-side validation
+      const validationErrors = [];
+      
+      if (!username || username.length < 3) {
+        validationErrors.push('Username must be at least 3 characters long');
+      }
+      if (username.length > 50) {
+        validationErrors.push('Username must be less than 50 characters');
+      }
+      if (!email || !email.includes('@')) {
+        validationErrors.push('Please enter a valid email address');
+      }
+      if (!password || password.length < 8) {
+        validationErrors.push('Password must be at least 8 characters long');
+      }
+      
+      if (validationErrors.length > 0) {
+        showMessage(`❌ Please fix the following:\n${validationErrors.join('\n')}`, 'error');
+        return;
+      }
+      
       const registerData = {
-        username: formData.get('username'),
-        email: formData.get('email'),
-        password: formData.get('password')
+        username: username,
+        email: email,
+        password: password
       };
       
       try {
@@ -198,7 +225,18 @@
             window.location.href = 'weeklypicks.html';
           }, 1500);
         } else {
-          showMessage(`❌ ${result.message || 'Registration failed'}`, 'error');
+          // Display detailed error messages
+          let errorMessage = result.message || 'Registration failed';
+          
+          // If there are validation errors, show them
+          if (result.errors && Array.isArray(result.errors)) {
+            errorMessage += '\n\n' + result.errors.join('\n');
+          }
+          
+          // Also log to console for debugging
+          console.error('Registration error details:', result);
+          
+          showMessage(`❌ ${errorMessage}`, 'error');
         }
       } catch (error) {
         console.error('Registration error:', error);

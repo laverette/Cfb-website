@@ -754,70 +754,125 @@ input:focus, select:focus {
     box-shadow: 0 2px 5px rgba(0,0,0,0.3);
 }
 
-/* Team Link Styling */
+/* Team Link Styling - Enhanced Clickability */
 .team-link {
     text-decoration: none;
     color: inherit;
     display: flex;
     align-items: center;
     gap: 6px;
-    transition: all 0.2s ease;
-    padding: 4px 8px;
-    border-radius: 6px;
-    background-color: rgba(222, 184, 135, 0.15);
+    transition: all 0.3s ease;
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 2px solid rgba(255, 215, 0, 0.4);
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.1), rgba(255, 160, 0, 0.1));
+    cursor: pointer;
+    position: relative;
+    box-shadow: 0 2px 4px rgba(255, 215, 0, 0.2);
+}
+
+.team-link::after {
+    content: '👆';
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    margin-left: 4px;
+    font-size: 0.9em;
 }
 
 .team-link:hover {
-    color: #D4AF37;
-    background-color: rgba(222, 184, 135, 0.25);
+    color: #FFD700;
+    border-color: #FFD700;
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.25), rgba(255, 160, 0, 0.25));
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(255, 215, 0, 0.4);
+}
+
+.team-link:hover::after {
+    opacity: 1;
 }
 
 .team-link:active {
-    background-color: rgba(222, 184, 135, 0.3);
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(255, 215, 0, 0.3);
 }
 
 .team-link:hover .team-name {
-    color: #D4AF37;
+    color: #FFD700;
+    text-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
 }
 
 .team-link:hover .rivalry-logo {
-    transform: scale(1.15);
-    box-shadow: 0 2px 5px rgba(222, 184, 135, 0.4);
+    transform: scale(1.2);
+    box-shadow: 0 3px 8px rgba(255, 215, 0, 0.5);
+    filter: brightness(1.2);
 }
 
 .team-link-inline {
     text-decoration: none;
-    color: #DEB887;
+    color: #FFD700;
     font-weight: 600;
-    transition: all 0.2s ease;
+    transition: all 0.3s ease;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    padding: 2px 4px;
-    border-radius: 4px;
-    background-color: rgba(222, 184, 135, 0.15);
+    padding: 4px 8px;
+    border-radius: 6px;
+    border: 2px solid rgba(255, 215, 0, 0.5);
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(255, 160, 0, 0.15));
     vertical-align: middle;
+    position: relative;
+    box-shadow: 0 2px 4px rgba(255, 215, 0, 0.2);
+    text-decoration: underline;
+    text-decoration-color: rgba(255, 215, 0, 0.6);
+    text-underline-offset: 2px;
+}
+
+.team-link-inline::after {
+    content: '→';
+    opacity: 0;
+    transition: all 0.3s ease;
+    margin-left: 4px;
+    color: #FFD700;
+    font-weight: bold;
+    transform: translateX(-5px);
 }
 
 .team-link-inline .team-logo {
     display: inline-block;
     vertical-align: middle;
     margin: 0;
+    border: 1px solid rgba(255, 215, 0, 0.3);
+    border-radius: 4px;
+    padding: 2px;
+    background: rgba(255, 215, 0, 0.1);
 }
 
 .team-link-inline:hover {
-    color: #D4AF37;
-    background-color: rgba(222, 184, 135, 0.25);
+    color: #FFD700;
+    border-color: #FFD700;
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.3), rgba(255, 160, 0, 0.3));
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(255, 215, 0, 0.5);
+    text-decoration-color: #FFD700;
+    text-shadow: 0 0 6px rgba(255, 215, 0, 0.6);
+}
+
+.team-link-inline:hover::after {
+    opacity: 1;
+    transform: translateX(0);
 }
 
 .team-link-inline:active {
-    background-color: rgba(222, 184, 135, 0.3);
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(255, 215, 0, 0.3);
 }
 
 .team-link-inline:hover .team-logo {
-    transform: scale(1.15);
-    box-shadow: 0 2px 5px rgba(222, 184, 135, 0.4);
+    transform: scale(1.2);
+    box-shadow: 0 3px 8px rgba(255, 215, 0, 0.5);
+    border-color: #FFD700;
+    filter: brightness(1.2);
 }
 
 /* Rivalry Card Styling */
@@ -2093,29 +2148,29 @@ input:focus, select:focus {
     
     /* Enhanced mobile clickability for team links */
     .team-link-inline {
-        padding: 4px 6px;
-        background-color: rgba(222, 184, 135, 0.2);
-        min-height: 32px;
-        display: inline-flex;
-        align-items: center;
-        -webkit-tap-highlight-color: rgba(222, 184, 135, 0.4);
+        padding: 6px 10px;
+        min-height: 44px;
+        border-width: 2px;
+        -webkit-tap-highlight-color: rgba(255, 215, 0, 0.5);
         touch-action: manipulation;
     }
     
     .team-link-inline:active {
-        background-color: rgba(222, 184, 135, 0.3);
+        background: linear-gradient(135deg, rgba(255, 215, 0, 0.4), rgba(255, 160, 0, 0.4));
+        transform: scale(0.98);
     }
     
     .team-link {
-        padding: 6px 10px;
-        background-color: rgba(222, 184, 135, 0.2);
-        min-height: 44px;
-        -webkit-tap-highlight-color: rgba(222, 184, 135, 0.4);
+        padding: 8px 12px;
+        min-height: 48px;
+        border-width: 2px;
+        -webkit-tap-highlight-color: rgba(255, 215, 0, 0.5);
         touch-action: manipulation;
     }
     
     .team-link:active {
-        background-color: rgba(222, 184, 135, 0.3);
+        background: linear-gradient(135deg, rgba(255, 215, 0, 0.4), rgba(255, 160, 0, 0.4));
+        transform: scale(0.98);
     }
 }
 

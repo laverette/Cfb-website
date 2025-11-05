@@ -6,6 +6,7 @@ using MyApp.Namespace.Services;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using System.Linq;
 using BCrypt.Net;
 
 namespace MyApp.Namespace.Controllers
@@ -28,6 +29,20 @@ namespace MyApp.Namespace.Controllers
         {
             try
             {
+                // Validate model state
+                if (!ModelState.IsValid)
+                {
+                    var errors = ModelState
+                        .Where(x => x.Value?.Errors.Count > 0)
+                        .SelectMany(x => x.Value!.Errors.Select(e => $"{x.Key}: {e.ErrorMessage}"))
+                        .ToList();
+                    
+                    return BadRequest(new { 
+                        message = "Validation failed", 
+                        errors = errors 
+                    });
+                }
+
                 using var connection = _databaseService.GetConnection();
                 await connection.OpenAsync();
 
