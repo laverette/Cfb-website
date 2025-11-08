@@ -240,10 +240,23 @@ input:focus, select:focus {
         box-sizing: border-box !important;
     }
     
-    form input[type="text"], 
-    form select {
+    form input[type="text"] {
         width: 100% !important;
         max-width: 100% !important;
+        padding: 10px 14px !important;
+        font-size: 1.2rem !important;
+        border-radius: 8px !important;
+        border: 2px solid #3E2723 !important;
+        background-color: #3E2723 !important;
+        color: #f5deb3 !important;
+        box-sizing: border-box !important;
+        margin: 0 !important;
+    }
+    
+    form select {
+        width: auto !important;
+        max-width: 80% !important;
+        min-width: 200px !important;
         padding: 10px 14px !important;
         font-size: 1.2rem !important;
         border-radius: 8px !important;
@@ -603,12 +616,13 @@ input:focus, select:focus {
         display: inline !important;
     }
     
-    /* Force select elements to be on their own line and full width */
+    /* Force select elements to be on their own line but not full width */
     form label:has(.team-row) select {
         display: block !important;
         margin: 6px 0 0 0 !important;
-        width: 100% !important;
-        max-width: 100% !important;
+        width: auto !important;
+        max-width: 80% !important;
+        min-width: 200px !important;
     }
     
     .games {
@@ -973,10 +987,10 @@ input:focus, select:focus {
     display: inline-block !important;
     vertical-align: middle;
     margin: 0 3px 0 0 !important;
-    border: 1px solid rgba(141, 110, 99, 0.4);
+    border: 1px solid rgba(141, 110, 99, 0.6);
     border-radius: 4px;
     padding: 2px !important;
-    background: rgba(62, 39, 35, 0.2);
+    background: rgba(78, 52, 46, 0.4);
     flex-shrink: 0 !important;
     width: 26px !important;
     height: 26px !important;
@@ -1020,9 +1034,9 @@ input:focus, select:focus {
 .team-link-inline:hover .team-logo {
     transform: scale(1.2);
     box-shadow: 0 3px 8px rgba(141, 110, 99, 0.5);
-    border-color: rgba(141, 110, 99, 0.6);
+    border-color: rgba(141, 110, 99, 0.8);
     filter: brightness(1.2);
-    background: rgba(62, 39, 35, 0.3);
+    background: rgba(78, 52, 46, 0.6);
 }
 
 /* Rivalry Card Styling */
@@ -2292,12 +2306,12 @@ input:focus, select:focus {
     
     /* Make team logos bigger on mobile */
     .team-link-inline .team-logo {
-        width: 36px !important;
-        height: 36px !important;
+        width: 48px !important;
+        height: 48px !important;
         margin: 0 5px 0 0 !important;
         flex-shrink: 0;
-        background: rgba(62, 39, 35, 0.2) !important;
-        border: 1px solid rgba(141, 110, 99, 0.4) !important;
+        background: rgba(78, 52, 46, 0.4) !important;
+        border: 1px solid rgba(141, 110, 99, 0.6) !important;
     }
     
     .team-link-inline {
@@ -2308,8 +2322,8 @@ input:focus, select:focus {
     
     /* Make team logos scale with screen */
     .team-link-inline .team-logo {
-        width: clamp(24px, 6vw, 36px) !important;
-        height: clamp(24px, 6vw, 36px) !important;
+        width: clamp(32px, 8vw, 48px) !important;
+        height: clamp(32px, 8vw, 48px) !important;
     }
     
     /* Make ranking numbers scale */
