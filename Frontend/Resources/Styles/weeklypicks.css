@@ -867,8 +867,8 @@ input:focus, select:focus {
     cursor: pointer;
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    padding: 4px 8px;
+    gap: 3px;
+    padding: 3px 4px;
     border-radius: 6px;
     border: 2px solid rgba(255, 215, 0, 0.5);
     background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(255, 160, 0, 0.15));
@@ -878,6 +878,11 @@ input:focus, select:focus {
     text-decoration: underline;
     text-decoration-color: rgba(255, 215, 0, 0.6);
     text-underline-offset: 2px;
+    width: fit-content;
+    max-width: fit-content;
+    flex-shrink: 0;
+    box-sizing: border-box;
+    white-space: nowrap;
 }
 
 .team-link-inline::after {
@@ -893,11 +898,18 @@ input:focus, select:focus {
 .team-link-inline .team-logo {
     display: inline-block;
     vertical-align: middle;
-    margin: 0;
+    margin: 0 3px 0 0;
     border: 1px solid rgba(255, 215, 0, 0.3);
     border-radius: 4px;
     padding: 2px;
     background: rgba(255, 215, 0, 0.1);
+    flex-shrink: 0;
+}
+
+/* Ensure text inside doesn't expand box */
+.team-link-inline > * {
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .team-link-inline:hover {
@@ -2172,13 +2184,15 @@ input:focus, select:focus {
     
     /* Enhanced mobile clickability for team links */
     .team-link-inline {
-        padding: 4px 6px !important;
+        padding: 3px 5px !important;
         min-height: 44px;
         border-width: 2px;
         -webkit-tap-highlight-color: rgba(255, 215, 0, 0.5);
         touch-action: manipulation;
         max-width: fit-content !important;
+        width: fit-content !important;
         display: inline-flex !important;
+        flex-shrink: 0 !important;
     }
     
     /* Make team links more compact - reduce yellow box size */
@@ -2186,12 +2200,17 @@ input:focus, select:focus {
         width: 18px !important;
         height: 18px !important;
         margin: 0 3px 0 0 !important;
+        flex-shrink: 0;
     }
     
     .team-link-inline {
         font-size: 0.9rem !important;
         line-height: 1.2 !important;
-        padding: 3px 5px !important;
+    }
+    
+    /* Ensure team name text doesn't cause box to expand */
+    .team-link-inline > *:not(.team-logo) {
+        white-space: nowrap;
     }
     
     .team-link-inline:active {
