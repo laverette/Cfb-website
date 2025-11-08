@@ -485,8 +485,8 @@ input:focus, select:focus {
         max-width: 100% !important;
         font-size: 1.1rem !important;
         line-height: 1.4 !important;
-        align-items: center !important;
-        text-align: center !important;
+        align-items: flex-start !important;
+        text-align: left !important;
         margin-left: 0 !important;
         margin-right: 0 !important;
         padding: 0 !important;
@@ -499,20 +499,19 @@ input:focus, select:focus {
         align-items: flex-start !important;
     }
     
-    /* Team row container - centered when fits, no wrapping */
+    /* Team row container - left-aligned, no wrapping, no scrolling */
     .team-row {
         display: flex !important;
         flex-wrap: nowrap !important;
-        justify-content: center !important;
+        justify-content: flex-start !important;
         align-items: center !important;
-        text-align: center !important;
+        text-align: left !important;
         width: 100% !important;
         max-width: 100% !important;
-        margin: 0 auto !important;
+        margin: 0 !important;
         padding: 0 !important;
         box-sizing: border-box !important;
-        overflow-x: auto !important;
-        -webkit-overflow-scrolling: touch !important;
+        overflow-x: hidden !important;
         white-space: nowrap !important;
     }
     
@@ -560,9 +559,9 @@ input:focus, select:focus {
         line-height: 1.2;
     }
     
-    /* Allow content to wrap but center when it fits */
+    /* Allow content to stay left-aligned */
     form label:has(.team-row) {
-        text-align: center !important;
+        text-align: left !important;
         width: 100% !important;
         max-width: 100% !important;
         overflow-x: hidden !important;
