@@ -2,7 +2,8 @@
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
 WORKDIR /app
 EXPOSE 8080
-ENV ASPNETCORE_URLS=http://+:8080
+# ASPNETCORE_URLS will be set via Render environment variables
+ENV ASPNETCORE_URLS=http://0.0.0.0:8080
 
 # Use the .NET 8 SDK to build the application
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
