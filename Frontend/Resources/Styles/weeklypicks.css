@@ -482,12 +482,15 @@ input:focus, select:focus {
         gap: 8px !important;
         margin-bottom: 15px !important;
         width: 100% !important;
+        max-width: 100% !important;
         font-size: 1.1rem !important;
         line-height: 1.4 !important;
         align-items: center !important;
         text-align: center !important;
         margin-left: 0 !important;
         margin-right: 0 !important;
+        padding: 0 !important;
+        box-sizing: border-box !important;
     }
     
     /* Keep name field label left-aligned */
@@ -498,17 +501,42 @@ input:focus, select:focus {
     
     /* Team row container - centered when fits, wraps left if needed */
     .team-row {
-        display: inline-block !important;
-        text-align: left !important;
+        display: flex !important;
+        flex-wrap: wrap !important;
+        justify-content: center !important;
+        align-items: center !important;
+        text-align: center !important;
+        width: 100% !important;
         max-width: 100% !important;
         margin: 0 auto !important;
+        padding: 0 !important;
+        box-sizing: border-box !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
     }
     
     /* Center the team-row container itself via parent text-align */
-    /* Content inside aligns left, so when it wraps, wrapped lines align left */
+    /* Content inside aligns center, wraps naturally */
     .team-row > * {
+        flex-shrink: 0 !important;
         display: inline !important;
         vertical-align: middle !important;
+        white-space: nowrap !important;
+    }
+    
+    /* Add spacing around "at" text */
+    .team-row {
+        gap: 4px !important;
+    }
+    
+    /* Add margin to team links for spacing */
+    .team-row .team-link-inline {
+        margin: 0 2px !important;
+    }
+    
+    /* Add margin to betting line for spacing */
+    .team-row .betting-line {
+        margin-left: 3px !important;
     }
     
     /* Style ranking numbers to fit with team links */
@@ -526,18 +554,23 @@ input:focus, select:focus {
     }
     
     /* Allow content to wrap but center when it fits */
-    form label {
+    form label:has(.team-row) {
         text-align: center !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow-x: hidden !important;
     }
     
-    form label > *:not(select):not(.team-row) {
+    form label:has(.team-row) > *:not(select):not(.team-row) {
         display: inline !important;
     }
     
     /* Force select elements to be on their own line and centered */
-    form label select {
+    form label:has(.team-row) select {
         display: block !important;
         margin: 6px auto 0 auto !important;
+        width: 100% !important;
+        max-width: 100% !important;
     }
     
     .games {
