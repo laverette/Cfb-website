@@ -499,10 +499,10 @@ input:focus, select:focus {
         align-items: flex-start !important;
     }
     
-    /* Team row container - centered when fits, wraps left if needed */
+    /* Team row container - centered when fits, no wrapping */
     .team-row {
         display: flex !important;
-        flex-wrap: wrap !important;
+        flex-wrap: nowrap !important;
         justify-content: center !important;
         align-items: center !important;
         text-align: center !important;
@@ -513,14 +513,21 @@ input:focus, select:focus {
         box-sizing: border-box !important;
         overflow-x: auto !important;
         -webkit-overflow-scrolling: touch !important;
+        white-space: nowrap !important;
     }
     
     /* Center the team-row container itself via parent text-align */
-    /* Content inside aligns center, wraps naturally */
+    /* Content inside aligns center, no wrapping */
     .team-row > * {
         flex-shrink: 0 !important;
         display: inline !important;
         vertical-align: middle !important;
+        white-space: nowrap !important;
+    }
+    
+    /* Ensure all text content doesn't wrap */
+    .team-row,
+    .team-row * {
         white-space: nowrap !important;
     }
     
