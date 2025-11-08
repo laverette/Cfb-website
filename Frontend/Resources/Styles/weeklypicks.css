@@ -459,31 +459,34 @@ input:focus, select:focus {
     
     
     
-    /* Mobile game layout improvements */
-    label {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        margin-bottom: 15px;
-        width: 100%;
-        font-size: 1.1rem;
-        line-height: 1.4;
-        align-items: center;
+    /* Mobile game layout improvements - override form label styles */
+    form label {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 8px !important;
+        margin-bottom: 15px !important;
+        width: 100% !important;
+        font-size: 1.1rem !important;
+        line-height: 1.4 !important;
+        align-items: center !important;
+        text-align: center !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
     }
     
     /* Team row container - centered when fits, wraps left if needed */
     .team-row {
-        display: inline-block;
-        text-align: left;
-        max-width: 100%;
-        margin: 0 auto;
+        display: inline-block !important;
+        text-align: left !important;
+        max-width: 100% !important;
+        margin: 0 auto !important;
     }
     
     /* Center the team-row container itself via parent text-align */
     /* Content inside aligns left, so when it wraps, wrapped lines align left */
     .team-row > * {
-        display: inline;
-        vertical-align: middle;
+        display: inline !important;
+        vertical-align: middle !important;
     }
     
     /* Style ranking numbers to fit with team links */
@@ -501,16 +504,16 @@ input:focus, select:focus {
     }
     
     /* Allow content to wrap but center when it fits */
-    label {
-        text-align: center;
+    form label {
+        text-align: center !important;
     }
     
-    label > *:not(select):not(.team-row) {
-        display: inline;
+    form label > *:not(select):not(.team-row) {
+        display: inline !important;
     }
     
     /* Force select elements to be on their own line and centered */
-    label select {
+    form label select {
         display: block !important;
         margin: 6px auto 0 auto !important;
     }
