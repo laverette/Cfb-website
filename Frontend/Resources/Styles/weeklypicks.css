@@ -468,12 +468,22 @@ input:focus, select:focus {
         width: 100%;
         font-size: 1.1rem;
         line-height: 1.4;
+        align-items: center;
     }
     
-    /* Team row container - keeps everything on one line */
+    /* Team row container - centered when fits, wraps left if needed */
     .team-row {
+        display: inline-block;
+        text-align: left;
+        max-width: 100%;
+        margin: 0 auto;
+    }
+    
+    /* Center the team-row container itself via parent text-align */
+    /* Content inside aligns left, so when it wraps, wrapped lines align left */
+    .team-row > * {
         display: inline;
-        white-space: nowrap;
+        vertical-align: middle;
     }
     
     /* Style ranking numbers to fit with team links */
@@ -490,32 +500,19 @@ input:focus, select:focus {
         line-height: 1.2;
     }
     
-    /* Create a flex container for the first line - ensure no wrapping */
+    /* Allow content to wrap but center when it fits */
     label {
-        white-space: nowrap;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
+        text-align: center;
     }
     
-    label > *:not(select) {
+    label > *:not(select):not(.team-row) {
         display: inline;
-        white-space: nowrap;
     }
     
-    /* Wrap the game content in a container to prevent wrapping */
-    label > *:not(select):not(.games) {
-        white-space: nowrap;
-    }
-    
-    /* Force select elements to be on their own line */
+    /* Force select elements to be on their own line and centered */
     label select {
         display: block !important;
         margin: 6px auto 0 auto !important;
-    }
-    
-    /* Move the game text closer to the games label */
-    label {
-        text-indent: 0px;
     }
     
     .games {
@@ -875,9 +872,6 @@ input:focus, select:focus {
     vertical-align: middle;
     position: relative;
     box-shadow: 0 2px 4px rgba(255, 215, 0, 0.2);
-    text-decoration: underline;
-    text-decoration-color: rgba(255, 215, 0, 0.6);
-    text-underline-offset: 2px;
     width: auto !important;
     max-width: max-content !important;
     min-width: auto !important;
@@ -906,13 +900,13 @@ input:focus, select:focus {
     display: inline-block !important;
     vertical-align: middle;
     margin: 0 3px 0 0 !important;
-    border: 1px solid rgba(255, 215, 0, 0.3);
+    border: 1px solid rgba(141, 110, 99, 0.4);
     border-radius: 4px;
     padding: 2px !important;
-    background: rgba(255, 215, 0, 0.1);
+    background: rgba(62, 39, 35, 0.2);
     flex-shrink: 0 !important;
-    width: 20px !important;
-    height: 20px !important;
+    width: 26px !important;
+    height: 26px !important;
     box-sizing: border-box !important;
 }
 
@@ -935,7 +929,6 @@ input:focus, select:focus {
     background: linear-gradient(135deg, rgba(255, 215, 0, 0.3), rgba(255, 160, 0, 0.3));
     transform: translateY(-2px);
     box-shadow: 0 4px 8px rgba(255, 215, 0, 0.5);
-    text-decoration-color: #FFD700;
     text-shadow: 0 0 6px rgba(255, 215, 0, 0.6);
 }
 
@@ -953,9 +946,10 @@ input:focus, select:focus {
 
 .team-link-inline:hover .team-logo {
     transform: scale(1.2);
-    box-shadow: 0 3px 8px rgba(255, 215, 0, 0.5);
-    border-color: #FFD700;
+    box-shadow: 0 3px 8px rgba(141, 110, 99, 0.5);
+    border-color: rgba(141, 110, 99, 0.6);
     filter: brightness(1.2);
+    background: rgba(62, 39, 35, 0.3);
 }
 
 /* Rivalry Card Styling */
@@ -2229,6 +2223,8 @@ input:focus, select:focus {
         height: 28px !important;
         margin: 0 4px 0 0 !important;
         flex-shrink: 0;
+        background: rgba(62, 39, 35, 0.2) !important;
+        border: 1px solid rgba(141, 110, 99, 0.4) !important;
     }
     
     .team-link-inline {
