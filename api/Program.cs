@@ -60,7 +60,11 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+// Only use HTTPS redirection in development
+if (app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 
 app.UseCors("OpenPolicy");
 
@@ -69,4 +73,6 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-app.Run();
+// Use PORT environment variable from Render, or default to 5000
+var port = Environment.GetEnvironmentVariable("PORT") ?? "5000";
+app.Run($"http://0.0.0.0:{port}");

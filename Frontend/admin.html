@@ -211,7 +211,12 @@
   </div>
 
   <script>
-    const API_BASE = 'https://cfb-website.onrender.com/api';
+    // TODO: Update this to your actual API URL
+    // Options:
+    // - Railway: 'https://yourapp.up.railway.app/api'
+    // - Render: 'https://yourapp.onrender.com/api'
+    // - Local: 'http://localhost:5000/api'
+    const API_BASE = 'https://cfb-website.onrender.com/api'; // UPDATE THIS TO YOUR ACTUAL API URL
     let currentWeekId = null;
     let currentYear = null;
     let currentWeek = null;
@@ -239,11 +244,15 @@
             alert('You do not have admin access. Redirecting to home...');
             window.location.href = 'index.html';
             return;
+          } else if (response.status === 404) {
+            console.error('API endpoint not found. Is the API deployed?');
+            alert('API endpoint not found. Please check if the API is deployed and running.');
+            return;
           }
         }
       } catch (error) {
         console.error('Error checking admin status:', error);
-        alert('Error verifying admin access. Please try again.');
+        alert(`Error connecting to API: ${error.message}\n\nPlease verify:\n1. The API is deployed and running\n2. The API URL is correct: ${API_BASE}`);
       }
     }
 
@@ -268,12 +277,25 @@
           document.getElementById('fetchWeek').value = data.weekNumber;
           
           loadGames();
+        } else if (response.status === 404) {
+          document.getElementById('currentWeekInfo').innerHTML = `
+            <p style="color: #f44336;">API endpoint not found (404)</p>
+            <p style="color: #f44336; font-size: 0.9em;">Please check if the API is deployed at: ${API_BASE}</p>
+          `;
         } else {
-          document.getElementById('currentWeekInfo').innerHTML = '<p style="color: #f44336;">No current week set</p>';
+          const errorText = await response.text();
+          document.getElementById('currentWeekInfo').innerHTML = `
+            <p style="color: #f44336;">No current week set</p>
+            <p style="color: #f44336; font-size: 0.9em;">Status: ${response.status}</p>
+          `;
         }
       } catch (error) {
         console.error('Error loading current week:', error);
-        document.getElementById('currentWeekInfo').innerHTML = '<p style="color: #f44336;">Error loading current week</p>';
+        document.getElementById('currentWeekInfo').innerHTML = `
+          <p style="color: #f44336;">Error loading current week</p>
+          <p style="color: #f44336; font-size: 0.9em;">${error.message}</p>
+          <p style="color: #f44336; font-size: 0.9em;">API URL: ${API_BASE}</p>
+        `;
       }
     }
 
@@ -307,15 +329,32 @@
             <div class="status-message status-success">Current week set successfully!</div>
           `;
           loadCurrentWeek();
-        } else {
-          const error = await response.json();
+        } else if (response.status === 404) {
           document.getElementById('weekStatus').innerHTML = `
-            <div class="status-message status-error">Error: ${error.message}</div>
+            <div class="status-message status-error">
+              API endpoint not found (404).<br>
+              Please verify the API is deployed and running at: ${API_BASE}
+            </div>
+          `;
+        } else {
+          let errorMessage = `Error: ${response.status} ${response.statusText}`;
+          try {
+            const error = await response.json();
+            errorMessage = error.message || errorMessage;
+          } catch {
+            const errorText = await response.text();
+            if (errorText) errorMessage += ` - ${errorText}`;
+          }
+          document.getElementById('weekStatus').innerHTML = `
+            <div class="status-message status-error">${errorMessage}</div>
           `;
         }
       } catch (error) {
         document.getElementById('weekStatus').innerHTML = `
-          <div class="status-message status-error">Error: ${error.message}</div>
+          <div class="status-message status-error">
+            Network Error: ${error.message}<br>
+            <small>Check if the API is running at: ${API_BASE}</small>
+          </div>
         `;
       }
     }
