@@ -197,6 +197,8 @@ input:focus, select:focus {
         max-width: 100% !important;
         box-sizing: border-box !important;
         overflow-x: hidden !important;
+        overflow-y: visible !important;
+        position: relative !important;
     }
     
     /* Container to prevent overflow - use viewport width */
@@ -208,6 +210,7 @@ input:focus, select:focus {
         padding: 0 0.5rem !important;
         box-sizing: border-box !important;
         overflow-x: hidden !important;
+        overflow-y: visible !important;
         margin: 0 !important;
     }
     
@@ -265,6 +268,8 @@ input:focus, select:focus {
         color: #f5deb3 !important;
         box-sizing: border-box !important;
         margin: 0 !important;
+        z-index: 1 !important;
+        position: relative !important;
     }
     
     form input[type="text"]:focus, 
@@ -545,7 +550,13 @@ input:focus, select:focus {
         padding: 0 !important;
         box-sizing: border-box !important;
         overflow-x: visible !important;
+        overflow-y: visible !important;
         gap: clamp(2px, 1vw, 4px) !important;
+        pointer-events: none !important;
+    }
+    
+    .team-row > * {
+        pointer-events: auto !important;
     }
     
     /* Allow content to shrink and adapt */
@@ -610,6 +621,11 @@ input:focus, select:focus {
         max-width: 100% !important;
         overflow-x: hidden !important;
         align-items: center !important;
+        pointer-events: auto !important;
+    }
+    
+    form label:has(.team-row) .team-row {
+        pointer-events: auto !important;
     }
     
     form label:has(.team-row) > *:not(select):not(.team-row) {
@@ -623,6 +639,44 @@ input:focus, select:focus {
         width: auto !important;
         max-width: 80% !important;
         min-width: 200px !important;
+        pointer-events: auto !important;
+        touch-action: auto !important;
+        -webkit-touch-callout: default !important;
+        -webkit-user-select: auto !important;
+        user-select: auto !important;
+        position: relative !important;
+        z-index: 1 !important;
+        -webkit-appearance: menulist !important;
+        -moz-appearance: menulist !important;
+        appearance: menulist !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+    }
+    
+    /* Ensure parent containers don't clip the dropdown */
+    form label:has(.team-row) {
+        overflow: visible !important;
+    }
+    
+    form p:has(label:has(.team-row)) {
+        overflow: visible !important;
+    }
+    
+    /* Center Game 1 (with rivalry name) on mobile */
+    form label:has(.rivalry-name-toggle) {
+        align-items: center !important;
+        text-align: center !important;
+    }
+    
+    form label:has(.rivalry-name-toggle) select {
+        margin: 6px auto 0 auto !important;
+        pointer-events: auto !important;
+        touch-action: auto !important;
+        position: relative !important;
+        z-index: 1 !important;
+        -webkit-appearance: menulist !important;
+        -moz-appearance: menulist !important;
+        appearance: menulist !important;
     }
     
     .games {
@@ -1283,6 +1337,77 @@ input:focus, select:focus {
         opacity: 1;
         transform: translateY(0) scale(1);
     }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Rivalry Name Toggle Styling */
+.rivalry-name-toggle {
+    transition: all 0.2s ease;
+    display: inline-block;
+}
+
+.rivalry-name-toggle:hover {
+    background: rgba(255, 215, 0, 0.25) !important;
+    border-left-color: #FFA000 !important;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(255, 215, 0, 0.3);
+}
+
+/* Center Game 1 label (with rivalry name) - Desktop and Mobile */
+form label:has(.rivalry-name-toggle) {
+    text-align: center !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    width: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+}
+
+form label:has(.rivalry-name-toggle) .games {
+    text-align: center !important;
+    display: block !important;
+    width: 100% !important;
+    margin: 0 auto !important;
+}
+
+form label:has(.rivalry-name-toggle) .rivalry-name-toggle {
+    margin: 8px auto 4px auto !important;
+    text-align: center !important;
+    display: inline-block !important;
+}
+
+form label:has(.rivalry-name-toggle) .team-row {
+    justify-content: center !important;
+    text-align: center !important;
+    width: 100% !important;
+    margin: 0 auto !important;
+}
+
+form label:has(.rivalry-name-toggle) select {
+    display: block !important;
+    margin: 6px auto 0 auto !important;
+    width: auto !important;
+    max-width: 80% !important;
+    min-width: 200px !important;
+    text-align: center !important;
+}
+
+.rivalry-writeup {
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+
+.rivalry-writeup img {
+    transition: transform 0.3s ease;
+}
+
+.rivalry-writeup img:hover {
+    transform: scale(1.05);
 }
 
 /* Mobile Modal Optimizations */
@@ -2369,8 +2494,9 @@ input:focus, select:focus {
     background: linear-gradient(135deg, #3E2723, #4E342E) !important;
     border-bottom: 2px solid #8D6E63;
     padding: 0.75rem 1rem;
-    z-index: 1000;
+    z-index: 100;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    overflow: visible !important;
 }
 
 .navbar-content-weekly {
@@ -2435,7 +2561,7 @@ input:focus, select:focus {
     min-width: 200px;
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
     display: none;
-    z-index: 1002;
+    z-index: 20000;
     margin-top: 0.5rem;
     padding: 0.5rem 0;
 }
@@ -2555,8 +2681,9 @@ input:focus, select:focus {
         position: relative;
         left: 0 !important;
         right: 0 !important;
-        overflow-x: hidden !important;
+        overflow: visible !important;
         box-sizing: border-box !important;
+        z-index: 100 !important;
     }
     
     .weeklypicks-navbar .container-fluid {
