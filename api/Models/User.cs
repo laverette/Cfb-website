@@ -23,6 +23,8 @@ namespace MyApp.Namespace.Models
         
         public string? Bio { get; set; }
         
+        public string Role { get; set; } = "user"; // "user" or "admin"
+        
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;

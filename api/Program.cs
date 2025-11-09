@@ -18,6 +18,10 @@ builder.Services.AddCors(options => {
 // Add SQLite database service
 builder.Services.AddScoped<MyApp.Namespace.Services.DatabaseService>();
 
+// Add College Football Data API service
+builder.Services.AddHttpClient<MyApp.Namespace.Services.CollegeFootballDataService>();
+builder.Services.AddScoped<MyApp.Namespace.Services.CollegeFootballDataService>();
+
 // Add JWT Authentication
 var jwtKey = builder.Configuration["Jwt:Key"];
 var jwtIssuer = builder.Configuration["Jwt:Issuer"];
@@ -38,7 +42,10 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("AdminOnly", policy => policy.RequireClaim("Role", "admin"));
+});
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();

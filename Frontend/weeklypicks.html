@@ -33,6 +33,7 @@
           <a href="predictor.html" class="dropdown-item">🤖 Model</a>
           <a href="CFPPredictions.html" class="dropdown-item">🏆 CFP Picks</a>
           <a href="list.html" class="dropdown-item">👑 Heisman Players</a>
+          <a href="admin.html" class="dropdown-item" id="adminLink" style="display: none;">⚙️ Admin Panel</a>
         </div>
         
         <!-- Tab Buttons in Navbar -->
@@ -84,149 +85,10 @@
             </div>
           </div>
           
-          <p>
-            <label><span class="games">Game 1:</span> 
-              <span class="team-row"><a href="team.html?name=Michigan%20Wolverines" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/130.png" alt="Michigan" class="team-logo">Michigan</a> at 
-              <a href="team.html?name=Northwestern%20Wildcats" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/77.png" alt="Northwestern" class="team-logo">Northwestern</a>
-              <span class="betting-line">+10.5</span></span>
-              <select name="game1">
-                <option value="MICH">MICH</option>
-                <option value="NW">NW</option>
-              </select>
-            </label>
-          </p>
-
-          <p>
-            <label><span class="games">Game 2:</span> 
-              <span class="team-row"><a href="team.html?name=Notre%20Dame%20Fighting%20Irish" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/87.png" alt="Notre Dame" class="team-logo">Notre Dame</a> at 
-              <a href="team.html?name=Pittsburgh%20Panthers" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/221.png" alt="Pitt" class="team-logo">Pitt</a>
-              <span class="betting-line">+10.5</span></span>
-              <select name="game2">
-                <option value="ND">ND</option>
-                <option value="PITT">PITT</option>
-              </select>
-            </label>
-          </p>
-
-          <p>
-            <label><span class="games">Game 3:</span> 
-              <span class="team-row"><a href="team.html?name=Oklahoma%20Sooners" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/201.png" alt="Oklahoma" class="team-logo">Oklahoma</a> at 
-              <a href="team.html?name=Alabama%20Crimson%20Tide" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/333.png" alt="Alabama" class="team-logo">Alabama</a>
-              <span class="betting-line">-7.5</span></span>
-              <select name="game3">
-                <option value="OU">OU</option>
-                <option value="ALA">ALA</option>
-              </select>
-            </label>
-          </p>
-
-          <p>
-            <label><span class="games">Game 4:</span> 
-              <span class="team-row"><a href="team.html?name=UCF%20Knights" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/2116.png" alt="UCF" class="team-logo">UCF</a> at 
-              <a href="team.html?name=Texas%20Tech%20Red%20Raiders" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/2641.png" alt="Texas Tech" class="team-logo">Texas Tech</a>
-              <span class="betting-line">-23.5</span></span>
-              <select name="game4">
-                <option value="UCF">UCF</option>
-                <option value="TTU">TTU</option>
-              </select>
-            </label>
-          </p>
-
-          <p>
-            <label><span class="games">Game 5:</span> 
-              <span class="team-row"><a href="team.html?name=Iowa%20Hawkeyes" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/2294.png" alt="Iowa" class="team-logo">Iowa</a> at 
-              <a href="team.html?name=USC%20Trojans" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/30.png" alt="USC" class="team-logo">USC</a>
-              <span class="betting-line">-6.5</span></span>
-              <select name="game5">
-                <option value="IOWA">IOWA</option>
-                <option value="USC">USC</option>
-              </select>
-            </label>
-          </p>
-
-          <p>
-            <label><span class="games">Game 6:</span> 
-              <span class="team-row"><a href="team.html?name=Texas%20Longhorns" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/251.png" alt="Texas" class="team-logo">Texas</a> at 
-              <a href="team.html?name=Georgia%20Bulldogs" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/61.png" alt="Georgia" class="team-logo">Georgia</a>
-              <span class="betting-line">-6.5</span></span>
-              <select name="game6">
-                <option value="TEX">TEX</option>
-                <option value="UGA">UGA</option>
-              </select>
-            </label>
-          </p>
-
-          <p>
-          <label><span class="games">Game 7:</span> 
-              <span class="team-row"><a href="team.html?name=Florida%20Gators" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/57.png" alt="Florida" class="team-logo">Florida</a> at 
-              <a href="team.html?name=Ole%20Miss%20Rebels" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/145.png" alt="Ole Miss" class="team-logo">Ole Miss</a>
-              <span class="betting-line">-</span></span>
-              <select name="game7">
-                <option value="UF">UF</option>
-                <option value="MISS">MISS</option>
-              </select>
-            </label>
-          </p>
-
-          <p>
-            <label><span class="games">Game 8:</span> 
-              <span class="team-row"><a href="team.html?name=Georgia%20Tech%20Yellow%20Jackets" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/59.png" alt="Georgia Tech" class="team-logo">Georgia Tech</a> at 
-              <a href="team.html?name=Boston%20College%20Eagles" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/103.png" alt="Boston College" class="team-logo">Boston College</a>
-              <span class="betting-line">-</span></span>
-              <select name="game8">
-                <option value="GT">GT</option>
-                <option value="BC">BC</option>
-              </select>
-            </label>
-          </p>
-
-          <p>
-            <label><span class="games">Game 9:</span> 
-              <span class="team-row"><a href="team.html?name=Wisconsin%20Badgers" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/275.png" alt="Wisconsin" class="team-logo">Wisconsin</a> at 
-              <a href="team.html?name=Indiana%20Hoosiers" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/84.png" alt="Indiana" class="team-logo">Indiana</a>
-              <span class="betting-line">-30.5</span></span>
-              <select name="game9">
-                <option value="WISC">WISC</option>
-                <option value="IND">IND</option>
-              </select>
-            </label>
-          </p>
-
-          <p>
-            <label><span class="games">Game 10:</span> 
-              <span class="team-row"><a href="team.html?name=Texas%20A%26M%20Aggies" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/245.png" alt="Texas A&M" class="team-logo">Texas A&M</a> at 
-              <a href="team.html?name=Ole%20Miss%20Rebels" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/145.png" alt="Ole Miss" class="team-logo">Ole Miss</a>
-              <span class="betting-line">-17.5</span></span>
-              <select name="game10">
-                <option value="TAMU">TAMU</option>
-                <option value="MISS">MISS</option>
-              </select>
-            </label>
-          </p>
-
-          <p>
-            <label><span class="games">Game 11:</span> 
-              <span class="team-row"><a href="team.html?name=Utah%20Utes" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/254.png" alt="Utah" class="team-logo">Utah</a> at 
-              <a href="team.html?name=Baylor%20Bears" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/239.png" alt="Baylor" class="team-logo">Baylor</a>
-              <span class="betting-line">+7.5</span></span>
-              <select name="game11">
-                <option value="UTAH">UTAH</option>
-                <option value="BAY">BAY</option>
-              </select>
-            </label>
-          </p>
-
-          <p>
-            <label><span class="games">Game 12:</span> 
-              <span class="team-row"><a href="team.html?name=TCU%20Horned%20Frogs" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/2628.png" alt="TCU" class="team-logo">TCU</a> at 
-              <a href="team.html?name=BYU%20Cougars" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/252.png" alt="BYU" class="team-logo">BYU</a>
-              <span class="betting-line">-5.5</span></span>
-              <select name="game12">
-                <option value="TCU">TCU</option>
-                <option value="BYU">BYU</option>
-              </select>
-            </label>
-          </p>
+          <!-- Games will be loaded dynamically here -->
+          <div id="gamesContainer">
+            <p style="text-align: center; padding: 20px;">Loading games...</p>
+          </div>
              
           <p>
             <button id="submit" type="submit">Submit Predictions</button>
@@ -397,13 +259,123 @@
         if (nameInput && currentUser) {
           nameInput.value = currentUser.displayName || currentUser.username || '';
         }
-        
-        // Check if user has already submitted predictions for this week
-        checkSubmissionStatus();
       } else {
         showLoginButton();
       }
+      
+      // Load current week and games
+      loadCurrentWeekAndGames();
     });
+    
+    // Load current week and games
+    async function loadCurrentWeekAndGames() {
+      try {
+        // Get current week
+        const weekResponse = await fetch('https://cfb-website.onrender.com/api/picks/current-week');
+        if (weekResponse.ok) {
+          const weekData = await weekResponse.json();
+          weekId = weekData.id;
+          
+          // Update title
+          const titleElement = document.querySelector('.title');
+          if (titleElement) {
+            titleElement.textContent = `Week ${weekData.weekNumber} Picks`;
+          }
+          
+          // Update tab button
+          const tabButton = document.querySelector('.tab-button.active');
+          if (tabButton) {
+            tabButton.textContent = `Week ${weekData.weekNumber} Picks`;
+          }
+          
+          // Load games for this week
+          await loadGamesForWeek(weekId);
+          
+          // Check submission status if logged in
+          if (currentUser) {
+            checkSubmissionStatus();
+          }
+        } else {
+          document.getElementById('gamesContainer').innerHTML = '<p style="color: #f44336; text-align: center; padding: 20px;">Error loading current week. Please try again later.</p>';
+        }
+      } catch (error) {
+        console.error('Error loading week:', error);
+        document.getElementById('gamesContainer').innerHTML = '<p style="color: #f44336; text-align: center; padding: 20px;">Error loading games. Please try again later.</p>';
+      }
+    }
+    
+    // Load games for a specific week
+    async function loadGamesForWeek(weekId) {
+      try {
+        const response = await fetch(`https://cfb-website.onrender.com/api/picks/games/week/${weekId}`);
+        if (response.ok) {
+          const data = await response.json();
+          currentGames = data.games || [];
+          
+          if (currentGames.length === 0) {
+            document.getElementById('gamesContainer').innerHTML = '<p style="text-align: center; padding: 20px;">No games found for this week. Please contact an administrator.</p>';
+            return;
+          }
+          
+          renderGames(currentGames);
+        } else {
+          document.getElementById('gamesContainer').innerHTML = '<p style="color: #f44336; text-align: center; padding: 20px;">Error loading games.</p>';
+        }
+      } catch (error) {
+        console.error('Error loading games:', error);
+        document.getElementById('gamesContainer').innerHTML = '<p style="color: #f44336; text-align: center; padding: 20px;">Error loading games.</p>';
+      }
+    }
+    
+    // Render games in the form
+    function renderGames(games) {
+      const container = document.getElementById('gamesContainer');
+      let html = '';
+      
+      // Build team code to ESPN ID mapping dynamically
+      teamCodeToEspnId = {};
+      
+      games.forEach((game, index) => {
+        const gameNumber = game.gameNumber || (index + 1);
+        const homeTeamName = game.homeTeamName || 'TBD';
+        const awayTeamName = game.awayTeamName || 'TBD';
+        const homeTeamEspnId = game.homeTeamEspnId;
+        const awayTeamEspnId = game.awayTeamEspnId;
+        const homeLogoUrl = game.homeTeamLogoUrl || `https://a.espncdn.com/i/teamlogos/ncaa/500/${homeTeamEspnId}.png`;
+        const awayLogoUrl = game.awayTeamLogoUrl || `https://a.espncdn.com/i/teamlogos/ncaa/500/${awayTeamEspnId}.png`;
+        const bettingLine = game.bettingLine ? (game.bettingLine > 0 ? `+${game.bettingLine}` : game.bettingLine) : '-';
+        
+        // Create team codes (simplified - use first 3-4 letters of team name)
+        const homeCode = homeTeamName.replace(/\s+/g, '').substring(0, 4).toUpperCase();
+        const awayCode = awayTeamName.replace(/\s+/g, '').substring(0, 4).toUpperCase();
+        
+        teamCodeToEspnId[homeCode] = homeTeamEspnId;
+        teamCodeToEspnId[awayCode] = awayTeamEspnId;
+        
+        html += `
+          <p>
+            <label><span class="games">Game ${gameNumber}:</span> 
+              <span class="team-row">
+                <a href="team.html?name=${encodeURIComponent(awayTeamName)}" class="team-link-inline">
+                  <img src="${awayLogoUrl}" alt="${awayTeamName}" class="team-logo" onerror="this.src='https://a.espncdn.com/i/teamlogos/ncaa/500/default.png'">${awayTeamName}
+                </a> at 
+                <a href="team.html?name=${encodeURIComponent(homeTeamName)}" class="team-link-inline">
+                  <img src="${homeLogoUrl}" alt="${homeTeamName}" class="team-logo" onerror="this.src='https://a.espncdn.com/i/teamlogos/ncaa/500/default.png'">${homeTeamName}
+                </a>
+                <span class="betting-line">${bettingLine}</span>
+              </span>
+              <select name="game${gameNumber}">
+                <option value="">Select...</option>
+                <option value="${awayCode}">${awayCode}</option>
+                <option value="${homeCode}">${homeCode}</option>
+              </select>
+            </label>
+          </p>
+        `;
+      });
+      
+      container.innerHTML = html;
+    }
 
     // Logout handler
     document.getElementById('logoutBtn')?.addEventListener('click', function() {
@@ -430,6 +402,33 @@
         const userNameEl = document.getElementById('userName');
         if (userNameEl) userNameEl.textContent = displayName;
       }
+      
+      // Check if user is admin and show admin link
+      checkAdminStatus();
+    }
+    
+    // Check if current user is admin
+    async function checkAdminStatus() {
+      const authToken = localStorage.getItem('authToken');
+      if (!authToken) return;
+      
+      try {
+        const response = await fetch('https://cfb-website.onrender.com/api/admin/check-admin', {
+          headers: {
+            'Authorization': `Bearer ${authToken}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (response.ok) {
+          const adminLink = document.getElementById('adminLink');
+          if (adminLink) {
+            adminLink.style.display = 'block';
+          }
+        }
+      } catch (error) {
+        // Silently fail - user is not admin
+      }
     }
 
     function showLoginButton() {
@@ -439,7 +438,8 @@
       if (userSection) userSection.style.display = 'none';
     }
 
-    const weekId = 12; // Update this to match your week_id from database (check Weeks table)
+    let weekId = null; // Will be loaded from API
+    let currentGames = []; // Store loaded games
 
     // Check if user has already submitted predictions for this week
     async function checkSubmissionStatus() {
@@ -596,33 +596,8 @@
       }
     }
 
-    // Team code to ESPN ID mapping (for the dropdown values)
-    const teamCodeToEspnId = {
-      // Game 1: Michigan at Northwestern
-      'MICH': 130, 'NW': 77,
-      // Game 2: Notre Dame at Pitt
-      'ND': 87, 'PITT': 221,
-      // Game 3: Oklahoma at Alabama
-      'OU': 201, 'ALA': 333,
-      // Game 4: UCF at Texas Tech
-      'UCF': 2116, 'TTU': 2641,
-      // Game 5: Iowa at USC
-      'IOWA': 2294, 'USC': 30,
-      // Game 6: Texas at Georgia
-      'TEX': 251, 'UGA': 61,
-      // Game 7: Florida at Ole Miss
-      'UF': 57, 'MISS': 145,
-      // Game 8: Georgia Tech at Boston College
-      'GT': 59, 'BC': 103,
-      // Game 9: Wisconsin at Indiana
-      'WISC': 275, 'IND': 84,
-      // Game 10: Texas A&M at Ole Miss
-      'TAMU': 245, 'MISS': 145,
-      // Game 11: Utah at Baylor
-      'UTAH': 254, 'BAY': 239,
-      // Game 12: TCU at BYU
-      'TCU': 2628, 'BYU': 252
-    };
+    // Team code to ESPN ID mapping (for the dropdown values) - built dynamically
+    let teamCodeToEspnId = {};
 
     // No longer need to load games from API - we use game_number (1-12) directly
 

@@ -19,6 +19,87 @@ namespace MyApp.Namespace.Controllers
             _databaseService = databaseService;
         }
 
+        [HttpGet("current-week")]
+        [AllowAnonymous]
+        public async Task<ActionResult> GetCurrentWeek()
+        {
+            try
+            {
+                using var connection = _databaseService.GetConnection();
+                await connection.OpenAsync();
+
+                // Try to get current week from Settings table (if it exists)
+                int? weekIdObj = null;
+                try
+                {
+                    var settingsQuery = "SELECT value FROM Settings WHERE `key` = 'current_week_id' LIMIT 1";
+                    using var settingsCommand = new MySqlCommand(settingsQuery, connection);
+                    var result = await settingsCommand.ExecuteScalarAsync();
+                    if (result != null)
+                    {
+                        weekIdObj = Convert.ToInt32(result);
+                    }
+                }
+                catch
+                {
+                    // Settings table might not exist, use fallback
+                }
+
+                if (!weekIdObj.HasValue)
+                {
+                    // Fallback: get the most recent week
+                    var fallbackQuery = @"
+                        SELECT id, week_number, season_year 
+                        FROM Weeks 
+                        ORDER BY season_year DESC, week_number DESC 
+                        LIMIT 1";
+                    using var fallbackCommand = new MySqlCommand(fallbackQuery, connection);
+                    using var fallbackReader = await fallbackCommand.ExecuteReaderAsync();
+                    
+                    if (await fallbackReader.ReadAsync())
+                    {
+                        return Ok(new
+                        {
+                            id = Convert.ToInt32(fallbackReader["id"]),
+                            weekNumber = Convert.ToInt32(fallbackReader["week_number"]),
+                            seasonYear = Convert.ToInt32(fallbackReader["season_year"])
+                        });
+                    }
+                    
+                    return NotFound(new { message = "No week found" });
+                }
+
+                var weekId = weekIdObj.Value;
+                var weekQuery = @"
+                    SELECT id, week_number, season_year, start_date, end_date, is_completed
+                    FROM Weeks
+                    WHERE id = @WeekId";
+
+                using var weekCommand = new MySqlCommand(weekQuery, connection);
+                weekCommand.Parameters.AddWithValue("@WeekId", weekId);
+                using var weekReader = await weekCommand.ExecuteReaderAsync();
+
+                if (await weekReader.ReadAsync())
+                {
+                    return Ok(new
+                    {
+                        id = Convert.ToInt32(weekReader["id"]),
+                        weekNumber = Convert.ToInt32(weekReader["week_number"]),
+                        seasonYear = Convert.ToInt32(weekReader["season_year"]),
+                        startDate = weekReader["start_date"] as DateTime?,
+                        endDate = weekReader["end_date"] as DateTime?,
+                        isCompleted = Convert.ToBoolean(weekReader["is_completed"])
+                    });
+                }
+
+                return NotFound(new { message = "Current week not found" });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = $"Internal server error: {ex.Message}" });
+            }
+        }
+
         [HttpGet("games/week/{weekId}")]
         [AllowAnonymous]
         public async Task<ActionResult> GetGamesForWeek(int weekId)

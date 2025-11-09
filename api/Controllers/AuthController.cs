@@ -124,7 +124,13 @@ namespace MyApp.Namespace.Controllers
                         CreatedAt = Convert.ToDateTime(reader["created_at"])
                     };
 
-                    var token = GenerateJwtToken(userId, user.Username, user.Email);
+                    // Get user role (default to "user" for new registrations)
+                    var roleQuery = "SELECT COALESCE(role, 'user') FROM Users WHERE id = @UserId";
+                    using var roleCommand = new MySqlCommand(roleQuery, connection);
+                    roleCommand.Parameters.AddWithValue("@UserId", userId);
+                    var role = (await roleCommand.ExecuteScalarAsync())?.ToString() ?? "user";
+
+                    var token = GenerateJwtToken(userId, user.Username, user.Email, role);
                     return Ok(new AuthResponse { Token = token, User = user });
                 }
 
@@ -178,7 +184,13 @@ namespace MyApp.Namespace.Controllers
                         await reader.CloseAsync();
                         await UpdateLastLogin(connection, userId);
 
-                        var token = GenerateJwtToken(userId, username, email);
+                        // Get user role
+                        var roleQuery = "SELECT COALESCE(role, 'user') FROM Users WHERE id = @UserId";
+                        using var roleCommand = new MySqlCommand(roleQuery, connection);
+                        roleCommand.Parameters.AddWithValue("@UserId", userId);
+                        var role = (await roleCommand.ExecuteScalarAsync())?.ToString() ?? "user";
+
+                        var token = GenerateJwtToken(userId, username, email, role);
                         return Ok(new AuthResponse { Token = token, User = user });
                     }
                 }
@@ -276,7 +288,7 @@ namespace MyApp.Namespace.Controllers
             await activityCommand.ExecuteNonQueryAsync();
         }
 
-        private string GenerateJwtToken(int userId, string username, string email)
+        private string GenerateJwtToken(int userId, string username, string email, string role = "user")
         {
             var jwtKey = _configuration["Jwt:Key"];
             var jwtIssuer = _configuration["Jwt:Issuer"];
@@ -290,7 +302,8 @@ namespace MyApp.Namespace.Controllers
             {
                 new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
                 new Claim(ClaimTypes.Name, username),
-                new Claim(ClaimTypes.Email, email)
+                new Claim(ClaimTypes.Email, email),
+                new Claim("Role", role)
             };
 
             var token = new JwtSecurityToken(
