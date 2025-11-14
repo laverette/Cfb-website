@@ -15,3 +15,5 @@ CREATE TABLE IF NOT EXISTS Settings (
 -- Note: 'key' is a reserved word in MySQL, so we use backticks around it
 -- If you get an error about the role column already existing, that's fine - it means it's already there
 
+
+
