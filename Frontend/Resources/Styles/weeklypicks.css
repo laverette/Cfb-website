@@ -2338,3 +2338,147 @@ input:focus, select:focus {
         right: auto;
     }
 }
+
+/* Heisman Rankings Preview Section */
+.heisman-preview-container {
+    background: linear-gradient(135deg, #3E2723, #4E342E);
+    border: 2px solid #8D6E63;
+    border-radius: 12px;
+    padding: 20px;
+    margin: 30px auto;
+    max-width: 600px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.heisman-preview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #8D6E63;
+}
+
+.heisman-preview-title {
+    color: #f5deb3;
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin: 0;
+}
+
+.heisman-view-all-link {
+    color: #FFD700;
+    text-decoration: none;
+    font-weight: bold;
+    font-size: 0.9rem;
+    transition: color 0.3s ease;
+}
+
+.heisman-view-all-link:hover {
+    color: #FFA000;
+    text-decoration: underline;
+}
+
+.heisman-preview-content {
+    margin-top: 10px;
+}
+
+.heisman-preview-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    counter-reset: heisman-counter;
+}
+
+.heisman-preview-item {
+    display: flex;
+    align-items: center;
+    padding: 12px 15px;
+    margin-bottom: 10px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    border-left: 4px solid #FFD700;
+    transition: all 0.3s ease;
+    counter-increment: heisman-counter;
+}
+
+.heisman-preview-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+    transform: translateX(5px);
+}
+
+.heisman-rank {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 35px;
+    height: 35px;
+    background: linear-gradient(135deg, #FFD700, #FFA000);
+    color: #1E1E1E;
+    font-weight: bold;
+    font-size: 1.1rem;
+    border-radius: 50%;
+    margin-right: 15px;
+    flex-shrink: 0;
+}
+
+.heisman-player-info {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.heisman-player-name {
+    color: #f5deb3;
+    font-weight: bold;
+    font-size: 1rem;
+    margin-bottom: 4px;
+}
+
+.heisman-player-details {
+    color: #BDBDBD;
+    font-size: 0.85rem;
+}
+
+/* Mobile Responsive Styles for Heisman Preview */
+@media (max-width: 768px) {
+    .heisman-preview-container {
+        margin: 20px 10px;
+        padding: 15px;
+        max-width: 100%;
+    }
+
+    .heisman-preview-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .heisman-preview-title {
+        font-size: 1.3rem;
+    }
+
+    .heisman-view-all-link {
+        font-size: 0.85rem;
+    }
+
+    .heisman-preview-item {
+        padding: 10px 12px;
+        margin-bottom: 8px;
+    }
+
+    .heisman-rank {
+        width: 30px;
+        height: 30px;
+        font-size: 1rem;
+        margin-right: 12px;
+    }
+
+    .heisman-player-name {
+        font-size: 0.95rem;
+    }
+
+    .heisman-player-details {
+        font-size: 0.8rem;
+    }
+}

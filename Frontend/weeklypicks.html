@@ -6,6 +6,14 @@
   <title>Weekly Picks</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
   <link rel="stylesheet" href="Resources/Styles/weeklypicks.css">
+  <style>
+    /* Desktop: Tannish/beige text color for navigation buttons (matching submit button) */
+    @media (min-width: 769px) {
+      .nav-button-link {
+        color: #f5deb3 !important;
+      }
+    }
+  </style>
 </head>
 <body>
   <!-- Bouncing Football Background -->
@@ -37,7 +45,7 @@
         
         <!-- Tab Buttons in Navbar -->
         <div class="navbar-tabs">
-          <button class="tab-button active" onclick="openTab(event, 'week11-picks')">Week 14 Picks</button>
+          <button class="tab-button active" onclick="openTab(event, 'week11-picks')">Conference Championship Picks</button>
           <button class="tab-button" onclick="openTab(event, 'week10-results')">Week 13 Results</button>
         </div>
         
@@ -58,7 +66,7 @@
   <!-- Week 11 Picks Tab -->
   <div id="week11-picks" class="tab-content active">
     <div class="title-section">
-      <h1 class="title">Week 14 Picks</h1>
+      <h1 class="title">Conference Championship Picks</h1>
       <!-- Mobile Coach Corso Image (appears next to title) -->
       <div class="mobile-title-image">
         <img width="100%" height="auto" src="https://images.seattletimes.com/wp-content/uploads/2017/05/2459f782f2c946859a21920650fc2c75.jpg?d=2040x1253" alt="Image" class="img-fluid rounded shadow big-img" style="max-height: 300px; object-fit: cover;">
@@ -86,152 +94,104 @@
           
           <p>
             <label><span class="games">Game 1:</span> 
-              <span class="team-row"><a href="team.html?name=Ohio%20State%20Buckeyes" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/194.png" alt="Ohio State" class="team-logo">#1 Ohio State</a> at 
-              <a href="team.html?name=Michigan%20Wolverines" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/130.png" alt="Michigan" class="team-logo">#15 Michigan</a>
-              <span class="betting-line">+9.5</span></span>
+              <span class="team-row"><a href="team.html?name=Kennesaw%20State%20Owls" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/0.png" alt="Kennesaw State" class="team-logo">Kennesaw State</a> vs. 
+              <a href="team.html?name=Jacksonville%20State%20Gamecocks" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/2568.png" alt="Jacksonville State" class="team-logo">Jacksonville State</a>
+              <span class="betting-line">-</span></span>
               <select name="game1">
-                <option value="OSU">OSU</option>
-                <option value="MICH">MICH</option>
+                <option value="KSU">KSU</option>
+                <option value="JSU">JSU</option>
               </select>
             </label>
           </p>
 
           <p>
             <label><span class="games">Game 2:</span> 
-              <span class="team-row"><a href="team.html?name=Texas%20Tech%20Red%20Raiders" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/2641.png" alt="Texas Tech" class="team-logo">#5 Texas Tech</a> at 
-              <a href="team.html?name=West%20Virginia%20Mountaineers" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/277.png" alt="West Virginia" class="team-logo">West Virginia</a>
-              <span class="betting-line">+23.5</span></span>
+              <span class="team-row"><a href="team.html?name=Troy%20Trojans" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/2653.png" alt="Troy" class="team-logo">Troy</a> vs. 
+              <a href="team.html?name=James%20Madison%20Dukes" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/256.png" alt="James Madison" class="team-logo">James Madison</a>
+              <span class="betting-line">-</span></span>
               <select name="game2">
-                <option value="TTU">TTU</option>
-                <option value="WVU">WVU</option>
+                <option value="TROY">TROY</option>
+                <option value="JMU">JMU</option>
               </select>
             </label>
           </p>
 
           <p>
             <label><span class="games">Game 3:</span> 
-              <span class="team-row"><a href="team.html?name=Miami%20Hurricanes" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/2390.png" alt="Miami" class="team-logo">#12 Miami</a> at 
-              <a href="team.html?name=Pittsburgh%20Panthers" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/221.png" alt="Pittsburgh" class="team-logo">#22 Pittsburgh</a>
-              <span class="betting-line">+6.5</span></span>
+              <span class="team-row"><a href="team.html?name=North%20Texas%20Mean%20Green" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/249.png" alt="North Texas" class="team-logo">North Texas</a> vs. 
+              <a href="team.html?name=Tulane%20Green%20Wave" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/2655.png" alt="Tulane" class="team-logo">#24 Tulane</a>
+              <span class="betting-line">-</span></span>
               <select name="game3">
-                <option value="MIA">MIA</option>
-                <option value="PITT">PITT</option>
+                <option value="UNT">UNT</option>
+                <option value="TUL">TUL</option>
               </select>
             </label>
           </p>
 
           <p>
             <label><span class="games">Game 4:</span> 
-              <span class="team-row"><a href="team.html?name=Oregon%20Ducks" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/2483.png" alt="Oregon" class="team-logo">#6 Oregon</a> at 
-              <a href="team.html?name=Washington%20Huskies" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/264.png" alt="Washington" class="team-logo">Washington</a>
-              <span class="betting-line">+6.5</span></span>
+              <span class="team-row"><a href="team.html?name=BYU%20Cougars" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/252.png" alt="BYU" class="team-logo">#11 BYU</a> vs. 
+              <a href="team.html?name=Texas%20Tech%20Red%20Raiders" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/2641.png" alt="Texas Tech" class="team-logo">#5 Texas Tech</a>
+              <span class="betting-line">-12.5</span></span>
               <select name="game4">
-                <option value="ORE">ORE</option>
-                <option value="UW">UW</option>
+                <option value="BYU">BYU</option>
+                <option value="TTU">TTU</option>
               </select>
             </label>
           </p>
 
           <p>
             <label><span class="games">Game 5:</span> 
-              <span class="team-row"><a href="team.html?name=LSU%20Tigers" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/99.png" alt="LSU" class="team-logo">LSU</a> at 
-              <a href="team.html?name=Oklahoma%20Sooners" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/201.png" alt="Oklahoma" class="team-logo">#8 Oklahoma</a>
-              <span class="betting-line">-11.5</span></span>
+              <span class="team-row"><a href="team.html?name=Miami%20(OH)%20RedHawks" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/193.png" alt="Miami (OH)" class="team-logo">Miami (OH)</a> vs. 
+              <a href="team.html?name=Western%20Michigan%20Broncos" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/2711.png" alt="Western Michigan" class="team-logo">Western Michigan</a>
+              <span class="betting-line">-2.5</span></span>
               <select name="game5">
-                <option value="LSU">LSU</option>
-                <option value="OU">OU</option>
+                <option value="MIAOH">MIAOH</option>
+                <option value="WMU">WMU</option>
               </select>
             </label>
           </p>
 
           <p>
             <label><span class="games">Game 6:</span> 
-              <span class="team-row"><a href="team.html?name=Vanderbilt%20Commodores" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/238.png" alt="Vanderbilt" class="team-logo">#14 Vanderbilt</a> at 
-              <a href="team.html?name=Tennessee%20Volunteers" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/2633.png" alt="Tennessee" class="team-logo">#19 Tennessee</a>
-              <span class="betting-line">-2.5</span></span>
+              <span class="team-row"><a href="team.html?name=Georgia%20Bulldogs" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/61.png" alt="Georgia" class="team-logo">#4 Georgia</a> vs. 
+              <a href="team.html?name=Alabama%20Crimson%20Tide" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/333.png" alt="Alabama" class="team-logo">#10 Alabama</a>
+              <span class="betting-line">+1.5</span></span>
               <select name="game6">
-                <option value="VAN">VAN</option>
-                <option value="TENN">TENN</option>
+                <option value="UGA">UGA</option>
+                <option value="BAMA">BAMA</option>
               </select>
             </label>
           </p>
 
           <p>
           <label><span class="games">Game 7:</span> 
-              <span class="team-row"><a href="team.html?name=Alabama%20Crimson%20Tide" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/333.png" alt="Alabama" class="team-logo">#10 Alabama</a> at 
-              <a href="team.html?name=Auburn%20Tigers" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/2.png" alt="Auburn" class="team-logo">Auburn</a>
-              <span class="betting-line">+5.5</span></span>
+              <span class="team-row"><a href="team.html?name=Indiana%20Hoosiers" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/84.png" alt="Indiana" class="team-logo">#2 Indiana</a> vs. 
+              <a href="team.html?name=Ohio%20State%20Buckeyes" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/194.png" alt="Ohio State" class="team-logo">#1 Ohio State</a>
+              <span class="betting-line">-5.5</span></span>
               <select name="game7">
-                <option value="BAMA">BAMA</option>
-                <option value="AUB">AUB</option>
+                <option value="IND">IND</option>
+                <option value="OSU">OSU</option>
               </select>
             </label>
           </p>
 
           <p>
             <label><span class="games">Game 8:</span> 
-              <span class="team-row"><a href="team.html?name=SMU%20Mustangs" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/2567.png" alt="SMU" class="team-logo">#21 SMU</a> at 
-              <a href="team.html?name=California%20Golden%20Bears" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/25.png" alt="California" class="team-logo">Cal</a>
-              <span class="betting-line">+13.5</span></span>
-              <select name="game8">
-                <option value="SMU">SMU</option>
-                <option value="CAL">CAL</option>
-              </select>
-            </label>
-          </p>
-
-          <p>
-            <label><span class="games">Game 9:</span> 
-              <span class="team-row"><a href="team.html?name=Notre%20Dame%20Fighting%20Irish" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/87.png" alt="Notre Dame" class="team-logo">#9 Notre Dame</a> at 
-              <a href="team.html?name=Stanford%20Cardinal" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/24.png" alt="Stanford" class="team-logo">Stanford</a>
-              <span class="betting-line">+31.5</span></span>
-              <select name="game9">
-                <option value="ND">ND</option>
-                <option value="STAN">STAN</option>
-              </select>
-            </label>
-          </p>
-
-          <p>
-            <label><span class="games">Game 10:</span> 
-              <span class="team-row"><a href="team.html?name=Virginia%20Tech%20Hokies" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/259.png" alt="Virginia Tech" class="team-logo">Virginia Tech</a> at 
+              <span class="team-row"><a href="team.html?name=Duke%20Blue%20Devils" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/150.png" alt="Duke" class="team-logo">Duke</a> vs. 
               <a href="team.html?name=Virginia%20Cavaliers" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/258.png" alt="Virginia" class="team-logo">#18 Virginia</a>
-              <span class="betting-line">-8.5</span></span>
-              <select name="game10">
-                <option value="VT">VT</option>
+              <span class="betting-line">-2.5</span></span>
+              <select name="game8">
+                <option value="DUKE">DUKE</option>
                 <option value="UVA">UVA</option>
-              </select>
-            </label>
-          </p>
-
-          <p>
-            <label><span class="games">Game 11:</span> 
-              <span class="team-row"><a href="team.html?name=UCF%20Knights" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/2116.png" alt="UCF" class="team-logo">UCF</a> at 
-              <a href="team.html?name=BYU%20Cougars" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/252.png" alt="BYU" class="team-logo">#11 BYU</a>
-              <span class="betting-line">-17.5</span></span>
-              <select name="game11">
-                <option value="UCF">UCF</option>
-                <option value="BYU">BYU</option>
-              </select>
-            </label>
-          </p>
-
-          <p>
-            <label><span class="games">Game 12:</span> 
-              <span class="team-row"><a href="team.html?name=Charlotte%2049ers" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/2429.png" alt="Charlotte" class="team-logo">Charlotte</a> at 
-              <a href="team.html?name=Tulane%20Green%20Wave" class="team-link-inline"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500/2655.png" alt="Tulane" class="team-logo">#24 Tulane</a>
-              <span class="betting-line">-30.5</span></span>
-              <select name="game12">
-                <option value="CHAR">CHAR</option>
-                <option value="TUL">TUL</option>
               </select>
             </label>
           </p>
              
           <p>
             <button id="submit" type="submit">Submit Predictions</button>
-            <a href="prediction-history.html" style="background-color: #3E2723; color: #F5F5F5; padding: 6px 10px; border-radius: 6px; text-decoration: none; border: 1px solid #8D6E63; display: inline-block; font-weight: bold; font-size: 14px; margin-left: 10px; margin-right: 10px;">View Individual History</a>
-            <a href="index.html" style="background-color: #3E2723; color: #F5F5F5; padding: 6px 10px; border-radius: 6px; text-decoration: none; border: 1px solid #8D6E63; display: inline-block; font-weight: bold; font-size: 14px; margin-left: 10px; margin-right: 10px;">Back to Main Site</a> 
+            <a href="prediction-history.html" class="nav-button-link" style="background-color: #3E2723; color: #F5F5F5; padding: 6px 10px; border-radius: 6px; text-decoration: none; border: 1px solid #8D6E63; display: inline-block; font-weight: bold; font-size: 14px; margin-left: 10px; margin-right: 10px;">View Individual History</a>
+            <a href="index.html" class="nav-button-link" style="background-color: #3E2723; color: #F5F5F5; padding: 6px 10px; border-radius: 6px; text-decoration: none; border: 1px solid #8D6E63; display: inline-block; font-weight: bold; font-size: 14px; margin-left: 10px; margin-right: 10px;">Back to Main Site</a> 
             
           </p>
         </form>
@@ -241,6 +201,53 @@
       <div class="image-section">
         <img width="100%" height="auto" src="https://images.seattletimes.com/wp-content/uploads/2017/05/2459f782f2c946859a21920650fc2c75.jpg?d=2040x1253" alt="Image" class="img-fluid rounded shadow big-img" style="max-height: 300px; object-fit: cover;">
         <button type="button" class="coach-corso-btn" onclick="scrollToCoachCorso(event)">Need Help? Ask Coach Corso!</button>
+      </div>
+    </div>
+    
+    <!-- Heisman Rankings Preview Section -->
+    <div class="heisman-preview-container">
+      <div class="heisman-preview-header">
+        <h2 class="heisman-preview-title">👑 Heisman Rankings Preview</h2>
+        <a href="list.html" class="heisman-view-all-link">View Full Rankings →</a>
+      </div>
+      <div class="heisman-preview-content">
+        <ol class="heisman-preview-list">
+          <li class="heisman-preview-item">
+            <span class="heisman-rank">1</span>
+            <span class="heisman-player-info">
+              <span class="heisman-player-name">Jeremiyah Love</span>
+              <span class="heisman-player-details">ND • HB</span>
+            </span>
+          </li>
+          <li class="heisman-preview-item">
+            <span class="heisman-rank">2</span>
+            <span class="heisman-player-info">
+              <span class="heisman-player-name">Fernando Mendoza</span>
+              <span class="heisman-player-details">INDY • QB</span>
+            </span>
+          </li>
+          <li class="heisman-preview-item">
+            <span class="heisman-rank">3</span>
+            <span class="heisman-player-info">
+              <span class="heisman-player-name">Julian Sayin</span>
+              <span class="heisman-player-details">OSU • QB</span>
+            </span>
+          </li>
+          <li class="heisman-preview-item">
+            <span class="heisman-rank">4</span>
+            <span class="heisman-player-info">
+              <span class="heisman-player-name">Jacob Rodriguez</span>
+              <span class="heisman-player-details">TTU • LB</span>
+            </span>
+          </li>
+          <li class="heisman-preview-item">
+            <span class="heisman-rank">5</span>
+            <span class="heisman-player-info">
+              <span class="heisman-player-name">Diego Pavia</span>
+              <span class="heisman-player-details">VANDY • QB</span>
+            </span>
+          </li>
+        </ol>
       </div>
     </div>
     
@@ -302,31 +309,32 @@
 
   <!-- Week 10 Results Tab -->
   <div id="week10-results" class="tab-content">
-    <h1 class="title">Week 12 Results</h1>
+    <h1 class="title">Week 14 Results</h1>
     
     <div class="leaderboards-container">
       <div class="Leaderboard last-week">
         <h3 class="leaderboard-title">🏆 Last Week</h3>
         <ol class="leaderboard-list">
-          <li class="leaderboard-list-item">Michaela 11-1 <span class="percentage">92%</span><span class="ranking-change none">-</span></li>
-          <li class="leaderboard-list-item">Blake 11-1 <span class="percentage">92%</span><span class="ranking-change up">▲ 4</span></li>
-          <li class="leaderboard-list-item">Logan 10-2 <span class="percentage">83%</span><span class="ranking-change down">▼ 1</span></li>
-          <li class="leaderboard-list-item">Blake's AI Model 10-2 <span class="percentage">83%</span><span class="ranking-change down">▼ 1</span></li>
-          <li class="leaderboard-list-item">Gracie 8-4 <span class="percentage">66%</span><span class="ranking-change down">▼ 1</span></li>
-          <li class="leaderboard-list-item">Katelyn 8-4<span class="percentage">66%</span><span class="ranking-change down">▼ 1</span></li>
-          <li class="leaderboard-list-item">Chase 8-4 <span class="percentage">66%</span><span class="ranking-change none">-</span></li> 
+          <li class="leaderboard-list-item"> Logan 11-1 <span class="percentage">92%</span><span class="ranking-change up">▲ 2</span></li>
+          <li class="leaderboard-list-item"> Blake's AI Model 10-2 <span class="percentage">83%</span><span class="ranking-change up">▲ 2</span></li>
+          <li class="leaderboard-list-item"> Katelyn 10-2 <span class="percentage">83%</span><span class="ranking-change up">▲ 3</span></li>
+          <li class="leaderboard-list-item"> Chase 10-2 <span class="percentage">83%</span><span class="ranking-change up">▲ 3</span></li> 
+          <li class="leaderboard-list-item"> Michaela 9-3 <span class="percentage">75%</span><span class="ranking-change down">▼ 4</span></li>
+          <li class="leaderboard-list-item"> Blake 9-3 <span class="percentage">75%</span><span class="ranking-change down">▼ 4</span></li>
+          <li class="leaderboard-list-item"> Gracie 8-4 <span class="percentage">66%</span><span class="ranking-change down">▼ 2</span></li>
+        
         </ol>
       </div>
       <div class="Leaderboard all-time">
         <h3 class="leaderboard-title">🏆 All Time</h3>
         <ol class="leaderboard-list">
-          <li class="leaderboard-list-item">Michaela 99-33 <span class="percentage">75%</span><span class="ranking-change none">-</span></li>
-          <li class="leaderboard-list-item">Blake 107-37 <span class="percentage">74.31%</span><span class="ranking-change none">-</span></li>
-          <li class="leaderboard-list-item">Blake's AI Model 52-20  <span class="percentage">72.22%</span><span class="ranking-change up">▲ 3</span></li>
-          <li class="leaderboard-list-item">Logan 103-41<span class="percentage">71.53%</span><span class="ranking-change none">-</span></li>
-          <li class="leaderboard-list-item">Gracie 93-39 <span class="percentage">70.45%</span><span class="ranking-change down">▼ 1</span></li>
-          <li class="leaderboard-list-item">Katelyn 92-40 <span class="percentage">69.7%</span><span class="ranking-change down">▼ 1</span></li>
-          <li class="leaderboard-list-item">Chase 55-29 <span class="percentage">65.48%</span><span class="ranking-change none">-</span></li>
+          <li class="leaderboard-list-item">Michaela 108-36 <span class="percentage">75%</span><span class="ranking-change none">-</span></li>
+          <li class="leaderboard-list-item">Blake 116-40 <span class="percentage">74.36%</span><span class="ranking-change none">-</span></li>
+          <li class="leaderboard-list-item">Blake's AI Model 62-22  <span class="percentage">73.81%</span><span class="ranking-change up">▲ 3</span></li>
+          <li class="leaderboard-list-item">Logan 114-42<span class="percentage">73.08%</span><span class="ranking-change none">-</span></li>
+          <li class="leaderboard-list-item">Katelyn 102-42 <span class="percentage">70.83%</span><span class="ranking-change up">▲ 1</span></li>
+          <li class="leaderboard-list-item">Gracie 101-43 <span class="percentage">70.14%</span><span class="ranking-change down">▼ 1</span></li>
+          <li class="leaderboard-list-item">Chase 65-31 <span class="percentage">67.71%</span><span class="ranking-change none">-</span></li>
           <li class="leaderboard-list-item">Allie 22-14 <span class="percentage">61.1%</span><span class="ranking-change none">-</span></li>
         </ol>
       </div>
@@ -334,41 +342,42 @@
 
     <!-- WEEK 10 Analysis Section -->
     <div class="analysis-container">
-      <h3 class="analysis-title">📊 WEEK 12 Analysis</h3>
+      <h3 class="analysis-title">📊 WEEK 14 Analysis</h3>
       <div class="analysis-content">
         <div class="analysis-stats">
           <div class="stat-highlight">
-            <span class="stat-icon">📉</span>
-            <span class="stat-text">We have a new number one in the all time rankings! Michaela is now number ONE after going 11-1</span>
+            <span class="stat-icon">⏰</span>
+            <span class="stat-text">The regular season is over and you are running out of time to improve your ranking!</span>
           </div>
           <div class="stat-highlight">
-              <span class="stat-icon">😱</span>
-              <span class="stat-text">No one correctly picked Oklahoma to upset Alabama this week</span>
+              <span class="stat-icon">❌</span>
+              <span class="stat-text">Gracie was the only user to pick Charlotte to upset Tulane and she was wrong!</span>
             </div>
           <div class="stat-highlight">
-            <span class="stat-icon">✅</span>
-            <span class="stat-text">Middle of the Pack: 4 different users are withing .83% of each other in the all time rankings</span>
+            <span class="stat-icon">🎯</span>
+            <span class="stat-text">Katelyn was the only user to correctly pick Cal to upset SMU!</span>
           </div>
           <div class="stat-highlight">
-            <span class="stat-icon">📉</span>
-            <span class="stat-text">All users combined this week went 69-15 (82.1%). Up 20.2% from last week, and good for the best week of the season</span>
+            <span class="stat-icon">🔥</span>
+            <span class="stat-text">All users combined this week went 67-17 (79.76%). Down 2.34% from last week.</span>
           </div>
           <div class="stat-highlight">
-            <span class="stat-icon">✅</span>
-            <span class="stat-text">USC vs Iowa was the most divisive game of the week, with 4 picks for USC and 3 for Iowa</span>
+            <span class="stat-icon">⚔️</span>
+            <span class="stat-text">Vandy vs Tennessee was the most divisive game of the week, with 4 picks for Tennessee and 3 for Vandy</span>
           </div>
           <div class="stat-highlight">
-            <span class="stat-icon">🎰</span>
-            <span class="stat-text">Gracie, Katelyn, and Chase foolishly bet against the mormons this week and lost big time</span>
+            <span class="stat-icon">🤝</span>
+            <span class="stat-text">100% Consensus on Alabama beating Auburn!</span>
           </div>
         </div>
         
         <div class="analysis-insights">
           <h4 class="insights-title">🔑 Keys for Week 13</h4>
           <ul class="insights-list">
-            <li>Will Alabama bounce back?</li>
-            <li>The SEC Championship is now a 4 way race with Alabama, Georgia, Texas A&M, and slightly possible (Ole Miss)</li>
-            <li>Does anyone really want the heisman?</li>
+            <li>Lane Kiffin is gone to LSU!</li>
+            <li>Will Kirby lose to Alabama again?</li>
+            <li>Who will solidify their heisman Campaign?</li>
+            <li>Will a 3 loss conference runner up make the playoff?</li>
           </ul>
         </div>
       </div>
@@ -596,30 +605,22 @@
 
     // Team code to ESPN ID mapping (for the dropdown values)
     const teamCodeToEspnId = {
-      // Game 1: Ohio State at Michigan
-      'OSU': 194, 'MICH': 130,
-      // Game 2: Texas Tech at West Virginia
-      'TTU': 2641, 'WVU': 277,
-      // Game 3: Miami at Pittsburgh
-      'MIA': 2390, 'PITT': 221,
-      // Game 4: Oregon at Washington
-      'ORE': 2483, 'UW': 264,
-      // Game 5: LSU at Oklahoma
-      'LSU': 99, 'OU': 201,
-      // Game 6: Vanderbilt at Tennessee
-      'VAN': 238, 'TENN': 2633,
-      // Game 7: Alabama at Auburn
-      'BAMA': 333, 'AUB': 2,
-      // Game 8: SMU at Cal
-      'SMU': 2567, 'CAL': 25,
-      // Game 9: Notre Dame at Stanford
-      'ND': 87, 'STAN': 24,
-      // Game 10: Virginia Tech at Virginia
-      'VT': 259, 'UVA': 258,
-      // Game 11: UCF at BYU
-      'UCF': 2116, 'BYU': 252,
-      // Game 12: Charlotte at Tulane
-      'CHAR': 2429, 'TUL': 2655
+      // Game 1: Kennesaw State vs. Jacksonville State
+      'KSU': 0, 'JSU': 2568,
+      // Game 2: Troy vs. James Madison
+      'TROY': 2653, 'JMU': 256,
+      // Game 3: North Texas vs. Tulane
+      'UNT': 249, 'TUL': 2655,
+      // Game 4: BYU vs. Texas Tech
+      'BYU': 252, 'TTU': 2641,
+      // Game 5: Miami (OH) vs. Western Michigan
+      'MIAOH': 193, 'WMU': 2711,
+      // Game 6: Georgia vs. Alabama
+      'UGA': 61, 'BAMA': 333,
+      // Game 7: Indiana vs. Ohio State
+      'IND': 84, 'OSU': 194,
+      // Game 8: Duke vs. Virginia
+      'DUKE': 150, 'UVA': 258
     };
 
     // No longer need to load games from API - we use game_number (1-12) directly
@@ -636,7 +637,7 @@
       // Validate all picks are selected
       const missingPicks = [];
       
-      for (let i = 1; i <= 12; i++) {
+      for (let i = 1; i <= 8; i++) {
         const pickedCode = formData.get(`game${i}`);
         if (!pickedCode) {
           missingPicks.push(`Game ${i}`);
@@ -644,7 +645,7 @@
       }
 
       if (missingPicks.length > 0) {
-        alert(`Please select picks for all 12 games!\n\nMissing: ${missingPicks.length} games`);
+        alert(`Please select picks for all 8 games!\n\nMissing: ${missingPicks.length} games`);
         return;
       }
 
@@ -689,27 +690,23 @@
       let html = `
         <div class="prediction-results-container">
           <div class="prediction-header">
-            <h2 class="prediction-title">🏆 ${userName}'s Week 14 Predictions</h2>
+            <h2 class="prediction-title">🏆 ${userName}'s Conference Championship Predictions</h2>
           </div>
           <div class="predictions-grid">
       `;
       
-      for (let i = 1; i <= 12; i++) {
-        const gameData = [
-        "#1 Ohio State at #15 Michigan",
-        "#5 Texas Tech at West Virginia",
-        "#12 Miami at #22 Pittsburgh",
-        "#6 Oregon at Washington",
-        "LSU at #8 Oklahoma",
-        "#14 Vanderbilt at #19 Tennessee",
-        "#10 Alabama at Auburn",
-        "#21 SMU at Cal",
-        "#9 Notre Dame at Stanford",
-        "Virginia Tech at #18 Virginia",
-        "UCF at #11 BYU",
-        "Charlotte at #24 Tulane"
-        ];
-        
+      const gameData = [
+        "Kennesaw State vs. Jacksonville State",
+        "Troy vs. James Madison",
+        "North Texas vs. #24 Tulane",
+        "#11 BYU vs. #5 Texas Tech",
+        "Miami (OH) vs. Western Michigan",
+        "#4 Georgia vs. #10 Alabama",
+        "#2 Indiana vs. #1 Ohio State",
+        "Duke vs. #18 Virginia"
+      ];
+      
+      for (let i = 1; i <= 8; i++) {
         const prediction = formData.get("game" + i);
         
         html += `
@@ -730,7 +727,7 @@
           <div class="prediction-summary">
           <div class="summary-stats">
             <div class="stat-item">
-              <span class="stat-number">12</span>
+              <span class="stat-number">8</span>
               <span class="stat-label">Total Picks</span>
             </div>
             <div class="stat-item">
@@ -872,7 +869,7 @@
         // Check if Web Share API is supported (mobile)
         if (navigator.share && navigator.canShare) {
           canvas.toBlob(function(blob) {
-            const file = new File([blob], `week13-predictions-${new Date().toISOString().split('T')[0]}.png`, { 
+            const file = new File([blob], `conference-championship-predictions-${new Date().toISOString().split('T')[0]}.png`, { 
               type: 'image/png' 
             });
             
@@ -880,7 +877,7 @@
             if (navigator.canShare({ files: [file] })) {
               navigator.share({
                 files: [file],
-                title: 'My Week 13 Predictions',
+                title: 'My Conference Championship Predictions',
                 text: 'Check out my college football predictions!'
               }).then(() => {
                 showSuccessMessage('Shared! Check your share options to save to photos.');
@@ -910,7 +907,7 @@
     function fallbackDownload(canvas) {
       // Create download link for desktop/fallback
       const link = document.createElement('a');
-      link.download = `week13-predictions-${new Date().toISOString().split('T')[0]}.png`;
+      link.download = `conference-championship-predictions-${new Date().toISOString().split('T')[0]}.png`;
       link.href = canvas.toDataURL();
       
       // Trigger download
