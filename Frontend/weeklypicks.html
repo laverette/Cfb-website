@@ -6,14 +6,6 @@
   <title>Weekly Picks</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
   <link rel="stylesheet" href="Resources/Styles/weeklypicks.css">
-  <style>
-    /* Desktop: Tannish/beige text color for navigation buttons (matching submit button) */
-    @media (min-width: 769px) {
-      .nav-button-link {
-        color: #f5deb3 !important;
-      }
-    }
-  </style>
 </head>
 <body>
   <!-- Bouncing Football Background -->
@@ -26,7 +18,7 @@
     <div class="container-fluid">
       <div class="navbar-content-weekly">
         <!-- Hamburger Menu Button -->
-        <button class="hamburger-menu-btn" onclick="toggleMenu()" aria-label="Menu">
+        <button class="hamburger-menu-btn" onclick="toggleMenu()" aria-label="Menu" aria-expanded="false" aria-controls="dropdownMenu">
           <span></span>
           <span></span>
           <span></span>
@@ -62,6 +54,7 @@
       </div>
     </div>
   </nav>
+  <div class="menu-overlay" id="menuOverlay" onclick="closeMenu()"></div>
 
   <!-- Week 11 Picks Tab -->
   <div id="week11-picks" class="tab-content active">
@@ -238,8 +231,8 @@
              
           <p>
             <button id="submit" type="submit">Submit Predictions</button>
-            <a href="prediction-history.html" class="nav-button-link" style="background-color: #3E2723; color: #F5F5F5; padding: 6px 10px; border-radius: 6px; text-decoration: none; border: 1px solid #8D6E63; display: inline-block; font-weight: bold; font-size: 14px; margin-left: 10px; margin-right: 10px;">View Individual History</a>
-            <a href="index.html" class="nav-button-link" style="background-color: #3E2723; color: #F5F5F5; padding: 6px 10px; border-radius: 6px; text-decoration: none; border: 1px solid #8D6E63; display: inline-block; font-weight: bold; font-size: 14px; margin-left: 10px; margin-right: 10px;">Back to Main Site</a> 
+            <a href="prediction-history.html" class="nav-button-link form-nav-link">View Individual History</a>
+            <a href="index.html" class="nav-button-link form-nav-link">Back to Main Site</a>
             
           </p>
         </form>
@@ -984,11 +977,28 @@
     }
 
     // Hamburger Menu Toggle
+    function closeMenu() {
+      const menu = document.getElementById('dropdownMenu');
+      const button = document.querySelector('.hamburger-menu-btn');
+      const overlay = document.getElementById('menuOverlay');
+      menu.classList.remove('show');
+      button.classList.remove('active');
+      button.setAttribute('aria-expanded', 'false');
+      overlay.classList.remove('show');
+      document.body.classList.remove('menu-open');
+    }
+
     function toggleMenu() {
       const menu = document.getElementById('dropdownMenu');
       const button = document.querySelector('.hamburger-menu-btn');
+      const overlay = document.getElementById('menuOverlay');
+      const isOpening = !menu.classList.contains('show');
+
       menu.classList.toggle('show');
       button.classList.toggle('active');
+      button.setAttribute('aria-expanded', isOpening ? 'true' : 'false');
+      overlay.classList.toggle('show', isOpening);
+      document.body.classList.toggle('menu-open', isOpening);
     }
 
     // Close dropdown when clicking outside
@@ -996,8 +1006,14 @@
       const menu = document.getElementById('dropdownMenu');
       const button = document.querySelector('.hamburger-menu-btn');
       if (!menu.contains(event.target) && !button.contains(event.target)) {
-        menu.classList.remove('show');
-        button.classList.remove('active');
+        closeMenu();
+      }
+    });
+
+    // Close mobile drawer with Escape key
+    document.addEventListener('keydown', function(event) {
+      if (event.key === 'Escape') {
+        closeMenu();
       }
     });
 

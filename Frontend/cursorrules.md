@@ -18,7 +18,7 @@
 - **Architecture**: RESTful API design with proper HTTP methods and status codes
 
 ## Database
-- **Type**: SQLite database
+- **Type**: MYSQL JAWSDB
 - **Data Access**: Write SQL queries directly, no ORM
 - **File Location**: Store SQLite database file in the `/api` folder
 - **Connection String**: Store in `appsettings.json` for simplicity (e.g., "Data Source=./api/database.db")
