@@ -9,8 +9,19 @@ namespace MyApp.Namespace.Services
 
         public DatabaseService(IConfiguration configuration)
         {
-            _connectionString = configuration.GetConnectionString("DefaultConnection") ?? 
-                throw new ArgumentNullException("Connection string not found");
+            // Prefer environment variables in production (Render), fall back to appsettings for local dev.
+            // Supported env var options:
+            // - ConnectionStrings__DefaultConnection (ASP.NET standard)
+            // - DATABASE_URL (common platform convention)
+            var envConnectionString =
+                Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection")
+                ?? Environment.GetEnvironmentVariable("DATABASE_URL");
+
+            _connectionString =
+                (!string.IsNullOrWhiteSpace(envConnectionString)
+                    ? envConnectionString
+                    : configuration.GetConnectionString("DefaultConnection"))
+                ?? throw new ArgumentNullException("Connection string not found");
         }
 
         public MySqlConnection GetConnection()

@@ -71,6 +71,9 @@ app.UseCors("OpenPolicy");
 app.UseAuthentication();
 app.UseAuthorization();
 
+// Simple health check endpoint for Render health checks (no auth).
+app.MapGet("/healthz", () => Results.Ok(new { status = "ok" }));
+
 app.MapControllers();
 
 // Use PORT environment variable from Render, or default to 5000
