@@ -30,7 +30,8 @@
           </div>
 
           <h1 class="site-title">Alabama Predictions</h1>
-          <div class="navbar-login-section">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <div id="auth-nav" class="navbar-login-section"></div>
             <a href="weeklypicks.html" class="navbar-login-btn">📅 Picks</a>
           </div>
         </div>
@@ -210,7 +211,7 @@
     <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQft8fY7vY1m5cRyqkwUY6tumeOenBEU7Q_LA&s" alt="oops" class="img-fluid rounded shadow big-img" style="border:2px solid rgba(255,215,0,0.25);">
   </div>
   </main>
-    
+    <script src="scripts/auth-ui.js"></script>
     <script>
 document.querySelector('form[name="predictions"]').addEventListener('submit', function(e) {
   e.preventDefault(); // stop normal page reload

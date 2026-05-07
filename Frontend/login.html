@@ -30,7 +30,8 @@
         </div>
 
         <h1 class="site-title">My College Football Site</h1>
-        <div class="navbar-login-section">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <div id="auth-nav" class="navbar-login-section"></div>
           <a href="weeklypicks.html" class="navbar-login-btn">Continue</a>
         </div>
       </div>
@@ -113,7 +114,33 @@
     </div>
   </div>
 
+  <script src="scripts/auth-ui.js"></script>
   <script>
+    function safePostLoginRedirect() {
+      var params = new URLSearchParams(window.location.search || "");
+      var raw = params.get("redirect");
+      if (!raw || typeof raw !== "string") {
+        window.location.href = "weeklypicks.html";
+        return;
+      }
+      var decoded = decodeURIComponent(raw.trim());
+      if (
+        decoded.indexOf("//") !== -1 ||
+        decoded.indexOf(":") !== -1 ||
+        decoded.charAt(0) === "/" ||
+        decoded.indexOf("\\") !== -1
+      ) {
+        window.location.href = "weeklypicks.html";
+        return;
+      }
+      var file = decoded.split(/[?#]/)[0];
+      if (!/^[a-zA-Z0-9._-]+\.html$/.test(file)) {
+        window.location.href = "weeklypicks.html";
+        return;
+      }
+      window.location.href = decoded;
+    }
+
     // Toggle between login and register forms
     document.getElementById('switchToRegister').addEventListener('click', function(e) {
       e.preventDefault();
@@ -179,12 +206,12 @@
           // Save token and user to localStorage
           localStorage.setItem('authToken', result.token);
           localStorage.setItem('currentUser', JSON.stringify(result.user));
+          if (window.AuthUI) AuthUI.refreshFromStorage();
           
           showMessage('✅ Login successful! Redirecting...', 'success');
           
-          // Redirect to weekly picks after 1 second
-          setTimeout(() => {
-            window.location.href = 'weeklypicks.html';
+          setTimeout(function () {
+            safePostLoginRedirect();
           }, 1000);
         } else {
           showMessage(`❌ ${result.message || result.error || 'Login failed'}`, 'error');
@@ -246,13 +273,13 @@
           // Save token and user to localStorage automatically
           localStorage.setItem('authToken', result.token);
           localStorage.setItem('currentUser', JSON.stringify(result.user));
+          if (window.AuthUI) AuthUI.refreshFromStorage();
           
           showMessage('✅ Registration successful! You are now logged in. Redirecting...', 'success');
           
-          // Clear form and redirect to weekly picks
           e.target.reset();
-          setTimeout(() => {
-            window.location.href = 'weeklypicks.html';
+          setTimeout(function () {
+            safePostLoginRedirect();
           }, 1500);
         } else {
           // Display detailed error messages

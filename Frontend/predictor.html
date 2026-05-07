@@ -31,7 +31,8 @@
 
           <h1 class="site-title">CFB Prediction Model</h1>
 
-          <div class="navbar-login-section">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <div id="auth-nav" class="navbar-login-section"></div>
             <a href="index.html" class="navbar-login-btn">🏠 Home</a>
           </div>
         </div>
@@ -142,6 +143,7 @@
         </div>
     </main>
 
+    <script src="scripts/auth-ui.js"></script>
     <script>
         document.getElementById('predictionForm').addEventListener('submit', function(e) {
             e.preventDefault();

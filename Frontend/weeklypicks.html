@@ -42,16 +42,7 @@
           <button class="tab-button" onclick="openTab(event, 'week10-results')">Bowl Week Results</button>
         </div>
         
-        <!-- Login Button -->
-        <div class="navbar-login-section">
-          <div id="loginButtonSection">
-            <a href="login.html" class="navbar-login-btn">Login</a>
-          </div>
-          <div id="userSection" style="display: none;">
-            <p id="userName" class="navbar-user-name"></p>
-            <button id="logoutBtn" class="navbar-logout-btn">Logout</button>
-          </div>
-        </div>
+        <div id="auth-nav" class="navbar-login-section"></div>
       </div>
     </div>
   </nav>
@@ -428,6 +419,7 @@
 
 
 
+    <script src="scripts/auth-ui.js"></script>
     <script>
     // -------------------------------------------------------------------------
     // CFBD data layer (kept for later; NOT used in Phase 1)
@@ -794,28 +786,21 @@
       return true;
     }
 
-    // Login/Logout functionality - simplified, no authentication required
+    // Logged-in user for legacy Render pick checks (navbar via scripts/auth-ui.js)
     let currentUser = null;
 
-    // Check if user is logged in on page load (optional, no requirement)
-    document.addEventListener('DOMContentLoaded', function() {
-      const savedUser = localStorage.getItem('currentUser');
-      const authToken = localStorage.getItem('authToken');
-      
-      if (savedUser && authToken) {
-        currentUser = JSON.parse(savedUser);
-        showUserSection();
-        
-        // Pre-fill name field with username or displayName if available
-        const nameInput = document.getElementById('yourname');
-        if (nameInput && currentUser) {
-          nameInput.value = currentUser.displayName || currentUser.username || '';
-        }
-        
-        // Database submission check removed - using Netlify Forms only
-      } else {
-        showLoginButton();
+    function syncWeeklyPicksUserFromAuth() {
+      currentUser = (window.AuthUI && AuthUI.getCurrentUser()) || null;
+      const nameInput = document.getElementById('yourname');
+      if (nameInput) {
+        nameInput.value = currentUser
+          ? (currentUser.displayName || currentUser.username || '')
+          : '';
       }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      syncWeeklyPicksUserFromAuth();
 
       // Phase 1: Load active week + games from backend DB.
       // If this fails, the page continues to use the existing hardcoded games list.
@@ -825,39 +810,23 @@
       // if (USE_CFBD_GAMES_FOR_WEEKLY_PICKS) { ... }
     });
 
-    // Logout handler
-    document.getElementById('logoutBtn')?.addEventListener('click', function() {
+    document.addEventListener('auth:logout', function () {
       currentUser = null;
-      localStorage.removeItem('currentUser');
-      localStorage.removeItem('authToken');
-      showLoginButton();
-      
-      // Clear name field
       const nameInput = document.getElementById('yourname');
-      if (nameInput) {
-        nameInput.value = '';
-      }
+      if (nameInput) nameInput.value = '';
     });
 
-    function showUserSection() {
-      const loginSection = document.getElementById('loginButtonSection');
-      const userSection = document.getElementById('userSection');
-      if (loginSection) loginSection.style.display = 'none';
-      if (userSection) {
-        userSection.style.display = 'block';
-        // Display username or displayName
-        const displayName = currentUser?.displayName || currentUser?.username || 'User';
-        const userNameEl = document.getElementById('userName');
-        if (userNameEl) userNameEl.textContent = displayName;
-      }
-    }
+    document.addEventListener('auth:invalid', function () {
+      currentUser = null;
+      const nameInput = document.getElementById('yourname');
+      if (nameInput) nameInput.value = '';
+    });
 
-    function showLoginButton() {
-      const loginSection = document.getElementById('loginButtonSection');
-      const userSection = document.getElementById('userSection');
-      if (loginSection) loginSection.style.display = 'block';
-      if (userSection) userSection.style.display = 'none';
-    }
+    window.addEventListener('storage', function (e) {
+      if (e.key === 'authToken' || e.key === 'currentUser') {
+        syncWeeklyPicksUserFromAuth();
+      }
+    });
 
     // Active week id is loaded from backend. Only fall back if backend fails.
     // NOTE: Do not use FALLBACK_WEEK_ID unless the backend is unreachable.

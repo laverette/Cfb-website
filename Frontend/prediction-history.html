@@ -31,15 +31,7 @@
 
         <h1 class="site-title">My College Football Site</h1>
 
-        <div class="navbar-login-section">
-          <div id="loginButtonSection">
-            <a href="login.html" class="navbar-login-btn">Login</a>
-          </div>
-          <div id="userSection" style="display:none;">
-            <p id="userName" class="navbar-user-name"></p>
-            <button id="logoutBtn" class="navbar-logout-btn">Logout</button>
-          </div>
-        </div>
+        <div id="auth-nav" class="navbar-login-section"></div>
       </div>
     </div>
   </nav>
@@ -68,80 +60,13 @@
     </div>
   </div>
 
+  <script src="scripts/auth-ui.js"></script>
   <script>
     let allPredictions = [];
-    let currentUser = null;
 
-    // Check if user is logged in on page load
     document.addEventListener('DOMContentLoaded', function() {
-      const savedUser = localStorage.getItem('currentUser');
-      if (savedUser) {
-        currentUser = JSON.parse(savedUser);
-        showUserSection();
-      }
       loadUsersAndPredictions();
     });
-
-    // Login form handler
-    document.getElementById('loginForm').addEventListener('submit', async function(e) {
-      e.preventDefault();
-      
-      const email = document.getElementById('loginEmail').value;
-      const password = document.getElementById('loginPassword').value;
-      
-      try {
-        const response = await fetch('http://localhost:5000/api/User/login', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ email, password })
-        });
-        
-        const result = await response.json();
-        
-        if (response.ok) {
-          currentUser = result;
-          localStorage.setItem('currentUser', JSON.stringify(currentUser));
-          showUserSection();
-          showMessage('Login successful!', 'success');
-        } else {
-          showMessage(result.message || 'Login failed', 'error');
-        }
-      } catch (error) {
-        console.error('Login error:', error);
-        showMessage('Network error. Please try again.', 'error');
-      }
-    });
-
-    // Logout handler
-    document.getElementById('logoutBtn').addEventListener('click', function() {
-      currentUser = null;
-      localStorage.removeItem('currentUser');
-      showLoginSection();
-      showMessage('Logged out successfully', 'success');
-    });
-
-    function showUserSection() {
-      document.getElementById('loginSection').style.display = 'none';
-      document.getElementById('userSection').style.display = 'block';
-      document.getElementById('userName').textContent = currentUser.name;
-    }
-
-    function showLoginSection() {
-      document.getElementById('loginSection').style.display = 'block';
-      document.getElementById('userSection').style.display = 'none';
-    }
-
-    function showMessage(message, type) {
-      const messageDiv = document.getElementById('loginMessage');
-      messageDiv.textContent = message;
-      messageDiv.style.color = type === 'success' ? '#4CAF50' : '#f44336';
-      
-      setTimeout(() => {
-        messageDiv.textContent = '';
-      }, 3000);
-    }
 
     // Load users and predictions from the API
     async function loadUsersAndPredictions() {

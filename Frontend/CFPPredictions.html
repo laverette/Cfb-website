@@ -30,7 +30,8 @@
         </div>
 
         <h1 class="site-title">CFP Picks</h1>
-        <div class="navbar-login-section">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <div id="auth-nav" class="navbar-login-section"></div>
           <a href="weeklypicks.html" class="navbar-login-btn">📅 Picks</a>
         </div>
       </div>
@@ -163,6 +164,7 @@
   </form>
   <div id="results"></div>
   </main>
+    <script src="scripts/auth-ui.js"></script>
     <script>
 document.querySelector('form[name="predictions"]').addEventListener('submit', function(e) {
   e.preventDefault(); // stop normal page reload
