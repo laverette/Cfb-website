@@ -55,9 +55,48 @@
     </main>
 
     <script>
-        // Team data with ESPN logo IDs (you may need to adjust these IDs)
+        // ---------------------------------------------------------------------
+        // CFBD integration (Phase 5)
+        // - Loads real teams from CFBD via Netlify Function proxy
+        // - Falls back to the existing static list if CFBD call fails
+        // ---------------------------------------------------------------------
+
+        async function cfbdProxyRequest(path, params = {}) {
+            const url = new URL('/.netlify/functions/cfbd', window.location.origin);
+            url.searchParams.set('path', path);
+            Object.entries(params).forEach(([k, v]) => {
+                if (v === undefined || v === null) return;
+                url.searchParams.set(k, String(v));
+            });
+
+            const resp = await fetch(url.toString(), { method: 'GET', headers: { 'accept': 'application/json' } });
+            const body = await resp.json().catch(() => null);
+            if (!resp.ok) {
+                const message = (body && (body.error || body.message)) || `CFBD proxy error (${resp.status})`;
+                const err = new Error(message);
+                err.status = resp.status;
+                err.details = body;
+                throw err;
+            }
+            return body;
+        }
+
+        function getTeamKey(team) {
+            // Prefer stable CFBD team.id; fallback to encoded school name.
+            if (team && (typeof team.id === 'number' || typeof team.id === 'string')) return String(team.id);
+            if (team && team.school) return encodeURIComponent(String(team.school));
+            return encodeURIComponent(String(team?.name || 'team'));
+        }
+
+        function logoFromCfbd(team) {
+            // CFBD often provides `logos: []`
+            const logo = Array.isArray(team?.logos) ? team.logos.find(Boolean) : null;
+            return logo || '';
+        }
+
+        // Existing fallback list (kept to avoid breaking the page if CFBD fails)
         // Sort teams alphabetically by name
-        const teams = [
+        const fallbackTeams = [
             { name: "Akron Zips", conference: "MAC", logoId: "2006" },
             { name: "Alabama Crimson Tide", conference: "SEC", logoId: "333" },
             { name: "App State Mountaineers", conference: "Sun Belt", logoId: "2026" },
@@ -232,17 +271,24 @@
         }
 
         // Generate team widgets
-        function generateTeamWidgets(filteredTeams = teams) {
+        function generateTeamWidgets(filteredTeams) {
             const grid = document.getElementById('teamsGrid');
             grid.innerHTML = ''; // Clear existing widgets
             
             filteredTeams.forEach(team => {
                 const widget = document.createElement('a');
-                widget.href = `team.html?name=${encodeURIComponent(team.name)}`;
+                // Keep existing team.html navigation, but pass a stable key too
+                widget.href = `team.html?teamKey=${encodeURIComponent(team.teamKey || getTeamKey(team))}&name=${encodeURIComponent(team.name)}`;
                 widget.className = 'team-widget';
                 
-                const logoUrl = `https://a.espncdn.com/i/teamlogos/ncaa/500/${team.logoId}.png`;
-                const fallbackText = team.name.split(' ').map(word => word[0]).join('').substring(0, 2).toUpperCase();
+                const logoUrl = team.logoUrl || (team.logoId ? `https://a.espncdn.com/i/teamlogos/ncaa/500/${team.logoId}.png` : '');
+                const fallbackText = String(team.name || '')
+                    .split(' ')
+                    .filter(Boolean)
+                    .map(word => word[0])
+                    .join('')
+                    .substring(0, 2)
+                    .toUpperCase();
                 
                 widget.innerHTML = `
                     <div class="team-widget-content">
@@ -250,7 +296,7 @@
                         <div class="team-widget-logo-fallback" style="display: none; width: 60px; height: 60px; background: linear-gradient(135deg, #FFD700, #FFA000); border-radius: 6px; align-items: center; justify-content: center; font-weight: bold; color: #1E1E1E; font-size: 1.2rem;">${fallbackText}</div>
                         <div class="team-widget-info">
                             <h3 class="team-widget-name">${team.name}</h3>
-                            <p class="team-widget-conference">${team.conference}</p>
+                            <p class="team-widget-conference">${team.conference || ''}</p>
                         </div>
                     </div>
                 `;
@@ -263,25 +309,27 @@
         }
 
         // Search functionality
-        function searchTeams(query) {
+        function searchTeams(query, allTeams) {
             if (!query || query.trim() === '') {
-                generateTeamWidgets(teams);
+                generateTeamWidgets(allTeams);
                 document.getElementById('clearSearch').style.display = 'none';
                 return;
             }
             
             const searchTerm = query.toLowerCase().trim();
-            const filtered = teams.filter(team => {
+            const filtered = allTeams.filter(team => {
                 const parsed = parseTeamName(team.name);
                 const fullNameLower = team.name.toLowerCase();
                 const collegeLower = parsed.collegeName.toLowerCase();
                 const mascotLower = parsed.mascot.toLowerCase();
-                const conferenceLower = team.conference.toLowerCase();
+                const conferenceLower = String(team.conference || '').toLowerCase();
+                const abbrLower = String(team.abbreviation || '').toLowerCase();
                 
                 return fullNameLower.includes(searchTerm) ||
                        collegeLower.includes(searchTerm) ||
                        mascotLower.includes(searchTerm) ||
-                       conferenceLower.includes(searchTerm);
+                       conferenceLower.includes(searchTerm) ||
+                       abbrLower.includes(searchTerm);
             });
             
             generateTeamWidgets(filtered);
@@ -291,29 +339,62 @@
         // Update results count
         function updateResultsCount(count) {
             const resultsCount = document.getElementById('resultsCount');
-            if (count === teams.length) {
+            if (!window.__ALL_TEAMS__ || count === window.__ALL_TEAMS__.length) {
                 resultsCount.textContent = '';
             } else {
-                resultsCount.textContent = `Showing ${count} of ${teams.length} teams`;
+                resultsCount.textContent = `Showing ${count} of ${window.__ALL_TEAMS__.length} teams`;
             }
         }
 
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', () => {
-            generateTeamWidgets(teams);
-            
-            // Setup search input
             const searchInput = document.getElementById('teamSearch');
-            searchInput.addEventListener('input', (e) => {
-                searchTeams(e.target.value);
-            });
+
+            function wireSearch(allTeams) {
+                window.__ALL_TEAMS__ = allTeams;
+                generateTeamWidgets(allTeams);
+                searchInput.addEventListener('input', (e) => {
+                    searchTeams(e.target.value, allTeams);
+                });
+                document.getElementById('clearSearch').addEventListener('click', () => {
+                    searchInput.value = '';
+                    searchTeams('', allTeams);
+                    searchInput.focus();
+                });
+            }
+
+            // Try CFBD first
+            (async () => {
+                try {
+                    // Per requirement: /.netlify/functions/cfbd?path=/teams/fbs&year=2026
+                    const cfbdTeams = await cfbdProxyRequest('/teams/fbs', { year: 2026 });
+                    const normalized = (Array.isArray(cfbdTeams) ? cfbdTeams : [])
+                        .map(t => ({
+                            teamKey: getTeamKey(t),
+                            id: t.id,
+                            name: t.school ? `${t.school}${t.mascot ? ` ${t.mascot}` : ''}` : (t.name || t.school || 'Team'),
+                            school: t.school,
+                            mascot: t.mascot,
+                            abbreviation: t.abbreviation,
+                            conference: t.conference,
+                            logoUrl: logoFromCfbd(t),
+                        }))
+                        .sort((a, b) => String(a.name).localeCompare(String(b.name)));
+
+                    if (normalized.length === 0) throw new Error('CFBD returned no teams.');
+                    wireSearch(normalized);
+                } catch (e) {
+                    // Fall back to the existing static list so Teams page never breaks.
+                    const normalizedFallback = fallbackTeams.map(t => ({
+                        ...t,
+                        teamKey: encodeURIComponent(t.name),
+                        logoUrl: t.logoId ? `https://a.espncdn.com/i/teamlogos/ncaa/500/${t.logoId}.png` : '',
+                        abbreviation: '',
+                    }));
+                    wireSearch(normalizedFallback);
+                }
+            })();
             
-            // Setup clear button
-            document.getElementById('clearSearch').addEventListener('click', () => {
-                searchInput.value = '';
-                searchTeams('');
-                searchInput.focus();
-            });
         });
     </script>
 </body>

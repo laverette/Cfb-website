@@ -60,208 +60,209 @@
     </main>
 
     <script>
-        // Team data mapping (same as teams.html)
-        const teamsData = {
-            "Ohio State Buckeyes": { conference: "Big Ten", logoId: "194", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Indiana Hoosiers": { conference: "Big Ten", logoId: "84", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Oregon Ducks": { conference: "Big Ten", logoId: "2483", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Alabama Crimson Tide": { conference: "SEC", logoId: "333", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Notre Dame Fighting Irish": { conference: "FBS Indep.", logoId: "87", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Georgia Bulldogs": { conference: "SEC", logoId: "61", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Utah Utes": { conference: "Big 12", logoId: "254", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Texas Longhorns": { conference: "SEC", logoId: "251", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Texas A&M Aggies": { conference: "SEC", logoId: "245", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "USC Trojans": { conference: "Big Ten", logoId: "30", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Texas Tech Red Raiders": { conference: "Big 12", logoId: "2641", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Miami Hurricanes": { conference: "ACC", logoId: "2390", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Ole Miss Rebels": { conference: "SEC", logoId: "145", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "BYU Cougars": { conference: "Big 12", logoId: "252", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Tennessee Volunteers": { conference: "SEC", logoId: "2633", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Oklahoma Sooners": { conference: "SEC", logoId: "201", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Vanderbilt Commodores": { conference: "SEC", logoId: "238", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Missouri Tigers": { conference: "SEC", logoId: "142", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Michigan Wolverines": { conference: "Big Ten", logoId: "130", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Iowa Hawkeyes": { conference: "Big Ten", logoId: "2294", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "LSU Tigers": { conference: "SEC", logoId: "99", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Penn State Nittany Lions": { conference: "Big Ten", logoId: "213", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Washington Huskies": { conference: "Big Ten", logoId: "264", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Florida State Seminoles": { conference: "ACC", logoId: "52", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Florida Gators": { conference: "SEC", logoId: "57", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Louisville Cardinals": { conference: "ACC", logoId: "97", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Auburn Tigers": { conference: "SEC", logoId: "2", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Illinois Fighting Illini": { conference: "Big Ten", logoId: "356", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "TCU Horned Frogs": { conference: "Big 12", logoId: "2628", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "SMU Mustangs": { conference: "ACC", logoId: "2567", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Pittsburgh Panthers": { conference: "ACC", logoId: "221", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Nebraska Cornhuskers": { conference: "Big Ten", logoId: "158", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "South Florida Bulls": { conference: "American", logoId: "58", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Georgia Tech Yellow Jackets": { conference: "ACC", logoId: "59", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Cincinnati Bearcats": { conference: "Big 12", logoId: "2132", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Kansas State Wildcats": { conference: "Big 12", logoId: "2306", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Clemson Tigers": { conference: "ACC", logoId: "228", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Iowa State Cyclones": { conference: "Big 12", logoId: "66", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "South Carolina Gamecocks": { conference: "SEC", logoId: "2579", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Mississippi State Bulldogs": { conference: "SEC", logoId: "344", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Arkansas Razorbacks": { conference: "SEC", logoId: "8", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Memphis Tigers": { conference: "American", logoId: "235", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Duke Blue Devils": { conference: "ACC", logoId: "150", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Arizona State Sun Devils": { conference: "Big 12", logoId: "9", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Arizona Wildcats": { conference: "Big 12", logoId: "12", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Virginia Cavaliers": { conference: "ACC", logoId: "258", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "James Madison Dukes": { conference: "Sun Belt", logoId: "256", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Baylor Bears": { conference: "Big 12", logoId: "239", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "East Carolina Pirates": { conference: "American", logoId: "151", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Kentucky Wildcats": { conference: "SEC", logoId: "96", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Kansas Jayhawks": { conference: "Big 12", logoId: "2305", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "North Texas Mean Green": { conference: "American", logoId: "249", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Boise State Broncos": { conference: "Mountain West", logoId: "68", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "UCF Knights": { conference: "Big 12", logoId: "2116", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Northwestern Wildcats": { conference: "Big Ten", logoId: "77", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "NC State Wolfpack": { conference: "ACC", logoId: "152", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Houston Cougars": { conference: "Big 12", logoId: "248", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Tulane Green Wave": { conference: "American", logoId: "2655", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "San Diego State Aztecs": { conference: "Mountain West", logoId: "21", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Maryland Terrapins": { conference: "Big Ten", logoId: "120", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Old Dominion Monarchs": { conference: "Sun Belt", logoId: "295", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Wisconsin Badgers": { conference: "Big Ten", logoId: "275", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Minnesota Golden Gophers": { conference: "Big Ten", logoId: "135", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Rutgers Scarlet Knights": { conference: "Big Ten", logoId: "164", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Toledo Rockets": { conference: "MAC", logoId: "2649", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Michigan State Spartans": { conference: "Big Ten", logoId: "127", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Colorado Buffaloes": { conference: "Big 12", logoId: "38", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "UCLA Bruins": { conference: "Big Ten", logoId: "26", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Virginia Tech Hokies": { conference: "ACC", logoId: "259", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Wake Forest Demon Deacons": { conference: "ACC", logoId: "154", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "UTSA Roadrunners": { conference: "American", logoId: "2636", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Ohio Bobcats": { conference: "MAC", logoId: "195", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Washington State Cougars": { conference: "Pac-12", logoId: "265", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "UConn Huskies": { conference: "FBS Indep.", logoId: "41", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "West Virginia Mountaineers": { conference: "Big 12", logoId: "277", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "UNLV Rebels": { conference: "Mountain West", logoId: "2439", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Purdue Boilermakers": { conference: "Big Ten", logoId: "2509", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "New Mexico Lobos": { conference: "Mountain West", logoId: "167", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Navy Midshipmen": { conference: "American", logoId: "2426", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Southern Miss Golden Eagles": { conference: "Sun Belt", logoId: "2572", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Army Black Knights": { conference: "American", logoId: "349", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Louisiana Tech Bulldogs": { conference: "CUSA", logoId: "2348", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "California Golden Bears": { conference: "ACC", logoId: "25", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Stanford Cardinal": { conference: "ACC", logoId: "24", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "North Carolina Tar Heels": { conference: "ACC", logoId: "153", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Texas State Bobcats": { conference: "Sun Belt", logoId: "326", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Miami (OH) RedHawks": { conference: "MAC", logoId: "193", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Syracuse Orange": { conference: "ACC", logoId: "183", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Troy Trojans": { conference: "Sun Belt", logoId: "2653", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Marshall Thundering Herd": { conference: "Sun Belt", logoId: "276", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Kennesaw State Owls": { conference: "CUSA", logoId: "0", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Utah State Aggies": { conference: "Mountain West", logoId: "328", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Boston College Eagles": { conference: "ACC", logoId: "103", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "San José State Spartans": { conference: "Mountain West", logoId: "23", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Western Michigan Broncos": { conference: "MAC", logoId: "2711", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Fresno State Bulldogs": { conference: "Mountain West", logoId: "278", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Temple Owls": { conference: "American", logoId: "218", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Hawai'i Rainbow Warriors": { conference: "Mountain West", logoId: "62", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Wyoming Cowboys": { conference: "Mountain West", logoId: "2751", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Arkansas State Red Wolves": { conference: "Sun Belt", logoId: "2032", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Jacksonville State Gamecocks": { conference: "CUSA", logoId: "2568", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Oregon State Beavers": { conference: "Pac-12", logoId: "204", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "App State Mountaineers": { conference: "Sun Belt", logoId: "2026", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Liberty Flames": { conference: "CUSA", logoId: "2335", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Louisiana Ragin' Cajuns": { conference: "Sun Belt", logoId: "309", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Georgia Southern Eagles": { conference: "Sun Belt", logoId: "290", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Western Kentucky Hilltoppers": { conference: "CUSA", logoId: "98", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Air Force Falcons": { conference: "Mountain West", logoId: "2005", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Colorado State Rams": { conference: "Mountain West", logoId: "36", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Central Michigan Chippewas": { conference: "MAC", logoId: "2117", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "South Alabama Jaguars": { conference: "Sun Belt", logoId: "6", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Buffalo Bulls": { conference: "MAC", logoId: "2084", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Florida Atlantic Owls": { conference: "American", logoId: "2226", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Coastal Carolina Chanticleers": { conference: "Sun Belt", logoId: "324", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Bowling Green Falcons": { conference: "MAC", logoId: "189", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Missouri State Bears": { conference: "CUSA", logoId: "2566", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Northern Illinois Huskies": { conference: "MAC", logoId: "2459", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "UTEP Miners": { conference: "CUSA", logoId: "2638", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "UAB Blazers": { conference: "American", logoId: "5", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Oklahoma State Cowboys": { conference: "Big 12", logoId: "197", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Eastern Michigan Eagles": { conference: "MAC", logoId: "2199", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Delaware Blue Hens": { conference: "CUSA", logoId: "2697", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Tulsa Golden Hurricane": { conference: "American", logoId: "202", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Rice Owls": { conference: "American", logoId: "242", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Florida International Panthers": { conference: "CUSA", logoId: "2229", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Nevada Wolf Pack": { conference: "Mountain West", logoId: "2438", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "New Mexico State Aggies": { conference: "CUSA", logoId: "166", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Ball State Cardinals": { conference: "MAC", logoId: "2050", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Georgia State Panthers": { conference: "Sun Belt", logoId: "2247", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Middle Tennessee Blue Raiders": { conference: "CUSA", logoId: "2393", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Akron Zips": { conference: "MAC", logoId: "2006", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "UL Monroe Warhawks": { conference: "Sun Belt", logoId: "2433", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Kent State Golden Flashes": { conference: "MAC", logoId: "2309", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Charlotte 49ers": { conference: "American", logoId: "2429", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Sam Houston Bearkats": { conference: "CUSA", logoId: "2569", stats: { wins: 0, losses: 0, rank: "TBD" } },
-            "Massachusetts Minutemen": { conference: "FBS Indep.", logoId: "113", stats: { wins: 0, losses: 0, rank: "TBD" } }
-        };
+        // ---------------------------------------------------------------------
+        // CFBD integration (Phase 6 for current static site)
+        // Uses Netlify Function proxy (no API key exposure in browser).
+        // ---------------------------------------------------------------------
 
-        // Get team name from URL parameter
-        function getTeamNameFromURL() {
-            const urlParams = new URLSearchParams(window.location.search);
-            return urlParams.get('name');
+        async function cfbdProxyRequest(path, params = {}) {
+            const url = new URL('/.netlify/functions/cfbd', window.location.origin);
+            url.searchParams.set('path', path);
+            Object.entries(params).forEach(([k, v]) => {
+                if (v === undefined || v === null) return;
+                url.searchParams.set(k, String(v));
+            });
+            const resp = await fetch(url.toString(), { method: 'GET', headers: { 'accept': 'application/json' } });
+            const body = await resp.json().catch(() => null);
+            if (!resp.ok) {
+                const message = (body && (body.error || body.message)) || `CFBD proxy error (${resp.status})`;
+                const err = new Error(message);
+                err.status = resp.status;
+                err.details = body;
+                throw err;
+            }
+            return body;
         }
 
-        // Load team data and display
-        function loadTeamPage() {
-            const teamName = getTeamNameFromURL();
-            if (!teamName || !teamsData[teamName]) {
+        function getTeamParamsFromURL() {
+            const urlParams = new URLSearchParams(window.location.search);
+            return {
+                teamKey: urlParams.get('teamKey'),
+                name: urlParams.get('name'),
+            };
+        }
+
+        function logoFromCfbd(team) {
+            const logo = Array.isArray(team?.logos) ? team.logos.find(Boolean) : null;
+            return logo || '';
+        }
+
+        function formatDate(value) {
+            if (!value) return '';
+            const d = new Date(value);
+            if (Number.isNaN(d.getTime())) return String(value);
+            return d.toLocaleString();
+        }
+
+        // Load team data and display (Roster / Records / SP+ / Games)
+        async function loadTeamPage() {
+            const { teamKey, name } = getTeamParamsFromURL();
+            const requestedKey = teamKey ? decodeURIComponent(teamKey) : null;
+            const requestedName = name ? decodeURIComponent(name) : null;
+
+            if (!requestedKey && !requestedName) {
                 document.getElementById('teamHeader').innerHTML = '<h1>Team Not Found</h1>';
                 return;
             }
 
-            const team = teamsData[teamName];
-            const logoUrl = `https://a.espncdn.com/i/teamlogos/ncaa/500/${team.logoId}.png`;
+            // Step 1: resolve team object from CFBD /teams/fbs
+            let team = null;
+            try {
+                const teams = await cfbdProxyRequest('/teams/fbs', { year: 2026 });
+                if (Array.isArray(teams)) {
+                    team = teams.find(t => String(t.id) === String(requestedKey)) ||
+                        teams.find(t => String(t.school) === String(requestedKey)) ||
+                        teams.find(t => `${t.school}${t.mascot ? ` ${t.mascot}` : ''}` === requestedName) ||
+                        teams.find(t => t.school === requestedName) ||
+                        null;
+                }
+            } catch (e) {
+                // CFBD failed; show a helpful message but keep page alive.
+                document.getElementById('teamHeader').innerHTML = `
+                    <div class="team-header-info">
+                        <h1 class="team-page-name">${requestedName || requestedKey}</h1>
+                        <p class="team-page-conference">Unable to load team data.</p>
+                    </div>
+                `;
+                document.getElementById('statsGrid').innerHTML = '';
+                document.getElementById('writeupContent').innerHTML = `
+                    <p class="writeup-text">
+                        CFBD data could not be loaded. Make sure you're running via Netlify (or \`netlify dev\`) and that \`CFBD_API_KEY\` is set.
+                    </p>
+                `;
+                return;
+            }
+
+            if (!team) {
+                document.getElementById('teamHeader').innerHTML = '<h1>Team Not Found</h1>';
+                return;
+            }
+
+            const teamName = team.school ? `${team.school}${team.mascot ? ` ${team.mascot}` : ''}` : (requestedName || requestedKey);
+            const teamSchool = team.school || requestedName || requestedKey;
+            const conference = team.conference || '';
+            const logoUrl = logoFromCfbd(team);
 
             // Update page title
             document.title = `${teamName} - Team Details`;
 
             // Display team header
-            const fallbackText = teamName.split(' ').map(word => word[0]).join('').substring(0, 2).toUpperCase();
+            const fallbackText = String(teamName).split(' ').filter(Boolean).map(word => word[0]).join('').substring(0, 2).toUpperCase();
             document.getElementById('teamHeader').innerHTML = `
                 <img src="${logoUrl}" alt="${teamName}" class="team-page-logo" onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling.style.display='flex';">
                 <div class="team-page-logo-fallback" style="display: none; width: 150px; height: 150px; background: linear-gradient(135deg, #FFD700, #FFA000); border-radius: 12px; align-items: center; justify-content: center; font-weight: bold; color: #1E1E1E; font-size: 2.5rem; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);">${fallbackText}</div>
                 <div class="team-header-info">
                     <h1 class="team-page-name">${teamName}</h1>
-                    <p class="team-page-conference">${team.conference}</p>
+                    <p class="team-page-conference">${conference}</p>
                 </div>
             `;
 
-            // Display stats
+            // Step 2: fetch data in parallel
+            const year = 2026;
+            const [records, roster, ratings, games] = await Promise.allSettled([
+                cfbdProxyRequest('/records', { year, team: teamSchool }),
+                cfbdProxyRequest('/roster', { year, team: teamSchool }),
+                cfbdProxyRequest('/ratings/sp', { year, team: teamSchool }),
+                cfbdProxyRequest('/games', { year, team: teamSchool, seasonType: 'regular' }),
+            ]);
+
+            const recordsData = records.status === 'fulfilled' ? records.value : null;
+            const rosterData = roster.status === 'fulfilled' ? roster.value : null;
+            const ratingsData = ratings.status === 'fulfilled' ? ratings.value : null;
+            const gamesData = games.status === 'fulfilled' ? games.value : null;
+
+            // Records summary
+            let recordText = 'TBD';
+            if (Array.isArray(recordsData) && recordsData.length > 0) {
+                const r = recordsData[0];
+                if (r?.total?.wins !== undefined && r?.total?.losses !== undefined) {
+                    recordText = `${r.total.wins}-${r.total.losses}`;
+                }
+            }
+
+            // SP+ summary (best-effort)
+            let spText = 'TBD';
+            if (Array.isArray(ratingsData) && ratingsData.length > 0) {
+                const entry = ratingsData.find(x => x.team === teamSchool) || ratingsData[0];
+                const rating = entry?.rating ?? entry?.sp ?? entry?.overall;
+                if (typeof rating === 'number') spText = rating.toFixed(2);
+            } else if (ratingsData && typeof ratingsData === 'object') {
+                // Some responses may be objects; show best-effort
+                const rating = ratingsData?.rating ?? ratingsData?.sp ?? null;
+                if (typeof rating === 'number') spText = rating.toFixed(2);
+            }
+
+            // Roster preview
+            const rosterCount = Array.isArray(rosterData) ? rosterData.length : 0;
+
+            // Display stats cards (Record / SP+ / Roster size)
             const statsGrid = document.getElementById('statsGrid');
             statsGrid.innerHTML = `
                 <div class="stat-card">
-                    <div class="stat-value">${team.stats.wins}</div>
-                    <div class="stat-label">Wins</div>
+                    <div class="stat-value">${recordText}</div>
+                    <div class="stat-label">Record (${year})</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-value">${team.stats.losses}</div>
-                    <div class="stat-label">Losses</div>
+                    <div class="stat-value">${spText}</div>
+                    <div class="stat-label">SP+ (approx)</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-value">${team.stats.rank}</div>
-                    <div class="stat-label">Rank</div>
+                    <div class="stat-value">${rosterCount || '—'}</div>
+                    <div class="stat-label">Roster (players)</div>
                 </div>
             `;
 
-            // Display writeup placeholder
+            // Build schedule preview
+            let scheduleHtml = '';
+            if (Array.isArray(gamesData) && gamesData.length > 0) {
+                const preview = gamesData
+                    .slice(0, 8)
+                    .map(g => {
+                        const matchup = `${g.awayTeam} @ ${g.homeTeam}`;
+                        const when = formatDate(g.startDate);
+                        const venue = g.venue || 'TBD';
+                        const completed = g.completed ? 'Final' : 'Scheduled';
+                        return `<li>${matchup} — ${when} — ${venue} <span style="opacity:0.8">(${completed})</span></li>`;
+                    })
+                    .join('');
+                scheduleHtml = `<h3 style="color:#FFD700; margin-top:1.5rem;">Schedule (preview)</h3><ul style="color:#f5deb3;">${preview}</ul>`;
+            }
+
+            // Roster preview list (first 12)
+            let rosterHtml = '';
+            if (Array.isArray(rosterData) && rosterData.length > 0) {
+                const preview = rosterData
+                    .slice(0, 12)
+                    .map(p => `<li>${p.firstName || ''} ${p.lastName || ''} — ${p.position || ''} ${p.jersey ? `#${p.jersey}` : ''}</li>`)
+                    .join('');
+                rosterHtml = `<h3 style="color:#FFD700; margin-top:1.5rem;">Roster (preview)</h3><ul style="color:#f5deb3;">${preview}</ul>`;
+            }
+
             document.getElementById('writeupContent').innerHTML = `
                 <p class="writeup-text">
-                    Information about ${teamName} will be displayed here. This section can be updated with team history, 
-                    current season performance, key players, coaching staff, and other relevant information.
+                    This page is now powered by CollegeFootballData via the Netlify proxy. Next enhancements can plug in:
+                    full schedule tables, player detail pages, advanced stats, recruiting, lines, and more CFBD endpoints.
                 </p>
-                <p class="writeup-text">
-                    You can add your custom writeup for ${teamName} in this section.
-                </p>
+                ${scheduleHtml}
+                ${rosterHtml}
             `;
         }
 
-        // Initialize on page load
-        document.addEventListener('DOMContentLoaded', loadTeamPage);
+        document.addEventListener('DOMContentLoaded', () => {
+            loadTeamPage().catch(() => {
+                document.getElementById('teamHeader').innerHTML = '<h1>Team Not Found</h1>';
+            });
+        });
     </script>
 </body>
 </html>

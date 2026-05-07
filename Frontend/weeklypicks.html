@@ -422,6 +422,40 @@
 
 
     <script>
+    // -------------------------------------------------------------------------
+    // CFBD data layer (Phase 7 prep)
+    // This is intentionally OFF by default so we don't break the current picks.
+    // When ready, flip to true and replace hard-coded matchups with CFBD games.
+    // -------------------------------------------------------------------------
+    const USE_CFBD_GAMES_FOR_WEEKLY_PICKS = false;
+
+    async function cfbdProxyRequest(path, params = {}) {
+      const url = new URL('/.netlify/functions/cfbd', window.location.origin);
+      url.searchParams.set('path', path);
+      Object.entries(params).forEach(([k, v]) => {
+        if (v === undefined || v === null) return;
+        url.searchParams.set(k, String(v));
+      });
+      const resp = await fetch(url.toString(), { method: 'GET', headers: { 'accept': 'application/json' } });
+      const body = await resp.json().catch(() => null);
+      if (!resp.ok) {
+        const message = (body && (body.error || body.message)) || `CFBD proxy error (${resp.status})`;
+        const err = new Error(message);
+        err.status = resp.status;
+        err.details = body;
+        throw err;
+      }
+      return body;
+    }
+
+    async function loadWeeklyPicksGamesFromCfbd({ year, week, seasonType = 'regular' }) {
+      // Future integration point:
+      // - Game list
+      // - Home/Away teams, start time, venue, completed status, scores
+      // - Team links (team.html?teamKey=...)
+      return cfbdProxyRequest('/games', { year, week, seasonType });
+    }
+
     // Login/Logout functionality - simplified, no authentication required
     let currentUser = null;
 
@@ -443,6 +477,18 @@
         // Database submission check removed - using Netlify Forms only
       } else {
         showLoginButton();
+      }
+
+      // Optional CFBD smoke test (does NOT alter the page unless enabled)
+      if (USE_CFBD_GAMES_FOR_WEEKLY_PICKS) {
+        loadWeeklyPicksGamesFromCfbd({ year: 2026, week: 1, seasonType: 'regular' })
+          .then((games) => {
+            console.log('CFBD games loaded (preview):', Array.isArray(games) ? games.slice(0, 3) : games);
+            // TODO: Replace hard-coded games with CFBD-driven rendering.
+          })
+          .catch((e) => {
+            console.warn('CFBD games load failed:', e);
+          });
       }
     });
 
