@@ -5,6 +5,7 @@
  */
 const { getPool } = require("./db");
 const { json } = require("./_http");
+const { parseWeekId, invalidWeekIdPayload } = require("./_parseWeekId");
 
 function mapGameRow(r) {
   return {
@@ -30,12 +31,10 @@ exports.handler = async (event) => {
     return json(405, { error: "Method not allowed" });
   }
 
-  const rawWeekId = event.queryStringParameters?.weekId;
-  const weekIdStr = rawWeekId != null ? String(rawWeekId).trim() : "";
-  if (!weekIdStr || !/^\d+$/.test(weekIdStr)) {
-    return json(400, { error: "Invalid weekId" });
+  const weekId = parseWeekId(event);
+  if (weekId == null || !Number.isFinite(weekId) || weekId < 1) {
+    return json(400, invalidWeekIdPayload(event));
   }
-  const weekId = parseInt(weekIdStr, 10);
 
   try {
     const pool = getPool();

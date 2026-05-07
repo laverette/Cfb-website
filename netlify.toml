@@ -11,9 +11,10 @@
   to = "/.netlify/functions/picks-current-week"
   status = 200
 
+# Use * / :splat so weekId is forwarded in the query string (named :weekId placeholders are unreliable here).
 [[redirects]]
-  from = "/api/picks/games/week/:weekId"
-  to = "/.netlify/functions/picks-games-by-week?weekId=:weekId"
+  from = "/api/picks/games/week/*"
+  to = "/.netlify/functions/picks-games-by-week?weekId=:splat"
   status = 200
 
 [[redirects]]
@@ -52,8 +53,8 @@
   status = 200
 
 [[redirects]]
-  from = "/api/admin/games/week/:weekId"
-  to = "/.netlify/functions/admin-games-by-week?weekId=:weekId"
+  from = "/api/admin/games/week/*"
+  to = "/.netlify/functions/admin-games-by-week?weekId=:splat"
   status = 200
 
 [[redirects]]
