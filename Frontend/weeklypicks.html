@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Weekly Picks</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <link rel="stylesheet" href="styles/site-theme.css">
   <link rel="stylesheet" href="Resources/Styles/weeklypicks.css">
 </head>
 <body>
@@ -84,6 +85,9 @@
               <button type="button" class="coach-corso-btn" onclick="scrollToCoachCorso(event)">Need Help? Ask Coach Corso!</button>
             </div>
           </div>
+
+          <!-- CFBD Week 1 Picks (dynamic). When enabled, hardcoded games are hidden and these are shown. -->
+          <div id="cfbdWeek1PicksContainer" style="display:none;"></div>
           
           <p>
             <label><span class="games">Game 1:</span> 
@@ -427,7 +431,7 @@
     // This is intentionally OFF by default so we don't break the current picks.
     // When ready, flip to true and replace hard-coded matchups with CFBD games.
     // -------------------------------------------------------------------------
-    const USE_CFBD_GAMES_FOR_WEEKLY_PICKS = false;
+    const USE_CFBD_GAMES_FOR_WEEKLY_PICKS = true;
 
     async function cfbdProxyRequest(path, params = {}) {
       const url = new URL('/.netlify/functions/cfbd', window.location.origin);
@@ -456,6 +460,116 @@
       return cfbdProxyRequest('/games', { year, week, seasonType });
     }
 
+    async function loadTeamsIndexFromCfbd({ year }) {
+      // Used to build stable team links (team.id preferred, else encoded school).
+      return cfbdProxyRequest('/teams/fbs', { year });
+    }
+
+    function normalizeTeamKeyFromTeamsIndex(teamsIndex, teamName) {
+      const name = String(teamName || '').trim();
+      if (!name) return encodeURIComponent('');
+      const row = Array.isArray(teamsIndex)
+        ? (teamsIndex.find(t => String(t.school || '').trim().toLowerCase() === name.toLowerCase()) || null)
+        : null;
+      const id = row?.id;
+      if (id !== undefined && id !== null && id !== '') return String(id);
+      return encodeURIComponent(name);
+    }
+
+    function logoFromTeamsIndex(teamsIndex, teamName) {
+      const name = String(teamName || '').trim();
+      if (!name) return '';
+      const row = Array.isArray(teamsIndex)
+        ? (teamsIndex.find(t => String(t.school || '').trim().toLowerCase() === name.toLowerCase()) || null)
+        : null;
+      const logo = Array.isArray(row?.logos) ? row.logos.find(Boolean) : null;
+      return logo || '';
+    }
+
+    function formatGameDate(value) {
+      if (!value) return '';
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) return String(value);
+      return d.toLocaleString();
+    }
+
+    function isAug29_2026(startDate) {
+      // CFBD dates are ISO; compare by YYYY-MM-DD in the string to avoid timezone surprises.
+      const s = String(startDate || '');
+      return s.startsWith('2026-08-29');
+    }
+
+    function hideHardcodedGameRows() {
+      const form = document.querySelector('form[name="predictions"]');
+      if (!form) return;
+      // Hide only the <p> blocks that contain selects named game#
+      const ps = Array.from(form.querySelectorAll('p'));
+      ps.forEach(p => {
+        const sel = p.querySelector('select[name^="game"]');
+        if (!sel) return;
+        p.style.display = 'none';
+      });
+    }
+
+    function buildWeek1PicksFromGames({ games, teamsIndex }) {
+      const container = document.getElementById('cfbdWeek1PicksContainer');
+      if (!container) return false;
+
+      const saturdayGames = (Array.isArray(games) ? games : []).filter(g => isAug29_2026(g?.startDate));
+      if (saturdayGames.length === 0) return false;
+
+      // Store for submit validation + results preview
+      window.__CFBD_GAME_COUNT__ = saturdayGames.length;
+      window.__CFBD_GAME_MATCHUPS__ = saturdayGames.map(g => `${g?.awayTeam || 'TBD'} @ ${g?.homeTeam || 'TBD'}`);
+
+      container.style.display = 'block';
+      container.innerHTML = saturdayGames.map((g, idx) => {
+        const i = idx + 1;
+        const away = g?.awayTeam || 'TBD';
+        const home = g?.homeTeam || 'TBD';
+        const start = formatGameDate(g?.startDate) || 'TBD';
+        const venue = g?.venue || 'TBD';
+        const completed = g?.completed ? 'Final' : 'Scheduled';
+
+        const awayKey = normalizeTeamKeyFromTeamsIndex(teamsIndex, away);
+        const homeKey = normalizeTeamKeyFromTeamsIndex(teamsIndex, home);
+        const awayLogo = logoFromTeamsIndex(teamsIndex, away);
+        const homeLogo = logoFromTeamsIndex(teamsIndex, home);
+        const awayHref = `team.html?teamKey=${encodeURIComponent(awayKey)}&name=${encodeURIComponent(away)}`;
+        const homeHref = `team.html?teamKey=${encodeURIComponent(homeKey)}&name=${encodeURIComponent(home)}`;
+
+        return `
+          <p>
+            <label>
+              <span class="games">Game ${i}:</span>
+              <span class="team-row">
+                <a href="${awayHref}" class="team-link-inline">
+                  ${awayLogo ? `<img src="${awayLogo}" alt="${away}" class="team-logo">` : ``}
+                  ${away}
+                </a>
+                <span style="opacity:0.9;">@</span>
+                <a href="${homeHref}" class="team-link-inline">
+                  ${homeLogo ? `<img src="${homeLogo}" alt="${home}" class="team-logo">` : ``}
+                  ${home}
+                </a>
+                <span class="betting-line" style="margin-left: 6px;">${completed}</span>
+              </span>
+              <div style="color:#f5deb3; opacity:0.9; margin: 6px 0 8px 0;">
+                ${start} · ${venue}
+              </div>
+              <select name="game${i}">
+                <option value="" selected disabled>Select winner…</option>
+                <option value="${away}">${away}</option>
+                <option value="${home}">${home}</option>
+              </select>
+            </label>
+          </p>
+        `;
+      }).join('');
+
+      return true;
+    }
+
     // Login/Logout functionality - simplified, no authentication required
     let currentUser = null;
 
@@ -481,13 +595,27 @@
 
       // Optional CFBD smoke test (does NOT alter the page unless enabled)
       if (USE_CFBD_GAMES_FOR_WEEKLY_PICKS) {
-        loadWeeklyPicksGamesFromCfbd({ year: 2026, week: 1, seasonType: 'regular' })
-          .then((games) => {
-            console.log('CFBD games loaded (preview):', Array.isArray(games) ? games.slice(0, 3) : games);
-            // TODO: Replace hard-coded games with CFBD-driven rendering.
+        const year = 2026;
+        const week = 1;
+        const seasonType = 'regular';
+
+        Promise.allSettled([
+          loadWeeklyPicksGamesFromCfbd({ year, week, seasonType }),
+          loadTeamsIndexFromCfbd({ year }),
+        ])
+          .then(([gamesRes, teamsRes]) => {
+            if (gamesRes.status !== 'fulfilled') return; // fail silently -> fallback to hardcoded
+            const games = gamesRes.value;
+            const teamsIndex = teamsRes.status === 'fulfilled' ? teamsRes.value : [];
+
+            // Build Week 1 picks from Saturday Aug 29, 2026 games
+            const built = buildWeek1PicksFromGames({ games, teamsIndex });
+            if (built) {
+              hideHardcodedGameRows();
+            }
           })
-          .catch((e) => {
-            console.warn('CFBD games load failed:', e);
+          .catch(() => {
+            // fail silently -> fallback to hardcoded
           });
       }
     });
@@ -724,8 +852,13 @@
       
       // Validate all picks are selected
       const missingPicks = [];
-      
-      for (let i = 1; i <= 12; i++) {
+
+      const gameCount =
+        (USE_CFBD_GAMES_FOR_WEEKLY_PICKS && typeof window.__CFBD_GAME_COUNT__ === 'number' && window.__CFBD_GAME_COUNT__ > 0)
+          ? window.__CFBD_GAME_COUNT__
+          : 12;
+
+      for (let i = 1; i <= gameCount; i++) {
         const pickedCode = formData.get(`game${i}`);
         if (!pickedCode) {
           missingPicks.push(`Game ${i}`);
@@ -733,7 +866,7 @@
       }
 
       if (missingPicks.length > 0) {
-        alert(`Please select picks for all 12 games!\n\nMissing: ${missingPicks.length} games`);
+        alert(`Please select picks for all ${gameCount} games!\n\nMissing: ${missingPicks.length} games`);
         return;
       }
 
@@ -783,29 +916,31 @@
           <div class="predictions-grid">
       `;
       
-      const gameData = [
-        "#6 Ole Miss vs #3 Georgia",
-        "#9 Alabama vs #1 Indiana",
-        "#5 Oregon vs #4 Texas Tech",
-        "#10 Miami vs #2 Ohio State",
-        "Nebraska vs #15 Utah",
-        "#18 Michigan vs #13 Texas",
-        "Arizona State vs Duke",
-        "#23 Iowa vs #14 Vanderbilt",
-        "#16 USC vs TCU",
-        "Tennessee vs Illinois",
-        "Coastal Carolina vs Louisiana Tech",
-        "Georgia Southern vs App State"
-      ];
+      const gameData = (USE_CFBD_GAMES_FOR_WEEKLY_PICKS && Array.isArray(window.__CFBD_GAME_MATCHUPS__) && window.__CFBD_GAME_MATCHUPS__.length)
+        ? window.__CFBD_GAME_MATCHUPS__
+        : [
+          "#6 Ole Miss vs #3 Georgia",
+          "#9 Alabama vs #1 Indiana",
+          "#5 Oregon vs #4 Texas Tech",
+          "#10 Miami vs #2 Ohio State",
+          "Nebraska vs #15 Utah",
+          "#18 Michigan vs #13 Texas",
+          "Arizona State vs Duke",
+          "#23 Iowa vs #14 Vanderbilt",
+          "#16 USC vs TCU",
+          "Tennessee vs Illinois",
+          "Coastal Carolina vs Louisiana Tech",
+          "Georgia Southern vs App State"
+        ];
       
-      for (let i = 1; i <= 12; i++) {
+      for (let i = 1; i <= gameCount; i++) {
         const prediction = formData.get("game" + i);
         
         html += `
           <div class="prediction-card">
             <div class="game-info">
               <span class="game-number">Game ${i}</span>
-              <span class="game-matchup">${gameData[i-1]}</span>
+              <span class="game-matchup">${gameData[i-1] || ''}</span>
             </div>
             <div class="prediction-result">
               <span class="prediction-choice ${prediction.toLowerCase()}">${prediction}</span>
@@ -819,7 +954,7 @@
           <div class="prediction-summary">
           <div class="summary-stats">
             <div class="stat-item">
-              <span class="stat-number">12</span>
+              <span class="stat-number">${gameCount}</span>
               <span class="stat-label">Total Picks</span>
             </div>
             <div class="stat-item">
@@ -833,6 +968,7 @@
           </div>
             <div class="prediction-footer">
               <p class="success-message">✅ Predictions submitted successfully!</p>
+              <p class="next-steps" id="seasonCounterLine" style="margin-top: 6px;"></p>
               <p class="next-steps">Check back after the games to see how you did!</p>
               <div class="screenshot-section">
                 <button id="screenshotBtn" class="screenshot-button">
@@ -862,6 +998,24 @@
           screenshotBtn.addEventListener('click', function() {
             takeScreenshot();
           });
+        }
+
+        // 2026 per-profile submission counter (local-only)
+        // This keeps things lightweight until you add a real backend leaderboard.
+        try {
+          const year = 2026;
+          const keyUser = String(userName || 'Guest').trim().toLowerCase();
+          const counterKey = `weeklyPicksSubmissions:${year}:${keyUser}`;
+          const current = Number(localStorage.getItem(counterKey) || '0');
+          const next = current + 1;
+          localStorage.setItem(counterKey, String(next));
+
+          const line = document.getElementById('seasonCounterLine');
+          if (line) {
+            line.textContent = `${year} submissions for ${userName}: ${next}`;
+          }
+        } catch (e) {
+          // ignore localStorage errors
         }
         
         submitBtn.textContent = originalText;

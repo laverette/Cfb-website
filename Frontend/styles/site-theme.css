@@ -1,0 +1,690 @@
+:root {
+  --bg-main: #1E1E1E;
+  --bg-surface: #2E2E2E;
+  --bg-panel: #3E2723;
+  --bg-panel-2: #4E342E;
+  --brown: #3E2723;
+  --brown-light: #4E342E;
+  --gold: #FFD700;
+  --gold-dark: #FFA000;
+  --text-main: #f5deb3;
+  --text-muted: #d7c1a1;
+  --border-brown: #8D6E63;
+  --shadow-soft: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --shadow-gold: 0 6px 15px rgba(255, 215, 0, 0.35);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 15px;
+}
+
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+body {
+  background-color: var(--bg-main);
+  color: var(--text-main);
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+}
+
+/* Page shell / headings */
+.page-shell {
+  width: min(1200px, calc(100% - 2rem));
+  margin-left: auto;
+  margin-right: auto;
+  padding-top: 1.25rem;
+  padding-bottom: 2rem;
+}
+
+.page-title {
+  color: var(--gold);
+  font-weight: 900;
+  font-size: clamp(2rem, 5vw, 3rem);
+  text-align: center;
+  margin: 0 0 0.75rem 0;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.page-subtitle {
+  color: var(--text-main);
+  opacity: 0.9;
+  text-align: center;
+  margin: 0 0 1.5rem 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.gold-heading {
+  color: var(--gold);
+  font-weight: 900;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Home page helpers (reusable)                                               */
+/* -------------------------------------------------------------------------- */
+.season-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-weight: 900;
+  background: rgba(255, 215, 0, 0.12);
+  color: var(--gold);
+  border: 1px solid rgba(255, 215, 0, 0.35);
+}
+
+.home-layout {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.home-main-card {
+  padding: 1.25rem;
+}
+
+.home-side-card {
+  padding: 1.25rem;
+}
+
+.poll-card-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.85rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid rgba(141, 110, 99, 0.55);
+}
+
+.poll-list .list-group-item {
+  transition: transform 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.poll-list .list-group-item:hover {
+  transform: translateX(3px);
+  border-color: rgba(255, 215, 0, 0.55) !important;
+  background-color: rgba(255, 215, 0, 0.06) !important;
+}
+
+.feature-image-card img {
+  width: 100%;
+  border-radius: 12px;
+  border: 2px solid rgba(255, 215, 0, 0.25);
+  box-shadow: var(--shadow-soft);
+}
+
+.home-button-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+@media (max-width: 992px) {
+  .home-layout {
+    grid-template-columns: 1fr;
+  }
+  .home-button-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Site header/nav (Weekly Picks look)                                        */
+/* -------------------------------------------------------------------------- */
+.site-nav,
+.weeklypicks-navbar {
+  position: relative;
+  background: linear-gradient(135deg, var(--bg-panel), var(--bg-panel-2)) !important;
+  border-bottom: 2px solid var(--border-brown);
+  padding: 0.75rem 1rem;
+  z-index: 1000;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.site-nav-inner,
+.navbar-content-weekly {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 1rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.site-title {
+  color: var(--text-main);
+  font-weight: 800;
+  letter-spacing: 0.2px;
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+/* Hamburger Menu Button */
+.hamburger-menu-btn {
+  background: transparent;
+  border: 2px solid var(--border-brown);
+  border-radius: 6px;
+  padding: 8px 10px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: all 0.3s ease;
+  z-index: 1001;
+}
+
+.hamburger-menu-btn:hover {
+  background-color: rgba(255, 215, 0, 0.1);
+  border-color: var(--gold);
+}
+
+.hamburger-menu-btn span {
+  width: 25px;
+  height: 3px;
+  background-color: var(--text-main);
+  border-radius: 2px;
+  transition: all 0.3s ease;
+}
+
+.hamburger-menu-btn:hover span {
+  background-color: var(--gold);
+}
+
+.hamburger-menu-btn.active span:nth-child(1) {
+  transform: rotate(45deg) translate(8px, 8px);
+}
+
+.hamburger-menu-btn.active span:nth-child(2) {
+  opacity: 0;
+}
+
+.hamburger-menu-btn.active span:nth-child(3) {
+  transform: rotate(-45deg) translate(7px, -7px);
+}
+
+/* Dropdown Menu */
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: linear-gradient(135deg, var(--bg-panel), var(--bg-panel-2));
+  border: 2px solid var(--border-brown);
+  border-radius: 8px;
+  min-width: 220px;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+  display: none;
+  z-index: 1002;
+  margin-top: 0.5rem;
+  padding: 0.5rem 0;
+}
+
+.dropdown-menu.show {
+  display: block;
+}
+
+.dropdown-item {
+  display: block;
+  padding: 0.75rem 1.25rem;
+  color: var(--text-main);
+  text-decoration: none;
+  transition: all 0.3s ease;
+  border-bottom: 1px solid rgba(255, 215, 0, 0.12);
+}
+
+.dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.dropdown-item:hover {
+  background-color: rgba(255, 215, 0, 0.2);
+  color: var(--gold);
+}
+
+/* Drawer overlay (mobile) */
+.menu-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.25s ease, visibility 0.25s ease;
+  z-index: 995;
+}
+
+.menu-overlay.show {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Login area (optional) */
+.navbar-login-section {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.navbar-login-btn,
+.btn-brown,
+.nav-button {
+  background-color: var(--bg-panel);
+  color: #F5F5F5;
+  padding: 8px 16px;
+  border-radius: 6px;
+  text-decoration: none;
+  border: 1px solid var(--border-brown);
+  font-weight: 800;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.navbar-login-btn:hover,
+.btn-brown:hover,
+.nav-button:hover {
+  background-color: var(--bg-panel-2);
+  border-color: var(--gold);
+  color: var(--gold);
+}
+
+.navbar-user-name {
+  color: var(--gold);
+  margin: 0;
+  font-weight: 800;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.navbar-logout-btn {
+  background-color: var(--bg-panel);
+  color: #F5F5F5;
+  border: 1px solid var(--border-brown);
+  padding: 5px 15px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 800;
+}
+
+.navbar-logout-btn:hover {
+  background-color: var(--bg-panel-2);
+  border-color: var(--gold);
+  color: var(--gold);
+}
+
+/* Mobile behavior */
+@media (max-width: 768px) {
+  .site-nav,
+  .weeklypicks-navbar {
+    position: sticky;
+    top: 0;
+  }
+
+  .dropdown-menu {
+    position: fixed;
+    top: 0.75rem;
+    left: 0.75rem;
+    width: min(82vw, 300px);
+    max-height: calc(100vh - 1.5rem);
+    overflow-y: auto;
+    margin-top: 0;
+    border-radius: 10px;
+    z-index: 1005;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Forms, inputs, selects (Weekly Picks style)                                */
+/* -------------------------------------------------------------------------- */
+label {
+  color: var(--text-main);
+  font-weight: 800;
+}
+
+input,
+select,
+textarea {
+  background-color: var(--bg-panel);
+  color: var(--text-main);
+  border: 1px solid var(--border-brown);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 14px;
+}
+
+/* Bootstrap compatibility */
+.form-control,
+.form-select {
+  background-color: var(--bg-panel) !important;
+  color: var(--text-main) !important;
+  border: 1px solid var(--border-brown) !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+}
+
+.form-control:focus,
+.form-select:focus {
+  border-color: var(--gold) !important;
+  box-shadow: 0 0 8px rgba(255, 215, 0, 0.3) !important;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--gold);
+  box-shadow: 0 0 8px rgba(255, 215, 0, 0.3);
+}
+
+option {
+  background-color: #444444;
+  color: #F5F5F5;
+  font-weight: 800;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Cards/panels                                                               */
+/* -------------------------------------------------------------------------- */
+.hero-card {
+  background: linear-gradient(135deg, var(--bg-panel), var(--bg-panel-2));
+  border: 2px solid var(--border-brown);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
+  padding: 1.5rem;
+}
+
+.site-card,
+.section-card,
+.team-card,
+.stat-card {
+  background: linear-gradient(135deg, var(--bg-panel), var(--bg-panel-2));
+  border: 1px solid var(--border-brown);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-soft);
+}
+
+.section-card {
+  padding: 1.25rem;
+  border-width: 2px;
+}
+
+.site-card {
+  padding: 1rem;
+}
+
+.section-title,
+.title {
+  color: var(--text-main);
+  font-weight: 900;
+}
+
+/* Badges / pills */
+.site-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 2px 10px;
+  border-radius: 9999px;
+  font-weight: 900;
+  letter-spacing: 0.4px;
+  background: linear-gradient(135deg, var(--gold), var(--gold-dark));
+  color: #1E1E1E;
+  box-shadow: 0 2px 6px rgba(255, 215, 0, 0.25);
+  border: 1px solid var(--gold-dark);
+  font-size: 0.8rem;
+}
+
+/* Ranking/result rows (Weekly Picks "preview" vibe) */
+.ranking-card,
+.result-card,
+.prediction-card {
+  background: linear-gradient(135deg, var(--bg-panel), var(--bg-panel-2));
+  border: 2px solid var(--border-brown);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  box-shadow: var(--shadow-soft);
+}
+
+.ranking-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 0.75rem;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border-left: 4px solid var(--gold);
+}
+
+.rank-circle {
+  width: 34px;
+  height: 34px;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  background: linear-gradient(135deg, var(--gold), var(--gold-dark));
+  color: #1E1E1E;
+  flex: 0 0 auto;
+}
+
+.ranking-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.ranking-primary {
+  font-weight: 900;
+  color: var(--text-main);
+}
+
+.ranking-secondary {
+  font-weight: 800;
+  color: rgba(245, 222, 179, 0.78);
+  font-size: 0.9rem;
+}
+
+/* Buttons */
+.btn {
+  font-weight: 900;
+  border-radius: 10px;
+  border: 1px solid var(--border-brown);
+}
+
+.btn-gold {
+  background: linear-gradient(135deg, var(--gold), var(--gold-dark));
+  color: #1E1E1E;
+  border: none;
+  box-shadow: 0 4px 10px rgba(255, 215, 0, 0.25);
+}
+
+.btn-gold:hover {
+  filter: brightness(1.03);
+  box-shadow: 0 6px 16px rgba(255, 215, 0, 0.35);
+}
+
+.btn-brown {
+  background: linear-gradient(135deg, var(--bg-panel), var(--bg-panel-2));
+  color: var(--text-main);
+  border: 1px solid var(--border-brown);
+}
+
+.btn-brown:hover {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+
+/* Bootstrap defaults override: remove white cards + blue primary buttons */
+.card {
+  background: linear-gradient(135deg, var(--bg-panel), var(--bg-panel-2)) !important;
+  border: 1px solid var(--border-brown) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--shadow-soft) !important;
+  color: var(--text-main) !important;
+}
+
+.card-header {
+  background: transparent !important;
+  border-bottom: 1px solid rgba(141, 110, 99, 0.55) !important;
+  color: var(--gold) !important;
+  font-weight: 900 !important;
+}
+
+.card-body {
+  color: var(--text-main) !important;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--gold), var(--gold-dark)) !important;
+  color: #1E1E1E !important;
+  border: none !important;
+  font-weight: 900 !important;
+  box-shadow: 0 4px 10px rgba(255, 215, 0, 0.25) !important;
+}
+
+.btn-primary:hover {
+  filter: brightness(1.03);
+  box-shadow: 0 6px 16px rgba(255, 215, 0, 0.35) !important;
+}
+
+.btn-outline-dark {
+  color: var(--text-main) !important;
+  border-color: var(--border-brown) !important;
+}
+
+.btn-outline-dark:hover {
+  border-color: var(--gold) !important;
+  color: var(--gold) !important;
+  background: rgba(255, 215, 0, 0.08) !important;
+}
+
+.bg-light,
+.bg-white {
+  background: transparent !important;
+}
+
+.text-primary {
+  color: var(--gold) !important;
+}
+
+.text-muted {
+  color: rgba(245, 222, 179, 0.78) !important;
+}
+
+/* List groups (Home/Heisman pages) */
+.list-group-item {
+  background: linear-gradient(135deg, var(--bg-panel), var(--bg-panel-2)) !important;
+  color: var(--text-main) !important;
+  border: 1px solid rgba(141, 110, 99, 0.6) !important;
+  font-weight: 800;
+}
+
+.list-group-numbered > .list-group-item::before {
+  background: linear-gradient(135deg, var(--gold), var(--gold-dark));
+  color: #1E1E1E;
+  border-radius: 9999px;
+  font-weight: 900;
+  /* Ensure 2-digit ranks fit and are centered */
+  min-width: 34px;
+  height: 34px;
+  line-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
+  margin-right: 0.75rem;
+}
+
+/* Tables */
+.table {
+  color: var(--text-main);
+}
+
+.table thead th {
+  color: var(--gold);
+  border-bottom-color: rgba(255, 215, 0, 0.25) !important;
+}
+
+.table td,
+.table th {
+  border-color: rgba(141, 110, 99, 0.45) !important;
+}
+
+.table-striped > tbody > tr:nth-of-type(odd) > * {
+  color: var(--text-main);
+  background-color: rgba(62, 39, 35, 0.35) !important;
+}
+
+.table-striped > tbody > tr:nth-of-type(even) > * {
+  color: var(--text-main);
+  background-color: rgba(30, 30, 30, 0.35) !important;
+}
+
+.table-hover > tbody > tr:hover > * {
+  background-color: rgba(255, 215, 0, 0.08) !important;
+}
+
+/* Badges */
+.badge {
+  border-radius: 9999px !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.4px;
+}
+
+.badge.bg-success,
+.badge.bg-danger,
+.badge.bg-warning,
+.badge.bg-info,
+.badge.bg-primary,
+.badge.bg-secondary {
+  background: linear-gradient(135deg, var(--gold), var(--gold-dark)) !important;
+  color: #1E1E1E !important;
+}
+
+/* Legacy crimson headers used by Alabama pages */
+.bg-crimson {
+  background: transparent !important;
+}
+
+/* Admin page existing classes */
+.admin-section {
+  background: linear-gradient(135deg, var(--bg-panel), var(--bg-panel-2)) !important;
+  border: 2px solid var(--gold) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--shadow-soft) !important;
+}
+
+.admin-section h2 {
+  color: var(--gold) !important;
+  font-weight: 900 !important;
+}
+
+/* Links */
+a {
+  color: var(--text-main);
+}
+
+a:hover {
+  color: var(--gold);
+}
+
+/* Team logo */
+.team-logo {
+  width: 20px;
+  height: 20px;
+  vertical-align: middle;
+  border-radius: 3px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  margin-right: 6px;
+}
+

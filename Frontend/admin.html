@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Admin Panel - Weekly Picks</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <link rel="stylesheet" href="styles/site-theme.css">
   <style>
     body {
       background-color: #1E1E1E;
@@ -158,7 +159,36 @@
   </style>
 </head>
 <body>
-  <div class="admin-container">
+  <!-- Site Header -->
+  <nav class="navbar weeklypicks-navbar site-nav">
+    <div class="container-fluid">
+      <div class="navbar-content-weekly site-nav-inner">
+        <button class="hamburger-menu-btn" onclick="toggleMenu()" aria-label="Menu" aria-expanded="false" aria-controls="dropdownMenu">
+          <span></span><span></span><span></span>
+        </button>
+        <div class="dropdown-menu" id="dropdownMenu">
+          <a href="index.html" class="dropdown-item">🏠 Home</a>
+          <a href="weeklypicks.html" class="dropdown-item">📅 Weekly Picks</a>
+          <a href="teams.html" class="dropdown-item">🏈 Teams</a>
+          <a href="prediction-history.html" class="dropdown-item">🧾 History</a>
+          <a href="mypredictions.html" class="dropdown-item">📊 My Predictions</a>
+          <a href="predictor.html" class="dropdown-item">🤖 Model</a>
+          <a href="CFPPredictions.html" class="dropdown-item">🏆 CFP Picks</a>
+          <a href="list.html" class="dropdown-item">👑 Heisman</a>
+          <a href="login.html" class="dropdown-item">🔐 Login</a>
+          <a href="admin.html" class="dropdown-item">🛠️ Admin</a>
+        </div>
+
+        <h1 class="site-title">Admin</h1>
+        <div class="navbar-login-section">
+          <a href="weeklypicks.html" class="navbar-login-btn">📅 Picks</a>
+        </div>
+      </div>
+    </div>
+  </nav>
+  <div class="menu-overlay" id="menuOverlay" onclick="closeMenu()"></div>
+
+  <div class="admin-container page-shell">
     <h1 style="color: #FFD700; text-align: center; margin-bottom: 30px;">🏈 Admin Panel</h1>
     
     <!-- Current Week Section -->
@@ -581,6 +611,43 @@
     document.addEventListener('DOMContentLoaded', function() {
       checkAdmin();
       loadCurrentWeek();
+    });
+  </script>
+  <script>
+    function closeMenu() {
+      const menu = document.getElementById('dropdownMenu');
+      const button = document.querySelector('.hamburger-menu-btn');
+      const overlay = document.getElementById('menuOverlay');
+      if (!menu || !button || !overlay) return;
+      menu.classList.remove('show');
+      button.classList.remove('active');
+      button.setAttribute('aria-expanded', 'false');
+      overlay.classList.remove('show');
+      document.body.classList.remove('menu-open');
+    }
+
+    function toggleMenu() {
+      const menu = document.getElementById('dropdownMenu');
+      const button = document.querySelector('.hamburger-menu-btn');
+      const overlay = document.getElementById('menuOverlay');
+      if (!menu || !button || !overlay) return;
+      const isOpening = !menu.classList.contains('show');
+      menu.classList.toggle('show');
+      button.classList.toggle('active');
+      button.setAttribute('aria-expanded', isOpening ? 'true' : 'false');
+      overlay.classList.toggle('show', isOpening);
+      document.body.classList.toggle('menu-open', isOpening);
+    }
+
+    document.addEventListener('click', function(event) {
+      const menu = document.getElementById('dropdownMenu');
+      const button = document.querySelector('.hamburger-menu-btn');
+      if (!menu || !button) return;
+      if (!menu.contains(event.target) && !button.contains(event.target)) closeMenu();
+    });
+
+    document.addEventListener('keydown', function(event) {
+      if (event.key === 'Escape') closeMenu();
     });
   </script>
 </body>

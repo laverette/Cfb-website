@@ -5,12 +5,43 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Weekly Picks</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <link rel="stylesheet" href="styles/site-theme.css">
   <link rel="stylesheet" href="Resources/Styles/CFPPredictions.css">
 </head>
 <body>
-  <form name="predictions" class="form-container">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <h1 class="title">Weekly Picks</h1>
+  <!-- Site Header -->
+  <nav class="navbar weeklypicks-navbar site-nav">
+    <div class="container-fluid">
+      <div class="navbar-content-weekly site-nav-inner">
+        <button class="hamburger-menu-btn" onclick="toggleMenu()" aria-label="Menu" aria-expanded="false" aria-controls="dropdownMenu">
+          <span></span><span></span><span></span>
+        </button>
+        <div class="dropdown-menu" id="dropdownMenu">
+          <a href="index.html" class="dropdown-item">🏠 Home</a>
+          <a href="weeklypicks.html" class="dropdown-item">📅 Weekly Picks</a>
+          <a href="teams.html" class="dropdown-item">🏈 Teams</a>
+          <a href="prediction-history.html" class="dropdown-item">🧾 History</a>
+          <a href="mypredictions.html" class="dropdown-item">📊 My Predictions</a>
+          <a href="predictor.html" class="dropdown-item">🤖 Model</a>
+          <a href="CFPPredictions.html" class="dropdown-item">🏆 CFP Picks</a>
+          <a href="list.html" class="dropdown-item">👑 Heisman</a>
+          <a href="login.html" class="dropdown-item">🔐 Login</a>
+          <a href="admin.html" class="dropdown-item">🛠️ Admin</a>
+        </div>
+
+        <h1 class="site-title">CFP Picks</h1>
+        <div class="navbar-login-section">
+          <a href="weeklypicks.html" class="navbar-login-btn">📅 Picks</a>
+        </div>
+      </div>
+    </div>
+  </nav>
+  <div class="menu-overlay" id="menuOverlay" onclick="closeMenu()"></div>
+
+  <main class="container my-5 page-shell">
+  <form name="predictions" class="form-container section-card" style="max-width: 900px; margin: 0 auto;">
+    <h1 class="page-title" style="text-align:center; font-size: clamp(1.8rem, 4vw, 2.6rem);">CFP Picks</h1>
+    <p class="page-subtitle">Pick winners for the slate below.</p>
     <p>
       <label>Your Name: 
         <input id= "yourname" name="user" />
@@ -126,11 +157,12 @@
     </p>
 
     <p>
-      <button id="submit" type="submit">Submit Predictions</button>
-      <span class="text">Scroll Down to See Results!</span>
+      <button id="submit" type="submit" class="btn btn-gold">Submit Predictions</button>
+      <span class="text" style="margin-left: 10px; opacity: 0.9;">Scroll down to see results.</span>
     </p>
   </form>
   <div id="results"></div>
+  </main>
     <script>
 document.querySelector('form[name="predictions"]').addEventListener('submit', function(e) {
   e.preventDefault(); // stop normal page reload
@@ -154,5 +186,42 @@ document.querySelector('form[name="predictions"]').addEventListener('submit', fu
 <div class="col-md-10 ps-rg-6 text-end mb-5 mt-up">
         <img width= 100% src="https://images.seattletimes.com/wp-content/uploads/2017/05/2459f782f2c946859a21920650fc2c75.jpg?d=2040x1253" alt="Image" class="img-fluid rounded shadow big-img">
       </div>
+  <script>
+    function closeMenu() {
+      const menu = document.getElementById('dropdownMenu');
+      const button = document.querySelector('.hamburger-menu-btn');
+      const overlay = document.getElementById('menuOverlay');
+      if (!menu || !button || !overlay) return;
+      menu.classList.remove('show');
+      button.classList.remove('active');
+      button.setAttribute('aria-expanded', 'false');
+      overlay.classList.remove('show');
+      document.body.classList.remove('menu-open');
+    }
+
+    function toggleMenu() {
+      const menu = document.getElementById('dropdownMenu');
+      const button = document.querySelector('.hamburger-menu-btn');
+      const overlay = document.getElementById('menuOverlay');
+      if (!menu || !button || !overlay) return;
+      const isOpening = !menu.classList.contains('show');
+      menu.classList.toggle('show');
+      button.classList.toggle('active');
+      button.setAttribute('aria-expanded', isOpening ? 'true' : 'false');
+      overlay.classList.toggle('show', isOpening);
+      document.body.classList.toggle('menu-open', isOpening);
+    }
+
+    document.addEventListener('click', function(event) {
+      const menu = document.getElementById('dropdownMenu');
+      const button = document.querySelector('.hamburger-menu-btn');
+      if (!menu || !button) return;
+      if (!menu.contains(event.target) && !button.contains(event.target)) closeMenu();
+    });
+
+    document.addEventListener('keydown', function(event) {
+      if (event.key === 'Escape') closeMenu();
+    });
+  </script>
 </body>
 </html>

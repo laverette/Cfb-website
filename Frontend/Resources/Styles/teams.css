@@ -70,8 +70,8 @@ body {
 /* Teams Header */
 .teams-header {
     text-align: center;
-    margin-bottom: 3rem;
-    padding: 2rem 0;
+    margin-bottom: 1.25rem;
+    padding: 0.75rem 0 0.25rem;
 }
 
 .teams-title {
@@ -93,10 +93,44 @@ body {
 .teams-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-    gap: 1rem;
-    padding: 2rem 0;
+    gap: 0.9rem;
+    padding: 0.75rem 0 1.25rem;
     max-width: 1400px;
     margin: 0 auto;
+}
+
+/* Filters panel (compact) */
+.teams-filters {
+    padding: 0.9rem 1rem;
+    margin: 0 auto 0.75rem;
+    max-width: 900px;
+}
+
+.teams-filters-row {
+    display: grid;
+    grid-template-columns: 1fr minmax(220px, 280px);
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.teams-filters-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+}
+
+.teams-powered {
+    color: rgba(245, 222, 179, 0.75);
+    font-weight: 700;
+    font-size: 0.9rem;
+}
+
+.teams-search.search-container,
+.teams-conference.search-container {
+    max-width: none;
+    margin: 0;
 }
 
 /* Team Widget */
@@ -111,6 +145,7 @@ body {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
     position: relative;
     overflow: hidden;
+    cursor: pointer;
 }
 
 .team-widget::before {
@@ -126,9 +161,13 @@ body {
 }
 
 .team-widget:hover {
-    transform: translateY(-5px);
+    transform: translateY(-6px);
     border-color: #FFD700;
     box-shadow: 0 8px 20px rgba(255, 215, 0, 0.4);
+}
+
+.team-widget:active {
+    transform: translateY(-2px);
 }
 
 .team-widget:hover::before {
@@ -210,11 +249,22 @@ body {
     white-space: nowrap;
 }
 
+.team-widget-info .site-badge {
+    margin-top: 4px;
+    white-space: nowrap;
+}
+
+.team-widget-info p {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+}
+
 /* Search Container */
 .search-container {
     position: relative;
     max-width: 600px;
-    margin: 2rem auto 1rem;
+    margin: 0;
     display: flex;
     align-items: center;
 }
@@ -337,7 +387,17 @@ body {
 
     .search-container {
         max-width: 100%;
-        margin: 1.5rem 1rem 1rem;
+        margin: 0;
+    }
+
+    .teams-filters-row {
+        grid-template-columns: 1fr;
+    }
+
+    .teams-filters-meta {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
     }
 
     .search-input {

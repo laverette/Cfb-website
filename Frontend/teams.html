@@ -5,52 +5,78 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>College Football Teams</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+    <link rel="stylesheet" href="styles/site-theme.css">
     <link rel="stylesheet" href="Resources/Styles/teams.css">
 </head>
 <body>
-    <nav class="navbar bg-gold">
-        <div class="container">
-            <div class="navbar-content">
-                <h1 class="navbar-brand text-Black h2 mb-0 fw-bold" href="#">
-                    My College Football Site 2025
-                </h1>
-                <div class="navbar-nav-buttons">
-                    <a href="index.html" class="navbar-nav-btn">🏠 Home</a>
-                    <a href="weeklypicks.html" class="navbar-nav-btn">📅 Weekly Picks</a>
+    <!-- Site Header -->
+    <nav class="navbar weeklypicks-navbar site-nav">
+      <div class="container-fluid">
+        <div class="navbar-content-weekly site-nav-inner">
+          <button class="hamburger-menu-btn" onclick="toggleMenu()" aria-label="Menu" aria-expanded="false" aria-controls="dropdownMenu">
+            <span></span><span></span><span></span>
+          </button>
+          <div class="dropdown-menu" id="dropdownMenu">
+            <a href="index.html" class="dropdown-item">🏠 Home</a>
+            <a href="weeklypicks.html" class="dropdown-item">📅 Weekly Picks</a>
+            <a href="teams.html" class="dropdown-item">🏈 Teams</a>
+            <a href="prediction-history.html" class="dropdown-item">🧾 History</a>
+            <a href="mypredictions.html" class="dropdown-item">📊 My Predictions</a>
+            <a href="predictor.html" class="dropdown-item">🤖 Model</a>
+            <a href="CFPPredictions.html" class="dropdown-item">🏆 CFP Picks</a>
+            <a href="list.html" class="dropdown-item">👑 Heisman</a>
+            <a href="login.html" class="dropdown-item">🔐 Login</a>
+            <a href="admin.html" class="dropdown-item">🛠️ Admin</a>
+          </div>
+
+          <h1 class="site-title">My College Football Site</h1>
+
+          <div class="navbar-login-section">
+            <div id="loginButtonSection">
+              <a href="login.html" class="navbar-login-btn">Login</a>
+            </div>
+            <div id="userSection" style="display:none;">
+              <p id="userName" class="navbar-user-name"></p>
+              <button id="logoutBtn" class="navbar-logout-btn">Logout</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </nav>
+    <div class="menu-overlay" id="menuOverlay" onclick="closeMenu()"></div>
+
+    <main class="container my-5 page-shell">
+        <div class="teams-header">
+            <h1 class="page-title">College Football Teams</h1>
+            <p class="page-subtitle">Click on any team to view their stats and information</p>
+            
+            <!-- Filters -->
+            <div class="section-card teams-filters">
+                <div class="teams-filters-row">
+                    <div class="search-container teams-search">
+                        <input type="text" id="teamSearch" class="search-input site-input" placeholder="Search by school, mascot, conference, or abbreviation..." autocomplete="off">
+                        <div class="search-icon">🔍</div>
+                        <button id="clearSearch" class="clear-search-btn" style="display: none;">✕</button>
+                    </div>
+                    <div class="search-container teams-conference">
+                        <select id="conferenceFilter" class="search-input site-select" style="padding-right: 20px;">
+                            <option value="">All Conferences</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="teams-filters-meta">
+                    <div class="results-count" id="resultsCount"></div>
+                    <div class="teams-powered">Data powered by CollegeFootballData</div>
                 </div>
             </div>
-        </div>
-        <!-- Login Button - Upper Right -->
-        <div class="navbar-login-button">
-          <div id="loginButtonSection">
-            <a href="login.html" style="background-color: #3E2723; color: #F5F5F5; padding: 8px 16px; border-radius: 6px; text-decoration: none; border: 1px solid #8D6E63; font-weight: bold;">Login</a>
-          </div>
-          
-          <div id="userSection" style="display: none; background-color: #2E2E2E; padding: 10px; border-radius: 8px; border: 1px solid #8D6E63; min-width: 200px;">
-            <p style="color: #FFD700; margin: 0 0 8px 0; text-align: center; font-weight: bold;" id="userName"></p>
-            <div style="text-align: center;">
-              <button id="logoutBtn" style="background-color: #3E2723; color: #F5F5F5; border: 1px solid #8D6E63; padding: 5px 15px; border-radius: 4px; font-size: 12px;">Logout</button>
-            </div>
-          </div>
-        </div>
-    </nav>
-
-    <main class="container my-5">
-        <div class="teams-header">
-            <h1 class="teams-title">College Football Teams</h1>
-            <p class="teams-subtitle">Click on any team to view their stats and information</p>
-            
-            <!-- Search Bar -->
-            <div class="search-container">
-                <input type="text" id="teamSearch" class="search-input" placeholder="Search by college, team name, or mascot..." autocomplete="off">
-                <div class="search-icon">🔍</div>
-                <button id="clearSearch" class="clear-search-btn" style="display: none;">✕</button>
-            </div>
-            <div class="results-count" id="resultsCount"></div>
         </div>
 
         <div class="teams-grid" id="teamsGrid">
             <!-- Team widgets will be generated by JavaScript -->
+        </div>
+        <div id="teamsEmptyState" class="section-card" style="display:none; text-align:center; margin-top: 1rem;">
+            <h3 class="gold-heading" style="margin:0 0 0.5rem 0;">No teams found</h3>
+            <div style="opacity:0.9;">Try another search or choose a different conference.</div>
         </div>
     </main>
 
@@ -92,6 +118,27 @@
             // CFBD often provides `logos: []`
             const logo = Array.isArray(team?.logos) ? team.logos.find(Boolean) : null;
             return logo || '';
+        }
+
+        function normalizeTeamFromCfbd(t) {
+            const teamKey = getTeamKey(t);
+            const school = t?.school || '';
+            const mascot = t?.mascot || '';
+            const abbreviation = t?.abbreviation || '';
+            const conference = t?.conference || '';
+            const logoUrl = logoFromCfbd(t);
+
+            return {
+                teamKey,
+                id: t?.id,
+                school,
+                mascot,
+                abbreviation,
+                conference,
+                logoUrl,
+                // For any legacy search/name code
+                name: school ? `${school}${mascot ? ` ${mascot}` : ''}` : (t?.name || 'Team'),
+            };
         }
 
         // Existing fallback list (kept to avoid breaking the page if CFBD fails)
@@ -270,15 +317,44 @@
             return { collegeName, mascot, fullName: teamName };
         }
 
+        // Build conference dropdown options
+        function populateConferenceFilter(allTeams) {
+            const select = document.getElementById('conferenceFilter');
+            if (!select) return;
+
+            const conferences = Array.from(new Set(
+                (allTeams || [])
+                    .map(t => String(t.conference || '').trim())
+                    .filter(Boolean)
+            )).sort((a, b) => a.localeCompare(b));
+
+            // Preserve current selection if possible
+            const current = select.value || '';
+            select.innerHTML = `<option value="">All Conferences</option>` + conferences
+                .map(c => `<option value="${c}">${c}</option>`)
+                .join('');
+            select.value = conferences.includes(current) ? current : '';
+        }
+
         // Generate team widgets
         function generateTeamWidgets(filteredTeams) {
             const grid = document.getElementById('teamsGrid');
+            const emptyState = document.getElementById('teamsEmptyState');
             grid.innerHTML = ''; // Clear existing widgets
             
+            if (!Array.isArray(filteredTeams) || filteredTeams.length === 0) {
+                if (emptyState) emptyState.style.display = 'block';
+                updateResultsCount(0);
+                return;
+            }
+            if (emptyState) emptyState.style.display = 'none';
+
             filteredTeams.forEach(team => {
                 const widget = document.createElement('a');
                 // Keep existing team.html navigation, but pass a stable key too
-                widget.href = `team.html?teamKey=${encodeURIComponent(team.teamKey || getTeamKey(team))}&name=${encodeURIComponent(team.name)}`;
+                const teamKey = team.teamKey || getTeamKey(team);
+                const teamName = team.name || `${team.school || ''}${team.mascot ? ` ${team.mascot}` : ''}`.trim();
+                widget.href = `team.html?teamKey=${encodeURIComponent(teamKey)}&name=${encodeURIComponent(teamName)}`;
                 widget.className = 'team-widget';
                 
                 const logoUrl = team.logoUrl || (team.logoId ? `https://a.espncdn.com/i/teamlogos/ncaa/500/${team.logoId}.png` : '');
@@ -295,8 +371,12 @@
                         <img src="${logoUrl}" alt="${team.name}" class="team-widget-logo" onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling.style.display='flex';">
                         <div class="team-widget-logo-fallback" style="display: none; width: 60px; height: 60px; background: linear-gradient(135deg, #FFD700, #FFA000); border-radius: 6px; align-items: center; justify-content: center; font-weight: bold; color: #1E1E1E; font-size: 1.2rem;">${fallbackText}</div>
                         <div class="team-widget-info">
-                            <h3 class="team-widget-name">${team.name}</h3>
-                            <p class="team-widget-conference">${team.conference || ''}</p>
+                            <h3 class="team-widget-name">${team.school || team.name}</h3>
+                            <p class="team-widget-conference" style="margin-bottom: 6px;">${team.mascot || ''}</p>
+                            <p class="team-widget-conference" style="margin:0;">
+                              ${team.conference ? `<span class="site-badge">${team.conference}</span>` : ``}
+                              ${team.abbreviation ? `<span class="site-badge" style="margin-left:6px; background: rgba(255,215,0,0.12); color: var(--gold); border: 1px solid rgba(255,215,0,0.35); box-shadow:none;">${team.abbreviation}</span>` : ``}
+                            </p>
                         </div>
                     </div>
                 `;
@@ -308,29 +388,40 @@
             updateResultsCount(filteredTeams.length);
         }
 
-        // Search functionality
+        function applyFilters(allTeams, query, conference) {
+            const searchTerm = String(query || '').toLowerCase().trim();
+            const conf = String(conference || '').trim();
+
+            return (allTeams || []).filter(team => {
+                if (conf && String(team.conference || '').trim() !== conf) return false;
+                if (!searchTerm) return true;
+
+                const fullNameLower = String(team.name || '').toLowerCase();
+                const schoolLower = String(team.school || '').toLowerCase();
+                const mascotLower = String(team.mascot || '').toLowerCase();
+                const conferenceLower = String(team.conference || '').toLowerCase();
+                const abbrLower = String(team.abbreviation || '').toLowerCase();
+
+                return fullNameLower.includes(searchTerm) ||
+                    schoolLower.includes(searchTerm) ||
+                    mascotLower.includes(searchTerm) ||
+                    conferenceLower.includes(searchTerm) ||
+                    abbrLower.includes(searchTerm);
+            });
+        }
+
+        // Search + filter functionality
         function searchTeams(query, allTeams) {
             if (!query || query.trim() === '') {
-                generateTeamWidgets(allTeams);
+                const conf = document.getElementById('conferenceFilter')?.value || '';
+                const filtered = applyFilters(allTeams, '', conf);
+                generateTeamWidgets(filtered);
                 document.getElementById('clearSearch').style.display = 'none';
                 return;
             }
             
-            const searchTerm = query.toLowerCase().trim();
-            const filtered = allTeams.filter(team => {
-                const parsed = parseTeamName(team.name);
-                const fullNameLower = team.name.toLowerCase();
-                const collegeLower = parsed.collegeName.toLowerCase();
-                const mascotLower = parsed.mascot.toLowerCase();
-                const conferenceLower = String(team.conference || '').toLowerCase();
-                const abbrLower = String(team.abbreviation || '').toLowerCase();
-                
-                return fullNameLower.includes(searchTerm) ||
-                       collegeLower.includes(searchTerm) ||
-                       mascotLower.includes(searchTerm) ||
-                       conferenceLower.includes(searchTerm) ||
-                       abbrLower.includes(searchTerm);
-            });
+            const conf = document.getElementById('conferenceFilter')?.value || '';
+            const filtered = applyFilters(allTeams, query, conf);
             
             generateTeamWidgets(filtered);
             document.getElementById('clearSearch').style.display = filtered.length === 0 ? 'none' : 'block';
@@ -339,26 +430,39 @@
         // Update results count
         function updateResultsCount(count) {
             const resultsCount = document.getElementById('resultsCount');
-            if (!window.__ALL_TEAMS__ || count === window.__ALL_TEAMS__.length) {
-                resultsCount.textContent = '';
-            } else {
-                resultsCount.textContent = `Showing ${count} of ${window.__ALL_TEAMS__.length} teams`;
+            if (!resultsCount) return;
+            const total = Array.isArray(window.__ALL_TEAMS__) ? window.__ALL_TEAMS__.length : null;
+            if (!total) {
+                resultsCount.textContent = count ? `Showing ${count} teams` : '';
+                return;
             }
+            resultsCount.textContent = `Showing ${count} of ${total} teams`;
         }
 
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', () => {
             const searchInput = document.getElementById('teamSearch');
+            const conferenceFilter = document.getElementById('conferenceFilter');
 
             function wireSearch(allTeams) {
                 window.__ALL_TEAMS__ = allTeams;
+                populateConferenceFilter(allTeams);
                 generateTeamWidgets(allTeams);
                 searchInput.addEventListener('input', (e) => {
                     searchTeams(e.target.value, allTeams);
                 });
+                conferenceFilter?.addEventListener('change', () => {
+                    const q = searchInput.value || '';
+                    const conf = conferenceFilter.value || '';
+                    const filtered = applyFilters(allTeams, q, conf);
+                    generateTeamWidgets(filtered);
+                    document.getElementById('clearSearch').style.display = filtered.length === 0 ? 'none' : 'block';
+                });
                 document.getElementById('clearSearch').addEventListener('click', () => {
                     searchInput.value = '';
-                    searchTeams('', allTeams);
+                    if (conferenceFilter) conferenceFilter.value = '';
+                    const filtered = applyFilters(allTeams, '', '');
+                    generateTeamWidgets(filtered);
                     searchInput.focus();
                 });
             }
@@ -366,20 +470,21 @@
             // Try CFBD first
             (async () => {
                 try {
+                    // Loading state (themed)
+                    const grid = document.getElementById('teamsGrid');
+                    if (grid) {
+                        grid.innerHTML = `
+                          <div class="section-card" style="grid-column: 1 / -1; text-align:center;">
+                            <div class="gold-heading" style="margin-bottom: 0.25rem;">Loading teams…</div>
+                            <div style="opacity:0.9;">Fetching the latest FBS teams from CFBD.</div>
+                          </div>
+                        `;
+                    }
                     // Per requirement: /.netlify/functions/cfbd?path=/teams/fbs&year=2026
                     const cfbdTeams = await cfbdProxyRequest('/teams/fbs', { year: 2026 });
                     const normalized = (Array.isArray(cfbdTeams) ? cfbdTeams : [])
-                        .map(t => ({
-                            teamKey: getTeamKey(t),
-                            id: t.id,
-                            name: t.school ? `${t.school}${t.mascot ? ` ${t.mascot}` : ''}` : (t.name || t.school || 'Team'),
-                            school: t.school,
-                            mascot: t.mascot,
-                            abbreviation: t.abbreviation,
-                            conference: t.conference,
-                            logoUrl: logoFromCfbd(t),
-                        }))
-                        .sort((a, b) => String(a.name).localeCompare(String(b.name)));
+                        .map(normalizeTeamFromCfbd)
+                        .sort((a, b) => String(a.school || a.name).localeCompare(String(b.school || b.name)));
 
                     if (normalized.length === 0) throw new Error('CFBD returned no teams.');
                     wireSearch(normalized);
@@ -390,12 +495,51 @@
                         teamKey: encodeURIComponent(t.name),
                         logoUrl: t.logoId ? `https://a.espncdn.com/i/teamlogos/ncaa/500/${t.logoId}.png` : '',
                         abbreviation: '',
+                        school: t.name,
+                        mascot: '',
                     }));
                     wireSearch(normalizedFallback);
                 }
             })();
             
         });
+    </script>
+    <script>
+      function closeMenu() {
+        const menu = document.getElementById('dropdownMenu');
+        const button = document.querySelector('.hamburger-menu-btn');
+        const overlay = document.getElementById('menuOverlay');
+        if (!menu || !button || !overlay) return;
+        menu.classList.remove('show');
+        button.classList.remove('active');
+        button.setAttribute('aria-expanded', 'false');
+        overlay.classList.remove('show');
+        document.body.classList.remove('menu-open');
+      }
+
+      function toggleMenu() {
+        const menu = document.getElementById('dropdownMenu');
+        const button = document.querySelector('.hamburger-menu-btn');
+        const overlay = document.getElementById('menuOverlay');
+        if (!menu || !button || !overlay) return;
+        const isOpening = !menu.classList.contains('show');
+        menu.classList.toggle('show');
+        button.classList.toggle('active');
+        button.setAttribute('aria-expanded', isOpening ? 'true' : 'false');
+        overlay.classList.toggle('show', isOpening);
+        document.body.classList.toggle('menu-open', isOpening);
+      }
+
+      document.addEventListener('click', function(event) {
+        const menu = document.getElementById('dropdownMenu');
+        const button = document.querySelector('.hamburger-menu-btn');
+        if (!menu || !button) return;
+        if (!menu.contains(event.target) && !button.contains(event.target)) closeMenu();
+      });
+
+      document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') closeMenu();
+      });
     </script>
 </body>
 </html>
