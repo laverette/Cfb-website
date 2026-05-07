@@ -1,21 +1,20 @@
 /**
- * DELETE /api/admin/games/:gameId
+ * DELETE /api/admin/games/:gameId (rewritten to ?gameId=:splat)
  * TODO: Add admin authentication before production use.
  */
 const { getPool } = require("./db");
 const { json } = require("./_http");
+const { parseGameId, invalidGameIdPayload } = require("./_parseGameId");
 
 exports.handler = async (event) => {
   if (event.httpMethod !== "DELETE") {
     return json(405, { error: "Method not allowed" });
   }
 
-  const rawId = event.queryStringParameters?.gameId;
-  const idStr = rawId != null ? String(rawId).trim() : "";
-  if (!idStr || !/^\d+$/.test(idStr)) {
-    return json(400, { error: "Invalid gameId" });
+  const gameId = parseGameId(event);
+  if (gameId == null || !Number.isFinite(gameId) || gameId < 1) {
+    return json(400, invalidGameIdPayload(event));
   }
-  const gameId = parseInt(idStr, 10);
 
   try {
     const pool = getPool();

@@ -585,12 +585,20 @@
     }
 
     async function deleteSavedGame(gameId) {
+      const id = parseInt(gameId, 10);
+      if (!Number.isFinite(id) || id < 1) {
+        alert('Invalid game id: expected Games.id (database primary key).');
+        return;
+      }
       if (!confirm('Delete this game from Weekly Picks?')) return;
       try {
-        const res = await fetch(`${API_BASE}/api/admin/games/${gameId}`, { method: 'DELETE' });
+        const res = await fetch(`${API_BASE}/api/admin/games/${id}`, { method: 'DELETE' });
         const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.error || res.statusText);
-        loadSavedGamesForSelection();
+        if (!res.ok) {
+          if (data.received) console.error('admin-delete-game', data.received);
+          throw new Error(data.error || res.statusText);
+        }
+        await loadSavedGamesForSelection();
       } catch (e) {
         alert(e.message);
       }

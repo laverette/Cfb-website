@@ -57,7 +57,8 @@
   to = "/.netlify/functions/admin-games-by-week?weekId=:splat"
   status = 200
 
+# Wildcard must be last among /api/admin/games/* routes so week/save/reorder are not captured.
 [[redirects]]
-  from = "/api/admin/games/:gameId"
-  to = "/.netlify/functions/admin-delete-game?gameId=:gameId"
+  from = "/api/admin/games/*"
+  to = "/.netlify/functions/admin-delete-game?gameId=:splat"
   status = 200
