@@ -14,38 +14,28 @@
     <img src="https://cdn-icons-png.flaticon.com/512/1133/1133780.png" alt="American Football" style="width: 100%; height: 100%; object-fit: contain;">
   </div>
   
-  <!-- Navbar -->
-  <nav class="navbar bg-gold weeklypicks-navbar">
+  <nav class="navbar weeklypicks-navbar site-nav">
     <div class="container-fluid">
-      <div class="navbar-content-weekly">
-        <!-- Hamburger Menu Button -->
+      <div class="navbar-content-weekly site-nav-inner">
         <button class="hamburger-menu-btn" onclick="toggleMenu()" aria-label="Menu" aria-expanded="false" aria-controls="dropdownMenu">
           <span></span>
           <span></span>
           <span></span>
         </button>
-        
-        <!-- Dropdown Menu -->
-        <div class="dropdown-menu" id="dropdownMenu">
-          <a href="index.html" class="dropdown-item">🏠 Home</a>
-          <a href="teams.HTML" class="dropdown-item">🏈 Teams</a>
-          <a href="weeklypicks.html" class="dropdown-item">📅 Weekly Picks</a>
-          <a href="mypredictions.html" class="dropdown-item">📊 My Predictions</a>
-          <a href="predictor.html" class="dropdown-item">🤖 Model</a>
-          <a href="CFPPredictions.html" class="dropdown-item">🏆 CFP Picks</a>
-          <a href="list.html" class="dropdown-item">👑 Heisman Players</a>
-        </div>
-        
-        <!-- Tab Buttons in Navbar -->
-        <div class="navbar-tabs">
-          <button class="tab-button active" onclick="openTab(event, 'week11-picks')">Bowl Week Picks</button>
-          <button class="tab-button" onclick="openTab(event, 'week10-results')">Bowl Week Results</button>
-        </div>
-        
-        <div id="auth-nav" class="navbar-login-section"></div>
+        <div class="dropdown-menu" id="dropdownMenu"></div>
+
+        <h1 class="site-title">Weekly Picks</h1>
+
+        <div id="auth-nav" class="navbar-auth-cluster"></div>
       </div>
     </div>
   </nav>
+  <div class="weeklypicks-tabbar">
+    <div class="navbar-tabs weeklypicks-tabbar-inner">
+      <button type="button" class="tab-button active" onclick="openTab(event, 'week11-picks')">Bowl Week Picks</button>
+      <button type="button" class="tab-button" onclick="openTab(event, 'week10-results')">Bowl Week Results</button>
+    </div>
+  </div>
   <div class="menu-overlay" id="menuOverlay" onclick="closeMenu()"></div>
 
   <!-- Week 11 Picks Tab -->
@@ -63,13 +53,12 @@
         <!-- Prediction Form -->
         <form name="predictions" method="POST" id="predictionsForm" netlify data-netlify="true">
           <input type="hidden" name="form-name" value="predictions" />
-          <p>
-            <label>Your Name: 
-              <input id="yourname" name="user" type="text" required />
-            </label>
+          <input type="hidden" name="user" id="predictionsUserIdentity" value="" />
+          <p id="picksLoginGate" class="picks-auth-notice" style="display:none;">
+            Please <a href="login.html?redirect=weeklypicks.html">log in</a> to submit your picks. Your account name will be sent with your entry.
           </p>
-          
-          <!-- Mobile Coach Corso Button (appears after name field, before Game 1) -->
+
+          <!-- Mobile Coach Corso Button (before Game 1) -->
           <div class="mobile-coach-corso">
             <div class="image-section">
               <img width="100%" height="auto" src="https://images.seattletimes.com/wp-content/uploads/2017/05/2459f782f2c946859a21920650fc2c75.jpg?d=2040x1253" alt="Image" class="img-fluid rounded shadow big-img" style="max-height: 300px; object-fit: cover;">
@@ -724,6 +713,8 @@
         activeWeekId = FALLBACK_WEEK_ID;
         // Attempt status check using fallback id (non-blocking)
         try { await checkSubmissionStatus(); } catch { /* ignore */ }
+      } finally {
+        syncPicksAuthState();
       }
     }
 
@@ -789,18 +780,27 @@
     // Logged-in user for legacy Render pick checks (navbar via scripts/auth-ui.js)
     let currentUser = null;
 
-    function syncWeeklyPicksUserFromAuth() {
+    function syncPicksAuthState() {
       currentUser = (window.AuthUI && AuthUI.getCurrentUser()) || null;
-      const nameInput = document.getElementById('yourname');
-      if (nameInput) {
-        nameInput.value = currentUser
-          ? (currentUser.displayName || currentUser.username || '')
+      var loggedIn = !!(window.AuthUI && AuthUI.isLoggedIn());
+      var hidden = document.getElementById('predictionsUserIdentity');
+      var gate = document.getElementById('picksLoginGate');
+      var submitBtn = document.getElementById('submit');
+      if (hidden) {
+        hidden.value = loggedIn && currentUser
+          ? (currentUser.displayName || currentUser.display_name || currentUser.username || '')
           : '';
+      }
+      if (gate) {
+        gate.style.display = loggedIn ? 'none' : 'block';
+      }
+      if (submitBtn && submitBtn.style.display !== 'none') {
+        submitBtn.disabled = !loggedIn;
       }
     }
 
     document.addEventListener('DOMContentLoaded', function() {
-      syncWeeklyPicksUserFromAuth();
+      syncPicksAuthState();
 
       // Phase 1: Load active week + games from backend DB.
       // If this fails, the page continues to use the existing hardcoded games list.
@@ -812,19 +812,17 @@
 
     document.addEventListener('auth:logout', function () {
       currentUser = null;
-      const nameInput = document.getElementById('yourname');
-      if (nameInput) nameInput.value = '';
+      syncPicksAuthState();
     });
 
     document.addEventListener('auth:invalid', function () {
       currentUser = null;
-      const nameInput = document.getElementById('yourname');
-      if (nameInput) nameInput.value = '';
+      syncPicksAuthState();
     });
 
     window.addEventListener('storage', function (e) {
       if (e.key === 'authToken' || e.key === 'currentUser') {
-        syncWeeklyPicksUserFromAuth();
+        syncPicksAuthState();
       }
     });
 
@@ -1040,6 +1038,12 @@
     // Prediction form handler - Submit to Netlify Forms
     document.querySelector('form[name="predictions"]').addEventListener('submit', async function(e) {
       e.preventDefault();
+
+      if (!window.AuthUI || !AuthUI.isLoggedIn()) {
+        alert('Please log in to submit picks.');
+        return;
+      }
+      syncPicksAuthState();
 
       const form = e.target;
       const formData = new FormData(form);

@@ -271,6 +271,77 @@ body {
   gap: 0.5rem;
 }
 
+/* Auth cluster (top-right): title + logout stacked */
+.navbar-auth-cluster {
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.navbar-auth-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-brown);
+  background: rgba(0, 0, 0, 0.12);
+  max-width: 220px;
+}
+
+.navbar-auth-stack .navbar-logout-btn {
+  margin: 0;
+}
+
+button.dropdown-item.auth-dropdown-logout {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  font: inherit;
+  cursor: pointer;
+  border-top: 1px solid rgba(255, 215, 0, 0.15);
+  margin-top: 0.25rem;
+  padding-top: 0.85rem;
+}
+
+button.dropdown-item.auth-dropdown-logout:hover {
+  background-color: rgba(255, 215, 0, 0.2);
+  color: var(--gold);
+}
+
+/* Weekly Picks: bowl tabs sit below the unified site nav */
+.weeklypicks-tabbar {
+  position: relative;
+  z-index: 998;
+  background: linear-gradient(135deg, var(--bg-panel-2), var(--bg-panel));
+  border-bottom: 2px solid var(--border-brown);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.22);
+}
+
+.weeklypicks-tabbar-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0.45rem 1rem;
+}
+
+.picks-auth-notice {
+  padding: 0.85rem 1rem;
+  margin: 0 0 1rem 0;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-brown);
+  background: var(--bg-panel);
+  color: var(--text-main);
+  text-align: center;
+  font-weight: 700;
+}
+
+.picks-auth-notice a {
+  color: var(--gold);
+  font-weight: 900;
+}
+
 .navbar-login-btn,
 .btn-brown,
 .nav-button {

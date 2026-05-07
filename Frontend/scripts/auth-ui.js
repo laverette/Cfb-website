@@ -1,10 +1,23 @@
 /**
- * Shared navbar auth UI: Login vs display name + Logout from localStorage.
- * Expects a container: <div id="auth-nav" class="navbar-login-section"></div>
+ * Site-wide nav: auth cluster + standardized dropdown (single source of truth).
+ * Requires: #dropdownMenu, #auth-nav.navbar-auth-cluster
+ * Admin link visibility: UI hint only (currentUser.role === 'admin'). Server enforces JWT.
  */
 (function () {
   var STORAGE_TOKEN = "authToken";
   var STORAGE_USER = "currentUser";
+
+  var NAV_LINKS = [
+    { href: "index.html", label: "🏠 Home" },
+    { href: "weeklypicks.html", label: "📅 Weekly Picks" },
+    { href: "teams.html", label: "🏈 Teams" },
+    { href: "mypredictions.html", label: "📊 My Picks" },
+    { href: "prediction-history.html", label: "🧾 Pick History" },
+    { href: "CFPPredictions.html", label: "🏆 CFP Picks" },
+    { href: "list.html", label: "👑 Heisman" },
+    { href: "bama.html", label: "🐘 Bama Schedule" },
+    { href: "predictor.html", label: "🤖 Predictor" },
+  ];
 
   function basenameOnly(raw) {
     if (!raw || typeof raw !== "string") return "index.html";
@@ -18,7 +31,6 @@
     return name || "index.html";
   }
 
-  /** login.html?redirect= — only allow simple relative .html names */
   function getLoginHref() {
     var page = basenameOnly(window.location.pathname);
     if (page === "login.html") return "login.html";
@@ -40,7 +52,12 @@
     return !!(localStorage.getItem(STORAGE_TOKEN) && parseUser());
   }
 
-  function buildMarkup() {
+  function isAdminRole(user) {
+    if (!user) return false;
+    return String(user.role || "").toLowerCase() === "admin";
+  }
+
+  function buildAuthClusterMarkup() {
     var loginHref = getLoginHref();
     return (
       '<div id="loginButtonSection">' +
@@ -48,7 +65,7 @@
       loginHref +
       '" class="navbar-login-btn">Login</a>' +
       "</div>" +
-      '<div id="userSection" style="display:none;">' +
+      '<div id="userSection" style="display:none;" class="navbar-auth-stack">' +
       '<p id="userName" class="navbar-user-name"></p>' +
       '<button type="button" id="logoutBtn" class="navbar-logout-btn">Logout</button>' +
       "</div>"
@@ -60,9 +77,13 @@
     var userSection = document.getElementById("userSection");
     var userNameEl = document.getElementById("userName");
     var display =
-      (user && (user.displayName || user.username)) || "User";
+      (user &&
+        (user.displayName ||
+          user.display_name ||
+          user.username)) ||
+      "User";
     if (loginSection) loginSection.style.display = "none";
-    if (userSection) userSection.style.display = "block";
+    if (userSection) userSection.style.display = "flex";
     if (userNameEl) userNameEl.textContent = display;
   }
 
@@ -73,7 +94,7 @@
     if (userSection) userSection.style.display = "none";
   }
 
-  function attachLogoutHandler() {
+  function attachTopLogoutHandler() {
     var btn = document.getElementById("logoutBtn");
     if (!btn || btn.dataset.authUiBound) return;
     btn.dataset.authUiBound = "1";
@@ -85,18 +106,78 @@
   function renderAuthNav() {
     var host = document.getElementById("auth-nav");
     if (!host) return;
-    host.innerHTML = buildMarkup();
+    host.innerHTML = buildAuthClusterMarkup();
     var user = parseUser();
     var token = localStorage.getItem(STORAGE_TOKEN);
     if (user && token) applyLoggedInState(user);
     else applyLoggedOutState();
-    attachLogoutHandler();
+    attachTopLogoutHandler();
+  }
+
+  function populateDropdownMenu() {
+    var menu = document.getElementById("dropdownMenu");
+    if (!menu) return;
+
+    var user = parseUser();
+    var token = localStorage.getItem(STORAGE_TOKEN);
+    var loggedIn = !!(user && token);
+
+    var html = "";
+    for (var i = 0; i < NAV_LINKS.length; i++) {
+      var item = NAV_LINKS[i];
+      html +=
+        '<a href="' +
+        item.href +
+        '" class="dropdown-item">' +
+        item.label +
+        "</a>";
+    }
+
+    if (loggedIn && isAdminRole(user)) {
+      html +=
+        '<a href="admin.html" class="dropdown-item">🛠️ Admin</a>';
+    }
+
+    if (loggedIn) {
+      html +=
+        '<button type="button" class="dropdown-item auth-dropdown-logout" id="dropdownLogoutBtn">🚪 Logout</button>';
+    }
+
+    menu.innerHTML = html;
+
+    var dLogout = document.getElementById("dropdownLogoutBtn");
+    if (dLogout && !dLogout.dataset.authUiBound) {
+      dLogout.dataset.authUiBound = "1";
+      dLogout.addEventListener("click", function (e) {
+        e.preventDefault();
+        window.AuthUI.logout();
+        closeAnyOpenMenu();
+      });
+    }
+  }
+
+  function closeAnyOpenMenu() {
+    var menu = document.getElementById("dropdownMenu");
+    var button = document.querySelector(".hamburger-menu-btn");
+    var overlay = document.getElementById("menuOverlay");
+    if (menu) menu.classList.remove("show");
+    if (button) {
+      button.classList.remove("active");
+      button.setAttribute("aria-expanded", "false");
+    }
+    if (overlay) overlay.classList.remove("show");
+    if (document.body) document.body.classList.remove("menu-open");
+  }
+
+  function refreshAll() {
+    renderAuthNav();
+    populateDropdownMenu();
   }
 
   function logout() {
     localStorage.removeItem(STORAGE_TOKEN);
     localStorage.removeItem(STORAGE_USER);
-    renderAuthNav();
+    refreshAll();
     document.dispatchEvent(new CustomEvent("auth:logout"));
 
     var page = basenameOnly(window.location.pathname);
@@ -106,7 +187,7 @@
   }
 
   function refreshFromStorage() {
-    renderAuthNav();
+    refreshAll();
   }
 
   var profileCheckInFlight = false;
@@ -130,13 +211,11 @@
         if (res.status === 401) {
           localStorage.removeItem(STORAGE_TOKEN);
           localStorage.removeItem(STORAGE_USER);
-          renderAuthNav();
+          refreshAll();
           document.dispatchEvent(new CustomEvent("auth:invalid"));
         }
       })
-      .catch(function () {
-        /* offline */
-      })
+      .catch(function () {})
       .finally(function () {
         profileCheckInFlight = false;
       });
@@ -149,13 +228,15 @@
     getCurrentUser: parseUser,
     isLoggedIn: isLoggedIn,
     renderAuthNav: renderAuthNav,
+    populateDropdownMenu: populateDropdownMenu,
+    refreshAll: refreshAll,
     logout: logout,
     refreshFromStorage: refreshFromStorage,
     maybeValidateToken: maybeValidateToken,
   };
 
   function onReady() {
-    renderAuthNav();
+    refreshAll();
     maybeValidateToken();
   }
 
@@ -167,7 +248,7 @@
 
   window.addEventListener("storage", function (e) {
     if (e.key === STORAGE_TOKEN || e.key === STORAGE_USER) {
-      renderAuthNav();
+      refreshAll();
     }
   });
 })();
