@@ -86,7 +86,10 @@
             </div>
           </div>
 
-          <!-- CFBD Week 1 Picks (dynamic). When enabled, hardcoded games are hidden and these are shown. -->
+          <!-- Database Weekly Picks (dynamic). This is Phase 1: read-only from backend DB. -->
+          <div id="dbWeekPicksContainer" style="display:none;"></div>
+
+          <!-- CFBD Week 1 Picks (dynamic). Kept for later experiments, but OFF in Phase 1. -->
           <div id="cfbdWeek1PicksContainer" style="display:none;"></div>
           
           <p>
@@ -427,11 +430,25 @@
 
     <script>
     // -------------------------------------------------------------------------
-    // CFBD data layer (Phase 7 prep)
+    // CFBD data layer (kept for later; NOT used in Phase 1)
     // This is intentionally OFF by default so we don't break the current picks.
     // When ready, flip to true and replace hard-coded matchups with CFBD games.
     // -------------------------------------------------------------------------
-    const USE_CFBD_GAMES_FOR_WEEKLY_PICKS = true;
+    const USE_CFBD_GAMES_FOR_WEEKLY_PICKS = false;
+
+    // -------------------------------------------------------------------------
+    // Phase 1: Backend-driven week + games (read-only)
+    // Requirements:
+    // - Use GET /api/picks/current-week
+    // - Use GET /api/picks/games/week/{weekId}
+    // - Keep hardcoded fallback if backend fails
+    // - Keep existing login + check-submission + load-previous-submission behavior,
+    //   but use the active week id from backend instead of a hardcoded weekId.
+    // -------------------------------------------------------------------------
+    const API_BASE = 'https://cfb-website.onrender.com/api';
+    const FALLBACK_WEEK_ID = 14; // Only used if backend cannot provide an active week
+    let activeWeekId = null;
+    let activeWeekMeta = null; // { weekNumber, seasonYear, startDate, endDate, isCompleted }
 
     async function cfbdProxyRequest(path, params = {}) {
       const url = new URL('/.netlify/functions/cfbd', window.location.origin);
@@ -507,8 +524,183 @@
       ps.forEach(p => {
         const sel = p.querySelector('select[name^="game"]');
         if (!sel) return;
+        // Do not hide dynamically generated DB/CFBD game rows
+        if (sel.closest('#dbWeekPicksContainer') || sel.closest('#cfbdWeek1PicksContainer')) return;
         p.style.display = 'none';
       });
+    }
+
+    function showActiveWeekBanner(meta) {
+      // Keep styling intact: update the visible title text only
+      const titleEl = document.querySelector('#week11-picks .title');
+      if (!titleEl) return;
+      if (!meta || typeof meta !== 'object') return;
+
+      const weekNumber = meta.weekNumber ?? meta.week_number ?? null;
+      const seasonYear = meta.seasonYear ?? meta.season_year ?? null;
+
+      if (weekNumber && seasonYear) {
+        titleEl.textContent = `Week ${weekNumber} Picks • ${seasonYear}`;
+      } else if (weekNumber) {
+        titleEl.textContent = `Week ${weekNumber} Picks`;
+      }
+    }
+
+    function showNoActiveWeekMessage() {
+      const container = document.getElementById('dbWeekPicksContainer');
+      if (!container) return;
+      container.style.display = 'block';
+      container.innerHTML = `
+        <div class="prediction-results-container" style="margin: 1rem 0;">
+          <div class="prediction-header">
+            <h2 class="prediction-title">⚠️ No Active Week Set</h2>
+          </div>
+          <div style="padding: 1rem; color: #f5deb3;">
+            <p style="margin: 0 0 0.5rem 0;">
+              Weekly Picks can't load yet because the <strong>active week</strong> hasn't been set in the backend.
+            </p>
+            <p style="margin: 0;">
+              Admin: open <a href="admin.html" style="color:#FFD700; font-weight:bold; text-decoration:none;">Admin</a> and set the current week.
+            </p>
+          </div>
+        </div>
+      `;
+    }
+
+    function formatStatusBadge(isCompleted) {
+      const text = isCompleted ? 'Final' : 'Scheduled';
+      // Reuse existing "betting-line" styling so we don't introduce new CSS
+      return `<span class="betting-line" style="margin-left: 6px;">${text}</span>`;
+    }
+
+    function safeText(v) {
+      return String(v ?? '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function renderDbGamesIntoForm(games) {
+      const container = document.getElementById('dbWeekPicksContainer');
+      if (!container) return false;
+
+      const list = Array.isArray(games) ? games : [];
+      if (list.length === 0) return false;
+
+      // Store count + matchup strings for the existing "preview" renderer
+      window.__DB_GAME_COUNT__ = list.length;
+      window.__DB_GAME_MATCHUPS__ = list.map(g => `${g?.awayTeamName || 'TBD'} @ ${g?.homeTeamName || 'TBD'}`);
+
+      container.style.display = 'block';
+      container.innerHTML = list.map((g) => {
+        const gameNumber = Number(g?.gameNumber);
+        const gameId = g?.id;
+        const awayName = g?.awayTeamName || 'TBD';
+        const homeName = g?.homeTeamName || 'TBD';
+        const awayLogo = g?.awayTeamLogoUrl || '';
+        const homeLogo = g?.homeTeamLogoUrl || '';
+        const awayEspnId = g?.awayTeamEspnId;
+        const homeEspnId = g?.homeTeamEspnId;
+        const isCompleted = !!g?.isCompleted;
+
+        // Fields may not exist yet in the API response; show only if present
+        const gameDate = g?.gameDate || g?.game_date || null;
+        const venue = g?.venue || null;
+        const extraLine = (gameDate || venue)
+          ? `<div style="color:#f5deb3; opacity:0.9; margin: 6px 0 8px 0;">
+              ${gameDate ? safeText(new Date(gameDate).toLocaleString()) : ''}
+              ${gameDate && venue ? ' · ' : ''}
+              ${venue ? safeText(venue) : ''}
+            </div>`
+          : '';
+
+        // IMPORTANT:
+        // - Keep select names stable: game1, game2, ...
+        // - Option values are team names so existing preview rendering remains readable.
+        // - Store ESPN IDs + gameId via data- attributes (Phase 2 will read these and call POST /api/picks/submit).
+        return `
+          <p>
+            <label>
+              <span class="games">Game ${gameNumber}:</span>
+              <span class="team-row">
+                <span class="team-link-inline" style="pointer-events:none; cursor:default;">
+                  ${awayLogo ? `<img src="${safeText(awayLogo)}" alt="${safeText(awayName)}" class="team-logo">` : ``}
+                  ${safeText(awayName)}
+                </span>
+                <span style="opacity:0.9;">@</span>
+                <span class="team-link-inline" style="pointer-events:none; cursor:default;">
+                  ${homeLogo ? `<img src="${safeText(homeLogo)}" alt="${safeText(homeName)}" class="team-logo">` : ``}
+                  ${safeText(homeName)}
+                </span>
+                ${formatStatusBadge(isCompleted)}
+              </span>
+              ${extraLine}
+              <select
+                name="game${gameNumber}"
+                data-game-id="${safeText(gameId)}"
+                data-away-team-espn-id="${safeText(awayEspnId)}"
+                data-home-team-espn-id="${safeText(homeEspnId)}"
+              >
+                <option value="" selected disabled>Select winner…</option>
+                <option value="${safeText(awayName)}" data-team-espn-id="${safeText(awayEspnId)}">${safeText(awayName)}</option>
+                <option value="${safeText(homeName)}" data-team-espn-id="${safeText(homeEspnId)}">${safeText(homeName)}</option>
+              </select>
+            </label>
+          </p>
+        `;
+      }).join('');
+
+      // Hide the old hardcoded <p> blocks so styling remains the same
+      hideHardcodedGameRows();
+
+      return true;
+    }
+
+    async function loadActiveWeekAndGames() {
+      try {
+        const resp = await fetch(`${API_BASE}/picks/current-week`, {
+          method: 'GET',
+          headers: { 'accept': 'application/json' }
+        });
+
+        if (resp.status === 404) {
+          activeWeekId = null;
+          activeWeekMeta = null;
+          showNoActiveWeekMessage();
+          return;
+        }
+
+        if (!resp.ok) throw new Error(`Failed to load current week (${resp.status})`);
+
+        const week = await resp.json();
+        activeWeekId = week?.id ?? null;
+        activeWeekMeta = week ?? null;
+
+        if (!activeWeekId) {
+          showNoActiveWeekMessage();
+          return;
+        }
+
+        showActiveWeekBanner(week);
+
+        const gamesResp = await fetch(`${API_BASE}/picks/games/week/${activeWeekId}`, {
+          method: 'GET',
+          headers: { 'accept': 'application/json' }
+        });
+        if (!gamesResp.ok) throw new Error(`Failed to load games for week (${gamesResp.status})`);
+
+        const gamesBody = await gamesResp.json().catch(() => ({}));
+        const built = renderDbGamesIntoForm(gamesBody?.games || []);
+
+        // If we successfully built dynamic games, re-run submission status logic using the active week id.
+        // If not, allow existing hardcoded fallback to remain visible.
+        if (built) {
+          await checkSubmissionStatus();
+        }
+      } catch (e) {
+        // Backend failed. Keep the existing hardcoded games visible.
+        // Still set a clearly-named fallback week id so "check submission" can work when possible.
+        activeWeekId = FALLBACK_WEEK_ID;
+        // Attempt status check using fallback id (non-blocking)
+        try { await checkSubmissionStatus(); } catch { /* ignore */ }
+      }
     }
 
     function buildWeek1PicksFromGames({ games, teamsIndex }) {
@@ -593,31 +785,12 @@
         showLoginButton();
       }
 
-      // Optional CFBD smoke test (does NOT alter the page unless enabled)
-      if (USE_CFBD_GAMES_FOR_WEEKLY_PICKS) {
-        const year = 2026;
-        const week = 1;
-        const seasonType = 'regular';
+      // Phase 1: Load active week + games from backend DB.
+      // If this fails, the page continues to use the existing hardcoded games list.
+      loadActiveWeekAndGames();
 
-        Promise.allSettled([
-          loadWeeklyPicksGamesFromCfbd({ year, week, seasonType }),
-          loadTeamsIndexFromCfbd({ year }),
-        ])
-          .then(([gamesRes, teamsRes]) => {
-            if (gamesRes.status !== 'fulfilled') return; // fail silently -> fallback to hardcoded
-            const games = gamesRes.value;
-            const teamsIndex = teamsRes.status === 'fulfilled' ? teamsRes.value : [];
-
-            // Build Week 1 picks from Saturday Aug 29, 2026 games
-            const built = buildWeek1PicksFromGames({ games, teamsIndex });
-            if (built) {
-              hideHardcodedGameRows();
-            }
-          })
-          .catch(() => {
-            // fail silently -> fallback to hardcoded
-          });
-      }
+      // Optional CFBD smoke test (kept for later; OFF in Phase 1)
+      // if (USE_CFBD_GAMES_FOR_WEEKLY_PICKS) { ... }
     });
 
     // Logout handler
@@ -654,7 +827,8 @@
       if (userSection) userSection.style.display = 'none';
     }
 
-    const weekId = 14; // Update this to match your week_id from database (check Weeks table)
+    // Active week id is loaded from backend. Only fall back if backend fails.
+    // NOTE: Do not use FALLBACK_WEEK_ID unless the backend is unreachable.
 
     // Check if user has already submitted predictions for this week
     async function checkSubmissionStatus() {
@@ -663,8 +837,10 @@
         return; // Not logged in, can't check
       }
 
+      const weekIdToUse = activeWeekId ?? FALLBACK_WEEK_ID;
+
       try {
-        const response = await fetch(`https://cfb-website.onrender.com/api/picks/check-submission/${weekId}`, {
+        const response = await fetch(`${API_BASE}/picks/check-submission/${weekIdToUse}`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${authToken}`,
@@ -768,8 +944,10 @@
       const authToken = localStorage.getItem('authToken');
       if (!authToken) return;
 
+      const weekIdToUse = activeWeekId ?? FALLBACK_WEEK_ID;
+
       try {
-        const response = await fetch(`https://cfb-website.onrender.com/api/picks/week/${weekId}`, {
+        const response = await fetch(`${API_BASE}/picks/week/${weekIdToUse}`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${authToken}`,
@@ -788,16 +966,26 @@
                 const select = document.querySelector(`select[name="game${gameNumber}"]`);
                 
                 if (select) {
-                  // Find the option that matches the picked team
-                  const options = select.querySelectorAll('option');
-                  options.forEach(option => {
-                    const optionValue = option.value;
-                    const espnId = teamCodeToEspnId[optionValue];
-                    
-                    if (espnId === pick.pickedTeamEspnId) {
+                  // Prefer matching by option data-team-espn-id (DB-driven selects)
+                  const options = Array.from(select.querySelectorAll('option'));
+                  let matched = false;
+                  for (const option of options) {
+                    const optEspnId = option.getAttribute('data-team-espn-id');
+                    if (optEspnId && Number(optEspnId) === Number(pick.pickedTeamEspnId)) {
                       option.selected = true;
+                      matched = true;
+                      break;
                     }
-                  });
+                  }
+
+                  // Fallback: match the legacy hardcoded options by team code mapping
+                  if (!matched) {
+                    options.forEach(option => {
+                      const optionValue = option.value;
+                      const espnId = teamCodeToEspnId[optionValue];
+                      if (espnId === pick.pickedTeamEspnId) option.selected = true;
+                    });
+                  }
                 }
               });
             }
@@ -840,6 +1028,11 @@
     };
 
     // No longer need to load games from API - we use game_number (1-12) directly
+    // Phase 2 hook:
+    // - When ready, replace the Netlify Forms POST with a call to:
+    //   POST ${API_BASE}/picks/submit
+    // - Use the select's data-game-id and the selected option's data-team-espn-id
+    //   to build the payload for SubmitPicksRequest.
 
     // Submission status check removed - no authentication required
 
@@ -854,8 +1047,10 @@
       const missingPicks = [];
 
       const gameCount =
-        (USE_CFBD_GAMES_FOR_WEEKLY_PICKS && typeof window.__CFBD_GAME_COUNT__ === 'number' && window.__CFBD_GAME_COUNT__ > 0)
-          ? window.__CFBD_GAME_COUNT__
+        (typeof window.__DB_GAME_COUNT__ === 'number' && window.__DB_GAME_COUNT__ > 0)
+          ? window.__DB_GAME_COUNT__
+          : (USE_CFBD_GAMES_FOR_WEEKLY_PICKS && typeof window.__CFBD_GAME_COUNT__ === 'number' && window.__CFBD_GAME_COUNT__ > 0)
+            ? window.__CFBD_GAME_COUNT__
           : 12;
 
       for (let i = 1; i <= gameCount; i++) {
@@ -918,6 +1113,8 @@
       
       const gameData = (USE_CFBD_GAMES_FOR_WEEKLY_PICKS && Array.isArray(window.__CFBD_GAME_MATCHUPS__) && window.__CFBD_GAME_MATCHUPS__.length)
         ? window.__CFBD_GAME_MATCHUPS__
+        : (Array.isArray(window.__DB_GAME_MATCHUPS__) && window.__DB_GAME_MATCHUPS__.length)
+          ? window.__DB_GAME_MATCHUPS__
         : [
           "#6 Ole Miss vs #3 Georgia",
           "#9 Alabama vs #1 Indiana",
