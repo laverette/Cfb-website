@@ -5,3 +5,58 @@
 [dev]
   publish = "Frontend"
   functions = "netlify/functions"
+
+[[redirects]]
+  from = "/api/picks/current-week"
+  to = "/.netlify/functions/picks-current-week"
+  status = 200
+
+[[redirects]]
+  from = "/api/picks/games/week/:weekId"
+  to = "/.netlify/functions/picks-games-by-week?weekId=:weekId"
+  status = 200
+
+[[redirects]]
+  from = "/api/admin/current-week"
+  to = "/.netlify/functions/admin-current-week"
+  status = 200
+
+[[redirects]]
+  from = "/api/admin/set-current-week"
+  to = "/.netlify/functions/admin-set-current-week"
+  status = 200
+
+[[redirects]]
+  from = "/api/admin/weeks"
+  to = "/.netlify/functions/admin-weeks"
+  status = 200
+
+[[redirects]]
+  from = "/api/admin/create-week"
+  to = "/.netlify/functions/admin-create-week"
+  status = 200
+
+[[redirects]]
+  from = "/api/admin/cfbd-games"
+  to = "/.netlify/functions/admin-cfbd-games"
+  status = 200
+
+[[redirects]]
+  from = "/api/admin/games/save-week-games"
+  to = "/.netlify/functions/admin-save-week-games"
+  status = 200
+
+[[redirects]]
+  from = "/api/admin/games/reorder"
+  to = "/.netlify/functions/admin-reorder-games"
+  status = 200
+
+[[redirects]]
+  from = "/api/admin/games/week/:weekId"
+  to = "/.netlify/functions/admin-games-by-week?weekId=:weekId"
+  status = 200
+
+[[redirects]]
+  from = "/api/admin/games/:gameId"
+  to = "/.netlify/functions/admin-delete-game?gameId=:gameId"
+  status = 200

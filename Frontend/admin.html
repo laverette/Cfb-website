@@ -156,6 +156,57 @@
       padding: 20px;
       color: #FFD700;
     }
+    .admin-todo-banner {
+      background: #3E2723;
+      border: 1px solid #FFD700;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 20px;
+      color: #f5deb3;
+      font-size: 0.95rem;
+    }
+    .cfbd-game-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 10px;
+      margin: 6px 0;
+      background: #1E1E1E;
+      border: 1px solid #8D6E63;
+      border-radius: 6px;
+    }
+    .cfbd-game-row input[type="checkbox"] {
+      margin-top: 4px;
+      flex-shrink: 0;
+    }
+    .saved-game-row {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 10px;
+      align-items: center;
+      padding: 10px;
+      margin: 6px 0;
+      background: #1E1E1E;
+      border: 1px solid #8D6E63;
+      border-radius: 6px;
+    }
+    .saved-game-row input[type="number"] {
+      width: 72px;
+      padding: 8px;
+      border-radius: 6px;
+      border: 1px solid #8D6E63;
+      background: #1E1E1E;
+      color: #F5F5F5;
+    }
+    .form-row-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+    @media (max-width: 768px) {
+      .form-row-3 { grid-template-columns: 1fr; }
+      .saved-game-row { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
@@ -190,427 +241,397 @@
 
   <div class="admin-container page-shell">
     <h1 style="color: #FFD700; text-align: center; margin-bottom: 30px;">🏈 Admin Panel</h1>
-    
-    <!-- Current Week Section -->
+
+    <div class="admin-todo-banner">
+      <strong>Security TODO:</strong> Admin Netlify functions are not authenticated yet. Add a shared secret header, Netlify Identity, or JWT validation before exposing this page publicly.
+    </div>
+
+    <!-- Active week (quick view) -->
     <div class="admin-section">
-      <h2>Current Week Settings</h2>
+      <h2>Active week</h2>
       <div id="currentWeekInfo" class="loading">Loading...</div>
-      <div class="form-group">
-        <label>Season Year:</label>
-        <input type="number" id="seasonYear" value="2025" min="2020" max="2030">
+      <div class="form-row-3">
+        <div class="form-group">
+          <label>Season year</label>
+          <input type="number" id="seasonYear" value="2026" min="2020" max="2035">
+        </div>
+        <div class="form-group">
+          <label>Week number</label>
+          <input type="number" id="weekNumber" value="1" min="1" max="20">
+        </div>
+        <div class="form-group" style="align-self: end;">
+          <button type="button" class="btn btn-primary" onclick="setCurrentWeekFromInputs()">Create if missing &amp; set active</button>
+        </div>
       </div>
-      <div class="form-group">
-        <label>Week Number:</label>
-        <input type="number" id="weekNumber" value="12" min="1" max="15">
-      </div>
-      <button class="btn btn-primary" onclick="setCurrentWeek()">Set Current Week</button>
       <div id="weekStatus"></div>
     </div>
 
-    <!-- Fetch Week Schedule Section -->
+    <!-- Weekly Picks Games -->
     <div class="admin-section">
-      <h2>Fetch Week Schedule</h2>
-      <p>Fetch all games for a specific week from the College Football Data API</p>
-      <div class="form-group">
-        <label>Year:</label>
-        <input type="number" id="fetchYear" value="2025" min="2020" max="2030">
-      </div>
-      <div class="form-group">
-        <label>Week:</label>
-        <input type="number" id="fetchWeek" value="12" min="1" max="15">
-      </div>
-      <button class="btn btn-primary" onclick="fetchWeekSchedule()">Fetch Week Schedule</button>
-      <div id="fetchStatus"></div>
-    </div>
+      <h2>Weekly Picks Games</h2>
+      <p style="color:#f5deb3; margin-bottom:1rem;">Choose a week, fetch CFBD schedule server-side, pick games, save to MySQL. Weekly Picks reads from the same <code style="color:#FFD700;">Games</code> rows.</p>
 
-    <!-- Manage Games Section -->
-    <div class="admin-section">
-      <h2>Manage Games for Current Week</h2>
-      <div id="gamesContainer" class="loading">Loading games...</div>
-    </div>
-  </div>
+      <div class="form-group">
+        <label>Week to edit</label>
+        <select id="weekSelect"></select>
+        <button type="button" class="btn btn-secondary" onclick="refreshWeeks()">Refresh week list</button>
+        <button type="button" class="btn btn-primary" onclick="setActiveFromSelection()">Set selected week as active</button>
+      </div>
 
-  <!-- Game Replacement Modal -->
-  <div id="gameModal" class="modal">
-    <div class="modal-content">
-      <span class="close" onclick="closeGameModal()">&times;</span>
-      <h2 style="color: #FFD700;">Select Replacement Game</h2>
-      <input type="text" id="gameSearch" class="search-box" placeholder="Search games by team name..." onkeyup="filterGames()">
-      <div id="availableGames" class="loading">Loading available games...</div>
+      <h3 style="color:#FFD700; font-size:1.1rem; margin-top:1.25rem;">Create week</h3>
+      <div class="form-row-3">
+        <div class="form-group">
+          <label>Season year</label>
+          <input type="number" id="createSeasonYear" value="2026" min="2020" max="2035">
+        </div>
+        <div class="form-group">
+          <label>Week number</label>
+          <input type="number" id="createWeekNumber" value="1" min="1" max="20">
+        </div>
+        <div class="form-group" style="align-self: end;">
+          <button type="button" class="btn btn-secondary" onclick="createWeek()">Create week</button>
+        </div>
+      </div>
+      <div id="createWeekStatus"></div>
+
+      <h3 style="color:#FFD700; font-size:1.1rem; margin-top:1.25rem;">Fetch CFBD games</h3>
+      <div class="form-row-3">
+        <div class="form-group">
+          <label>Season year</label>
+          <input type="number" id="cfbdSeasonYear" value="2026" min="2020" max="2035">
+        </div>
+        <div class="form-group">
+          <label>Week number</label>
+          <input type="number" id="cfbdWeekNumber" value="1" min="1" max="20">
+        </div>
+        <div class="form-group">
+          <label>Season type</label>
+          <select id="cfbdSeasonType">
+            <option value="regular" selected>regular</option>
+            <option value="postseason">postseason</option>
+          </select>
+        </div>
+      </div>
+      <button type="button" class="btn btn-primary" onclick="fetchCfbdGames()">Fetch CFBD games</button>
+      <div id="cfbdFetchStatus"></div>
+
+      <input type="text" id="cfbdSearch" class="search-box" placeholder="Filter CFBD list by team name..." oninput="renderCfbdList()">
+
+      <div id="cfbdList"></div>
+      <button type="button" class="btn btn-primary" onclick="saveSelectedGames()">Save selected games to this week</button>
+      <div id="saveGamesStatus"></div>
+
+      <h3 style="color:#FFD700; font-size:1.1rem; margin-top:1.5rem;">Saved games for selected week</h3>
+      <p style="color:#f5deb3; font-size:0.9rem;">Edit slot numbers, then apply reorder. Delete removes one row from <code style="color:#FFD700;">Games</code>.</p>
+      <div id="savedGamesContainer" class="loading">Select a week to load saved games.</div>
+      <button type="button" class="btn btn-secondary" onclick="applyReorder()">Apply reorder</button>
+      <div id="reorderStatus"></div>
     </div>
   </div>
 
   <script>
-    // TODO: Update this to your actual API URL
-    // Options:
-    // - Railway: 'https://yourapp.up.railway.app/api'
-    // - Render: 'https://yourapp.onrender.com/api'
-    // - Local: 'http://localhost:5000/api'
-    const API_BASE = 'https://cfb-website.onrender.com/api'; // UPDATE THIS TO YOUR ACTUAL API URL
-    let currentWeekId = null;
-    let currentYear = null;
-    let currentWeek = null;
-    let allAvailableGames = [];
-    let selectedGameNumber = null;
+    /**
+     * Same-origin Netlify API (no Render).
+     * TODO: Send auth headers once admin functions enforce authentication.
+     */
+    const API_BASE = '';
 
-    // Check if user is admin
-    async function checkAdmin() {
-      const authToken = localStorage.getItem('authToken');
-      if (!authToken) {
-        window.location.href = 'login.html';
-        return;
-      }
+    let activeWeekNorm = null;
+    let cfbdGamesCache = [];
 
+    function normWeek(d) {
+      if (!d || d.error) return null;
+      return {
+        id: d.id,
+        seasonYear: d.season_year ?? d.seasonYear,
+        weekNumber: d.week_number ?? d.weekNumber,
+      };
+    }
+
+    function selectedWeekId() {
+      const v = document.getElementById('weekSelect').value;
+      const n = parseInt(v, 10);
+      return Number.isFinite(n) ? n : null;
+    }
+
+    async function refreshWeeks() {
       try {
-        const response = await fetch(`${API_BASE}/admin/check-admin`, {
-          headers: {
-            'Authorization': `Bearer ${authToken}`,
-            'Content-Type': 'application/json'
-          }
-        });
-
-        if (!response.ok) {
-          if (response.status === 401 || response.status === 403) {
-            alert('You do not have admin access. Redirecting to home...');
-            window.location.href = 'index.html';
-            return;
-          } else if (response.status === 404) {
-            console.error('API endpoint not found. Is the API deployed?');
-            alert('API endpoint not found. Please check if the API is deployed and running.');
-            return;
-          }
+        const res = await fetch(`${API_BASE}/api/admin/weeks`);
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || res.statusText);
+        const weeks = data.weeks || [];
+        const sel = document.getElementById('weekSelect');
+        const prev = sel.value;
+        sel.innerHTML = weeks.length
+          ? weeks.map(w => `<option value="${w.id}">ID ${w.id} — Week ${w.week_number}, ${w.season_year}</option>`).join('')
+          : '<option value="">(no weeks yet)</option>';
+        if (prev && [...sel.options].some(o => o.value === prev)) sel.value = prev;
+        else if (activeWeekNorm && [...sel.options].some(o => o.value === String(activeWeekNorm.id))) {
+          sel.value = String(activeWeekNorm.id);
         }
-      } catch (error) {
-        console.error('Error checking admin status:', error);
-        alert(`Error connecting to API: ${error.message}\n\nPlease verify:\n1. The API is deployed and running\n2. The API URL is correct: ${API_BASE}`);
+        loadSavedGamesForSelection();
+      } catch (e) {
+        console.error(e);
+        document.getElementById('weekSelect').innerHTML = '<option value="">Error loading weeks</option>';
       }
     }
 
-    // Load current week info
     async function loadCurrentWeek() {
+      const el = document.getElementById('currentWeekInfo');
       try {
-        const response = await fetch(`${API_BASE}/picks/current-week`);
-        if (response.ok) {
-          const data = await response.json();
-          currentWeekId = data.id;
-          currentYear = data.seasonYear;
-          currentWeek = data.weekNumber;
-          
-          document.getElementById('currentWeekInfo').innerHTML = `
-            <p><strong>Current Week:</strong> Week ${data.weekNumber}, ${data.seasonYear}</p>
-            <p><strong>Week ID:</strong> ${data.id}</p>
-          `;
-          
-          document.getElementById('seasonYear').value = data.seasonYear;
-          document.getElementById('weekNumber').value = data.weekNumber;
-          document.getElementById('fetchYear').value = data.seasonYear;
-          document.getElementById('fetchWeek').value = data.weekNumber;
-          
-          loadGames();
-        } else if (response.status === 404) {
-          document.getElementById('currentWeekInfo').innerHTML = `
-            <p style="color: #f44336;">API endpoint not found (404)</p>
-            <p style="color: #f44336; font-size: 0.9em;">Please check if the API is deployed at: ${API_BASE}</p>
-          `;
-        } else {
-          const errorText = await response.text();
-          document.getElementById('currentWeekInfo').innerHTML = `
-            <p style="color: #f44336;">No current week set</p>
-            <p style="color: #f44336; font-size: 0.9em;">Status: ${response.status}</p>
-          `;
+        const res = await fetch(`${API_BASE}/api/picks/current-week`);
+        const data = await res.json().catch(() => ({}));
+        if (res.status === 404) {
+          activeWeekNorm = null;
+          el.innerHTML = '<p style="color:#f5deb3;">No active week set. Create a week and set it active below.</p>';
+          return;
         }
-      } catch (error) {
-        console.error('Error loading current week:', error);
-        document.getElementById('currentWeekInfo').innerHTML = `
-          <p style="color: #f44336;">Error loading current week</p>
-          <p style="color: #f44336; font-size: 0.9em;">${error.message}</p>
-          <p style="color: #f44336; font-size: 0.9em;">API URL: ${API_BASE}</p>
+        if (!res.ok) throw new Error(data.error || res.statusText);
+        activeWeekNorm = normWeek(data);
+        el.innerHTML = `
+          <p><strong>Active week:</strong> Week ${activeWeekNorm.weekNumber}, ${activeWeekNorm.seasonYear}</p>
+          <p><strong>Week ID:</strong> ${activeWeekNorm.id}</p>
         `;
+        document.getElementById('seasonYear').value = activeWeekNorm.seasonYear;
+        document.getElementById('weekNumber').value = activeWeekNorm.weekNumber;
+        document.getElementById('cfbdSeasonYear').value = activeWeekNorm.seasonYear;
+        document.getElementById('cfbdWeekNumber').value = activeWeekNorm.weekNumber;
+      } catch (e) {
+        console.error(e);
+        el.innerHTML = `<p style="color:#f44336;">${e.message}</p>`;
       }
     }
 
-    // Set current week
-    async function setCurrentWeek() {
-      const authToken = localStorage.getItem('authToken');
-      if (!authToken) {
-        alert('Please log in first');
-        return;
-      }
-
-      const year = parseInt(document.getElementById('seasonYear').value);
-      const week = parseInt(document.getElementById('weekNumber').value);
-
+    async function setCurrentWeekFromInputs() {
+      const seasonYear = parseInt(document.getElementById('seasonYear').value, 10);
+      const weekNumber = parseInt(document.getElementById('weekNumber').value, 10);
+      document.getElementById('weekStatus').innerHTML = '';
       try {
-        const response = await fetch(`${API_BASE}/admin/set-current-week`, {
+        const res = await fetch(`${API_BASE}/api/admin/set-current-week`, {
           method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${authToken}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            weekNumber: week,
-            seasonYear: year
-          })
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ seasonYear, weekNumber }),
         });
-
-        if (response.ok) {
-          const data = await response.json();
-          document.getElementById('weekStatus').innerHTML = `
-            <div class="status-message status-success">Current week set successfully!</div>
-          `;
-          loadCurrentWeek();
-        } else if (response.status === 404) {
-          document.getElementById('weekStatus').innerHTML = `
-            <div class="status-message status-error">
-              API endpoint not found (404).<br>
-              Please verify the API is deployed and running at: ${API_BASE}
-            </div>
-          `;
-        } else {
-          let errorMessage = `Error: ${response.status} ${response.statusText}`;
-          try {
-            const error = await response.json();
-            errorMessage = error.message || errorMessage;
-          } catch {
-            const errorText = await response.text();
-            if (errorText) errorMessage += ` - ${errorText}`;
-          }
-          document.getElementById('weekStatus').innerHTML = `
-            <div class="status-message status-error">${errorMessage}</div>
-          `;
-        }
-      } catch (error) {
-        document.getElementById('weekStatus').innerHTML = `
-          <div class="status-message status-error">
-            Network Error: ${error.message}<br>
-            <small>Check if the API is running at: ${API_BASE}</small>
-          </div>
-        `;
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || res.statusText);
+        document.getElementById('weekStatus').innerHTML =
+          `<div class="status-message status-success">Saved. Week ID ${data.weekId}</div>`;
+        await loadCurrentWeek();
+        await refreshWeeks();
+      } catch (e) {
+        document.getElementById('weekStatus').innerHTML =
+          `<div class="status-message status-error">${e.message}</div>`;
       }
     }
 
-    // Fetch week schedule
-    async function fetchWeekSchedule() {
-      const authToken = localStorage.getItem('authToken');
-      if (!authToken) {
-        alert('Please log in first');
-        return;
-      }
-
-      const year = parseInt(document.getElementById('fetchYear').value);
-      const week = parseInt(document.getElementById('fetchWeek').value);
-
-      document.getElementById('fetchStatus').innerHTML = '<div class="loading">Fetching games...</div>';
-
+    async function createWeek() {
+      const season_year = parseInt(document.getElementById('createSeasonYear').value, 10);
+      const week_number = parseInt(document.getElementById('createWeekNumber').value, 10);
+      document.getElementById('createWeekStatus').innerHTML = '';
       try {
-        const response = await fetch(`${API_BASE}/admin/fetch-week-schedule`, {
+        const res = await fetch(`${API_BASE}/api/admin/create-week`, {
           method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${authToken}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            year: year,
-            week: week
-          })
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ season_year, week_number }),
         });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || res.statusText);
+        document.getElementById('createWeekStatus').innerHTML =
+          `<div class="status-message status-success">${data.message || 'OK'} — ID ${data.week?.id}</div>`;
+        await refreshWeeks();
+        if (data.week?.id) {
+          document.getElementById('weekSelect').value = String(data.week.id);
+          loadSavedGamesForSelection();
+        }
+      } catch (e) {
+        document.getElementById('createWeekStatus').innerHTML =
+          `<div class="status-message status-error">${e.message}</div>`;
+      }
+    }
 
-        if (response.ok) {
-          const data = await response.json();
-          document.getElementById('fetchStatus').innerHTML = `
-            <div class="status-message status-success">
-              Successfully fetched ${data.gamesInserted} games for Week ${week}, ${year}!
+    async function setActiveFromSelection() {
+      const id = selectedWeekId();
+      if (!id) return alert('Select a week first.');
+      const res = await fetch(`${API_BASE}/api/admin/weeks`);
+      const data = await res.json().catch(() => ({}));
+      const w = (data.weeks || []).find(x => x.id === id);
+      if (!w) return alert('Week not found.');
+      document.getElementById('seasonYear').value = w.season_year;
+      document.getElementById('weekNumber').value = w.week_number;
+      await setCurrentWeekFromInputs();
+    }
+
+    async function fetchCfbdGames() {
+      const season_year = parseInt(document.getElementById('cfbdSeasonYear').value, 10);
+      const week_number = parseInt(document.getElementById('cfbdWeekNumber').value, 10);
+      const season_type = document.getElementById('cfbdSeasonType').value;
+      document.getElementById('cfbdFetchStatus').innerHTML = '<div class="loading">Loading CFBD…</div>';
+      try {
+        const q = new URLSearchParams({ season_year, week_number, season_type });
+        const res = await fetch(`${API_BASE}/api/admin/cfbd-games?${q}`);
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || data.detail || res.statusText);
+        cfbdGamesCache = data.games || [];
+        document.getElementById('cfbdFetchStatus').innerHTML =
+          `<div class="status-message status-success">${cfbdGamesCache.length} games loaded</div>`;
+        renderCfbdList();
+      } catch (e) {
+        document.getElementById('cfbdFetchStatus').innerHTML =
+          `<div class="status-message status-error">${e.message}</div>`;
+        cfbdGamesCache = [];
+        document.getElementById('cfbdList').innerHTML = '';
+      }
+    }
+
+    function renderCfbdList() {
+      const box = document.getElementById('cfbdList');
+      const q = (document.getElementById('cfbdSearch').value || '').trim().toLowerCase();
+      const list = cfbdGamesCache.filter(g => {
+        if (!q) return true;
+        const t = `${g.away_team_name} ${g.home_team_name}`.toLowerCase();
+        return t.includes(q);
+      });
+      if (!list.length) {
+        box.innerHTML = '<p style="color:#f5deb3;">No games to show. Fetch CFBD first.</p>';
+        return;
+      }
+      box.innerHTML = list.map((g) => `
+        <div class="cfbd-game-row">
+          <input type="checkbox" class="cfbd-pick" data-cfbd-id="${g.cfbd_game_id}" id="cfbd-${g.cfbd_game_id}">
+          <label for="cfbd-${g.cfbd_game_id}" style="margin:0; cursor:pointer; flex:1;">
+            <strong>${g.away_team_name} @ ${g.home_team_name}</strong>
+            <span class="betting-line" style="margin-left:8px;">${g.is_completed ? 'Final' : 'Scheduled'}</span><br>
+            <small style="color:#f5deb3;">CFBD #${g.cfbd_game_id} · ${g.game_date || ''} ${g.venue ? '· ' + g.venue : ''}</small>
+          </label>
+        </div>
+      `).join('');
+    }
+
+    async function saveSelectedGames() {
+      const week_id = selectedWeekId();
+      if (!week_id) return alert('Select a week in “Week to edit”.');
+      const checks = [...document.querySelectorAll('.cfbd-pick:checked')];
+      if (!checks.length) return alert('Select at least one CFBD game.');
+      const games = [];
+      let n = 1;
+      for (const c of checks) {
+        const cfbdId = parseInt(c.getAttribute('data-cfbd-id'), 10);
+        const g = cfbdGamesCache.find(x => x.cfbd_game_id === cfbdId);
+        if (!g) continue;
+        games.push({
+          cfbd_game_id: g.cfbd_game_id,
+          game_number: n++,
+          home_team_espn_id: g.home_team_espn_id,
+          away_team_espn_id: g.away_team_espn_id,
+          home_team_name: g.home_team_name,
+          away_team_name: g.away_team_name,
+          home_team_logo_url: g.home_team_logo_url || null,
+          away_team_logo_url: g.away_team_logo_url || null,
+          game_date: g.game_date,
+          venue: g.venue,
+          betting_line: null,
+          is_completed: g.is_completed,
+        });
+      }
+      document.getElementById('saveGamesStatus').innerHTML = '';
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/games/save-week-games`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ week_id, games }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || data.hint || res.statusText);
+        document.getElementById('saveGamesStatus').innerHTML =
+          `<div class="status-message status-success">Saved ${data.games?.length || 0} games</div>`;
+        loadSavedGamesForSelection();
+      } catch (e) {
+        document.getElementById('saveGamesStatus').innerHTML =
+          `<div class="status-message status-error">${e.message}</div>`;
+      }
+    }
+
+    async function loadSavedGamesForSelection() {
+      const weekId = selectedWeekId();
+      const el = document.getElementById('savedGamesContainer');
+      if (!weekId) {
+        el.innerHTML = '<p style="color:#f5deb3;">Select a week.</p>';
+        return;
+      }
+      el.innerHTML = '<div class="loading">Loading…</div>';
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/games/week/${weekId}`);
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || data.hint || res.statusText);
+        const games = data.games || [];
+        if (!games.length) {
+          el.innerHTML = '<p style="color:#f5deb3;">No games saved for this week yet.</p>';
+          return;
+        }
+        el.innerHTML = games.map(g => `
+          <div class="saved-game-row" data-game-id="${g.id}">
+            <div>
+              <strong>Game <span class="gn">${g.game_number}</span>:</strong>
+              ${g.away_team_name} @ ${g.home_team_name}
+              <br><small style="color:#f5deb3;">DB id ${g.id}${g.cfbd_game_id != null ? ` · CFBD ${g.cfbd_game_id}` : ''}</small>
             </div>
-          `;
-          if (year === currentYear && week === currentWeek) {
-            loadGames();
-          }
-        } else {
-          const error = await response.json();
-          document.getElementById('fetchStatus').innerHTML = `
-            <div class="status-message status-error">Error: ${error.message}</div>
-          `;
-        }
-      } catch (error) {
-        document.getElementById('fetchStatus').innerHTML = `
-          <div class="status-message status-error">Error: ${error.message}</div>
-        `;
-      }
-    }
-
-    // Load games for current week
-    async function loadGames() {
-      if (!currentWeekId) {
-        document.getElementById('gamesContainer').innerHTML = '<p>No current week set</p>';
-        return;
-      }
-
-      try {
-        const response = await fetch(`${API_BASE}/picks/games/week/${currentWeekId}`);
-        if (response.ok) {
-          const data = await response.json();
-          const games = data.games || [];
-          
-          if (games.length === 0) {
-            document.getElementById('gamesContainer').innerHTML = '<p>No games found for this week. Fetch the schedule first.</p>';
-            return;
-          }
-
-          let html = '<div class="games-list">';
-          games.forEach(game => {
-            const bettingLine = game.bettingLine ? (game.bettingLine > 0 ? `+${game.bettingLine}` : game.bettingLine) : '-';
-            html += `
-              <div class="game-card" onclick="openGameModal(${game.gameNumber})">
-                <strong>Game ${game.gameNumber}</strong><br>
-                ${game.awayTeamName} at ${game.homeTeamName}<br>
-                <small>Line: ${bettingLine}</small>
-              </div>
-            `;
-          });
-          html += '</div>';
-          document.getElementById('gamesContainer').innerHTML = html;
-        } else {
-          document.getElementById('gamesContainer').innerHTML = '<p style="color: #f44336;">Error loading games</p>';
-        }
-      } catch (error) {
-        console.error('Error loading games:', error);
-        document.getElementById('gamesContainer').innerHTML = '<p style="color: #f44336;">Error loading games</p>';
-      }
-    }
-
-    // Open game replacement modal
-    async function openGameModal(gameNumber) {
-      selectedGameNumber = gameNumber;
-      document.getElementById('gameModal').style.display = 'block';
-      document.getElementById('availableGames').innerHTML = '<div class="loading">Loading available games...</div>';
-
-      const authToken = localStorage.getItem('authToken');
-      if (!authToken) {
-        alert('Please log in first');
-        return;
-      }
-
-      try {
-        const response = await fetch(`${API_BASE}/admin/games/${currentYear}/${currentWeek}`, {
-          headers: {
-            'Authorization': `Bearer ${authToken}`,
-            'Content-Type': 'application/json'
-          }
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          allAvailableGames = data.games || [];
-          displayAvailableGames(allAvailableGames);
-        } else {
-          document.getElementById('availableGames').innerHTML = '<p style="color: #f44336;">Error loading games</p>';
-        }
-      } catch (error) {
-        console.error('Error loading available games:', error);
-        document.getElementById('availableGames').innerHTML = '<p style="color: #f44336;">Error loading games</p>';
-      }
-    }
-
-    // Display available games
-    function displayAvailableGames(games) {
-      if (games.length === 0) {
-        document.getElementById('availableGames').innerHTML = '<p>No games available for this week</p>';
-        return;
-      }
-
-      let html = '';
-      games.forEach((game, index) => {
-        const bettingLine = game.spread ? (game.spread > 0 ? `+${game.spread}` : game.spread) : '-';
-        html += `
-          <div class="game-item" onclick="selectGame(${index})">
-            <strong>${game.awayTeam || 'TBD'} at ${game.homeTeam || 'TBD'}</strong><br>
-            <small>Line: ${bettingLine} | ${game.conferenceGame ? 'Conference' : 'Non-Conference'}</small>
+            <input type="number" min="1" class="gn-input" value="${g.game_number}" aria-label="Game number">
+            <button type="button" class="btn btn-secondary" onclick="deleteSavedGame(${g.id})">Delete</button>
           </div>
-        `;
-      });
-      document.getElementById('availableGames').innerHTML = html;
+        `).join('');
+      } catch (e) {
+        el.innerHTML = `<p style="color:#f44336;">${e.message}</p>`;
+      }
     }
 
-    // Filter games
-    function filterGames() {
-      const searchTerm = document.getElementById('gameSearch').value.toLowerCase();
-      const filtered = allAvailableGames.filter(game => {
-        const homeTeam = (game.homeTeam || '').toLowerCase();
-        const awayTeam = (game.awayTeam || '').toLowerCase();
-        return homeTeam.includes(searchTerm) || awayTeam.includes(searchTerm);
-      });
-      displayAvailableGames(filtered);
-    }
-
-    // Select game to replace
-    async function selectGame(index) {
-      const authToken = localStorage.getItem('authToken');
-      if (!authToken) {
-        alert('Please log in first');
-        return;
-      }
-
-      const game = allAvailableGames[index];
-      if (!game || !game.homeId || !game.awayId) {
-        alert('Invalid game selected');
-        return;
-      }
-
-      const homeLogoUrl = `https://a.espncdn.com/i/teamlogos/ncaa/500/${game.homeId}.png`;
-      const awayLogoUrl = `https://a.espncdn.com/i/teamlogos/ncaa/500/${game.awayId}.png`;
-
+    async function deleteSavedGame(gameId) {
+      if (!confirm('Delete this game from Weekly Picks?')) return;
       try {
-        const response = await fetch(`${API_BASE}/admin/games/${currentWeekId}/game/${selectedGameNumber}`, {
+        const res = await fetch(`${API_BASE}/api/admin/games/${gameId}`, { method: 'DELETE' });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || res.statusText);
+        loadSavedGamesForSelection();
+      } catch (e) {
+        alert(e.message);
+      }
+    }
+
+    async function applyReorder() {
+      const week_id = selectedWeekId();
+      if (!week_id) return alert('Select a week.');
+      const rows = [...document.querySelectorAll('.saved-game-row')];
+      const game_order = rows.map(row => ({
+        game_id: parseInt(row.getAttribute('data-game-id'), 10),
+        game_number: parseInt(row.querySelector('.gn-input').value, 10),
+      }));
+      for (const o of game_order) {
+        if (!Number.isFinite(o.game_id) || !Number.isFinite(o.game_number) || o.game_number < 1) {
+          return alert('Invalid game order.');
+        }
+      }
+      document.getElementById('reorderStatus').innerHTML = '';
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/games/reorder`, {
           method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${authToken}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            homeTeamEspnId: game.homeId,
-            awayTeamEspnId: game.awayId,
-            homeTeamName: game.homeTeam || '',
-            awayTeamName: game.awayTeam || '',
-            homeTeamLogoUrl: homeLogoUrl,
-            awayTeamLogoUrl: awayLogoUrl,
-            gameDate: game.startDate ? new Date(game.startDate) : null,
-            bettingLine: game.spread || null
-          })
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ week_id, game_order }),
         });
-
-        if (response.ok) {
-          alert('Game updated successfully!');
-          closeGameModal();
-          loadGames();
-        } else {
-          const error = await response.json();
-          alert(`Error: ${error.message}`);
-        }
-      } catch (error) {
-        console.error('Error updating game:', error);
-        alert('Error updating game');
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || res.statusText);
+        document.getElementById('reorderStatus').innerHTML =
+          `<div class="status-message status-success">Reordered ${data.games?.length || 0} games</div>`;
+        loadSavedGamesForSelection();
+      } catch (e) {
+        document.getElementById('reorderStatus').innerHTML =
+          `<div class="status-message status-error">${e.message}</div>`;
       }
     }
 
-    // Close modal
-    function closeGameModal() {
-      document.getElementById('gameModal').style.display = 'none';
-      document.getElementById('gameSearch').value = '';
-      selectedGameNumber = null;
-    }
+    document.getElementById('weekSelect').addEventListener('change', loadSavedGamesForSelection);
 
-    // Close modal when clicking outside
-    window.onclick = function(event) {
-      const modal = document.getElementById('gameModal');
-      if (event.target == modal) {
-        closeGameModal();
-      }
-    }
-
-    // Initialize
-    document.addEventListener('DOMContentLoaded', function() {
-      checkAdmin();
-      loadCurrentWeek();
+    document.addEventListener('DOMContentLoaded', async () => {
+      await loadCurrentWeek();
+      await refreshWeeks();
     });
   </script>
   <script>

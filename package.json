@@ -1,0 +1,8 @@
+{
+  "name": "cfb-netlify-site",
+  "private": true,
+  "description": "Netlify site + functions for CFB picks frontend",
+  "dependencies": {
+    "mysql2": "^3.12.0"
+  }
+}

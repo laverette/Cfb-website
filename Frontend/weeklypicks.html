@@ -437,16 +437,14 @@
     const USE_CFBD_GAMES_FOR_WEEKLY_PICKS = false;
 
     // -------------------------------------------------------------------------
-    // Phase 1: Backend-driven week + games (read-only)
-    // Requirements:
-    // - Use GET /api/picks/current-week
-    // - Use GET /api/picks/games/week/{weekId}
-    // - Keep hardcoded fallback if backend fails
-    // - Keep existing login + check-submission + load-previous-submission behavior,
-    //   but use the active week id from backend instead of a hardcoded weekId.
+    // Phase 1: Netlify Functions + MySQL (read-only) — same-origin routes
+    // - GET /api/picks/current-week  → picks-current-week
+    // - GET /api/picks/games/week/:weekId → picks-games-by-week
+    // Check-submission / saved picks still use legacy remote API until Phase 2.
     // -------------------------------------------------------------------------
-    const API_BASE = 'https://cfb-website.onrender.com/api';
-    const FALLBACK_WEEK_ID = 14; // Only used if backend cannot provide an active week
+    const FALLBACK_WEEK_ID = 14; // Only used if Netlify picks API cannot provide an active week
+    /** @deprecated Phase 2 — replace with Netlify functions */
+    const LEGACY_REMOTE_PICKS_API = 'https://cfb-website.onrender.com/api';
     let activeWeekId = null;
     let activeWeekMeta = null; // { weekNumber, seasonYear, startDate, endDate, isCompleted }
 
@@ -577,6 +575,38 @@
       return String(v ?? '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
+    function normalizeCurrentWeekApi(w) {
+      if (!w || typeof w !== 'object') return null;
+      return {
+        id: w.id,
+        weekNumber: w.weekNumber ?? w.week_number,
+        seasonYear: w.seasonYear ?? w.season_year,
+        startDate: w.startDate ?? w.start_date,
+        endDate: w.endDate ?? w.end_date,
+        isCompleted: !!(w.isCompleted ?? w.is_completed),
+      };
+    }
+
+    function normalizeGamesPickerBody(body) {
+      const raw = body?.games;
+      if (!Array.isArray(raw)) return [];
+      return raw.map((r) => ({
+        id: r.id,
+        weekId: r.weekId ?? r.week_id,
+        gameNumber: Number(r.gameNumber ?? r.game_number),
+        homeTeamEspnId: r.homeTeamEspnId ?? r.home_team_espn_id,
+        awayTeamEspnId: r.awayTeamEspnId ?? r.away_team_espn_id,
+        homeTeamName: r.homeTeamName ?? r.home_team_name,
+        awayTeamName: r.awayTeamName ?? r.away_team_name,
+        homeTeamLogoUrl: r.homeTeamLogoUrl ?? r.home_team_logo_url,
+        awayTeamLogoUrl: r.awayTeamLogoUrl ?? r.away_team_logo_url,
+        gameDate: r.gameDate ?? r.game_date,
+        venue: r.venue ?? null,
+        bettingLine: r.bettingLine ?? r.betting_line,
+        isCompleted: !!(r.isCompleted ?? r.is_completed),
+      }));
+    }
+
     function renderDbGamesIntoForm(games) {
       const container = document.getElementById('dbWeekPicksContainer');
       if (!container) return false;
@@ -655,7 +685,7 @@
 
     async function loadActiveWeekAndGames() {
       try {
-        const resp = await fetch(`${API_BASE}/picks/current-week`, {
+        const resp = await fetch('/api/picks/current-week', {
           method: 'GET',
           headers: { 'accept': 'application/json' }
         });
@@ -669,9 +699,10 @@
 
         if (!resp.ok) throw new Error(`Failed to load current week (${resp.status})`);
 
-        const week = await resp.json();
+        const weekRaw = await resp.json();
+        const week = normalizeCurrentWeekApi(weekRaw);
         activeWeekId = week?.id ?? null;
-        activeWeekMeta = week ?? null;
+        activeWeekMeta = week;
 
         if (!activeWeekId) {
           showNoActiveWeekMessage();
@@ -680,14 +711,15 @@
 
         showActiveWeekBanner(week);
 
-        const gamesResp = await fetch(`${API_BASE}/picks/games/week/${activeWeekId}`, {
+        const gamesResp = await fetch(`/api/picks/games/week/${activeWeekId}`, {
           method: 'GET',
           headers: { 'accept': 'application/json' }
         });
         if (!gamesResp.ok) throw new Error(`Failed to load games for week (${gamesResp.status})`);
 
         const gamesBody = await gamesResp.json().catch(() => ({}));
-        const built = renderDbGamesIntoForm(gamesBody?.games || []);
+        const games = normalizeGamesPickerBody(gamesBody);
+        const built = renderDbGamesIntoForm(games);
 
         // If we successfully built dynamic games, re-run submission status logic using the active week id.
         // If not, allow existing hardcoded fallback to remain visible.
@@ -695,7 +727,7 @@
           await checkSubmissionStatus();
         }
       } catch (e) {
-        // Backend failed. Keep the existing hardcoded games visible.
+        // Netlify picks API failed. Keep the existing hardcoded games visible.
         // Still set a clearly-named fallback week id so "check submission" can work when possible.
         activeWeekId = FALLBACK_WEEK_ID;
         // Attempt status check using fallback id (non-blocking)
@@ -840,7 +872,7 @@
       const weekIdToUse = activeWeekId ?? FALLBACK_WEEK_ID;
 
       try {
-        const response = await fetch(`${API_BASE}/picks/check-submission/${weekIdToUse}`, {
+        const response = await fetch(`${LEGACY_REMOTE_PICKS_API}/picks/check-submission/${weekIdToUse}`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${authToken}`,
@@ -947,7 +979,7 @@
       const weekIdToUse = activeWeekId ?? FALLBACK_WEEK_ID;
 
       try {
-        const response = await fetch(`${API_BASE}/picks/week/${weekIdToUse}`, {
+        const response = await fetch(`${LEGACY_REMOTE_PICKS_API}/picks/week/${weekIdToUse}`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${authToken}`,
@@ -1030,7 +1062,7 @@
     // No longer need to load games from API - we use game_number (1-12) directly
     // Phase 2 hook:
     // - When ready, replace the Netlify Forms POST with a call to:
-    //   POST ${API_BASE}/picks/submit
+    //   POST /api/picks/submit (Netlify function, same-origin)
     // - Use the select's data-game-id and the selected option's data-team-espn-id
     //   to build the payload for SubmitPicksRequest.
 
