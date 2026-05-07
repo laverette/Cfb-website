@@ -1,14 +1,17 @@
 /**
  * GET /api/admin/current-week
- * TODO: Add admin authentication (shared secret / JWT) before relying on this in production.
  */
 const { getPool } = require("./db");
 const { json } = require("./_http");
+const { requireAdmin } = require("./_auth");
 
 exports.handler = async (event) => {
   if (event.httpMethod && event.httpMethod !== "GET") {
     return json(405, { error: "Method not allowed" });
   }
+
+  const authErr = requireAdmin(event);
+  if (authErr) return authErr;
 
   try {
     const pool = getPool();

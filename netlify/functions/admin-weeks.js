@@ -1,14 +1,17 @@
 /**
  * GET /api/admin/weeks
- * TODO: Add admin authentication before production use.
  */
 const { getPool } = require("./db");
 const { json } = require("./_http");
+const { requireAdmin } = require("./_auth");
 
 exports.handler = async (event) => {
   if (event.httpMethod && event.httpMethod !== "GET") {
     return json(405, { error: "Method not allowed" });
   }
+
+  const authErr = requireAdmin(event);
+  if (authErr) return authErr;
 
   try {
     const pool = getPool();

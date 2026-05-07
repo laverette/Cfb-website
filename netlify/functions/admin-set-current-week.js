@@ -2,10 +2,10 @@
  * POST /api/admin/set-current-week
  * Body: { seasonYear, weekNumber } or { season_year, week_number }
  * Optional: startDate/end_date — creates the week row if missing, then sets Settings.current_week_id.
- * TODO: Add admin authentication before production use.
  */
 const { getPool } = require("./db");
 const { json, parseJsonBody } = require("./_http");
+const { requireAdmin } = require("./_auth");
 
 async function ensureSettingsTable(pool) {
   await pool.query(`
@@ -23,6 +23,9 @@ exports.handler = async (event) => {
   if (event.httpMethod !== "POST") {
     return json(405, { error: "Method not allowed" });
   }
+
+  const authErr = requireAdmin(event);
+  if (authErr) return authErr;
 
   const body = parseJsonBody(event);
   if (!body) {

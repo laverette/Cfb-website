@@ -1,15 +1,18 @@
 /**
  * PUT /api/admin/games/reorder
  * Body: { week_id, game_order: [{ game_id, game_number }, ...] }
- * TODO: Add admin authentication before production use.
  */
 const { getPool } = require("./db");
 const { json, parseJsonBody } = require("./_http");
+const { requireAdmin } = require("./_auth");
 
 exports.handler = async (event) => {
   if (event.httpMethod !== "PUT") {
     return json(405, { error: "Method not allowed" });
   }
+
+  const authErr = requireAdmin(event);
+  if (authErr) return authErr;
 
   const body = parseJsonBody(event);
   if (!body || !Array.isArray(body.game_order)) {

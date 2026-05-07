@@ -1,15 +1,18 @@
 /**
  * POST /api/admin/games/save-week-games
  * Upserts games by (week_id, cfbd_game_id). Requires migration idx_games_week_cfbd.
- * TODO: Add admin authentication before production use.
  */
 const { getPool } = require("./db");
 const { json, parseJsonBody } = require("./_http");
+const { requireAdmin } = require("./_auth");
 
 exports.handler = async (event) => {
   if (event.httpMethod !== "POST") {
     return json(405, { error: "Method not allowed" });
   }
+
+  const authErr = requireAdmin(event);
+  if (authErr) return authErr;
 
   const body = parseJsonBody(event);
   if (!body || !Array.isArray(body.games)) {

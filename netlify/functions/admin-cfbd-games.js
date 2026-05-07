@@ -1,15 +1,18 @@
 /**
  * GET /api/admin/cfbd-games?season_year=&week_number=&season_type=regular
  * Server-side CFBD fetch (never exposes CFBD_API_KEY).
- * TODO: Add admin authentication before production use.
  */
 const CFBD_BASE = "https://api.collegefootballdata.com";
 const { json } = require("./_http");
+const { requireAdmin } = require("./_auth");
 
 exports.handler = async (event) => {
   if (event.httpMethod && event.httpMethod !== "GET") {
     return json(405, { error: "Method not allowed" });
   }
+
+  const authErr = requireAdmin(event);
+  if (authErr) return authErr;
 
   const apiKey = process.env.CFBD_API_KEY;
   if (!apiKey) {

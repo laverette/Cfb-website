@@ -242,8 +242,14 @@
   <div class="admin-container page-shell">
     <h1 style="color: #FFD700; text-align: center; margin-bottom: 30px;">🏈 Admin Panel</h1>
 
+    <div id="adminAuthMessage" class="admin-section" style="display: none;" role="status">
+      <p id="adminAuthMessageText" style="color:#f5deb3; margin-bottom:12px;"></p>
+      <p style="margin:0;"><a href="login.html" style="color:#FFD700; font-weight:bold;">Go to login</a></p>
+    </div>
+
+    <div id="adminApp" style="display: none;">
     <div class="admin-todo-banner">
-      <strong>Security TODO:</strong> Admin Netlify functions are not authenticated yet. Add a shared secret header, Netlify Identity, or JWT validation before exposing this page publicly.
+      <strong>Admin access:</strong> You must be signed in with a JWT; actions require <code style="color:#FFD700;">role = admin</code> in the database.
     </div>
 
     <!-- Active week (quick view) -->
@@ -327,17 +333,50 @@
       <button type="button" class="btn btn-secondary" onclick="applyReorder()">Apply reorder</button>
       <div id="reorderStatus"></div>
     </div>
+    </div>
   </div>
 
   <script>
-    /**
-     * Same-origin Netlify API (no Render).
-     * TODO: Send auth headers once admin functions enforce authentication.
-     */
+    /** Same-origin Netlify API; admin routes require Bearer JWT + admin role. */
     const API_BASE = '';
 
     let activeWeekNorm = null;
     let cfbdGamesCache = [];
+
+    function adminAuthHeaders(includeJsonContentType) {
+      const h = {};
+      const t = localStorage.getItem('authToken');
+      if (t) h['Authorization'] = 'Bearer ' + t;
+      if (includeJsonContentType) h['Content-Type'] = 'application/json';
+      return h;
+    }
+
+    function showAdminAuthWall(message) {
+      const gate = document.getElementById('adminAuthMessage');
+      const app = document.getElementById('adminApp');
+      const text = document.getElementById('adminAuthMessageText');
+      if (text) text.textContent = message;
+      gate.style.display = 'block';
+      app.style.display = 'none';
+    }
+
+    function showAdminApp() {
+      document.getElementById('adminAuthMessage').style.display = 'none';
+      document.getElementById('adminApp').style.display = 'block';
+    }
+
+    /** @returns {boolean} true if handled as auth failure (caller should stop) */
+    function checkAdminFetch(res) {
+      if (res.status === 401) {
+        showAdminAuthWall('Please log in with an admin account.');
+        return true;
+      }
+      if (res.status === 403) {
+        showAdminAuthWall('Admin access required. Your account must have the admin role.');
+        return true;
+      }
+      return false;
+    }
 
     function normWeek(d) {
       if (!d || d.error) return null;
@@ -356,7 +395,10 @@
 
     async function refreshWeeks() {
       try {
-        const res = await fetch(`${API_BASE}/api/admin/weeks`);
+        const res = await fetch(`${API_BASE}/api/admin/weeks`, {
+          headers: adminAuthHeaders(false),
+        });
+        if (checkAdminFetch(res)) return;
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error || res.statusText);
         const weeks = data.weeks || [];
@@ -409,9 +451,10 @@
       try {
         const res = await fetch(`${API_BASE}/api/admin/set-current-week`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: adminAuthHeaders(true),
           body: JSON.stringify({ seasonYear, weekNumber }),
         });
+        if (checkAdminFetch(res)) return;
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error || res.statusText);
         document.getElementById('weekStatus').innerHTML =
@@ -431,9 +474,10 @@
       try {
         const res = await fetch(`${API_BASE}/api/admin/create-week`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: adminAuthHeaders(true),
           body: JSON.stringify({ season_year, week_number }),
         });
+        if (checkAdminFetch(res)) return;
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error || res.statusText);
         document.getElementById('createWeekStatus').innerHTML =
@@ -452,7 +496,10 @@
     async function setActiveFromSelection() {
       const id = selectedWeekId();
       if (!id) return alert('Select a week first.');
-      const res = await fetch(`${API_BASE}/api/admin/weeks`);
+      const res = await fetch(`${API_BASE}/api/admin/weeks`, {
+        headers: adminAuthHeaders(false),
+      });
+      if (checkAdminFetch(res)) return;
       const data = await res.json().catch(() => ({}));
       const w = (data.weeks || []).find(x => x.id === id);
       if (!w) return alert('Week not found.');
@@ -468,7 +515,10 @@
       document.getElementById('cfbdFetchStatus').innerHTML = '<div class="loading">Loading CFBD…</div>';
       try {
         const q = new URLSearchParams({ season_year, week_number, season_type });
-        const res = await fetch(`${API_BASE}/api/admin/cfbd-games?${q}`);
+        const res = await fetch(`${API_BASE}/api/admin/cfbd-games?${q}`, {
+          headers: adminAuthHeaders(false),
+        });
+        if (checkAdminFetch(res)) return;
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error || data.detail || res.statusText);
         cfbdGamesCache = data.games || [];
@@ -537,9 +587,10 @@
       try {
         const res = await fetch(`${API_BASE}/api/admin/games/save-week-games`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: adminAuthHeaders(true),
           body: JSON.stringify({ week_id, games }),
         });
+        if (checkAdminFetch(res)) return;
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error || data.hint || res.statusText);
         document.getElementById('saveGamesStatus').innerHTML =
@@ -560,7 +611,10 @@
       }
       el.innerHTML = '<div class="loading">Loading…</div>';
       try {
-        const res = await fetch(`${API_BASE}/api/admin/games/week/${weekId}`);
+        const res = await fetch(`${API_BASE}/api/admin/games/week/${weekId}`, {
+          headers: adminAuthHeaders(false),
+        });
+        if (checkAdminFetch(res)) return;
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error || data.hint || res.statusText);
         const games = data.games || [];
@@ -592,7 +646,11 @@
       }
       if (!confirm('Delete this game from Weekly Picks?')) return;
       try {
-        const res = await fetch(`${API_BASE}/api/admin/games/${id}`, { method: 'DELETE' });
+        const res = await fetch(`${API_BASE}/api/admin/games/${id}`, {
+          method: 'DELETE',
+          headers: adminAuthHeaders(false),
+        });
+        if (checkAdminFetch(res)) return;
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
           if (data.received) console.error('admin-delete-game', data.received);
@@ -621,9 +679,10 @@
       try {
         const res = await fetch(`${API_BASE}/api/admin/games/reorder`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: adminAuthHeaders(true),
           body: JSON.stringify({ week_id, game_order }),
         });
+        if (checkAdminFetch(res)) return;
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error || res.statusText);
         document.getElementById('reorderStatus').innerHTML =
@@ -638,6 +697,11 @@
     document.getElementById('weekSelect').addEventListener('change', loadSavedGamesForSelection);
 
     document.addEventListener('DOMContentLoaded', async () => {
+      if (!localStorage.getItem('authToken') || !localStorage.getItem('currentUser')) {
+        showAdminAuthWall('Please log in with an admin account.');
+        return;
+      }
+      showAdminApp();
       await loadCurrentWeek();
       await refreshWeeks();
     });

@@ -2,15 +2,18 @@
  * POST /api/admin/create-week
  * Body: { season_year, week_number } or { seasonYear, weekNumber }
  * Optional: start_date, end_date
- * TODO: Add admin authentication before production use.
  */
 const { getPool } = require("./db");
 const { json, parseJsonBody } = require("./_http");
+const { requireAdmin } = require("./_auth");
 
 exports.handler = async (event) => {
   if (event.httpMethod !== "POST") {
     return json(405, { error: "Method not allowed" });
   }
+
+  const authErr = requireAdmin(event);
+  if (authErr) return authErr;
 
   const body = parseJsonBody(event);
   if (!body) {

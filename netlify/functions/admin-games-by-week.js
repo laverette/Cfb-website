@@ -1,11 +1,11 @@
 /**
  * GET /api/admin/games/week/:weekId
  * Returns saved Games rows for admin (includes cfbd_game_id, venue after migration).
- * TODO: Add admin authentication before production use.
  */
 const { getPool } = require("./db");
 const { json } = require("./_http");
 const { parseWeekId, invalidWeekIdPayload } = require("./_parseWeekId");
+const { requireAdmin } = require("./_auth");
 
 function mapGameRow(r) {
   return {
@@ -30,6 +30,9 @@ exports.handler = async (event) => {
   if (event.httpMethod && event.httpMethod !== "GET") {
     return json(405, { error: "Method not allowed" });
   }
+
+  const authErr = requireAdmin(event);
+  if (authErr) return authErr;
 
   const weekId = parseWeekId(event);
   if (weekId == null || !Number.isFinite(weekId) || weekId < 1) {
