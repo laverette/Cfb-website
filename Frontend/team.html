@@ -104,6 +104,88 @@
             return d.toLocaleString();
         }
 
+        function isNonEmptyResponse(data) {
+            if (Array.isArray(data)) return data.length > 0;
+            if (data && typeof data === 'object') return Object.keys(data).length > 0;
+            return false;
+        }
+
+        function eqTeamName(a, b) {
+            return String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();
+        }
+
+        async function fetchWithYearFallback(path, params, years) {
+            const tried = [];
+            for (const y of years) {
+                try {
+                    const data = await cfbdProxyRequest(path, { ...params, year: y });
+                    tried.push({ year: y, ok: true, nonEmpty: isNonEmptyResponse(data) });
+                    if (isNonEmptyResponse(data)) return { year: y, data, tried };
+                } catch (e) {
+                    tried.push({ year: y, ok: false, status: e?.status });
+                }
+            }
+            return { year: years[0], data: null, tried };
+        }
+
+        function extractRecordString(recordsData, teamSchool) {
+            // /records typically returns an array with one object per team
+            const row = Array.isArray(recordsData)
+                ? (recordsData.find(r => eqTeamName(r.team, teamSchool) || eqTeamName(r.school, teamSchool)) || recordsData[0])
+                : recordsData;
+
+            const wins =
+                row?.total?.wins ??
+                row?.total_wins ??
+                row?.totalWins ??
+                row?.wins ??
+                row?.win ??
+                null;
+            const losses =
+                row?.total?.losses ??
+                row?.total_losses ??
+                row?.totalLosses ??
+                row?.losses ??
+                row?.loss ??
+                null;
+
+            if (typeof wins === 'number' && typeof losses === 'number') return `${wins}-${losses}`;
+            if (typeof wins === 'string' && typeof losses === 'string' && wins !== '' && losses !== '') return `${wins}-${losses}`;
+            return null;
+        }
+
+        function extractSpRating(ratingsData, teamSchool) {
+            // /ratings/sp returns an array of ratings rows
+            if (Array.isArray(ratingsData) && ratingsData.length > 0) {
+                const row =
+                    ratingsData.find(r => eqTeamName(r.team, teamSchool) || eqTeamName(r.school, teamSchool)) ||
+                    ratingsData[0];
+                const rating = row?.rating ?? row?.overall ?? row?.sp ?? null;
+                if (typeof rating === 'number') return rating.toFixed(2);
+                if (typeof rating === 'string' && rating.trim() !== '') return rating;
+            }
+
+            // Some clients may wrap rows in an object
+            const rating = ratingsData?.rating ?? ratingsData?.overall ?? ratingsData?.sp ?? null;
+            if (typeof rating === 'number') return rating.toFixed(2);
+            if (typeof rating === 'string' && rating.trim() !== '') return rating;
+            return null;
+        }
+
+        function extractRosterCount(rosterData) {
+            if (Array.isArray(rosterData)) return rosterData.length;
+            if (Array.isArray(rosterData?.players)) return rosterData.players.length;
+            if (Array.isArray(rosterData?.roster)) return rosterData.roster.length;
+            return null;
+        }
+
+        function extractRosterArray(rosterData) {
+            if (Array.isArray(rosterData)) return rosterData;
+            if (Array.isArray(rosterData?.players)) return rosterData.players;
+            if (Array.isArray(rosterData?.roster)) return rosterData.roster;
+            return [];
+        }
+
         // Load team data and display (Roster / Records / SP+ / Games)
         async function loadTeamPage() {
             const { teamKey, name } = getTeamParamsFromURL();
@@ -167,58 +249,48 @@
                 </div>
             `;
 
-            // Step 2: fetch data in parallel
-            const year = 2026;
-            const [records, roster, ratings, games] = await Promise.allSettled([
-                cfbdProxyRequest('/records', { year, team: teamSchool }),
-                cfbdProxyRequest('/roster', { year, team: teamSchool }),
-                cfbdProxyRequest('/ratings/sp', { year, team: teamSchool }),
-                cfbdProxyRequest('/games', { year, team: teamSchool, seasonType: 'regular' }),
+            // Step 2: fetch data (with year fallback if 2026 is empty)
+            const preferredYears = [2026, 2025, 2024];
+
+            const [recordsRes, rosterRes, ratingsRes, gamesRes] = await Promise.all([
+                fetchWithYearFallback('/records', { team: teamSchool }, preferredYears),
+                fetchWithYearFallback('/roster', { team: teamSchool }, preferredYears),
+                fetchWithYearFallback('/ratings/sp', { team: teamSchool }, preferredYears),
+                // games can be empty early in the year; still keep a single preferred year for schedule
+                fetchWithYearFallback('/games', { team: teamSchool, seasonType: 'regular' }, preferredYears),
             ]);
 
-            const recordsData = records.status === 'fulfilled' ? records.value : null;
-            const rosterData = roster.status === 'fulfilled' ? roster.value : null;
-            const ratingsData = ratings.status === 'fulfilled' ? ratings.value : null;
-            const gamesData = games.status === 'fulfilled' ? games.value : null;
+            const recordsData = recordsRes.data;
+            const rosterData = rosterRes.data;
+            const ratingsData = ratingsRes.data;
+            const gamesData = gamesRes.data;
 
             // Records summary
-            let recordText = 'TBD';
-            if (Array.isArray(recordsData) && recordsData.length > 0) {
-                const r = recordsData[0];
-                if (r?.total?.wins !== undefined && r?.total?.losses !== undefined) {
-                    recordText = `${r.total.wins}-${r.total.losses}`;
-                }
-            }
+            const recordValue = extractRecordString(recordsData, teamSchool);
+            const recordText = recordValue || 'N/A';
 
             // SP+ summary (best-effort)
-            let spText = 'TBD';
-            if (Array.isArray(ratingsData) && ratingsData.length > 0) {
-                const entry = ratingsData.find(x => x.team === teamSchool) || ratingsData[0];
-                const rating = entry?.rating ?? entry?.sp ?? entry?.overall;
-                if (typeof rating === 'number') spText = rating.toFixed(2);
-            } else if (ratingsData && typeof ratingsData === 'object') {
-                // Some responses may be objects; show best-effort
-                const rating = ratingsData?.rating ?? ratingsData?.sp ?? null;
-                if (typeof rating === 'number') spText = rating.toFixed(2);
-            }
+            const spValue = extractSpRating(ratingsData, teamSchool);
+            const spText = spValue || 'N/A';
 
             // Roster preview
-            const rosterCount = Array.isArray(rosterData) ? rosterData.length : 0;
+            const rosterCountValue = extractRosterCount(rosterData);
+            const rosterCountText = (typeof rosterCountValue === 'number' && rosterCountValue >= 0) ? String(rosterCountValue) : 'N/A';
 
             // Display stats cards (Record / SP+ / Roster size)
             const statsGrid = document.getElementById('statsGrid');
             statsGrid.innerHTML = `
                 <div class="stat-card">
                     <div class="stat-value">${recordText}</div>
-                    <div class="stat-label">Record (${year})</div>
+                    <div class="stat-label">Record (${recordsRes.year})</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-value">${spText}</div>
-                    <div class="stat-label">SP+ (approx)</div>
+                    <div class="stat-label">SP+ (${ratingsRes.year})</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-value">${rosterCount || '—'}</div>
-                    <div class="stat-label">Roster (players)</div>
+                    <div class="stat-value">${rosterCountText}</div>
+                    <div class="stat-label">Roster (${rosterRes.year})</div>
                 </div>
             `;
 
@@ -240,8 +312,9 @@
 
             // Roster preview list (first 12)
             let rosterHtml = '';
-            if (Array.isArray(rosterData) && rosterData.length > 0) {
-                const preview = rosterData
+            const rosterArr = extractRosterArray(rosterData);
+            if (Array.isArray(rosterArr) && rosterArr.length > 0) {
+                const preview = rosterArr
                     .slice(0, 12)
                     .map(p => `<li>${p.firstName || ''} ${p.lastName || ''} — ${p.position || ''} ${p.jersey ? `#${p.jersey}` : ''}</li>`)
                     .join('');
