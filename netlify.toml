@@ -33,6 +33,26 @@
   status = 200
 
 [[redirects]]
+  from = "/api/recruit-map/filters"
+  to = "/.netlify/functions/recruit-map-filters"
+  status = 200
+
+[[redirects]]
+  from = "/api/recruit-map/players"
+  to = "/.netlify/functions/recruit-map-players"
+  status = 200
+
+[[redirects]]
+  from = "/api/admin/recruit-map/sync"
+  to = "/.netlify/functions/admin-recruit-map-sync"
+  status = 200
+
+[[redirects]]
+  from = "/api/admin/recruit-map/geocode-missing"
+  to = "/.netlify/functions/admin-recruit-map-geocode-missing"
+  status = 200
+
+[[redirects]]
   from = "/api/admin/current-week"
   to = "/.netlify/functions/admin-current-week"
   status = 200

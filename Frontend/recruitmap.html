@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Recruit Map · CFB</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <link rel="stylesheet" href="styles/site-theme.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" crossorigin="">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" crossorigin="">
+  <style>
+    .recruit-shell { width: min(1400px, calc(100% - 2rem)); margin: 0 auto 2rem auto; padding-top: 1rem; }
+    .recruit-filters.section-card {
+      padding: 1rem 1.25rem;
+      margin-bottom: 1rem;
+    }
+    .recruit-layout {
+      display: grid;
+      grid-template-columns: 320px minmax(0, 1fr);
+      gap: 1rem;
+      align-items: stretch;
+      min-height: 70vh;
+    }
+    @media (max-width: 991px) {
+      .recruit-layout { grid-template-columns: 1fr; min-height: auto; }
+    }
+    #recruitMap {
+      height: min(640px, 55vh);
+      width: 100%;
+      border-radius: var(--radius-md);
+      border: 2px solid var(--border-brown);
+      z-index: 1;
+    }
+    .player-list-wrap {
+      max-height: min(540px, 45vh);
+      overflow-y: auto;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-brown);
+      background: var(--bg-main);
+    }
+    .player-list-row {
+      padding: 0.65rem 0.85rem;
+      cursor: pointer;
+      border-bottom: 1px solid rgba(141,110,99,0.35);
+      color: var(--text-main);
+    }
+    .player-list-row:hover, .player-list-row.active {
+      background: rgba(255,215,0,0.08);
+      color: var(--gold);
+    }
+    .detail-panel {
+      font-size: 0.92rem;
+      line-height: 1.45;
+    }
+    .filter-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 0.65rem;
+    }
+    .filter-grid label { font-size: 0.82rem; color: var(--text-muted); display: block; margin-bottom: 0.2rem; }
+    .filter-grid select,
+    .filter-grid input.site-input {
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+  <nav class="navbar weeklypicks-navbar site-nav">
+    <div class="container-fluid">
+      <div class="navbar-content-weekly site-nav-inner">
+        <button type="button" class="hamburger-menu-btn" onclick="toggleMenu()" aria-label="Menu" aria-expanded="false" aria-controls="dropdownMenu">
+          <span></span><span></span><span></span>
+        </button>
+        <div class="dropdown-menu" id="dropdownMenu"></div>
+        <h1 class="site-title">CFB Recruit Map</h1>
+        <div id="auth-nav" class="navbar-auth-cluster"></div>
+      </div>
+    </div>
+  </nav>
+  <div class="menu-overlay" id="menuOverlay" onclick="closeMenu()"></div>
+
+  <main class="recruit-shell page-shell">
+    <h1 class="page-title">Player hometown map</h1>
+    <p class="page-subtitle" style="opacity: 0.9;">Roster hometowns synced from CFBD and cached in the database.</p>
+
+    <div class="section-card recruit-filters">
+      <h2 class="gold-heading" style="font-size:1.15rem; margin-bottom:0.85rem;">Filters</h2>
+      <div class="filter-grid">
+        <div>
+          <label for="fltTeam">Team</label>
+          <select id="fltTeam" class="site-select"><option value="">All teams</option></select>
+        </div>
+        <div>
+          <label for="fltConference">Conference</label>
+          <select id="fltConference" class="site-select"><option value="">All conferences</option></select>
+        </div>
+        <div>
+          <label for="fltYear">Year</label>
+          <select id="fltYear" class="site-select"><option value="">All years</option></select>
+        </div>
+        <div>
+          <label for="fltState">State</label>
+          <select id="fltState" class="site-select"><option value="">All states</option></select>
+        </div>
+        <div>
+          <label for="fltPosition">Position</label>
+          <select id="fltPosition" class="site-select"><option value="">All positions</option></select>
+        </div>
+        <div>
+          <label for="fltSearch">Player name</label>
+          <input type="text" id="fltSearch" class="search-input site-input" placeholder="Search…" autocomplete="off">
+        </div>
+      </div>
+      <div style="display:flex; flex-wrap:wrap; gap:0.75rem; align-items:center; margin-top:0.85rem;">
+        <button type="button" class="btn btn-brown" id="clearFiltersBtn">Clear filters</button>
+        <span id="resultCount" style="font-weight:800; color:#f5deb3;">0 players</span>
+      </div>
+    </div>
+
+    <div class="recruit-layout">
+      <div class="section-card detail-panel">
+        <h3 class="gold-heading" style="font-size:1rem;">Players</h3>
+        <p id="listHint" style="font-size:0.82rem; color:#d7c1a1; margin-bottom:0.55rem;">
+          Tap a player to zoom the map.
+        </p>
+        <div class="player-list-wrap" id="playerList"></div>
+        <div id="detailBox" style="margin-top:1rem; padding:0.75rem; border-radius:var(--radius-sm); border:1px solid var(--border-brown); background:#1e1e1e; min-height:4rem;"></div>
+      </div>
+      <div class="section-card" style="padding:0.85rem;">
+        <div id="recruitMap" role="application" aria-label="Player hometown map"></div>
+      </div>
+    </div>
+  </main>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js" crossorigin=""></script>
+  <script src="scripts/auth-ui.js"></script>
+  <script>
+    let map = null;
+    let clusterLayer = null;
+    const markersById = {};
+
+    function authHeadersJson() {
+      const t = localStorage.getItem('authToken');
+      const h = { 'Content-Type': 'application/json' };
+      if (t) h['Authorization'] = 'Bearer ' + t;
+      return h;
+    }
+
+    async function fetchFilters() {
+      const res = await fetch('/api/recruit-map/filters');
+      const data = await res.json().catch(() => ({}));
+      return data;
+    }
+
+    async function fetchPlayers(params) {
+      const q = new URLSearchParams(params);
+      const res = await fetch('/api/recruit-map/players?' + q.toString());
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || data.hint || res.statusText);
+      return data;
+    }
+
+    function fillSelect(sel, values, formatter) {
+      const cur = sel.value;
+      sel.innerHTML = sel.querySelector('[value=""]') ? sel.querySelector('[value=""]').outerHTML : '<option value="">All</option>';
+      (values || []).forEach(function (v) {
+        const o = document.createElement('option');
+        o.value = v;
+        o.textContent = formatter ? formatter(v) : v;
+        sel.appendChild(o);
+      });
+      if ([...sel.options].some(function (opt) { return opt.value === cur; })) sel.value = cur;
+    }
+
+    function popupHtml(p) {
+      var ht = p.hometown_full || [p.hometown_city, p.hometown_state].filter(Boolean).join(', ') || '—';
+      var school = p.team_school ? p.team_school + ' (' + p.team + ')' : p.team;
+      return (
+        '<div style="min-width:200px;line-height:1.35;color:#222;">' +
+        '<strong>' + escapeHtml(p.player_name) + '</strong><br>' +
+        '<small>' +
+        escapeHtml(school || '—') + '<br>' +
+        'Conference: ' + escapeHtml(p.conference || '—') + '<br>' +
+        'Season: ' + escapeHtml(String(p.season_year)) + '<br>' +
+        'Pos: ' + escapeHtml(p.position || '—') + '<br>' +
+        'Hometown: ' + escapeHtml(ht) +
+        '</small></div>'
+      );
+    }
+
+    function detailHtml(p) {
+      var ht = p.hometown_full || [p.hometown_city, p.hometown_state].filter(Boolean).join(', ') || '—';
+      var school = p.team_school ? p.team_school + ' (' + p.team + ')' : p.team;
+      return (
+        '<div><strong class="gold-heading">' + escapeHtml(p.player_name) + '</strong></div>' +
+        '<div style="margin-top:6px;"><strong>School:</strong> ' + escapeHtml(school) + '</div>' +
+        '<div><strong>Conference:</strong> ' + escapeHtml(p.conference || '—') + '</div>' +
+        '<div><strong>Season year:</strong> ' + escapeHtml(String(p.season_year)) + '</div>' +
+        '<div><strong>Position:</strong> ' + escapeHtml(p.position || '—') + '</div>' +
+        '<div><strong>Hometown:</strong> ' + escapeHtml(ht) + '</div>'
+      );
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function getFilterParams() {
+      function v(id) {
+        var el = document.getElementById(id);
+        return el ? el.value.trim() : '';
+      }
+      var params = {};
+      if (v('fltTeam')) params.team = v('fltTeam');
+      if (v('fltConference')) params.conference = v('fltConference');
+      if (v('fltYear')) params.year = v('fltYear');
+      if (v('fltState')) params.state = v('fltState');
+      if (v('fltPosition')) params.position = v('fltPosition');
+      if (v('fltSearch')) params.search = v('fltSearch');
+      return params;
+    }
+
+    function selectPlayerRow(id, scroll) {
+      document.querySelectorAll('.player-list-row').forEach(function (r) {
+        r.classList.toggle('active', r.dataset.playerId === String(id));
+      });
+      var p = markersById[id] ? markersById[id].__player : null;
+      if (p) {
+        document.getElementById('detailBox').innerHTML = detailHtml(p);
+      }
+      if (scroll) {
+        var row = document.querySelector('.player-list-row[data-player-id="' + id + '"]');
+        if (row) row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
+    }
+
+    async function redrawMapAndList() {
+      const params = getFilterParams();
+      const wrap = document.getElementById('playerList');
+      const countEl = document.getElementById('resultCount');
+      wrap.innerHTML = '';
+      Object.keys(markersById).forEach(function (k) { delete markersById[k]; });
+
+      try {
+        const data = await fetchPlayers(params);
+        const players = data.players || [];
+        countEl.textContent = players.length + ' player' + (players.length !== 1 ? 's' : '');
+
+        if (clusterLayer) clusterLayer.clearLayers();
+
+        players.forEach(function (p) {
+          if (!Number.isFinite(p.latitude) || !Number.isFinite(p.longitude)) return;
+          const m = L.marker([p.latitude, p.longitude]);
+          m.bindPopup(popupHtml(p));
+          m.__player = p;
+          m.on('click', function () {
+            selectPlayerRow(p.id, true);
+          });
+          clusterLayer.addLayer(m);
+          markersById[p.id] = m;
+
+          const row = document.createElement('div');
+          row.className = 'player-list-row';
+          row.dataset.playerId = String(p.id);
+          var hometown = p.hometown_full || [p.hometown_city, p.hometown_state].filter(Boolean).join(', ');
+          row.innerHTML =
+            '<strong>' + escapeHtml(p.player_name) + '</strong>' +
+            '<div style="font-size:0.78rem; opacity:0.88;">' + escapeHtml((p.team_school || p.team) + ' · ' + String(p.season_year)) + '</div>' +
+            '<div style="font-size:0.78rem; opacity:0.82;">🏠 ' + escapeHtml(hometown || '—') + '</div>';
+          row.addEventListener('click', function () {
+            selectPlayerRow(p.id);
+            map.setView([p.latitude, p.longitude], Math.max(map.getZoom(), 11));
+            m.openPopup();
+          });
+          wrap.appendChild(row);
+        });
+
+        if (!players.length) {
+          wrap.innerHTML = '<div style="padding:1rem; text-align:center; color:#d7c1a1;">No matches.</div>';
+        }
+      } catch (e) {
+        countEl.textContent = '—';
+        wrap.innerHTML = '<div style="padding:1rem;color:#f44336;">' + escapeHtml(e.message) + '</div>';
+      }
+    }
+
+    async function bootstrap() {
+      map = L.map('recruitMap').setView([39.8283, -98.5795], 5);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      }).addTo(map);
+      clusterLayer = L.markerClusterGroup({ maxClusterRadius: 52 });
+      map.addLayer(clusterLayer);
+
+      const fData = await fetchFilters();
+      fillSelect(document.getElementById('fltTeam'), fData.teams || []);
+      fillSelect(document.getElementById('fltConference'), fData.conferences || []);
+      fillSelect(document.getElementById('fltYear'), fData.years || [], String);
+      fillSelect(document.getElementById('fltState'), fData.states || []);
+      fillSelect(document.getElementById('fltPosition'), fData.positions || []);
+
+      ['fltTeam','fltConference','fltYear','fltState','fltPosition'].forEach(function (id) {
+        document.getElementById(id).addEventListener('change', redrawMapAndList);
+      });
+      var searchEl = document.getElementById('fltSearch');
+      var tmr;
+      searchEl.addEventListener('input', function () {
+        clearTimeout(tmr);
+        tmr = setTimeout(redrawMapAndList, 320);
+      });
+      document.getElementById('clearFiltersBtn').addEventListener('click', function () {
+        ['fltTeam','fltConference','fltYear','fltState','fltPosition'].forEach(function (id) {
+          document.getElementById(id).value = '';
+        });
+        searchEl.value = '';
+        redrawMapAndList();
+      });
+
+
+      /** Admin helpers — send Authorization if authToken is set (admin only). */
+      window.recruitMapSyncBatch = async function (year, offset) {
+        const res = await fetch('/api/admin/recruit-map/sync', {
+          method: 'POST',
+          headers: authHeadersJson(),
+          body: JSON.stringify({ year: year, offset: offset || 0, limit: 15 }),
+        });
+        return res.json();
+      };
+      window.recruitMapGeocodeBatch = async function () {
+        const res = await fetch('/api/admin/recruit-map/geocode-missing', {
+          method: 'POST',
+          headers: authHeadersJson(),
+          body: JSON.stringify({ limit: 15, delayMs: 1100 }),
+        });
+        return res.json();
+      };
+    }
+
+    document.addEventListener('DOMContentLoaded', bootstrap);
+
+    function closeMenu() {
+      var menu = document.getElementById('dropdownMenu');
+      var btn = document.querySelector('.hamburger-menu-btn');
+      var overlay = document.getElementById('menuOverlay');
+      if (!menu || !overlay) return;
+      menu.classList.remove('show');
+      if (btn) {
+        btn.classList.remove('active');
+        btn.setAttribute('aria-expanded', 'false');
+      }
+      overlay.classList.remove('show');
+      document.body.classList.remove('menu-open');
+    }
+
+    function toggleMenu() {
+      var menu = document.getElementById('dropdownMenu');
+      var btn = document.querySelector('.hamburger-menu-btn');
+      var overlay = document.getElementById('menuOverlay');
+      if (!menu || !overlay) return;
+      var open = !menu.classList.contains('show');
+      menu.classList.toggle('show', open);
+      if (btn) {
+        btn.classList.toggle('active', open);
+        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      }
+      overlay.classList.toggle('show', open);
+      document.body.classList.toggle('menu-open', open);
+    }
+
+    document.addEventListener('click', function (ev) {
+      var menu = document.getElementById('dropdownMenu');
+      var btn = document.querySelector('.hamburger-menu-btn');
+      if (!menu || !btn) return;
+      if (!menu.contains(ev.target) && !btn.contains(ev.target)) closeMenu();
+    });
+
+    document.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Escape') closeMenu();
+    });
+  </script>
+</body>
+</html>

@@ -17,6 +17,7 @@
     { href: "list.html", label: "👑 Heisman" },
     { href: "bama.html", label: "🐘 Bama Schedule" },
     { href: "predictor.html", label: "🤖 Predictor" },
+    { href: "recruitmap.html", label: "🗺️ Recruit Map" },
   ];
 
   function basenameOnly(raw) {
