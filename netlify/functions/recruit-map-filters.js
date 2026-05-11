@@ -51,7 +51,7 @@ exports.handler = async (event) => {
         years: [],
         states: [],
         positions: [],
-        hint: "Run Client/sql/player_hometowns.sql then admin sync.",
+        hint: "Database table not found.",
       });
     }
     return json(500, { error: "Internal server error" });

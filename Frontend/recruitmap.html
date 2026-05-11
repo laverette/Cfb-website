@@ -63,6 +63,36 @@
     .filter-grid input.site-input {
       width: 100%;
     }
+    #recruitEmptyState {
+      display: none;
+      text-align: center;
+      padding: 2.5rem 1.25rem;
+      border-radius: var(--radius-md);
+      border: 2px solid var(--border-brown);
+      background: var(--bg-panel);
+      max-width: 560px;
+      margin: 2rem auto;
+    }
+    #recruitEmptyState p {
+      margin: 0;
+      color: var(--text-main);
+      font-size: 1.1rem;
+      font-weight: 700;
+      line-height: 1.5;
+    }
+    #recruitMainContent.recruit-hidden {
+      display: none !important;
+    }
+    #recruitMapPendingBanner {
+      display: none;
+      margin-bottom: 1rem;
+      padding: 0.85rem 1rem;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-brown);
+      background: rgba(255, 215, 0, 0.06);
+      color: var(--text-main);
+      font-size: 0.95rem;
+    }
   </style>
 </head>
 <body>
@@ -73,7 +103,7 @@
           <span></span><span></span><span></span>
         </button>
         <div class="dropdown-menu" id="dropdownMenu"></div>
-        <h1 class="site-title">CFB Recruit Map</h1>
+        <h1 class="site-title">Recruit Map</h1>
         <div id="auth-nav" class="navbar-auth-cluster"></div>
       </div>
     </div>
@@ -81,9 +111,12 @@
   <div class="menu-overlay" id="menuOverlay" onclick="closeMenu()"></div>
 
   <main class="recruit-shell page-shell">
-    <h1 class="page-title">Player hometown map</h1>
-    <p class="page-subtitle" style="opacity: 0.9;">Roster hometowns synced from CFBD and cached in the database.</p>
+    <div id="recruitEmptyState" role="status">
+      <p>Recruit map data is not loaded yet. Please check back soon.</p>
+    </div>
 
+    <div id="recruitMainContent">
+    <div id="recruitMapPendingBanner" role="status"></div>
     <div class="section-card recruit-filters">
       <h2 class="gold-heading" style="font-size:1.15rem; margin-bottom:0.85rem;">Filters</h2>
       <div class="filter-grid">
@@ -114,22 +147,20 @@
       </div>
       <div style="display:flex; flex-wrap:wrap; gap:0.75rem; align-items:center; margin-top:0.85rem;">
         <button type="button" class="btn btn-brown" id="clearFiltersBtn">Clear filters</button>
-        <span id="resultCount" style="font-weight:800; color:#f5deb3;">0 players</span>
+        <span id="resultCount" style="font-weight:800; color:#f5deb3;">—</span>
       </div>
     </div>
 
     <div class="recruit-layout">
       <div class="section-card detail-panel">
         <h3 class="gold-heading" style="font-size:1rem;">Players</h3>
-        <p id="listHint" style="font-size:0.82rem; color:#d7c1a1; margin-bottom:0.55rem;">
-          Tap a player to zoom the map.
-        </p>
         <div class="player-list-wrap" id="playerList"></div>
         <div id="detailBox" style="margin-top:1rem; padding:0.75rem; border-radius:var(--radius-sm); border:1px solid var(--border-brown); background:#1e1e1e; min-height:4rem;"></div>
       </div>
       <div class="section-card" style="padding:0.85rem;">
         <div id="recruitMap" role="application" aria-label="Player hometown map"></div>
       </div>
+    </div>
     </div>
   </main>
 
@@ -141,24 +172,38 @@
     let clusterLayer = null;
     const markersById = {};
 
-    function authHeadersJson() {
-      const t = localStorage.getItem('authToken');
-      const h = { 'Content-Type': 'application/json' };
-      if (t) h['Authorization'] = 'Bearer ' + t;
-      return h;
-    }
-
     async function fetchFilters() {
       const res = await fetch('/api/recruit-map/filters');
       const data = await res.json().catch(() => ({}));
       return data;
     }
 
+    function hasRecruitDataset(fData, playerSample) {
+      var years = fData && fData.years && fData.years.length;
+      var teams = fData && fData.teams && fData.teams.length;
+      var count = playerSample && typeof playerSample.count === 'number'
+        ? playerSample.count
+        : (playerSample && playerSample.players ? playerSample.players.length : 0);
+      return !!(years || teams || count > 0);
+    }
+
+    function setMapPendingBanner(visible, message) {
+      var el = document.getElementById('recruitMapPendingBanner');
+      if (!el) return;
+      if (visible && message) {
+        el.textContent = message;
+        el.style.display = 'block';
+      } else {
+        el.textContent = '';
+        el.style.display = 'none';
+      }
+    }
+
     async function fetchPlayers(params) {
       const q = new URLSearchParams(params);
       const res = await fetch('/api/recruit-map/players?' + q.toString());
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || data.hint || res.statusText);
+      if (!res.ok) throw new Error(data.error || res.statusText);
       return data;
     }
 
@@ -246,7 +291,7 @@
       try {
         const data = await fetchPlayers(params);
         const players = data.players || [];
-        countEl.textContent = players.length + ' player' + (players.length !== 1 ? 's' : '');
+        countEl.textContent = players.length + ' shown';
 
         if (clusterLayer) clusterLayer.clearLayers();
 
@@ -278,15 +323,55 @@
         });
 
         if (!players.length) {
-          wrap.innerHTML = '<div style="padding:1rem; text-align:center; color:#d7c1a1;">No matches.</div>';
+          wrap.innerHTML = '<div style="padding:1rem; text-align:center; color:#d7c1a1;">No players match these filters.</div>';
+        }
+        if (players.length > 0) {
+          setMapPendingBanner(false);
         }
       } catch (e) {
         countEl.textContent = '—';
-        wrap.innerHTML = '<div style="padding:1rem;color:#f44336;">' + escapeHtml(e.message) + '</div>';
+        wrap.innerHTML = '<div style="padding:1rem;color:#f44336;">Unable to load players right now. Try again later.</div>';
       }
     }
 
     async function bootstrap() {
+      var fData = {};
+      try {
+        fData = await fetchFilters();
+      } catch (e) {
+        fData = {};
+      }
+
+      var pdata = { players: [], count: 0 };
+      try {
+        const res = await fetch('/api/recruit-map/players');
+        pdata = await res.json().catch(() => ({}));
+        if (!res.ok) pdata = { players: [], count: 0 };
+      } catch (e) {
+        pdata = { players: [], count: 0 };
+      }
+
+      var loaded = hasRecruitDataset(fData, pdata);
+      var emptyEl = document.getElementById('recruitEmptyState');
+      var mainEl = document.getElementById('recruitMainContent');
+
+      if (!loaded) {
+        emptyEl.style.display = 'block';
+        mainEl.classList.add('recruit-hidden');
+        return;
+      }
+
+      emptyEl.style.display = 'none';
+      mainEl.classList.remove('recruit-hidden');
+
+      var initialCount = typeof pdata.count === 'number' ? pdata.count : (pdata.players || []).length;
+      var hasMeta = (fData.teams && fData.teams.length) || (fData.years && fData.years.length);
+      if (initialCount === 0 && hasMeta) {
+        setMapPendingBanner(true, "We're still preparing the map. Please check back soon.");
+      } else {
+        setMapPendingBanner(false);
+      }
+
       map = L.map('recruitMap').setView([39.8283, -98.5795], 5);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
@@ -294,7 +379,6 @@
       clusterLayer = L.markerClusterGroup({ maxClusterRadius: 52 });
       map.addLayer(clusterLayer);
 
-      const fData = await fetchFilters();
       fillSelect(document.getElementById('fltTeam'), fData.teams || []);
       fillSelect(document.getElementById('fltConference'), fData.conferences || []);
       fillSelect(document.getElementById('fltYear'), fData.years || [], String);
@@ -318,24 +402,7 @@
         redrawMapAndList();
       });
 
-
-      /** Admin helpers — send Authorization if authToken is set (admin only). */
-      window.recruitMapSyncBatch = async function (year, offset) {
-        const res = await fetch('/api/admin/recruit-map/sync', {
-          method: 'POST',
-          headers: authHeadersJson(),
-          body: JSON.stringify({ year: year, offset: offset || 0, limit: 15 }),
-        });
-        return res.json();
-      };
-      window.recruitMapGeocodeBatch = async function () {
-        const res = await fetch('/api/admin/recruit-map/geocode-missing', {
-          method: 'POST',
-          headers: authHeadersJson(),
-          body: JSON.stringify({ limit: 15, delayMs: 1100 }),
-        });
-        return res.json();
-      };
+      await redrawMapAndList();
     }
 
     document.addEventListener('DOMContentLoaded', bootstrap);

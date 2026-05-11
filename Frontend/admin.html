@@ -260,6 +260,27 @@
       <div id="weekStatus"></div>
     </div>
 
+    <div id="recruitMapAdminSection" class="admin-section" style="display: none;">
+      <h2>Recruit Map Sync</h2>
+      <p style="color:#f5deb3; margin-bottom:1rem;">
+        Refresh the dataset for the public <a href="recruitmap.html" style="color:#FFD700; font-weight:bold;">Recruit Map</a>. Visitors only see the map; they never need to run anything here.
+      </p>
+      <div class="form-group" style="max-width: 220px;">
+        <label for="recruitMapSeasonYear">Season year</label>
+        <input type="number" id="recruitMapSeasonYear" value="2026" min="2009" max="2100">
+      </div>
+      <div style="display:flex; flex-wrap:wrap; gap:0.5rem; align-items:center;">
+        <button type="button" class="btn btn-primary" id="btnRecruitAutoSync" onclick="recruitMapAutoSync()">Auto Sync</button>
+        <button type="button" class="btn btn-secondary" id="btnRecruitLoad" onclick="recruitMapLoadData()">Load Player Hometown Data</button>
+        <button type="button" class="btn btn-secondary" id="btnRecruitUpdate" onclick="recruitMapUpdateData()">Update Map Data</button>
+        <button type="button" class="btn btn-secondary" id="btnRecruitGeocode" onclick="recruitMapGeocode()">Geocode Missing Hometowns</button>
+      </div>
+      <p style="color:#bfa88a; font-size:0.88rem; margin-top:0.75rem; margin-bottom:0;">
+        <strong>Auto Sync</strong> runs a full refresh for the season year above, then fills in map locations where they were missing.
+      </p>
+      <div id="recruitMapSyncStatus" style="margin-top:12px;"></div>
+    </div>
+
     <!-- Weekly Picks Games -->
     <div class="admin-section">
       <h2>Weekly Picks Games</h2>
@@ -353,6 +374,149 @@
     function showAdminApp() {
       document.getElementById('adminAuthMessage').style.display = 'none';
       document.getElementById('adminApp').style.display = 'block';
+      applyRecruitMapSectionVisibility();
+    }
+
+    function applyRecruitMapSectionVisibility() {
+      const sec = document.getElementById('recruitMapAdminSection');
+      if (!sec) return;
+      let u = null;
+      try {
+        u = JSON.parse(localStorage.getItem('currentUser') || 'null');
+      } catch (e) {
+        u = null;
+      }
+      const admin = u && String(u.role || '').toLowerCase() === 'admin';
+      sec.style.display = admin ? 'block' : 'none';
+    }
+
+    function recruitMapSyncButtonsBusy(busy) {
+      ['btnRecruitAutoSync', 'btnRecruitLoad', 'btnRecruitUpdate', 'btnRecruitGeocode'].forEach((id) => {
+        const b = document.getElementById(id);
+        if (b) b.disabled = !!busy;
+      });
+    }
+
+    /** @returns {Promise<boolean>} false if auth failed mid-run */
+    async function runFullRecruitSync(year, introHtml) {
+      const statusEl = document.getElementById('recruitMapSyncStatus');
+      statusEl.innerHTML = `<div class="loading">${introHtml}</div>`;
+      let offset = 0;
+      let totalRows = 0;
+      let totalFbs = 0;
+      while (true) {
+        const res = await fetch(`${API_BASE}/api/admin/recruit-map/sync`, {
+          method: 'POST',
+          headers: adminAuthHeaders(true),
+          body: JSON.stringify({ year, offset, limit: 15 }),
+        });
+        if (checkAdminFetch(res)) {
+          recruitMapSyncButtonsBusy(false);
+          return false;
+        }
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || data.message || res.statusText);
+        totalRows += data.rowsTouched || 0;
+        if (typeof data.totalFbsTeams === 'number') totalFbs = data.totalFbsTeams;
+        const progressed = data.nextOffset != null ? data.nextOffset : totalFbs;
+        const denom = totalFbs > 0 ? totalFbs : '…';
+        statusEl.innerHTML = `<div class="loading">Working… ${progressed} of ${denom} schools</div>`;
+        if (data.done || data.nextOffset == null) break;
+        offset = data.nextOffset;
+      }
+      statusEl.innerHTML =
+        `<div class="status-message status-success">Done. Saved ${totalRows.toLocaleString()} player records for this season.</div>`;
+      return true;
+    }
+
+    async function runRecruitGeocodePasses(statusEl) {
+      let round = 0;
+      let geocodedTotal = 0;
+      while (round < 100) {
+        round += 1;
+        const res = await fetch(`${API_BASE}/api/admin/recruit-map/geocode-missing`, {
+          method: 'POST',
+          headers: adminAuthHeaders(true),
+          body: JSON.stringify({ limit: 15, delayMs: 1100 }),
+        });
+        if (checkAdminFetch(res)) return { stoppedAuth: true, geocodedTotal };
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || res.statusText);
+        geocodedTotal += data.geocoded || 0;
+        statusEl.innerHTML = `<div class="loading">Placing players on the map… ${geocodedTotal} locations added so far</div>`;
+        if (!data.examined || data.examined === 0) break;
+        if ((data.geocoded || 0) === 0 && (data.notFound || 0) > 0) break;
+      }
+      return { stoppedAuth: false, geocodedTotal };
+    }
+
+    async function recruitMapAutoSync() {
+      const year = parseInt(document.getElementById('recruitMapSeasonYear').value, 10);
+      if (!Number.isFinite(year)) return alert('Choose a valid season year.');
+      const statusEl = document.getElementById('recruitMapSyncStatus');
+      statusEl.innerHTML = '';
+      recruitMapSyncButtonsBusy(true);
+      try {
+        const syncOk = await runFullRecruitSync(year, 'Refreshing roster data…');
+        if (!syncOk) return;
+        statusEl.innerHTML = '<div class="loading">Placing players on the map…</div>';
+        const geo = await runRecruitGeocodePasses(statusEl);
+        if (geo.stoppedAuth) return;
+        statusEl.innerHTML =
+          `<div class="status-message status-success">All set. Added ${geo.geocodedTotal.toLocaleString()} map locations this run.</div>`;
+      } catch (e) {
+        statusEl.innerHTML = `<div class="status-message status-error">${e.message}</div>`;
+      } finally {
+        recruitMapSyncButtonsBusy(false);
+      }
+    }
+
+    async function recruitMapLoadData() {
+      const year = parseInt(document.getElementById('recruitMapSeasonYear').value, 10);
+      if (!Number.isFinite(year)) return alert('Choose a valid season year.');
+      document.getElementById('recruitMapSyncStatus').innerHTML = '';
+      recruitMapSyncButtonsBusy(true);
+      try {
+        const ok = await runFullRecruitSync(year, 'Loading player hometown data…');
+        if (!ok) return;
+      } catch (e) {
+        document.getElementById('recruitMapSyncStatus').innerHTML =
+          `<div class="status-message status-error">${e.message}</div>`;
+      } finally {
+        recruitMapSyncButtonsBusy(false);
+      }
+    }
+
+    async function recruitMapUpdateData() {
+      const year = parseInt(document.getElementById('recruitMapSeasonYear').value, 10);
+      if (!Number.isFinite(year)) return alert('Choose a valid season year.');
+      document.getElementById('recruitMapSyncStatus').innerHTML = '';
+      recruitMapSyncButtonsBusy(true);
+      try {
+        const ok = await runFullRecruitSync(year, 'Updating map data…');
+        if (!ok) return;
+      } catch (e) {
+        document.getElementById('recruitMapSyncStatus').innerHTML =
+          `<div class="status-message status-error">${e.message}</div>`;
+      } finally {
+        recruitMapSyncButtonsBusy(false);
+      }
+    }
+
+    async function recruitMapGeocode() {
+      const statusEl = document.getElementById('recruitMapSyncStatus');
+      statusEl.innerHTML = '<div class="loading">Looking up hometowns that are not on the map yet…</div>';
+      recruitMapSyncButtonsBusy(true);
+      try {
+        const geo = await runRecruitGeocodePasses(statusEl);
+        if (geo.stoppedAuth) return;
+        statusEl.innerHTML =
+          `<div class="status-message status-success">Finished. Added ${geo.geocodedTotal.toLocaleString()} locations on the map.</div>`;
+      } catch (e) {
+        statusEl.innerHTML = `<div class="status-message status-error">${e.message}</div>`;
+      } finally {
+        recruitMapSyncButtonsBusy(false);
+      }
     }
 
     /** @returns {boolean} true if handled as auth failure (caller should stop) */
@@ -696,6 +860,10 @@
       showAdminApp();
       await loadCurrentWeek();
       await refreshWeeks();
+    });
+
+    window.addEventListener('storage', function (e) {
+      if (e.key === 'currentUser' || e.key === 'authToken') applyRecruitMapSectionVisibility();
     });
   </script>
   <script>

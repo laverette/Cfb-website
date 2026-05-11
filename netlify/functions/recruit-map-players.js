@@ -88,8 +88,7 @@ exports.handler = async (event) => {
     }
     if (err.code === "ER_NO_SUCH_TABLE") {
       return json(503, {
-        error: "Recruit map table missing",
-        hint: "Run Client/sql/player_hometowns.sql on your MySQL database.",
+        error: "Recruit map is unavailable right now.",
       });
     }
     return json(500, { error: "Internal server error" });
