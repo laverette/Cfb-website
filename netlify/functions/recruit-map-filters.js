@@ -5,9 +5,15 @@
 const { getPool } = require("./db");
 const { json } = require("./_http");
 
+function sqlIdent(column) {
+  const c = String(column).replace(/`/g, "");
+  return `\`${c}\``;
+}
+
 async function distinctColumn(pool, column) {
+  const col = sqlIdent(column);
   const [rows] = await pool.query(
-    `SELECT DISTINCT ${column} AS v FROM PlayerHometowns WHERE ${column} IS NOT NULL AND TRIM(${column}) <> '' ORDER BY v ASC`
+    `SELECT DISTINCT ${col} AS v FROM PlayerHometowns WHERE ${col} IS NOT NULL AND TRIM(${col}) <> '' ORDER BY v ASC`
   );
   return rows.map((r) => r.v).filter(Boolean);
 }

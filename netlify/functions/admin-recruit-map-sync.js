@@ -63,11 +63,79 @@ async function cfbdFetch(path, apiKey) {
   return res.json();
 }
 
-function playerName(p) {
-  const a = (p.first_name || "").trim();
-  const b = (p.last_name || "").trim();
+function str(v) {
+  if (v == null) return "";
+  return String(v).trim();
+}
+
+function pickCfbdPlayerId(p) {
+  const candidates = [
+    p.id,
+    p.player_id,
+    p.playerId,
+    p.athlete_id,
+    p.athleteId,
+  ];
+  for (const c of candidates) {
+    if (c == null || c === "") continue;
+    if (typeof c === "number" && Number.isFinite(c) && c > 0) {
+      return Math.floor(c);
+    }
+    const s = String(c).trim();
+    if (/^\d+$/.test(s)) {
+      const n = parseInt(s, 10);
+      if (Number.isFinite(n) && n > 0 && n <= 2147483647) return n;
+    }
+  }
+  return null;
+}
+
+function pickLatLon(p) {
+  const latRaw =
+    p.home_latitude ??
+    p.homeLatitude ??
+    p.latitude ??
+    p.lat ??
+    p.birth_latitude ??
+    p.birthLatitude;
+  const lonRaw =
+    p.home_longitude ??
+    p.homeLongitude ??
+    p.longitude ??
+    p.lon ??
+    p.lng ??
+    p.birth_longitude ??
+    p.birthLongitude;
+  let lat = latRaw != null ? Number(latRaw) : NaN;
+  let lon = lonRaw != null ? Number(lonRaw) : NaN;
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+    return { lat: null, lon: null };
+  }
+  return { lat, lon };
+}
+
+function pickHometownStrings(p) {
+  let city = str(p.home_city ?? p.homeCity ?? p.birth_city ?? p.birthCity);
+  let state = str(p.home_state ?? p.homeState ?? p.birth_state ?? p.birthState);
+  const country = str(
+    p.home_country ?? p.homeCountry ?? p.birth_country ?? p.birthCountry
+  );
+  const oneLine = str(
+    p.hometown ?? p.homeTown ?? p.home_town ?? p.birth_place ?? p.birthPlace
+  );
+  if (!city && !state && oneLine) {
+    return { city: "", state: "", country, hometownLine: oneLine };
+  }
+  return { city, state, country, hometownLine: "" };
+}
+
+function playerName(p, cfbdId) {
+  const a = str(p.first_name ?? p.firstName);
+  const b = str(p.last_name ?? p.lastName);
   const n = `${a} ${b}`.trim();
-  return n || `Player ${p.id}`;
+  if (n) return n;
+  if (cfbdId != null) return `Player ${cfbdId}`;
+  return "";
 }
 
 function buildHometownFull(city, state, country) {
@@ -82,6 +150,23 @@ function buildHometownFull(city, state, country) {
     parts.push(country);
   }
   return parts.length ? parts.join(", ") : null;
+}
+
+function rosterFieldSample(p) {
+  if (!p || typeof p !== "object") return [];
+  return Object.keys(p).filter((k) =>
+    /home|birth|town|city|state|country|lat|lon|lng|hometown|place/i.test(k)
+  );
+}
+
+function normalizeRosterArray(roster) {
+  if (Array.isArray(roster)) return roster;
+  if (roster && typeof roster === "object") {
+    if (Array.isArray(roster.players)) return roster.players;
+    if (Array.isArray(roster.roster)) return roster.roster;
+    if (Array.isArray(roster.data)) return roster.data;
+  }
+  return [];
 }
 
 exports.handler = async (event) => {
@@ -109,6 +194,25 @@ exports.handler = async (event) => {
   const delayMsRaw = parseInt(body.delayMs ?? 1200, 10) || 1200;
   const delayMs = Math.min(1500, Math.max(750, delayMsRaw));
 
+  let batchStats = {
+    teamsProcessedThisBatch: 0,
+    rowsTouched: 0,
+    /** Skipped: no hometown text and no coordinates */
+    skippedNoHometown: 0,
+    /** Inserted this batch with hometown text but null coordinates (geocode later) */
+    skippedNoCoordinates: 0,
+    rosterPlayersSeen: 0,
+    teamsWithZeroRoster: 0,
+    skippedNoPlayerId: 0,
+    skippedNoTeam: 0,
+    skippedNoName: 0,
+    sampleSkippedReason: null,
+  };
+
+  function noteSkip(reason) {
+    if (!batchStats.sampleSkippedReason) batchStats.sampleSkippedReason = reason;
+  }
+
   let conn;
   try {
     const pool = getPool();
@@ -130,6 +234,7 @@ exports.handler = async (event) => {
           nextOffsetToResume: offset,
           done: false,
           totalFbsTeams: null,
+          ...batchStats,
         });
       }
       throw e;
@@ -178,48 +283,96 @@ exports.handler = async (event) => {
           `/roster?team=${encodeURIComponent(abbr)}&year=${year}`,
           apiKey
         );
-        const players = Array.isArray(roster) ? roster : [];
+        const players = normalizeRosterArray(roster);
+        if (!Array.isArray(roster) && roster && typeof roster === "object") {
+          console.error("[recruit-map-sync] roster payload was not a top-level array; keys:", Object.keys(roster));
+        }
+        const schoolName = t.school || abbr;
+
+        let rosterLen = players.length;
+        let hometownFieldCount = 0;
+        let coordCount = 0;
+        let insertedThisTeam = 0;
+        let skippedThisTeam = 0;
+        let sampleKeysLogged = false;
+
+        if (rosterLen === 0) {
+          batchStats.teamsWithZeroRoster += 1;
+        }
 
         for (const p of players) {
-          const pid = p.id;
-          if (pid == null || !Number.isFinite(Number(pid))) continue;
+          batchStats.rosterPlayersSeen += 1;
 
-          const city = p.home_city != null ? String(p.home_city).trim() : "";
-          const state = p.home_state != null ? String(p.home_state).trim() : "";
-          const country =
-            p.home_country != null ? String(p.home_country).trim() : "";
-          let lat =
-            p.home_latitude != null ? Number(p.home_latitude) : null;
-          let lon =
-            p.home_longitude != null ? Number(p.home_longitude) : null;
-
-          if (
-            !city &&
-            !state &&
-            (!Number.isFinite(lat) || !Number.isFinite(lon))
-          ) {
+          const cfbdId = pickCfbdPlayerId(p);
+          if (cfbdId == null) {
+            batchStats.skippedNoPlayerId += 1;
+            skippedThisTeam += 1;
+            noteSkip("no_numeric_player_id");
+            if (!sampleKeysLogged && players.length) {
+              sampleKeysLogged = true;
+              console.error(
+                "[recruit-map-sync] sample player keys (no id)",
+                rosterFieldSample(p),
+                "id_raw",
+                p && (p.id ?? p.playerId ?? p.athleteId)
+              );
+            }
             continue;
           }
 
-          if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
-            lat = null;
-            lon = null;
+          const { city, state, country, hometownLine } = pickHometownStrings(p);
+          const { lat: latRaw, lon: lonRaw } = pickLatLon(p);
+          const hasCoords =
+            latRaw != null &&
+            lonRaw != null &&
+            Number.isFinite(latRaw) &&
+            Number.isFinite(lonRaw);
+          if (city || state || hometownLine) hometownFieldCount += 1;
+          if (hasCoords) coordCount += 1;
+
+          const fullFromParts = buildHometownFull(city, state, country);
+          const full =
+            fullFromParts ||
+            (hometownLine ? hometownLine : null);
+
+          const hasHometownText = !!(city || state || full);
+          if (!hasHometownText && !hasCoords) {
+            batchStats.skippedNoHometown += 1;
+            skippedThisTeam += 1;
+            noteSkip("no_hometown_text_and_no_coordinates");
+            continue;
           }
 
-          const full = buildHometownFull(city, state, country);
-          const pos = p.position != null ? String(p.position).trim() : null;
-          const teamAbbr = (p.team || abbr || "").trim() || abbr;
+          const pos = str(p.position ?? p.pos);
+          const teamAbbr = str(p.team ?? p.team_id ?? p.teamId) || abbr;
+          if (!teamAbbr) {
+            batchStats.skippedNoTeam += 1;
+            skippedThisTeam += 1;
+            noteSkip("no_team_abbreviation");
+            continue;
+          }
+
+          const name = playerName(p, cfbdId);
+          if (!name) {
+            batchStats.skippedNoName += 1;
+            skippedThisTeam += 1;
+            noteSkip("no_player_name");
+            continue;
+          }
+
+          let lat = hasCoords ? latRaw : null;
+          let lon = hasCoords ? lonRaw : null;
 
           await conn.query(
             `INSERT INTO PlayerHometowns (
-              cfbd_player_id, player_name, team, team_school, conference, season_year, position,
+              cfbd_player_id, player_name, team, team_school, conference, season_year, \`position\`,
               hometown_city, hometown_state, hometown_full, latitude, longitude, source, updated_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'cfbd_roster', NOW(3))
             ON DUPLICATE KEY UPDATE
               player_name = VALUES(player_name),
               team_school = VALUES(team_school),
               conference = VALUES(conference),
-              position = VALUES(position),
+              \`position\` = VALUES(\`position\`),
               hometown_city = VALUES(hometown_city),
               hometown_state = VALUES(hometown_state),
               hometown_full = VALUES(hometown_full),
@@ -227,13 +380,13 @@ exports.handler = async (event) => {
               longitude = COALESCE(VALUES(longitude), longitude),
               updated_at = NOW(3)`,
             [
-              Number(pid),
-              playerName(p),
+              cfbdId,
+              name,
               teamAbbr,
               t.school || null,
               t.conference || null,
               year,
-              pos,
+              pos || null,
               city || null,
               state || null,
               full,
@@ -242,7 +395,23 @@ exports.handler = async (event) => {
             ]
           );
           upserted += 1;
+          insertedThisTeam += 1;
+          if (hasHometownText && !hasCoords) {
+            batchStats.skippedNoCoordinates += 1;
+          }
         }
+
+        console.error("[recruit-map-sync] roster summary", {
+          team: abbr,
+          school: schoolName,
+          rosterHttpOk: true,
+          rosterLength: rosterLen,
+          countWithHometownOrLine: hometownFieldCount,
+          countWithCoordinates: coordCount,
+          rowsUpserted: insertedThisTeam,
+          rowsSkipped: skippedThisTeam,
+        });
+
         teamsCompletedInBatch += 1;
       } catch (e) {
         if (e.code === "CFBD_RATE_LIMITED") {
@@ -257,6 +426,14 @@ exports.handler = async (event) => {
             nextOffsetToResume,
             done: false,
             totalFbsTeams: totalFbs,
+            rosterPlayersSeen: batchStats.rosterPlayersSeen,
+            skippedNoHometown: batchStats.skippedNoHometown,
+            skippedNoCoordinates: batchStats.skippedNoCoordinates,
+            teamsWithZeroRoster: batchStats.teamsWithZeroRoster,
+            skippedNoPlayerId: batchStats.skippedNoPlayerId,
+            skippedNoTeam: batchStats.skippedNoTeam,
+            skippedNoName: batchStats.skippedNoName,
+            sampleSkippedReason: batchStats.sampleSkippedReason,
           });
         }
         console.error("recruit-map-sync team", abbr, e);
@@ -267,6 +444,9 @@ exports.handler = async (event) => {
 
     const nextOffset = singleTeam ? null : offset + teamRows.length;
     const done = singleTeam ? true : nextOffset >= totalFbs;
+
+    batchStats.rowsTouched = upserted;
+    batchStats.teamsProcessedThisBatch = teamRows.length;
 
     return json(200, {
       year,
@@ -279,6 +459,14 @@ exports.handler = async (event) => {
       totalFbsTeams: totalFbs,
       errors: errors.length ? errors : undefined,
       source: "cfbd_roster",
+      rosterPlayersSeen: batchStats.rosterPlayersSeen,
+      skippedNoHometown: batchStats.skippedNoHometown,
+      skippedNoCoordinates: batchStats.skippedNoCoordinates,
+      teamsWithZeroRoster: batchStats.teamsWithZeroRoster,
+      skippedNoPlayerId: batchStats.skippedNoPlayerId,
+      skippedNoTeam: batchStats.skippedNoTeam,
+      skippedNoName: batchStats.skippedNoName,
+      sampleSkippedReason: batchStats.sampleSkippedReason,
     });
   } catch (err) {
     console.error("admin-recruit-map-sync:", err);

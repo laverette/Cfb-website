@@ -178,13 +178,22 @@
       return data;
     }
 
+    function hasFilterLists(fData) {
+      if (!fData) return false;
+      return !!(
+        (fData.teams && fData.teams.length) ||
+        (fData.years && fData.years.length) ||
+        (fData.conferences && fData.conferences.length) ||
+        (fData.states && fData.states.length) ||
+        (fData.positions && fData.positions.length)
+      );
+    }
+
     function hasRecruitDataset(fData, playerSample) {
-      var years = fData && fData.years && fData.years.length;
-      var teams = fData && fData.teams && fData.teams.length;
       var count = playerSample && typeof playerSample.count === 'number'
         ? playerSample.count
         : (playerSample && playerSample.players ? playerSample.players.length : 0);
-      return !!(years || teams || count > 0);
+      return hasFilterLists(fData) || count > 0;
     }
 
     function setMapPendingBanner(visible, message) {
@@ -352,6 +361,10 @@
       }
 
       var loaded = hasRecruitDataset(fData, pdata);
+      var playersArr = Array.isArray(pdata.players) ? pdata.players : [];
+      if (playersArr.length === 0 && !hasFilterLists(fData)) {
+        loaded = false;
+      }
       var emptyEl = document.getElementById('recruitEmptyState');
       var mainEl = document.getElementById('recruitMainContent');
 
@@ -364,8 +377,8 @@
       emptyEl.style.display = 'none';
       mainEl.classList.remove('recruit-hidden');
 
-      var initialCount = typeof pdata.count === 'number' ? pdata.count : (pdata.players || []).length;
-      var hasMeta = (fData.teams && fData.teams.length) || (fData.years && fData.years.length);
+      var initialCount = typeof pdata.count === 'number' ? pdata.count : playersArr.length;
+      var hasMeta = hasFilterLists(fData);
       if (initialCount === 0 && hasMeta) {
         setMapPendingBanner(true, "We're still preparing the map. Please check back soon.");
       } else {

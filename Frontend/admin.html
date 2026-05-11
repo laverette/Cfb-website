@@ -267,8 +267,11 @@
       </p>
       <div class="form-group" style="max-width: 220px;">
         <label for="recruitMapSeasonYear">Season year</label>
-        <input type="number" id="recruitMapSeasonYear" value="2026" min="2009" max="2100">
+        <input type="number" id="recruitMapSeasonYear" value="2025" min="2009" max="2100">
       </div>
+      <p style="color:#bfa88a; font-size:0.88rem; margin-bottom:0.75rem;">
+        Use <strong>2025</strong> first for testing because future-year roster data may be incomplete.
+      </p>
       <p style="color:#bfa88a; font-size:0.88rem; margin-bottom:0.75rem;">
         Smaller batches are safer and help avoid CFBD rate limits. Each batch waits between school roster requests, and <strong>Auto Sync</strong> pauses several seconds between batches.
       </p>
@@ -442,6 +445,31 @@
       const next = data.nextOffset != null ? data.nextOffset : (data.nextOffsetToResume != null ? data.nextOffsetToResume : 'null');
       const done = data.done === true ? 'true' : data.done === false ? 'false' : String(data.done);
       const total = data.totalFbsTeams != null ? data.totalFbsTeams : '—';
+      let extra = '';
+      if (data.rosterPlayersSeen != null) {
+        extra += '<li>Roster players seen: <strong>' + data.rosterPlayersSeen + '</strong></li>';
+      }
+      if (data.skippedNoHometown != null) {
+        extra += '<li>Skipped (no hometown text and no coordinates): <strong>' + data.skippedNoHometown + '</strong></li>';
+      }
+      if (data.skippedNoCoordinates != null) {
+        extra += '<li>Inserted with hometown text but null coordinates (geocode later): <strong>' + data.skippedNoCoordinates + '</strong></li>';
+      }
+      if (data.teamsWithZeroRoster != null) {
+        extra += '<li>Schools with empty roster response: <strong>' + data.teamsWithZeroRoster + '</strong></li>';
+      }
+      if (data.skippedNoPlayerId != null) {
+        extra += '<li>Skipped (no usable numeric player id): <strong>' + data.skippedNoPlayerId + '</strong></li>';
+      }
+      if (data.skippedNoTeam != null) {
+        extra += '<li>Skipped (no team): <strong>' + data.skippedNoTeam + '</strong></li>';
+      }
+      if (data.skippedNoName != null) {
+        extra += '<li>Skipped (no player name): <strong>' + data.skippedNoName + '</strong></li>';
+      }
+      if (data.sampleSkippedReason) {
+        extra += '<li>First skip reason code: <strong>' + String(data.sampleSkippedReason).replace(/</g, '&lt;') + '</strong></li>';
+      }
       return (
         (title ? '<div style="font-weight:700;margin-bottom:6px;">' + title + '</div>' : '') +
         '<ul style="margin:0;padding-left:1.2rem;color:#f5deb3;line-height:1.5;">' +
@@ -452,6 +480,7 @@
         '<li>Next offset: <strong>' + next + '</strong></li>' +
         '<li>Done (all schools): <strong>' + done + '</strong></li>' +
         '<li>Total FBS schools for year: <strong>' + total + '</strong></li>' +
+        extra +
         '</ul>'
       );
     }
