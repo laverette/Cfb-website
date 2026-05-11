@@ -141,6 +141,14 @@
           <select id="fltPosition" class="site-select"><option value="">All positions</option></select>
         </div>
         <div>
+          <label for="fltClassification">Classification</label>
+          <select id="fltClassification" class="site-select"><option value="">All</option></select>
+        </div>
+        <div>
+          <label for="fltStars">Stars</label>
+          <select id="fltStars" class="site-select"><option value="">All</option></select>
+        </div>
+        <div>
           <label for="fltSearch">Player name</label>
           <input type="text" id="fltSearch" class="search-input site-input" placeholder="Search…" autocomplete="off">
         </div>
@@ -185,7 +193,9 @@
         (fData.years && fData.years.length) ||
         (fData.conferences && fData.conferences.length) ||
         (fData.states && fData.states.length) ||
-        (fData.positions && fData.positions.length)
+        (fData.positions && fData.positions.length) ||
+        (fData.classifications && fData.classifications.length) ||
+        (fData.starLevels && fData.starLevels.length)
       );
     }
 
@@ -228,30 +238,58 @@
       if ([...sel.options].some(function (opt) { return opt.value === cur; })) sel.value = cur;
     }
 
+    function starDisplay(stars) {
+      var n = parseInt(String(stars), 10);
+      if (!Number.isFinite(n) || n <= 0) return '';
+      n = Math.min(5, Math.max(1, n));
+      return String(n) + '★';
+    }
+
+    function recruitRatingRankingHtml(p) {
+      var bits = [];
+      var sd = starDisplay(p.stars);
+      if (sd) bits.push(sd);
+      if (p.rating != null && Number.isFinite(Number(p.rating))) {
+        bits.push('<span style="opacity:0.88;font-size:0.92em;">rating ' + Number(p.rating).toFixed(2) + '</span>');
+      }
+      if (p.ranking != null && Number.isFinite(Number(p.ranking))) {
+        bits.push('<span style="opacity:0.88;font-size:0.92em;">#' + String(p.ranking) + ' national</span>');
+      }
+      if (p.recruit_type) bits.push(escapeHtml(String(p.recruit_type)));
+      return bits.length ? '<div style="margin-top:4px;">' + bits.join(' · ') + '</div>' : '';
+    }
+
+    function commitDisplay(p) {
+      var c = p.committed_to || p.team || p.school || p.team_school;
+      return c ? String(c) : '—';
+    }
+
     function popupHtml(p) {
-      var ht = p.hometown_full || [p.hometown_city, p.hometown_state].filter(Boolean).join(', ') || '—';
-      var school = p.team_school ? p.team_school + ' (' + p.team + ')' : p.team;
+      var ht = p.hometown_full || [p.hometown_city, p.hometown_state, p.hometown_country].filter(Boolean).join(', ') || '—';
+      var commit = commitDisplay(p);
       return (
         '<div style="min-width:200px;line-height:1.35;color:#222;">' +
-        '<strong>' + escapeHtml(p.player_name) + '</strong><br>' +
-        '<small>' +
-        escapeHtml(school || '—') + '<br>' +
+        '<strong>' + escapeHtml(p.player_name) + '</strong>' +
+        recruitRatingRankingHtml(p) +
+        '<small style="display:block;margin-top:6px;">' +
+        'Commit / team: ' + escapeHtml(commit) + '<br>' +
         'Conference: ' + escapeHtml(p.conference || '—') + '<br>' +
-        'Season: ' + escapeHtml(String(p.season_year)) + '<br>' +
-        'Pos: ' + escapeHtml(p.position || '—') + '<br>' +
+        'Class year: ' + escapeHtml(String(p.season_year)) + '<br>' +
+        'Position: ' + escapeHtml(p.position || '—') + '<br>' +
         'Hometown: ' + escapeHtml(ht) +
         '</small></div>'
       );
     }
 
     function detailHtml(p) {
-      var ht = p.hometown_full || [p.hometown_city, p.hometown_state].filter(Boolean).join(', ') || '—';
-      var school = p.team_school ? p.team_school + ' (' + p.team + ')' : p.team;
+      var ht = p.hometown_full || [p.hometown_city, p.hometown_state, p.hometown_country].filter(Boolean).join(', ') || '—';
+      var commit = commitDisplay(p);
       return (
-        '<div><strong class="gold-heading">' + escapeHtml(p.player_name) + '</strong></div>' +
-        '<div style="margin-top:6px;"><strong>School:</strong> ' + escapeHtml(school) + '</div>' +
+        '<div><strong class="gold-heading">' + escapeHtml(p.player_name) + '</strong>' +
+        recruitRatingRankingHtml(p) + '</div>' +
+        '<div style="margin-top:6px;"><strong>Commit / team:</strong> ' + escapeHtml(commit) + '</div>' +
         '<div><strong>Conference:</strong> ' + escapeHtml(p.conference || '—') + '</div>' +
-        '<div><strong>Season year:</strong> ' + escapeHtml(String(p.season_year)) + '</div>' +
+        '<div><strong>Class year:</strong> ' + escapeHtml(String(p.season_year)) + '</div>' +
         '<div><strong>Position:</strong> ' + escapeHtml(p.position || '—') + '</div>' +
         '<div><strong>Hometown:</strong> ' + escapeHtml(ht) + '</div>'
       );
@@ -272,6 +310,8 @@
       if (v('fltYear')) params.year = v('fltYear');
       if (v('fltState')) params.state = v('fltState');
       if (v('fltPosition')) params.position = v('fltPosition');
+      if (v('fltClassification')) params.classification = v('fltClassification');
+      if (v('fltStars')) params.stars = v('fltStars');
       if (v('fltSearch')) params.search = v('fltSearch');
       return params;
     }
@@ -319,9 +359,13 @@
           row.className = 'player-list-row';
           row.dataset.playerId = String(p.id);
           var hometown = p.hometown_full || [p.hometown_city, p.hometown_state].filter(Boolean).join(', ');
+          var starL = starDisplay(p.stars);
+          var rateL = (p.rating != null && Number.isFinite(Number(p.rating))) ? (' · r' + Number(p.rating).toFixed(2)) : '';
+          var rankL = (p.ranking != null && Number.isFinite(Number(p.ranking))) ? (' · #' + String(p.ranking)) : '';
           row.innerHTML =
             '<strong>' + escapeHtml(p.player_name) + '</strong>' +
-            '<div style="font-size:0.78rem; opacity:0.88;">' + escapeHtml((p.team_school || p.team) + ' · ' + String(p.season_year)) + '</div>' +
+            (starL ? '<span style="margin-left:6px;color:#FFD700;font-size:0.85rem;">' + starL + rateL + rankL + '</span>' : '') +
+            '<div style="font-size:0.78rem; opacity:0.88;">' + escapeHtml(commitDisplay(p) + ' · ' + String(p.season_year)) + '</div>' +
             '<div style="font-size:0.78rem; opacity:0.82;">🏠 ' + escapeHtml(hometown || '—') + '</div>';
           row.addEventListener('click', function () {
             selectPlayerRow(p.id);
@@ -397,8 +441,10 @@
       fillSelect(document.getElementById('fltYear'), fData.years || [], String);
       fillSelect(document.getElementById('fltState'), fData.states || []);
       fillSelect(document.getElementById('fltPosition'), fData.positions || []);
+      fillSelect(document.getElementById('fltClassification'), fData.classifications || []);
+      fillSelect(document.getElementById('fltStars'), fData.starLevels || [], String);
 
-      ['fltTeam','fltConference','fltYear','fltState','fltPosition'].forEach(function (id) {
+      ['fltTeam','fltConference','fltYear','fltState','fltPosition','fltClassification','fltStars'].forEach(function (id) {
         document.getElementById(id).addEventListener('change', redrawMapAndList);
       });
       var searchEl = document.getElementById('fltSearch');
@@ -408,7 +454,7 @@
         tmr = setTimeout(redrawMapAndList, 320);
       });
       document.getElementById('clearFiltersBtn').addEventListener('click', function () {
-        ['fltTeam','fltConference','fltYear','fltState','fltPosition'].forEach(function (id) {
+        ['fltTeam','fltConference','fltYear','fltState','fltPosition','fltClassification','fltStars'].forEach(function (id) {
           document.getElementById(id).value = '';
         });
         searchEl.value = '';

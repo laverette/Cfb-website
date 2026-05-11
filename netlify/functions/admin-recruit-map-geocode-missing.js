@@ -26,16 +26,36 @@ exports.handler = async (event) => {
 
   try {
     const pool = getPool();
-    const [rows] = await pool.query(
-      `SELECT id, hometown_city, hometown_state, hometown_full
-       FROM PlayerHometowns
-       WHERE (latitude IS NULL OR longitude IS NULL)
-         AND (hometown_city IS NOT NULL AND TRIM(hometown_city) <> ''
-              OR hometown_full IS NOT NULL AND TRIM(hometown_full) <> '')
-       ORDER BY id ASC
-       LIMIT ${limit}`,
-      []
-    );
+    let rows;
+    try {
+      const [r] = await pool.query(
+        `SELECT id, hometown_city, hometown_state, hometown_country, hometown_full
+         FROM PlayerHometowns
+         WHERE (latitude IS NULL OR longitude IS NULL)
+           AND (hometown_city IS NOT NULL AND TRIM(hometown_city) <> ''
+                OR hometown_full IS NOT NULL AND TRIM(hometown_full) <> '')
+         ORDER BY id ASC
+         LIMIT ${limit}`,
+        []
+      );
+      rows = r;
+    } catch (e) {
+      if (e.code === "ER_BAD_FIELD_ERROR" || e.code === "ER_NO_SUCH_COLUMN") {
+        const [r] = await pool.query(
+          `SELECT id, hometown_city, hometown_state, hometown_full
+           FROM PlayerHometowns
+           WHERE (latitude IS NULL OR longitude IS NULL)
+             AND (hometown_city IS NOT NULL AND TRIM(hometown_city) <> ''
+                  OR hometown_full IS NOT NULL AND TRIM(hometown_full) <> '')
+           ORDER BY id ASC
+           LIMIT ${limit}`,
+          []
+        );
+        rows = r;
+      } else {
+        throw e;
+      }
+    }
 
     let updated = 0;
     let failed = 0;
@@ -47,11 +67,15 @@ exports.handler = async (event) => {
 
       const city = r.hometown_city;
       const state = r.hometown_state;
+      const country =
+        r.hometown_country != null && String(r.hometown_country).trim() !== ""
+          ? String(r.hometown_country).trim()
+          : "USA";
 
       let coords = null;
       try {
         if (city || state) {
-          coords = await geocodeCityState(city, state, "USA", wait);
+          coords = await geocodeCityState(city, state, country, wait);
         }
       } catch (e) {
         if (e.code === "GEOCODER_RATE_LIMITED") {

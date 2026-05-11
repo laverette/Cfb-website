@@ -1,9 +1,7 @@
 /**
  * POST /api/admin/recruit-map/sync
- * Body JSON: { year, team?, offset?, limit?, delayMs? }
- * Pulls CFBD /teams + /roster per FBS team batch; upserts PlayerHometowns.
- * Batched for Netlify time limits — call repeatedly with nextOffset until done.
- * Rate limits: configurable delay between roster calls; 429 returns CFBD_RATE_LIMITED (no blind retry).
+ * Body JSON: { year, classification?, team?, state?, position?, delayMs? }
+ * Fetches CFBD GET /recruiting/players and upserts PlayerHometowns.
  */
 const { getPool } = require("./db");
 const { json, parseJsonBody } = require("./_http");
@@ -12,11 +10,12 @@ const { requireAdmin } = require("./_auth");
 const CFBD_BASE = "https://api.collegefootballdata.com";
 const DEFAULT_RETRY_AFTER = 120;
 
+const CLASSIFICATIONS = new Set(["HighSchool", "JUCO", "PrepSchool"]);
+
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-/** Retry-After may be seconds (integer) or an HTTP-date; prefer integer seconds. */
 function parseRetryAfterSeconds(headerVal) {
   if (headerVal == null || headerVal === "") return DEFAULT_RETRY_AFTER;
   const s = String(headerVal).trim();
@@ -29,7 +28,7 @@ function cfbdRateLimitedPayload(retryAfterSeconds) {
   return {
     error: "CFBD_RATE_LIMITED",
     message:
-      "CFBD temporarily rate limited requests. Wait a few minutes and resume from this offset.",
+      "CFBD temporarily rate limited requests. Wait a few minutes and try again.",
     retryAfterSeconds,
   };
 }
@@ -49,7 +48,6 @@ async function cfbdFetch(path, apiKey) {
     );
     const err = new Error("CFBD_RATE_LIMITED");
     err.code = "CFBD_RATE_LIMITED";
-    err.status = 429;
     err.retryAfterSeconds = retryAfterSeconds;
     throw err;
   }
@@ -68,74 +66,23 @@ function str(v) {
   return String(v).trim();
 }
 
-function pickCfbdPlayerId(p) {
-  const candidates = [
-    p.id,
-    p.player_id,
-    p.playerId,
-    p.athlete_id,
-    p.athleteId,
-  ];
-  for (const c of candidates) {
-    if (c == null || c === "") continue;
-    if (typeof c === "number" && Number.isFinite(c) && c > 0) {
-      return Math.floor(c);
-    }
-    const s = String(c).trim();
-    if (/^\d+$/.test(s)) {
-      const n = parseInt(s, 10);
-      if (Number.isFinite(n) && n > 0 && n <= 2147483647) return n;
-    }
+function normalizeRecruitsPayload(body) {
+  if (Array.isArray(body)) return body;
+  if (body && typeof body === "object") {
+    if (Array.isArray(body.players)) return body.players;
+    if (Array.isArray(body.data)) return body.data;
   }
-  return null;
+  return [];
 }
 
-function pickLatLon(p) {
-  const latRaw =
-    p.home_latitude ??
-    p.homeLatitude ??
-    p.latitude ??
-    p.lat ??
-    p.birth_latitude ??
-    p.birthLatitude;
-  const lonRaw =
-    p.home_longitude ??
-    p.homeLongitude ??
-    p.longitude ??
-    p.lon ??
-    p.lng ??
-    p.birth_longitude ??
-    p.birthLongitude;
-  let lat = latRaw != null ? Number(latRaw) : NaN;
-  let lon = lonRaw != null ? Number(lonRaw) : NaN;
-  if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
-    return { lat: null, lon: null };
-  }
-  return { lat, lon };
-}
-
-function pickHometownStrings(p) {
-  let city = str(p.home_city ?? p.homeCity ?? p.birth_city ?? p.birthCity);
-  let state = str(p.home_state ?? p.homeState ?? p.birth_state ?? p.birthState);
-  const country = str(
-    p.home_country ?? p.homeCountry ?? p.birth_country ?? p.birthCountry
-  );
-  const oneLine = str(
-    p.hometown ?? p.homeTown ?? p.home_town ?? p.birth_place ?? p.birthPlace
-  );
-  if (!city && !state && oneLine) {
-    return { city: "", state: "", country, hometownLine: oneLine };
-  }
-  return { city, state, country, hometownLine: "" };
-}
-
-function playerName(p, cfbdId) {
-  const a = str(p.first_name ?? p.firstName);
-  const b = str(p.last_name ?? p.lastName);
-  const n = `${a} ${b}`.trim();
-  if (n) return n;
-  if (cfbdId != null) return `Player ${cfbdId}`;
-  return "";
+function buildRecruitingPath(year, classification, team, state, position) {
+  const q = new URLSearchParams();
+  if (Number.isFinite(year)) q.set("year", String(year));
+  if (classification) q.set("classification", classification);
+  if (team) q.set("team", team);
+  if (state) q.set("state", state);
+  if (position) q.set("position", position);
+  return `/recruiting/players?${q.toString()}`;
 }
 
 function buildHometownFull(city, state, country) {
@@ -150,23 +97,6 @@ function buildHometownFull(city, state, country) {
     parts.push(country);
   }
   return parts.length ? parts.join(", ") : null;
-}
-
-function rosterFieldSample(p) {
-  if (!p || typeof p !== "object") return [];
-  return Object.keys(p).filter((k) =>
-    /home|birth|town|city|state|country|lat|lon|lng|hometown|place/i.test(k)
-  );
-}
-
-function normalizeRosterArray(roster) {
-  if (Array.isArray(roster)) return roster;
-  if (roster && typeof roster === "object") {
-    if (Array.isArray(roster.players)) return roster.players;
-    if (Array.isArray(roster.roster)) return roster.roster;
-    if (Array.isArray(roster.data)) return roster.data;
-  }
-  return [];
 }
 
 exports.handler = async (event) => {
@@ -185,293 +115,223 @@ exports.handler = async (event) => {
   const body = parseJsonBody(event) || {};
   const year = parseInt(body.year ?? body.season_year ?? "", 10);
   if (!Number.isFinite(year) || year < 2009 || year > 2100) {
-    return json(400, { error: "year is required (season year, e.g. 2024)" });
+    return json(400, { error: "year is required (recruit class year, e.g. 2025)" });
   }
 
-  const singleTeam = body.team != null ? String(body.team).trim() : "";
-  const offset = Math.max(0, parseInt(body.offset ?? 0, 10) || 0);
-  const limit = Math.min(25, Math.max(1, parseInt(body.limit ?? 5, 10) || 5));
-  const delayMsRaw = parseInt(body.delayMs ?? 1200, 10) || 1200;
-  const delayMs = Math.min(1500, Math.max(750, delayMsRaw));
+  let classification = str(body.classification) || "HighSchool";
+  if (!CLASSIFICATIONS.has(classification)) classification = "HighSchool";
 
-  let batchStats = {
-    teamsProcessedThisBatch: 0,
+  const team = body.team != null ? str(body.team) : "";
+  const state = body.state != null ? str(body.state) : "";
+  const position = body.position != null ? str(body.position) : "";
+  const delayMs = Math.min(3000, Math.max(0, parseInt(body.delayMs ?? 400, 10) || 400));
+
+  const requestPath = buildRecruitingPath(year, classification, team, state, position);
+
+  const stats = {
+    recruitsSeen: 0,
     rowsTouched: 0,
-    /** Skipped: no hometown text and no coordinates */
-    skippedNoHometown: 0,
-    /** Inserted this batch with hometown text but null coordinates (geocode later) */
-    skippedNoCoordinates: 0,
-    rosterPlayersSeen: 0,
-    teamsWithZeroRoster: 0,
-    skippedNoPlayerId: 0,
-    skippedNoTeam: 0,
+    skippedNoRecruitId: 0,
     skippedNoName: 0,
+    skippedNoHometownAndNoCoords: 0,
+    insertedWithHometownOnly: 0,
+    withHometownInfoCoords: 0,
+    withCityState: 0,
+    withCommittedTo: 0,
+    withStars: 0,
     sampleSkippedReason: null,
   };
 
   function noteSkip(reason) {
-    if (!batchStats.sampleSkippedReason) batchStats.sampleSkippedReason = reason;
+    if (!stats.sampleSkippedReason) stats.sampleSkippedReason = reason;
   }
 
   let conn;
   try {
-    const pool = getPool();
-    conn = await pool.getConnection();
+    if (delayMs > 0) await sleep(delayMs);
 
-    let allTeams;
+    let recruits;
     try {
-      const allTeamsRaw = await cfbdFetch(`/teams?year=${year}`, apiKey);
-      allTeams = Array.isArray(allTeamsRaw) ? allTeamsRaw : [];
+      const raw = await cfbdFetch(requestPath, apiKey);
+      recruits = normalizeRecruitsPayload(raw);
     } catch (e) {
       if (e.code === "CFBD_RATE_LIMITED") {
         return json(429, {
           ...cfbdRateLimitedPayload(e.retryAfterSeconds),
           year,
-          currentOffset: offset,
-          teamsProcessedThisBatch: 0,
-          rowsTouched: 0,
-          nextOffset: offset,
-          nextOffsetToResume: offset,
+          classification,
+          requestPath,
           done: false,
-          totalFbsTeams: null,
-          ...batchStats,
+          ...stats,
         });
       }
       throw e;
     }
 
-    await sleep(delayMs);
+    stats.recruitsSeen = recruits.length;
+    console.error("[recruit-map-sync] recruiting/players", {
+      requestPath,
+      recruitsSeen: stats.recruitsSeen,
+    });
 
-    let teamRows;
-    let totalFbs = 0;
-
-    if (singleTeam) {
-      teamRows = allTeams.filter(
-        (t) =>
-          (t.abbreviation || "").toUpperCase() === singleTeam.toUpperCase() ||
-          (t.school || "").toLowerCase() === singleTeam.toLowerCase()
-      );
-      if (!teamRows.length) {
-        return json(400, { error: "team not found for year", team: singleTeam });
-      }
-      totalFbs = teamRows.length;
-    } else {
-      const fbs = allTeams.filter(
-        (t) => (t.classification || "").toLowerCase() === "fbs"
-      );
-      fbs.sort((a, b) =>
-        String(a.abbreviation || "").localeCompare(String(b.abbreviation || ""))
-      );
-      totalFbs = fbs.length;
-      teamRows = fbs.slice(offset, offset + limit);
+    if (!recruits.length) {
+      return json(200, {
+        year,
+        classification,
+        requestPath,
+        rowsTouched: 0,
+        done: true,
+        message: "CFBD returned zero recruits for this query.",
+        ...stats,
+      });
     }
 
-    let upserted = 0;
-    const errors = [];
-    let teamsCompletedInBatch = 0;
+    const pool = getPool();
+    conn = await pool.getConnection();
 
-    for (let i = 0; i < teamRows.length; i++) {
-      const t = teamRows[i];
-      const abbr = t.abbreviation;
-      if (!abbr) {
-        teamsCompletedInBatch += 1;
+    for (const r of recruits) {
+      const ridRaw = r.id ?? r.recruitId;
+      const aid = str(r.athleteId ?? r.athlete_id);
+      let cfbdRecruitId = ridRaw != null && ridRaw !== "" ? str(ridRaw) : "";
+      if (!cfbdRecruitId && aid) cfbdRecruitId = `ath:${aid}`;
+      if (!cfbdRecruitId) {
+        stats.skippedNoRecruitId += 1;
+        noteSkip("no_recruit_id");
         continue;
       }
-      if (i > 0) await sleep(delayMs);
-      try {
-        const roster = await cfbdFetch(
-          `/roster?team=${encodeURIComponent(abbr)}&year=${year}`,
-          apiKey
-        );
-        const players = normalizeRosterArray(roster);
-        if (!Array.isArray(roster) && roster && typeof roster === "object") {
-          console.error("[recruit-map-sync] roster payload was not a top-level array; keys:", Object.keys(roster));
-        }
-        const schoolName = t.school || abbr;
 
-        let rosterLen = players.length;
-        let hometownFieldCount = 0;
-        let coordCount = 0;
-        let insertedThisTeam = 0;
-        let skippedThisTeam = 0;
-        let sampleKeysLogged = false;
-
-        if (rosterLen === 0) {
-          batchStats.teamsWithZeroRoster += 1;
-        }
-
-        for (const p of players) {
-          batchStats.rosterPlayersSeen += 1;
-
-          const cfbdId = pickCfbdPlayerId(p);
-          if (cfbdId == null) {
-            batchStats.skippedNoPlayerId += 1;
-            skippedThisTeam += 1;
-            noteSkip("no_numeric_player_id");
-            if (!sampleKeysLogged && players.length) {
-              sampleKeysLogged = true;
-              console.error(
-                "[recruit-map-sync] sample player keys (no id)",
-                rosterFieldSample(p),
-                "id_raw",
-                p && (p.id ?? p.playerId ?? p.athleteId)
-              );
-            }
-            continue;
-          }
-
-          const { city, state, country, hometownLine } = pickHometownStrings(p);
-          const { lat: latRaw, lon: lonRaw } = pickLatLon(p);
-          const hasCoords =
-            latRaw != null &&
-            lonRaw != null &&
-            Number.isFinite(latRaw) &&
-            Number.isFinite(lonRaw);
-          if (city || state || hometownLine) hometownFieldCount += 1;
-          if (hasCoords) coordCount += 1;
-
-          const fullFromParts = buildHometownFull(city, state, country);
-          const full =
-            fullFromParts ||
-            (hometownLine ? hometownLine : null);
-
-          const hasHometownText = !!(city || state || full);
-          if (!hasHometownText && !hasCoords) {
-            batchStats.skippedNoHometown += 1;
-            skippedThisTeam += 1;
-            noteSkip("no_hometown_text_and_no_coordinates");
-            continue;
-          }
-
-          const pos = str(p.position ?? p.pos);
-          const teamAbbr = str(p.team ?? p.team_id ?? p.teamId) || abbr;
-          if (!teamAbbr) {
-            batchStats.skippedNoTeam += 1;
-            skippedThisTeam += 1;
-            noteSkip("no_team_abbreviation");
-            continue;
-          }
-
-          const name = playerName(p, cfbdId);
-          if (!name) {
-            batchStats.skippedNoName += 1;
-            skippedThisTeam += 1;
-            noteSkip("no_player_name");
-            continue;
-          }
-
-          let lat = hasCoords ? latRaw : null;
-          let lon = hasCoords ? lonRaw : null;
-
-          await conn.query(
-            `INSERT INTO PlayerHometowns (
-              cfbd_player_id, player_name, team, team_school, conference, season_year, \`position\`,
-              hometown_city, hometown_state, hometown_full, latitude, longitude, source, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'cfbd_roster', NOW(3))
-            ON DUPLICATE KEY UPDATE
-              player_name = VALUES(player_name),
-              team_school = VALUES(team_school),
-              conference = VALUES(conference),
-              \`position\` = VALUES(\`position\`),
-              hometown_city = VALUES(hometown_city),
-              hometown_state = VALUES(hometown_state),
-              hometown_full = VALUES(hometown_full),
-              latitude = COALESCE(VALUES(latitude), latitude),
-              longitude = COALESCE(VALUES(longitude), longitude),
-              updated_at = NOW(3)`,
-            [
-              cfbdId,
-              name,
-              teamAbbr,
-              t.school || null,
-              t.conference || null,
-              year,
-              pos || null,
-              city || null,
-              state || null,
-              full,
-              lat,
-              lon,
-            ]
-          );
-          upserted += 1;
-          insertedThisTeam += 1;
-          if (hasHometownText && !hasCoords) {
-            batchStats.skippedNoCoordinates += 1;
-          }
-        }
-
-        console.error("[recruit-map-sync] roster summary", {
-          team: abbr,
-          school: schoolName,
-          rosterHttpOk: true,
-          rosterLength: rosterLen,
-          countWithHometownOrLine: hometownFieldCount,
-          countWithCoordinates: coordCount,
-          rowsUpserted: insertedThisTeam,
-          rowsSkipped: skippedThisTeam,
-        });
-
-        teamsCompletedInBatch += 1;
-      } catch (e) {
-        if (e.code === "CFBD_RATE_LIMITED") {
-          const nextOffsetToResume = offset + teamsCompletedInBatch;
-          return json(429, {
-            ...cfbdRateLimitedPayload(e.retryAfterSeconds),
-            year,
-            currentOffset: offset,
-            teamsProcessedThisBatch: teamsCompletedInBatch,
-            rowsTouched: upserted,
-            nextOffset: nextOffsetToResume,
-            nextOffsetToResume,
-            done: false,
-            totalFbsTeams: totalFbs,
-            rosterPlayersSeen: batchStats.rosterPlayersSeen,
-            skippedNoHometown: batchStats.skippedNoHometown,
-            skippedNoCoordinates: batchStats.skippedNoCoordinates,
-            teamsWithZeroRoster: batchStats.teamsWithZeroRoster,
-            skippedNoPlayerId: batchStats.skippedNoPlayerId,
-            skippedNoTeam: batchStats.skippedNoTeam,
-            skippedNoName: batchStats.skippedNoName,
-            sampleSkippedReason: batchStats.sampleSkippedReason,
-          });
-        }
-        console.error("recruit-map-sync team", abbr, e);
-        errors.push({ team: abbr, message: e.message || String(e) });
-        teamsCompletedInBatch += 1;
+      const name = str(r.name);
+      if (!name) {
+        stats.skippedNoName += 1;
+        noteSkip("no_name");
+        continue;
       }
+
+      const recruitYear = parseInt(r.year, 10);
+      const seasonYear = Number.isFinite(recruitYear) ? recruitYear : year;
+
+      const committedTo = str(r.committedTo ?? r.committed_to) || null;
+      const school = str(r.school) || null;
+      const displayTeam = committedTo || school || null;
+
+      const pos = str(r.position) || null;
+      const recruitType = str(r.recruitType ?? r.recruit_type) || classification;
+
+      const city = str(r.city);
+      const st = str(r.stateProvince ?? r.state_province ?? r.state);
+      const country = str(r.country);
+      const hi = r.hometownInfo || r.hometown_info || {};
+      let lat = hi.latitude != null ? Number(hi.latitude) : NaN;
+      let lon = hi.longitude != null ? Number(hi.longitude) : NaN;
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+        lat = null;
+        lon = null;
+      } else {
+        stats.withHometownInfoCoords += 1;
+      }
+
+      if (city || st) stats.withCityState += 1;
+      if (committedTo) stats.withCommittedTo += 1;
+
+      let hometownFull = buildHometownFull(city, st, country);
+      if (!hometownFull && (city || st)) {
+        hometownFull = [city, st].filter(Boolean).join(", ");
+      }
+      if (!hometownFull && country) hometownFull = country;
+
+      const hasText = !!(city || st || hometownFull || country);
+      const hasCoords = lat != null && lon != null;
+      if (!hasText && !hasCoords) {
+        stats.skippedNoHometownAndNoCoords += 1;
+        noteSkip("no_hometown_and_no_coordinates");
+        continue;
+      }
+      if (hasText && !hasCoords) stats.insertedWithHometownOnly += 1;
+
+      const starsRaw = r.stars;
+      let stars = starsRaw != null ? parseInt(String(starsRaw), 10) : null;
+      if (!Number.isFinite(stars) || stars < 0) stars = null;
+      else if (stars > 5) stars = 5;
+      if (stars != null) stats.withStars += 1;
+
+      let rating = r.rating != null ? Number(r.rating) : null;
+      if (!Number.isFinite(rating)) rating = null;
+
+      let ranking = r.ranking != null ? parseInt(String(r.ranking), 10) : null;
+      if (!Number.isFinite(ranking)) ranking = null;
+
+      await conn.query(
+        `INSERT INTO PlayerHometowns (
+          cfbd_player_id, cfbd_recruit_id, athlete_id, recruit_type,
+          player_name, committed_to, school, team, team_school, conference, season_year, \`position\`,
+          hometown_city, hometown_state, hometown_country, hometown_full,
+          latitude, longitude, stars, rating, ranking, source, updated_at
+        ) VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'cfbd_recruiting_players', NOW(3))
+        ON DUPLICATE KEY UPDATE
+          athlete_id = VALUES(athlete_id),
+          recruit_type = VALUES(recruit_type),
+          player_name = VALUES(player_name),
+          committed_to = VALUES(committed_to),
+          school = VALUES(school),
+          team = VALUES(team),
+          \`position\` = VALUES(\`position\`),
+          hometown_city = VALUES(hometown_city),
+          hometown_state = VALUES(hometown_state),
+          hometown_country = VALUES(hometown_country),
+          hometown_full = VALUES(hometown_full),
+          latitude = COALESCE(VALUES(latitude), latitude),
+          longitude = COALESCE(VALUES(longitude), longitude),
+          stars = VALUES(stars),
+          rating = VALUES(rating),
+          ranking = VALUES(ranking),
+          source = VALUES(source),
+          updated_at = NOW(3)`,
+        [
+          cfbdRecruitId.slice(0, 64),
+          aid || null,
+          recruitType || null,
+          name.slice(0, 255),
+          committedTo,
+          school,
+          displayTeam,
+          seasonYear,
+          pos,
+          city || null,
+          st || null,
+          country || null,
+          hometownFull,
+          lat,
+          lon,
+          stars,
+          rating,
+          ranking,
+        ]
+      );
+      stats.rowsTouched += 1;
     }
-
-    const nextOffset = singleTeam ? null : offset + teamRows.length;
-    const done = singleTeam ? true : nextOffset >= totalFbs;
-
-    batchStats.rowsTouched = upserted;
-    batchStats.teamsProcessedThisBatch = teamRows.length;
 
     return json(200, {
       year,
-      currentOffset: offset,
-      teamsProcessedThisBatch: teamRows.length,
-      rowsTouched: upserted,
-      nextOffset: done ? null : nextOffset,
-      nextOffsetToResume: done ? null : nextOffset,
-      done,
-      totalFbsTeams: totalFbs,
-      errors: errors.length ? errors : undefined,
-      source: "cfbd_roster",
-      rosterPlayersSeen: batchStats.rosterPlayersSeen,
-      skippedNoHometown: batchStats.skippedNoHometown,
-      skippedNoCoordinates: batchStats.skippedNoCoordinates,
-      teamsWithZeroRoster: batchStats.teamsWithZeroRoster,
-      skippedNoPlayerId: batchStats.skippedNoPlayerId,
-      skippedNoTeam: batchStats.skippedNoTeam,
-      skippedNoName: batchStats.skippedNoName,
-      sampleSkippedReason: batchStats.sampleSkippedReason,
+      classification,
+      team: team || undefined,
+      state: state || undefined,
+      position: position || undefined,
+      requestPath,
+      rowsTouched: stats.rowsTouched,
+      done: true,
+      ...stats,
     });
   } catch (err) {
     console.error("admin-recruit-map-sync:", err);
     if (err.code === "NO_DATABASE_URL") {
       return json(500, { error: "Server misconfiguration" });
+    }
+    if (err.code === "ER_BAD_FIELD_ERROR" || err.code === "ER_NO_SUCH_COLUMN") {
+      return json(503, {
+        error: "Database schema out of date",
+        details:
+          "Run Client/sql/player_hometowns_recruiting_migration.sql (or recreate from Client/sql/player_hometowns.sql).",
+      });
     }
     if (err.code === "ER_NO_SUCH_TABLE") {
       return json(503, {

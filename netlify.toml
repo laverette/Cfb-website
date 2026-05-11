@@ -53,6 +53,11 @@
   status = 200
 
 [[redirects]]
+  from = "/api/admin/recruit-map/debug-recruits"
+  to = "/.netlify/functions/admin-recruit-map-debug-recruits"
+  status = 200
+
+[[redirects]]
   from = "/api/admin/current-week"
   to = "/.netlify/functions/admin-current-week"
   status = 200
