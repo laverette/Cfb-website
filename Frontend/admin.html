@@ -294,17 +294,23 @@
         </div>
       </div>
       <p style="color:#bfa88a; font-size:0.88rem; margin-top:0.75rem; margin-bottom:0.75rem;">
-        Uses <strong>GET /recruiting/players</strong> with your year and classification. Default year <strong>2025</strong> is best for testing; future classes may be incomplete.
+        Uses <strong>GET /recruiting/players</strong> with your year and classification. Sync runs in <strong>row batches</strong> (default 250 rows, max 500) so each request stays under the gateway time limit. Default year <strong>2025</strong> is best for testing; future classes may be incomplete.
       </p>
       <div style="display:flex; flex-wrap:wrap; gap:0.5rem; align-items:center;">
         <button type="button" class="btn btn-primary" id="btnRecruitAutoSync" onclick="recruitMapAutoSync()">Auto Sync</button>
         <button type="button" class="btn btn-secondary" id="btnRecruitLoad" onclick="recruitMapLoadData()">Load Recruiting Players</button>
-        <button type="button" class="btn btn-secondary" id="btnRecruitUpdate" onclick="recruitMapUpdateData()">Update Recruiting Map Data</button>
+        <button type="button" class="btn btn-secondary" id="btnRecruitNextBatch" onclick="recruitMapLoadNextBatch()">Load Next Recruit Batch</button>
+        <button type="button" class="btn btn-secondary" id="btnRecruitAutoBatches" onclick="recruitMapAutoLoadAllBatches()">Auto Load All Recruit Batches</button>
+        <button type="button" class="btn btn-secondary" id="btnRecruitResume" onclick="recruitMapResumeSync()">Resume Recruit Sync</button>
+        <button type="button" class="btn btn-secondary" id="btnRecruitUpdate" onclick="recruitMapLoadNextBatch()">Update Recruiting Map Data</button>
         <button type="button" class="btn btn-secondary" id="btnRecruitGeocode" onclick="recruitMapGeocode()">Geocode Missing Hometowns</button>
+        <button type="button" class="btn btn-secondary" id="btnRecruitCheckMap" onclick="recruitMapCheckMapData()">Check Map Data</button>
         <button type="button" class="btn btn-secondary" id="btnRecruitDebug" onclick="recruitMapDebugRecruits()">Debug sample (CFBD)</button>
       </div>
       <p style="color:#bfa88a; font-size:0.88rem; margin-top:0.75rem; margin-bottom:0;">
-        <strong>Auto Sync</strong> loads recruiting players for the filters above, then runs geocode passes for rows still missing coordinates.
+        <strong>Load Recruiting Players</strong> starts at row 0 and clears saved batch progress for this filter set.
+        <strong>Resume</strong> continues from the last successful next row offset (stored in this browser).
+        <strong>Auto Sync</strong> loads all batches (with pauses), then runs geocode passes for rows still missing coordinates — it does not geocode between recruit batches.
       </p>
       <div id="recruitMapSyncStatus" style="margin-top:12px;"></div>
     </div>
@@ -422,24 +428,135 @@
     const RECRUIT_GEOCODE_DELAY_MS = 1200;
     const RECRUIT_GEOCODE_MAX_ROUNDS = 25;
     const RECRUIT_GEOCODE_PAUSE_BETWEEN_ROUNDS_MS = 3000;
+    const RECRUIT_SYNC_ROW_LIMIT = 250;
+
+    /** After a successful batch, next CFBD row index to start (null if complete). */
+    var recruitMapSyncInMemoryNextOffset = null;
 
     function recruitMapSleep(ms) {
       return new Promise(function (r) { setTimeout(r, ms); });
     }
 
-    function recruitMapSyncFormBody() {
+    function recruitMapSyncFilterParts() {
       const year = parseInt(document.getElementById('recruitMapSeasonYear').value, 10);
       const classification = document.getElementById('recruitMapClassification').value;
       const team = document.getElementById('recruitMapTeam').value.trim();
       const state = document.getElementById('recruitMapState').value.trim();
       const position = document.getElementById('recruitMapPosition').value.trim();
+      return { year: year, classification: classification, team: team, state: state, position: position };
+    }
+
+    function recruitMapSyncFormBody() {
+      const p = recruitMapSyncFilterParts();
       return {
-        year,
-        classification,
-        team: team || undefined,
-        state: state || undefined,
-        position: position || undefined,
+        year: p.year,
+        classification: p.classification,
+        team: p.team || undefined,
+        state: p.state || undefined,
+        position: p.position || undefined,
       };
+    }
+
+    function recruitMapSyncOffsetStorageKey() {
+      const p = recruitMapSyncFilterParts();
+      if (!Number.isFinite(p.year)) return 'recruitMapSyncOffset:invalid';
+      return (
+        'recruitMapSyncOffset:' +
+        p.year +
+        ':' +
+        (p.classification || 'HighSchool') +
+        ':' +
+        p.team +
+        ':' +
+        p.state +
+        ':' +
+        p.position
+      );
+    }
+
+    function recruitMapGetSavedNextOffset() {
+      try {
+        const raw = localStorage.getItem(recruitMapSyncOffsetStorageKey());
+        if (raw == null || raw === '') return null;
+        const n = parseInt(raw, 10);
+        return Number.isFinite(n) && n >= 0 ? n : null;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function recruitMapSaveNextOffset(nextRowOffset) {
+      try {
+        localStorage.setItem(recruitMapSyncOffsetStorageKey(), String(nextRowOffset));
+      } catch (e) {}
+    }
+
+    function recruitMapClearSavedOffset() {
+      try {
+        localStorage.removeItem(recruitMapSyncOffsetStorageKey());
+      } catch (e) {}
+    }
+
+    function recruitMapApplySuccessfulBatch(data) {
+      if (!data) return;
+      if (data.done) {
+        recruitMapClearSavedOffset();
+        recruitMapSyncInMemoryNextOffset = null;
+      } else if (data.nextRowOffset != null) {
+        recruitMapSaveNextOffset(data.nextRowOffset);
+        recruitMapSyncInMemoryNextOffset = data.nextRowOffset;
+      }
+    }
+
+    async function recruitMapFetchDbTotalForYear(year) {
+      try {
+        const res = await fetch(
+          API_BASE + '/api/recruit-map/stats?year=' + encodeURIComponent(String(year))
+        );
+        if (!res.ok) return null;
+        const d = await res.json();
+        return d.totalRows != null ? d.totalRows : null;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function recruitMapSavedVsCfbdLine(dbTotal, recruitsSeen) {
+      if (dbTotal == null || recruitsSeen == null) return '';
+      return (
+        '<p style="color:#deb887;">Saved to database: <strong>' +
+        dbTotal +
+        '</strong> of <strong>' +
+        recruitsSeen +
+        '</strong> CFBD recruits for this query (includes rows not yet on the map until geocoded).</p>'
+      );
+    }
+
+    function recruitMapBuildProgressHtml(data) {
+      if (!data || data.recruitsSeen == null) return '';
+      var total = data.recruitsSeen;
+      var next = data.nextRowOffset;
+      if (data.done) {
+        return (
+          '<p style="color:#98fb98;">CFBD recruits processed through row <strong>' +
+          total +
+          '</strong> of <strong>' +
+          total +
+          '</strong> (complete). Use <strong>Check Map Data</strong> for database row counts.</p>'
+        );
+      }
+      if (next != null) {
+        return (
+          '<p style="color:#f5deb3;">CFBD batch progress: processed through row <strong>' +
+          next +
+          '</strong> of <strong>' +
+          total +
+          '</strong>. Next batch starts at row <strong>' +
+          next +
+          '</strong>.</p>'
+        );
+      }
+      return '';
     }
 
     function recruitMapFormatRecruitSyncHtml(data, title) {
@@ -467,6 +584,27 @@
       if (data.sampleSkippedReason) {
         extra += '<li>First skip reason: <strong>' + String(data.sampleSkippedReason).replace(/</g, '&lt;') + '</strong></li>';
       }
+      if (data.rowOffset != null) {
+        extra += '<li>Batch row offset: <strong>' + data.rowOffset + '</strong></li>';
+      }
+      if (data.rowLimit != null) {
+        extra += '<li>Batch row limit: <strong>' + data.rowLimit + '</strong></li>';
+      }
+      if (data.processedThisBatch != null) {
+        extra += '<li>CFBD rows in this batch: <strong>' + data.processedThisBatch + '</strong></li>';
+      }
+      if (data.nextRowOffset != null) {
+        extra += '<li>Next row offset: <strong>' + data.nextRowOffset + '</strong></li>';
+      }
+      if (data.done != null) {
+        extra += '<li>All batches done: <strong>' + (data.done ? 'yes' : 'no') + '</strong></li>';
+      }
+      if (data.insertedWithNullCoordinates != null) {
+        extra +=
+          '<li>Upserted this batch with hometown text but null coordinates: <strong>' +
+          data.insertedWithNullCoordinates +
+          '</strong></li>';
+      }
       return (
         (title ? '<div style="font-weight:700;margin-bottom:6px;">' + title + '</div>' : '') +
         '<ul style="margin:0;padding-left:1.2rem;color:#f5deb3;line-height:1.5;">' +
@@ -474,49 +612,88 @@
         '<li>Classification: <strong>' + cls + '</strong></li>' +
         '<li>CFBD path: <code style="color:#FFD700;font-size:0.85rem;">' + path.replace(/</g, '&lt;') + '</code></li>' +
         '<li>Recruits from CFBD: <strong>' + seen + '</strong></li>' +
-        '<li>Rows inserted/updated: <strong>' + rows + '</strong></li>' +
+        '<li>Rows inserted/updated (this batch): <strong>' + rows + '</strong></li>' +
         extra +
         '</ul>'
       );
     }
 
     function recruitMapSyncButtonsBusy(busy) {
-      ['btnRecruitAutoSync', 'btnRecruitLoad', 'btnRecruitUpdate', 'btnRecruitGeocode', 'btnRecruitDebug'].forEach((id) => {
+      [
+        'btnRecruitAutoSync',
+        'btnRecruitLoad',
+        'btnRecruitNextBatch',
+        'btnRecruitAutoBatches',
+        'btnRecruitResume',
+        'btnRecruitUpdate',
+        'btnRecruitGeocode',
+        'btnRecruitCheckMap',
+        'btnRecruitDebug',
+      ].forEach(function (id) {
         const b = document.getElementById(id);
         if (b) b.disabled = !!busy;
       });
     }
 
-    async function postRecruitingSyncRequest(statusEl, loadingMsg) {
-      const body = recruitMapSyncFormBody();
-      if (!Number.isFinite(body.year)) {
+    async function postRecruitingSyncRequest(statusEl, loadingMsg, extraBody) {
+      const base = recruitMapSyncFormBody();
+      if (!Number.isFinite(base.year)) {
         alert('Choose a valid year.');
-        return { authFail: false, rateLimited: false, aborted: true };
+        return { authFail: false, rateLimited: false, aborted: true, timedOut: false };
       }
+      var rowOffset = 0;
+      var rowLimit = RECRUIT_SYNC_ROW_LIMIT;
+      if (extraBody) {
+        if (extraBody.rowOffset != null) {
+          var ro = parseInt(extraBody.rowOffset, 10);
+          if (Number.isFinite(ro) && ro >= 0) rowOffset = ro;
+        }
+        if (extraBody.rowLimit != null) {
+          var rl = parseInt(extraBody.rowLimit, 10);
+          if (Number.isFinite(rl)) rowLimit = Math.min(500, Math.max(1, rl));
+        }
+      }
+      var body = Object.assign({}, base, extraBody || {});
+      body.rowOffset = rowOffset;
+      body.rowLimit = rowLimit;
       if (statusEl) statusEl.innerHTML = '<div class="loading">' + loadingMsg + '</div>';
-      const res = await fetch(`${API_BASE}/api/admin/recruit-map/sync`, {
+      const res = await fetch(API_BASE + '/api/admin/recruit-map/sync', {
         method: 'POST',
         headers: adminAuthHeaders(true),
         body: JSON.stringify(body),
       });
       if (checkAdminFetch(res)) {
         recruitMapSyncButtonsBusy(false);
-        return { authFail: true, rateLimited: false, aborted: false };
+        return { authFail: true, rateLimited: false, aborted: false, timedOut: false };
       }
-      const data = await res.json().catch(() => ({}));
+      const data = await res.json().catch(function () {
+        return {};
+      });
       if (res.status === 429 && data.error === 'CFBD_RATE_LIMITED') {
         const w = data.retryAfterSeconds != null ? data.retryAfterSeconds : 120;
         statusEl.innerHTML =
           '<div class="status-message status-error"><strong>CFBD rate limit.</strong> Wait about ' + w + ' seconds and try again.</div>' +
           recruitMapFormatRecruitSyncHtml(data, 'Partial response');
-        return { authFail: false, rateLimited: true, aborted: false, data };
+        return { authFail: false, rateLimited: true, aborted: false, timedOut: false, data: data };
+      }
+      if (res.status === 504 || res.status === 502) {
+        const resumeAt = recruitMapGetSavedNextOffset();
+        var tmsg =
+          '<div class="status-message status-error"><strong>Sync timed out</strong> (HTTP ' +
+          res.status +
+          '). ';
+        if (resumeAt != null) {
+          tmsg += 'Resume from row <strong>' + resumeAt + '</strong> (last fully completed batch end).</div>';
+        } else {
+          tmsg +=
+            'No saved row offset yet in this browser — if a batch finished, try <strong>Resume</strong> after refreshing, or run <strong>Load Next Recruit Batch</strong>.</div>';
+        }
+        statusEl.innerHTML = tmsg;
+        return { authFail: false, rateLimited: false, aborted: false, timedOut: true, data: data };
       }
       if (!res.ok) {
         let msg;
-        if (
-          data.error &&
-          String(data.error).indexOf('Recruit sync insert mapping error') !== -1
-        ) {
+        if (data.error && String(data.error).indexOf('Recruit sync insert mapping error') !== -1) {
           msg = String(data.error);
         } else {
           msg = data.details
@@ -525,7 +702,66 @@
         }
         throw new Error(msg);
       }
-      return { authFail: false, rateLimited: false, aborted: false, data };
+      return { authFail: false, rateLimited: false, aborted: false, timedOut: false, data: data };
+    }
+
+    async function recruitMapRunBatchSyncLoop(statusEl, startOffset) {
+      var offset = startOffset != null ? startOffset : recruitMapGetSavedNextOffset() || 0;
+      var last = null;
+      for (;;) {
+        var label = 'Recruiting sync (CFBD rows ' + offset + '–' + (offset + RECRUIT_SYNC_ROW_LIMIT) + ')…';
+        var r = await postRecruitingSyncRequest(statusEl, label, {
+          rowOffset: offset,
+          rowLimit: RECRUIT_SYNC_ROW_LIMIT,
+        });
+        if (r.authFail || r.aborted) return { stopped: 'auth', last: last };
+        if (r.rateLimited) return { stopped: 'rate', last: last };
+        if (r.timedOut) return { stopped: 'timeout', last: last };
+        last = r.data;
+        if (!last) return { stopped: 'error', last: last };
+        var progressHtml = recruitMapBuildProgressHtml(last);
+        var dbTotal = await recruitMapFetchDbTotalForYear(recruitMapSyncFilterParts().year);
+        statusEl.innerHTML =
+          progressHtml +
+          recruitMapSavedVsCfbdLine(dbTotal, last.recruitsSeen) +
+          recruitMapFormatRecruitSyncHtml(last, 'Latest batch');
+        recruitMapApplySuccessfulBatch(last);
+        if (last.done) return { stopped: null, last: last };
+        offset = last.nextRowOffset;
+        if (offset == null) return { stopped: null, last: last };
+        var delayMs = 1000 + Math.floor(Math.random() * 2001);
+        await recruitMapSleep(delayMs);
+      }
+    }
+
+    async function recruitMapSingleBatch(rowOffset, loadingMsg, clearSavedFirst) {
+      const statusEl = document.getElementById('recruitMapSyncStatus');
+      statusEl.innerHTML = '';
+      recruitMapSyncButtonsBusy(true);
+      try {
+        if (clearSavedFirst) {
+          recruitMapClearSavedOffset();
+          recruitMapSyncInMemoryNextOffset = null;
+        }
+        const r = await postRecruitingSyncRequest(statusEl, loadingMsg, {
+          rowOffset: rowOffset,
+          rowLimit: RECRUIT_SYNC_ROW_LIMIT,
+        });
+        if (r.authFail || r.aborted) return;
+        if (r.rateLimited) return;
+        if (r.timedOut) return;
+        recruitMapApplySuccessfulBatch(r.data);
+        var dbTot = await recruitMapFetchDbTotalForYear(recruitMapSyncFilterParts().year);
+        statusEl.innerHTML =
+          recruitMapBuildProgressHtml(r.data) +
+          recruitMapSavedVsCfbdLine(dbTot, r.data.recruitsSeen) +
+          '<div class="status-message status-success">Batch complete.</div>' +
+          recruitMapFormatRecruitSyncHtml(r.data, 'Summary');
+      } catch (e) {
+        statusEl.innerHTML = '<div class="status-message status-error">' + e.message + '</div>';
+      } finally {
+        recruitMapSyncButtonsBusy(false);
+      }
     }
 
     async function runRecruitGeocodePasses(statusEl) {
@@ -564,14 +800,22 @@
       statusEl.innerHTML = '';
       recruitMapSyncButtonsBusy(true);
       try {
-        const syncResult = await postRecruitingSyncRequest(statusEl, 'Auto Sync: loading recruiting players from CFBD…');
-        if (syncResult.authFail || syncResult.aborted) return;
-        if (syncResult.rateLimited) return;
-        const syncHtml =
-          '<div class="status-message status-success">Recruiting sync finished.</div>' +
-          recruitMapFormatRecruitSyncHtml(syncResult.data, 'Summary') +
+        var start = recruitMapGetSavedNextOffset() != null ? recruitMapGetSavedNextOffset() : 0;
+        var result = await recruitMapRunBatchSyncLoop(statusEl, start);
+        if (result.stopped === 'auth' || result.stopped === 'rate') return;
+        if (result.stopped === 'timeout') {
+          return;
+        }
+        if (result.stopped === 'error') {
+          statusEl.innerHTML =
+            '<div class="status-message status-error">Recruiting sync stopped unexpectedly.</div>';
+          return;
+        }
+        statusEl.innerHTML =
+          '<div class="status-message status-success">Recruiting batches complete. Starting geocode…</div>' +
+          recruitMapBuildProgressHtml(result.last) +
+          recruitMapFormatRecruitSyncHtml(result.last, 'Summary') +
           '<div class="loading" style="margin-top:1rem;">Filling missing map coordinates…</div>';
-        statusEl.innerHTML = syncHtml;
         const geo = await runRecruitGeocodePasses(statusEl);
         if (geo.stoppedAuth) return;
         if (geo.rateLimited) return;
@@ -579,45 +823,110 @@
           '<div class="status-message status-success">All set. Geocoding added ' +
           geo.geocodedTotal.toLocaleString() +
           ' map locations after recruiting sync.</div>' +
-          recruitMapFormatRecruitSyncHtml(syncResult.data, 'Recruiting sync');
+          recruitMapFormatRecruitSyncHtml(result.last, 'Recruiting sync');
       } catch (e) {
-        statusEl.innerHTML = `<div class="status-message status-error">${e.message}</div>`;
+        statusEl.innerHTML = '<div class="status-message status-error">' + e.message + '</div>';
       } finally {
         recruitMapSyncButtonsBusy(false);
       }
     }
 
     async function recruitMapLoadData() {
+      await recruitMapSingleBatch(0, 'Loading recruiting players (first batch, row 0)…', true);
+    }
+
+    async function recruitMapLoadNextBatch() {
+      var off =
+        recruitMapSyncInMemoryNextOffset != null
+          ? recruitMapSyncInMemoryNextOffset
+          : recruitMapGetSavedNextOffset();
+      if (off == null) off = 0;
+      await recruitMapSingleBatch(off, 'Loading next recruiting batch…', false);
+    }
+
+    async function recruitMapResumeSync() {
+      var off = recruitMapGetSavedNextOffset();
+      if (off == null) {
+        alert(
+          'No saved batch progress for this year and filter combination in this browser. Use “Load Recruiting Players” first.'
+        );
+        return;
+      }
+      await recruitMapSingleBatch(off, 'Resuming recruiting sync…', false);
+    }
+
+    async function recruitMapAutoLoadAllBatches() {
       const statusEl = document.getElementById('recruitMapSyncStatus');
       statusEl.innerHTML = '';
       recruitMapSyncButtonsBusy(true);
       try {
-        const r = await postRecruitingSyncRequest(statusEl, 'Loading recruiting players…');
-        if (r.authFail || r.aborted) return;
-        if (r.rateLimited) return;
+        var start = recruitMapGetSavedNextOffset() != null ? recruitMapGetSavedNextOffset() : 0;
+        var result = await recruitMapRunBatchSyncLoop(statusEl, start);
+        if (result.stopped === 'timeout') {
+          var resumeAt = recruitMapGetSavedNextOffset();
+          statusEl.innerHTML =
+            '<div class="status-message status-error"><strong>Stopped: gateway timeout.</strong> ' +
+            (resumeAt != null
+              ? 'Resume from row <strong>' + resumeAt + '</strong>.'
+              : 'Use <strong>Resume Recruit Sync</strong> when the gateway is healthy.') +
+            '</div>' +
+            (result.last ? recruitMapFormatRecruitSyncHtml(result.last, 'Last successful batch') : '');
+          return;
+        }
+        if (result.stopped === 'auth' || result.stopped === 'rate') return;
+        if (result.stopped === 'error') {
+          statusEl.innerHTML =
+            '<div class="status-message status-error">Sync stopped (unexpected).</div>';
+          return;
+        }
+        var dbFinal = await recruitMapFetchDbTotalForYear(recruitMapSyncFilterParts().year);
         statusEl.innerHTML =
-          '<div class="status-message status-success">Load complete.</div>' +
-          recruitMapFormatRecruitSyncHtml(r.data, 'Summary');
+          '<div class="status-message status-success">All recruit batches loaded.</div>' +
+          recruitMapBuildProgressHtml(result.last) +
+          recruitMapSavedVsCfbdLine(dbFinal, result.last ? result.last.recruitsSeen : null) +
+          recruitMapFormatRecruitSyncHtml(result.last, 'Summary');
       } catch (e) {
-        statusEl.innerHTML = `<div class="status-message status-error">${e.message}</div>`;
+        statusEl.innerHTML = '<div class="status-message status-error">' + e.message + '</div>';
       } finally {
         recruitMapSyncButtonsBusy(false);
       }
     }
 
-    async function recruitMapUpdateData() {
+    async function recruitMapCheckMapData() {
+      const p = recruitMapSyncFilterParts();
+      if (!Number.isFinite(p.year)) {
+        alert('Choose a valid year.');
+        return;
+      }
       const statusEl = document.getElementById('recruitMapSyncStatus');
-      statusEl.innerHTML = '';
       recruitMapSyncButtonsBusy(true);
+      statusEl.innerHTML = '<div class="loading">Loading map stats…</div>';
       try {
-        const r = await postRecruitingSyncRequest(statusEl, 'Updating recruiting map data…');
-        if (r.authFail || r.aborted) return;
-        if (r.rateLimited) return;
+        const res = await fetch(
+          API_BASE + '/api/recruit-map/stats?year=' + encodeURIComponent(String(p.year))
+        );
+        const data = await res.json().catch(function () {
+          return {};
+        });
+        if (!res.ok) throw new Error(data.error || res.statusText);
         statusEl.innerHTML =
-          '<div class="status-message status-success">Update complete.</div>' +
-          recruitMapFormatRecruitSyncHtml(r.data, 'Summary');
+          '<div class="status-message status-success">Map data for season year <strong>' +
+          data.year +
+          '</strong></div>' +
+          '<ul style="margin:0;padding-left:1.2rem;color:#f5deb3;line-height:1.5;">' +
+          '<li>Total rows in PlayerHometowns: <strong>' +
+          data.totalRows +
+          '</strong></li>' +
+          '<li>Rows with coordinates: <strong>' +
+          data.rowsWithCoordinates +
+          '</strong></li>' +
+          '<li>Rows missing coordinates: <strong>' +
+          data.rowsMissingCoordinates +
+          '</strong></li>' +
+          '</ul>' +
+          '<p style="color:#bfa88a;font-size:0.88rem;">The public map lists only players with coordinates; geocode adds the rest.</p>';
       } catch (e) {
-        statusEl.innerHTML = `<div class="status-message status-error">${e.message}</div>`;
+        statusEl.innerHTML = '<div class="status-message status-error">' + e.message + '</div>';
       } finally {
         recruitMapSyncButtonsBusy(false);
       }

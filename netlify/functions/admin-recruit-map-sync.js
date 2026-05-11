@@ -1,7 +1,10 @@
 /**
  * POST /api/admin/recruit-map/sync
- * Body JSON: { year, classification?, team?, state?, position?, delayMs? }
- * Fetches CFBD GET /recruiting/players and upserts PlayerHometowns.
+ * Body JSON: {
+ *   year, classification?, team?, state?, position?, delayMs?,
+ *   rowOffset? (default 0), rowLimit? (default 250, max 500)
+ * }
+ * Fetches full CFBD GET /recruiting/players, then upserts only recruits.slice(rowOffset, rowOffset + rowLimit).
  */
 const { getPool } = require("./db");
 const { json, parseJsonBody } = require("./_http");
@@ -131,6 +134,12 @@ exports.handler = async (event) => {
   const position = body.position != null ? str(body.position) : "";
   const delayMs = Math.min(3000, Math.max(0, parseInt(body.delayMs ?? 400, 10) || 400));
 
+  let rowOffset = parseInt(body.rowOffset ?? 0, 10);
+  if (!Number.isFinite(rowOffset) || rowOffset < 0) rowOffset = 0;
+  let rowLimit = parseInt(body.rowLimit ?? 250, 10);
+  if (!Number.isFinite(rowLimit) || rowLimit < 1) rowLimit = 250;
+  rowLimit = Math.min(500, rowLimit);
+
   const requestPath = buildRecruitingPath(year, classification, team, state, position);
 
   const stats = {
@@ -166,6 +175,10 @@ exports.handler = async (event) => {
           year,
           classification,
           requestPath,
+          rowOffset,
+          rowLimit,
+          processedThisBatch: 0,
+          nextRowOffset: null,
           done: false,
           ...stats,
         });
@@ -173,30 +186,63 @@ exports.handler = async (event) => {
       throw e;
     }
 
-    stats.recruitsSeen = recruits.length;
+    const recruitsTotal = recruits.length;
+    stats.recruitsSeen = recruitsTotal;
     console.error("[recruit-map-sync] recruiting/players", {
       requestPath,
-      recruitsSeen: stats.recruitsSeen,
+      recruitsSeen: recruitsTotal,
+      rowOffset,
+      rowLimit,
     });
 
-    if (!recruits.length) {
+    if (!recruitsTotal) {
       return json(200, {
         year,
         classification,
         requestPath,
+        rowOffset,
+        rowLimit,
+        processedThisBatch: 0,
         rowsTouched: 0,
+        nextRowOffset: null,
         done: true,
         message: "CFBD returned zero recruits for this query.",
+        insertedWithNullCoordinates: 0,
         ...stats,
       });
     }
+
+    if (rowOffset >= recruitsTotal) {
+      return json(200, {
+        year,
+        classification,
+        team: team || undefined,
+        state: state || undefined,
+        position: position || undefined,
+        requestPath,
+        recruitsSeen: recruitsTotal,
+        rowOffset,
+        rowLimit,
+        processedThisBatch: 0,
+        rowsTouched: 0,
+        nextRowOffset: null,
+        done: true,
+        insertedWithNullCoordinates: 0,
+        ...stats,
+      });
+    }
+
+    const batch = recruits.slice(rowOffset, rowOffset + rowLimit);
+    const processedThisBatch = batch.length;
+    const nextRowOffset = rowOffset + processedThisBatch;
+    const done = nextRowOffset >= recruitsTotal;
 
     const pool = getPool();
     conn = await pool.getConnection();
 
     let loggedFirstUpsert = false;
 
-    for (const r of recruits) {
+    for (const r of batch) {
       const ridRaw = r.id ?? r.recruitId;
       const aid = str(r.athleteId ?? r.athlete_id);
       let cfbdRecruitId = ridRaw != null && ridRaw !== "" ? str(ridRaw) : "";
@@ -350,8 +396,14 @@ exports.handler = async (event) => {
       state: state || undefined,
       position: position || undefined,
       requestPath,
+      recruitsSeen: recruitsTotal,
+      rowOffset,
+      rowLimit,
+      processedThisBatch,
       rowsTouched: stats.rowsTouched,
-      done: true,
+      nextRowOffset: done ? null : nextRowOffset,
+      done,
+      insertedWithNullCoordinates: stats.insertedWithHometownOnly,
       ...stats,
     });
   } catch (err) {

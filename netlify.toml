@@ -40,6 +40,10 @@
 [[redirects]]
   from = "/api/recruit-map/players"
   to = "/.netlify/functions/recruit-map-players"
+
+[[redirects]]
+  from = "/api/recruit-map/stats"
+  to = "/.netlify/functions/recruit-map-stats"
   status = 200
 
 [[redirects]]
