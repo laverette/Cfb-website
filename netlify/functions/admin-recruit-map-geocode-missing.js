@@ -1,12 +1,13 @@
 /**
  * POST /api/admin/recruit-map/geocode-missing
- * Body: { limit?: 15, delayMs?: 1100 }
+ * Body: { limit?: 10, delayMs?: 1200 }
  * Geocode rows with city/state but no lat/lng via Nominatim; cache in DB.
+ * One invocation processes at most `limit` rows; callers should loop with delays, not huge batches.
  */
 const { getPool } = require("./db");
 const { json, parseJsonBody } = require("./_http");
 const { requireAdmin } = require("./_auth");
-const { geocodeCityState } = require("./_nominatim");
+const { geocodeCityState, parseRetryAfterSeconds } = require("./_nominatim");
 
 exports.handler = async (event) => {
   if (event.httpMethod !== "POST") {
@@ -17,8 +18,11 @@ exports.handler = async (event) => {
   if (authErr) return authErr;
 
   const body = parseJsonBody(event) || {};
-  const limit = Math.min(40, Math.max(1, parseInt(body.limit ?? 15, 10) || 15));
-  const delayMs = Math.max(1000, parseInt(body.delayMs ?? 1100, 10) || 1100);
+  const limit = Math.min(20, Math.max(1, parseInt(body.limit ?? 10, 10) || 10));
+  const delayMs = Math.max(
+    1100,
+    Math.min(5000, parseInt(body.delayMs ?? 1200, 10) || 1200)
+  );
 
   try {
     const pool = getPool();
@@ -45,8 +49,24 @@ exports.handler = async (event) => {
       const state = r.hometown_state;
 
       let coords = null;
-      if (city || state) {
-        coords = await geocodeCityState(city, state, "USA", wait);
+      try {
+        if (city || state) {
+          coords = await geocodeCityState(city, state, "USA", wait);
+        }
+      } catch (e) {
+        if (e.code === "GEOCODER_RATE_LIMITED") {
+          return json(429, {
+            error: "GEOCODER_RATE_LIMITED",
+            message:
+              "OpenStreetMap geocoder rate limited this request. Wait a few minutes, then run Geocode Missing Hometowns again.",
+            retryAfterSeconds: e.retryAfterSeconds,
+            examined: idx,
+            geocoded: updated,
+            notFound: failed,
+            stoppedOnRowId: r.id,
+          });
+        }
+        throw e;
       }
 
       if (!coords && r.hometown_full) {
@@ -63,6 +83,20 @@ exports.handler = async (event) => {
             "Accept-Language": "en",
           },
         });
+        if (res.status === 429) {
+          return json(429, {
+            error: "GEOCODER_RATE_LIMITED",
+            message:
+              "OpenStreetMap geocoder rate limited this request. Wait a few minutes, then run Geocode Missing Hometowns again.",
+            retryAfterSeconds: parseRetryAfterSeconds(
+              res.headers.get("retry-after") || res.headers.get("Retry-After")
+            ),
+            examined: idx,
+            geocoded: updated,
+            notFound: failed,
+            stoppedOnRowId: r.id,
+          });
+        }
         if (res.ok) {
           const data = await res.json().catch(() => null);
           if (Array.isArray(data) && data.length) {
@@ -102,6 +136,9 @@ exports.handler = async (event) => {
         hint: "Run Client/sql/player_hometowns.sql",
       });
     }
-    return json(500, { error: "Internal server error" });
+    return json(500, {
+      error: "Geocoding failed",
+      message: err.message || "Internal server error",
+    });
   }
 };

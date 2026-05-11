@@ -8,8 +8,17 @@ function sleep(ms) {
   });
 }
 
+function parseRetryAfterSeconds(headerVal) {
+  if (headerVal == null || headerVal === "") return 120;
+  const s = String(headerVal).trim();
+  const asInt = parseInt(s, 10);
+  if (Number.isFinite(asInt) && asInt > 0) return Math.min(asInt, 86400);
+  return 120;
+}
+
 /**
  * @returns {{ lat: number, lon: number } | null}
+ * @throws {Error} code GEOCODER_RATE_LIMITED on HTTP 429
  */
 async function geocodeCityState(city, state, country, delayBeforeMs) {
   if (delayBeforeMs > 0) await sleep(delayBeforeMs);
@@ -34,6 +43,15 @@ async function geocodeCityState(city, state, country, delayBeforeMs) {
     },
   });
 
+  if (res.status === 429) {
+    const err = new Error("GEOCODER_RATE_LIMITED");
+    err.code = "GEOCODER_RATE_LIMITED";
+    err.retryAfterSeconds = parseRetryAfterSeconds(
+      res.headers.get("retry-after") || res.headers.get("Retry-After")
+    );
+    throw err;
+  }
+
   if (!res.ok) return null;
   const data = await res.json().catch(() => null);
   if (!Array.isArray(data) || !data.length) return null;
@@ -44,4 +62,4 @@ async function geocodeCityState(city, state, country, delayBeforeMs) {
   return { lat, lon };
 }
 
-module.exports = { geocodeCityState, sleep };
+module.exports = { geocodeCityState, sleep, parseRetryAfterSeconds };

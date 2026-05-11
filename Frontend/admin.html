@@ -269,15 +269,21 @@
         <label for="recruitMapSeasonYear">Season year</label>
         <input type="number" id="recruitMapSeasonYear" value="2026" min="2009" max="2100">
       </div>
+      <p style="color:#bfa88a; font-size:0.88rem; margin-bottom:0.75rem;">
+        Smaller batches are safer and help avoid CFBD rate limits. Each batch waits between school roster requests, and <strong>Auto Sync</strong> pauses several seconds between batches.
+      </p>
       <div style="display:flex; flex-wrap:wrap; gap:0.5rem; align-items:center;">
         <button type="button" class="btn btn-primary" id="btnRecruitAutoSync" onclick="recruitMapAutoSync()">Auto Sync</button>
+        <button type="button" class="btn btn-secondary" id="btnRecruitResume" onclick="recruitMapResumeSync()" style="display:none;">Resume Sync</button>
+        <button type="button" class="btn btn-secondary" id="btnRecruitOneBatch" onclick="recruitMapSyncOneBatch()">Sync One Small Batch</button>
         <button type="button" class="btn btn-secondary" id="btnRecruitLoad" onclick="recruitMapLoadData()">Load Player Hometown Data</button>
         <button type="button" class="btn btn-secondary" id="btnRecruitUpdate" onclick="recruitMapUpdateData()">Update Map Data</button>
         <button type="button" class="btn btn-secondary" id="btnRecruitGeocode" onclick="recruitMapGeocode()">Geocode Missing Hometowns</button>
       </div>
       <p style="color:#bfa88a; font-size:0.88rem; margin-top:0.75rem; margin-bottom:0;">
-        <strong>Auto Sync</strong> runs a full refresh for the season year above, then fills in map locations where they were missing.
+        <strong>Auto Sync</strong> runs a slow full roster refresh for the season year above (with pauses between batches), then fills in map locations in small steps. If CFBD rate limits you, use <strong>Resume Sync</strong> after waiting.
       </p>
+      <div id="recruitMapOffsetLine" style="margin-top:10px; color:#d7c1a1; font-size:0.9rem; display:none;"></div>
       <div id="recruitMapSyncStatus" style="margin-top:12px;"></div>
     </div>
 
@@ -390,64 +396,275 @@
       sec.style.display = admin ? 'block' : 'none';
     }
 
+    const RECRUIT_SYNC_BATCH_LIMIT = 5;
+    const RECRUIT_SYNC_DELAY_MS = 1200;
+    const RECRUIT_AUTO_PAUSE_MIN_MS = 5000;
+    const RECRUIT_AUTO_PAUSE_MAX_MS = 10000;
+    const RECRUIT_GEOCODE_LIMIT = 10;
+    const RECRUIT_GEOCODE_DELAY_MS = 1200;
+    const RECRUIT_GEOCODE_MAX_ROUNDS = 25;
+    const RECRUIT_GEOCODE_PAUSE_BETWEEN_ROUNDS_MS = 3000;
+
+    let recruitMapNextOffset = 0;
+    let recruitMapTrackedYear = null;
+
+    function recruitMapSleep(ms) {
+      return new Promise(function (r) { setTimeout(r, ms); });
+    }
+
+    function recruitMapRandomInterBatchPause() {
+      return RECRUIT_AUTO_PAUSE_MIN_MS + Math.floor(Math.random() * (RECRUIT_AUTO_PAUSE_MAX_MS - RECRUIT_AUTO_PAUSE_MIN_MS + 1));
+    }
+
+    function recruitMapUpdateOffsetLine() {
+      const line = document.getElementById('recruitMapOffsetLine');
+      const year = recruitMapTrackedYear;
+      if (!line) return;
+      if (year != null && recruitMapNextOffset > 0) {
+        line.style.display = 'block';
+        line.textContent = 'Next roster batch starts at offset ' + recruitMapNextOffset + ' (season ' + year + ').';
+      } else {
+        line.style.display = 'none';
+        line.textContent = '';
+      }
+    }
+
+    function recruitMapSetResumeVisible(show) {
+      const b = document.getElementById('btnRecruitResume');
+      if (b) b.style.display = show ? 'inline-block' : 'none';
+    }
+
+    function recruitMapFormatSyncBatchHtml(data, title) {
+      const y = data.year != null ? data.year : '—';
+      const curOff = data.currentOffset != null ? data.currentOffset : '—';
+      const batchTeams = data.teamsProcessedThisBatch != null ? data.teamsProcessedThisBatch : '—';
+      const rows = data.rowsTouched != null ? data.rowsTouched : '—';
+      const next = data.nextOffset != null ? data.nextOffset : (data.nextOffsetToResume != null ? data.nextOffsetToResume : 'null');
+      const done = data.done === true ? 'true' : data.done === false ? 'false' : String(data.done);
+      const total = data.totalFbsTeams != null ? data.totalFbsTeams : '—';
+      return (
+        (title ? '<div style="font-weight:700;margin-bottom:6px;">' + title + '</div>' : '') +
+        '<ul style="margin:0;padding-left:1.2rem;color:#f5deb3;line-height:1.5;">' +
+        '<li>Season year: <strong>' + y + '</strong></li>' +
+        '<li>Current offset: <strong>' + curOff + '</strong></li>' +
+        '<li>Schools in this batch: <strong>' + batchTeams + '</strong></li>' +
+        '<li>Player rows inserted/updated this batch: <strong>' + rows + '</strong></li>' +
+        '<li>Next offset: <strong>' + next + '</strong></li>' +
+        '<li>Done (all schools): <strong>' + done + '</strong></li>' +
+        '<li>Total FBS schools for year: <strong>' + total + '</strong></li>' +
+        '</ul>'
+      );
+    }
+
     function recruitMapSyncButtonsBusy(busy) {
-      ['btnRecruitAutoSync', 'btnRecruitLoad', 'btnRecruitUpdate', 'btnRecruitGeocode'].forEach((id) => {
+      ['btnRecruitAutoSync', 'btnRecruitResume', 'btnRecruitOneBatch', 'btnRecruitLoad', 'btnRecruitUpdate', 'btnRecruitGeocode'].forEach((id) => {
         const b = document.getElementById(id);
         if (b) b.disabled = !!busy;
       });
     }
 
-    /** @returns {Promise<boolean>} false if auth failed mid-run */
-    async function runFullRecruitSync(year, introHtml) {
-      const statusEl = document.getElementById('recruitMapSyncStatus');
-      statusEl.innerHTML = `<div class="loading">${introHtml}</div>`;
-      let offset = 0;
-      let totalRows = 0;
-      let totalFbs = 0;
-      while (true) {
-        const res = await fetch(`${API_BASE}/api/admin/recruit-map/sync`, {
-          method: 'POST',
-          headers: adminAuthHeaders(true),
-          body: JSON.stringify({ year, offset, limit: 15 }),
-        });
-        if (checkAdminFetch(res)) {
-          recruitMapSyncButtonsBusy(false);
-          return false;
-        }
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.error || data.message || res.statusText);
-        totalRows += data.rowsTouched || 0;
-        if (typeof data.totalFbsTeams === 'number') totalFbs = data.totalFbsTeams;
-        const progressed = data.nextOffset != null ? data.nextOffset : totalFbs;
-        const denom = totalFbs > 0 ? totalFbs : '…';
-        statusEl.innerHTML = `<div class="loading">Working… ${progressed} of ${denom} schools</div>`;
-        if (data.done || data.nextOffset == null) break;
-        offset = data.nextOffset;
+    async function postRecruitSyncBatch(year, offset) {
+      const res = await fetch(`${API_BASE}/api/admin/recruit-map/sync`, {
+        method: 'POST',
+        headers: adminAuthHeaders(true),
+        body: JSON.stringify({
+          year,
+          offset,
+          limit: RECRUIT_SYNC_BATCH_LIMIT,
+          delayMs: RECRUIT_SYNC_DELAY_MS,
+        }),
+      });
+      if (checkAdminFetch(res)) {
+        recruitMapSyncButtonsBusy(false);
+        return { authFail: true };
       }
-      statusEl.innerHTML =
-        `<div class="status-message status-success">Done. Saved ${totalRows.toLocaleString()} player records for this season.</div>`;
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 429 && data.error === 'CFBD_RATE_LIMITED') {
+        return { rateLimited: true, data };
+      }
+      if (!res.ok) {
+        const err = new Error(data.message || data.error || res.statusText);
+        throw err;
+      }
+      return { ok: true, data };
+    }
+
+    /**
+     * @param {number} year
+     * @param {string} introHtml
+     * @param {{ interBatchPauseMs?: number|false, startOffset?: number }} opts
+     *   interBatchPauseMs: number = fixed pause; omitted or non-false = random 5–10s each gap; false|0 = no pause
+     * @returns {Promise<{ ok: boolean, authFail?: boolean, rateLimited?: boolean }>}
+     */
+    async function runRecruitSyncMultiBatch(year, introHtml, opts) {
+      const statusEl = document.getElementById('recruitMapSyncStatus');
+      const pauseOpt = opts && opts.interBatchPauseMs;
+      const useInterBatchPause = pauseOpt !== false && pauseOpt !== 0;
+      let offset = opts && opts.startOffset != null ? opts.startOffset : 0;
+      let totalRows = 0;
+      recruitMapTrackedYear = year;
+      recruitMapSetResumeVisible(false);
+      statusEl.innerHTML = `<div class="loading">${introHtml}</div>`;
+
+      while (true) {
+        const result = await postRecruitSyncBatch(year, offset);
+        if (result.authFail) return { ok: false, authFail: true };
+        if (result.rateLimited) {
+          const d = result.data;
+          const waitSec = d.retryAfterSeconds != null ? d.retryAfterSeconds : 120;
+          recruitMapNextOffset = d.nextOffsetToResume != null ? d.nextOffsetToResume : offset;
+          recruitMapUpdateOffsetLine();
+          recruitMapSetResumeVisible(true);
+          statusEl.innerHTML =
+            '<div class="status-message status-error">' +
+            '<strong>CFBD rate limit reached.</strong> Wait a few minutes, then click <strong>Resume Sync</strong>.<br><br>' +
+            recruitMapFormatSyncBatchHtml(d, 'Last batch status') +
+            '<p style="margin:0.75rem 0 0 0;">Suggested wait: <strong>' + waitSec + '</strong> seconds before resuming.</p>' +
+            '</div>';
+          return { ok: false, rateLimited: true };
+        }
+        const data = result.data;
+        totalRows += data.rowsTouched || 0;
+        statusEl.innerHTML =
+          '<div class="loading">Working…</div>' +
+          recruitMapFormatSyncBatchHtml(data, 'Latest batch');
+
+        if (data.nextOffset != null && !data.done) {
+          recruitMapNextOffset = data.nextOffset;
+        } else {
+          recruitMapNextOffset = 0;
+        }
+        recruitMapUpdateOffsetLine();
+
+        if (data.done || data.nextOffset == null) {
+          statusEl.innerHTML =
+            '<div class="status-message status-success">Roster sync finished.</div>' +
+            recruitMapFormatSyncBatchHtml(data, 'Final batch') +
+            '<p style="margin:0.75rem 0 0 0;">Total player rows saved this run: <strong>' + totalRows.toLocaleString() + '</strong></p>';
+          recruitMapSetResumeVisible(false);
+          return { ok: true };
+        }
+        const next = data.nextOffset;
+        if (next == null || next === offset) {
+          statusEl.innerHTML += '<div class="status-message status-error">Unexpected API response (no next offset). Stopping.</div>';
+          return { ok: false, rateLimited: false };
+        }
+        offset = next;
+        if (useInterBatchPause) {
+          const pause = typeof pauseOpt === 'number' && pauseOpt > 0 ? pauseOpt : recruitMapRandomInterBatchPause();
+          statusEl.innerHTML +=
+            '<p style="margin-top:0.75rem;color:#d7c1a1;">Pausing ' + Math.round(pause / 1000) + 's before the next batch…</p>';
+          await recruitMapSleep(pause);
+        }
+      }
+    }
+
+    async function recruitMapSyncOneBatch() {
+      const year = parseInt(document.getElementById('recruitMapSeasonYear').value, 10);
+      if (!Number.isFinite(year)) return alert('Choose a valid season year.');
+      const statusEl = document.getElementById('recruitMapSyncStatus');
+      recruitMapTrackedYear = year;
+      statusEl.innerHTML = '';
+      recruitMapSyncButtonsBusy(true);
+      try {
+        const offset = recruitMapNextOffset;
+        const result = await postRecruitSyncBatch(year, offset);
+        if (result.authFail) return;
+        if (result.rateLimited) {
+          const d = result.data;
+          const waitSec = d.retryAfterSeconds != null ? d.retryAfterSeconds : 120;
+          recruitMapNextOffset = d.nextOffsetToResume != null ? d.nextOffsetToResume : offset;
+          recruitMapUpdateOffsetLine();
+          recruitMapSetResumeVisible(true);
+          statusEl.innerHTML =
+            '<div class="status-message status-error">' +
+            '<strong>CFBD rate limit reached.</strong> Wait a few minutes, then click <strong>Resume Sync</strong>.<br><br>' +
+            recruitMapFormatSyncBatchHtml(d, 'Batch status') +
+            '<p style="margin:0.75rem 0 0 0;">Suggested wait: <strong>' + waitSec + '</strong> seconds.</p></div>';
+          return;
+        }
+        const data = result.data;
+        if (data.nextOffset != null && !data.done) {
+          recruitMapNextOffset = data.nextOffset;
+        } else {
+          recruitMapNextOffset = 0;
+        }
+        recruitMapUpdateOffsetLine();
+        statusEl.innerHTML =
+          '<div class="status-message status-success">One batch complete.</div>' +
+          recruitMapFormatSyncBatchHtml(data, 'Batch details');
+        if (!data.done) recruitMapSetResumeVisible(true);
+      } catch (e) {
+        statusEl.innerHTML = `<div class="status-message status-error">${e.message}</div>`;
+      } finally {
+        recruitMapSyncButtonsBusy(false);
+      }
+    }
+
+    async function recruitMapResumeSync() {
+      const year = parseInt(document.getElementById('recruitMapSeasonYear').value, 10);
+      if (!Number.isFinite(year)) return alert('Choose a valid season year.');
+      if (recruitMapTrackedYear != null && year !== recruitMapTrackedYear) {
+        recruitMapNextOffset = 0;
+      }
+      const statusEl = document.getElementById('recruitMapSyncStatus');
+      statusEl.innerHTML = '';
+      recruitMapSyncButtonsBusy(true);
+      try {
+        const start = recruitMapNextOffset;
+        const r = await runRecruitSyncMultiBatch(year, 'Resuming roster sync…', {
+          startOffset: start,
+        });
+        if (r.authFail) return;
+        if (r.rateLimited) return;
+      } catch (e) {
+        statusEl.innerHTML = `<div class="status-message status-error">${e.message}</div>`;
+      } finally {
+        recruitMapSyncButtonsBusy(false);
+      }
+    }
+
+    /** @returns {Promise<boolean>} false if auth failed or rate limited mid-run */
+    async function runFullRecruitSync(year, introHtml) {
+      recruitMapNextOffset = 0;
+      recruitMapUpdateOffsetLine();
+      const r = await runRecruitSyncMultiBatch(year, introHtml, {
+        startOffset: 0,
+      });
+      if (r.authFail) return false;
+      if (r.rateLimited) return false;
       return true;
     }
 
     async function runRecruitGeocodePasses(statusEl) {
       let round = 0;
       let geocodedTotal = 0;
-      while (round < 100) {
+      while (round < RECRUIT_GEOCODE_MAX_ROUNDS) {
         round += 1;
         const res = await fetch(`${API_BASE}/api/admin/recruit-map/geocode-missing`, {
           method: 'POST',
           headers: adminAuthHeaders(true),
-          body: JSON.stringify({ limit: 15, delayMs: 1100 }),
+          body: JSON.stringify({ limit: RECRUIT_GEOCODE_LIMIT, delayMs: RECRUIT_GEOCODE_DELAY_MS }),
         });
-        if (checkAdminFetch(res)) return { stoppedAuth: true, geocodedTotal };
+        if (checkAdminFetch(res)) return { stoppedAuth: true, geocodedTotal, rateLimited: false };
         const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.error || res.statusText);
+        if (res.status === 429 && data.error === 'GEOCODER_RATE_LIMITED') {
+          const w = data.retryAfterSeconds != null ? data.retryAfterSeconds : 120;
+          statusEl.innerHTML =
+            '<div class="status-message status-error"><strong>Geocoder rate limit.</strong> ' +
+            (data.message || 'Wait before running geocode again.') +
+            ' Suggested wait: <strong>' + w + '</strong> seconds.</div>';
+          return { stoppedAuth: false, geocodedTotal, rateLimited: true };
+        }
+        if (!res.ok) throw new Error(data.message || data.error || res.statusText);
         geocodedTotal += data.geocoded || 0;
-        statusEl.innerHTML = `<div class="loading">Placing players on the map… ${geocodedTotal} locations added so far</div>`;
+        statusEl.innerHTML =
+          '<div class="loading">Placing players on the map… round ' + round + ', ' + geocodedTotal + ' locations added so far</div>';
         if (!data.examined || data.examined === 0) break;
         if ((data.geocoded || 0) === 0 && (data.notFound || 0) > 0) break;
+        await recruitMapSleep(RECRUIT_GEOCODE_PAUSE_BETWEEN_ROUNDS_MS);
       }
-      return { stoppedAuth: false, geocodedTotal };
+      return { stoppedAuth: false, geocodedTotal, rateLimited: false };
     }
 
     async function recruitMapAutoSync() {
@@ -457,13 +674,21 @@
       statusEl.innerHTML = '';
       recruitMapSyncButtonsBusy(true);
       try {
-        const syncOk = await runFullRecruitSync(year, 'Refreshing roster data…');
-        if (!syncOk) return;
-        statusEl.innerHTML = '<div class="loading">Placing players on the map…</div>';
+        recruitMapNextOffset = 0;
+        recruitMapUpdateOffsetLine();
+        const syncResult = await runRecruitSyncMultiBatch(year, 'Auto Sync: refreshing roster data (slow mode)…', {
+          startOffset: 0,
+        });
+        if (syncResult.authFail) return;
+        if (syncResult.rateLimited) return;
+        statusEl.innerHTML += '<div class="loading" style="margin-top:1rem;">Placing players on the map…</div>';
         const geo = await runRecruitGeocodePasses(statusEl);
         if (geo.stoppedAuth) return;
+        if (geo.rateLimited) return;
         statusEl.innerHTML =
-          `<div class="status-message status-success">All set. Added ${geo.geocodedTotal.toLocaleString()} map locations this run.</div>`;
+          '<div class="status-message status-success">All set. Geocoding added ' +
+          geo.geocodedTotal.toLocaleString() +
+          ' map locations this run (after roster sync).</div>';
       } catch (e) {
         statusEl.innerHTML = `<div class="status-message status-error">${e.message}</div>`;
       } finally {
@@ -510,6 +735,7 @@
       try {
         const geo = await runRecruitGeocodePasses(statusEl);
         if (geo.stoppedAuth) return;
+        if (geo.rateLimited) return;
         statusEl.innerHTML =
           `<div class="status-message status-success">Finished. Added ${geo.geocodedTotal.toLocaleString()} locations on the map.</div>`;
       } catch (e) {

@@ -1,14 +1,38 @@
 /**
  * POST /api/admin/recruit-map/sync
- * Body JSON: { year (required), team?: "ALA" (abbrev), offset?: 0, limit?: 12 }
+ * Body JSON: { year, team?, offset?, limit?, delayMs? }
  * Pulls CFBD /teams + /roster per FBS team batch; upserts PlayerHometowns.
  * Batched for Netlify time limits — call repeatedly with nextOffset until done.
+ * Rate limits: configurable delay between roster calls; 429 returns CFBD_RATE_LIMITED (no blind retry).
  */
 const { getPool } = require("./db");
 const { json, parseJsonBody } = require("./_http");
 const { requireAdmin } = require("./_auth");
 
 const CFBD_BASE = "https://api.collegefootballdata.com";
+const DEFAULT_RETRY_AFTER = 120;
+
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+/** Retry-After may be seconds (integer) or an HTTP-date; prefer integer seconds. */
+function parseRetryAfterSeconds(headerVal) {
+  if (headerVal == null || headerVal === "") return DEFAULT_RETRY_AFTER;
+  const s = String(headerVal).trim();
+  const asInt = parseInt(s, 10);
+  if (Number.isFinite(asInt) && asInt > 0) return Math.min(asInt, 86400);
+  return DEFAULT_RETRY_AFTER;
+}
+
+function cfbdRateLimitedPayload(retryAfterSeconds) {
+  return {
+    error: "CFBD_RATE_LIMITED",
+    message:
+      "CFBD temporarily rate limited requests. Wait a few minutes and resume from this offset.",
+    retryAfterSeconds,
+  };
+}
 
 async function cfbdFetch(path, apiKey) {
   const url = path.startsWith("http") ? path : `${CFBD_BASE}${path}`;
@@ -18,6 +42,18 @@ async function cfbdFetch(path, apiKey) {
       accept: "application/json",
     },
   });
+
+  if (res.status === 429) {
+    const retryAfterSeconds = parseRetryAfterSeconds(
+      res.headers.get("retry-after") || res.headers.get("Retry-After")
+    );
+    const err = new Error("CFBD_RATE_LIMITED");
+    err.code = "CFBD_RATE_LIMITED";
+    err.status = 429;
+    err.retryAfterSeconds = retryAfterSeconds;
+    throw err;
+  }
+
   if (!res.ok) {
     const t = await res.text();
     const err = new Error(`CFBD ${res.status}: ${t.slice(0, 200)}`);
@@ -69,15 +105,37 @@ exports.handler = async (event) => {
 
   const singleTeam = body.team != null ? String(body.team).trim() : "";
   const offset = Math.max(0, parseInt(body.offset ?? 0, 10) || 0);
-  const limit = Math.min(25, Math.max(1, parseInt(body.limit ?? 12, 10) || 12));
+  const limit = Math.min(25, Math.max(1, parseInt(body.limit ?? 5, 10) || 5));
+  const delayMsRaw = parseInt(body.delayMs ?? 1200, 10) || 1200;
+  const delayMs = Math.min(1500, Math.max(750, delayMsRaw));
 
   let conn;
   try {
     const pool = getPool();
     conn = await pool.getConnection();
 
-    const allTeamsRaw = await cfbdFetch(`/teams?year=${year}`, apiKey);
-    const allTeams = Array.isArray(allTeamsRaw) ? allTeamsRaw : [];
+    let allTeams;
+    try {
+      const allTeamsRaw = await cfbdFetch(`/teams?year=${year}`, apiKey);
+      allTeams = Array.isArray(allTeamsRaw) ? allTeamsRaw : [];
+    } catch (e) {
+      if (e.code === "CFBD_RATE_LIMITED") {
+        return json(429, {
+          ...cfbdRateLimitedPayload(e.retryAfterSeconds),
+          year,
+          currentOffset: offset,
+          teamsProcessedThisBatch: 0,
+          rowsTouched: 0,
+          nextOffset: offset,
+          nextOffsetToResume: offset,
+          done: false,
+          totalFbsTeams: null,
+        });
+      }
+      throw e;
+    }
+
+    await sleep(delayMs);
 
     let teamRows;
     let totalFbs = 0;
@@ -105,12 +163,17 @@ exports.handler = async (event) => {
 
     let upserted = 0;
     const errors = [];
+    let teamsCompletedInBatch = 0;
 
-    for (const t of teamRows) {
+    for (let i = 0; i < teamRows.length; i++) {
+      const t = teamRows[i];
       const abbr = t.abbreviation;
-      if (!abbr) continue;
+      if (!abbr) {
+        teamsCompletedInBatch += 1;
+        continue;
+      }
+      if (i > 0) await sleep(delayMs);
       try {
-        await new Promise((r) => setTimeout(r, 120));
         const roster = await cfbdFetch(
           `/roster?team=${encodeURIComponent(abbr)}&year=${year}`,
           apiKey
@@ -180,9 +243,25 @@ exports.handler = async (event) => {
           );
           upserted += 1;
         }
+        teamsCompletedInBatch += 1;
       } catch (e) {
+        if (e.code === "CFBD_RATE_LIMITED") {
+          const nextOffsetToResume = offset + teamsCompletedInBatch;
+          return json(429, {
+            ...cfbdRateLimitedPayload(e.retryAfterSeconds),
+            year,
+            currentOffset: offset,
+            teamsProcessedThisBatch: teamsCompletedInBatch,
+            rowsTouched: upserted,
+            nextOffset: nextOffsetToResume,
+            nextOffsetToResume,
+            done: false,
+            totalFbsTeams: totalFbs,
+          });
+        }
         console.error("recruit-map-sync team", abbr, e);
         errors.push({ team: abbr, message: e.message || String(e) });
+        teamsCompletedInBatch += 1;
       }
     }
 
@@ -191,9 +270,11 @@ exports.handler = async (event) => {
 
     return json(200, {
       year,
-      teamsProcessed: teamRows.length,
+      currentOffset: offset,
+      teamsProcessedThisBatch: teamRows.length,
       rowsTouched: upserted,
       nextOffset: done ? null : nextOffset,
+      nextOffsetToResume: done ? null : nextOffset,
       done,
       totalFbsTeams: totalFbs,
       errors: errors.length ? errors : undefined,
