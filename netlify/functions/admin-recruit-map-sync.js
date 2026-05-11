@@ -12,6 +12,11 @@ const DEFAULT_RETRY_AFTER = 120;
 
 const CLASSIFICATIONS = new Set(["HighSchool", "JUCO", "PrepSchool"]);
 
+/** INSERT lists this many columns; VALUES must have the same number of expressions. */
+const PLAYER_HOMETOWNS_UPSERT_COLUMN_COUNT = 23;
+/** Number of `?` placeholders in the upsert (must equal bound array length). */
+const PLAYER_HOMETOWNS_UPSERT_BIND_COUNT = 18;
+
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
@@ -189,6 +194,8 @@ exports.handler = async (event) => {
     const pool = getPool();
     conn = await pool.getConnection();
 
+    let loggedFirstUpsert = false;
+
     for (const r of recruits) {
       const ridRaw = r.id ?? r.recruitId;
       const aid = str(r.athleteId ?? r.athlete_id);
@@ -260,13 +267,55 @@ exports.handler = async (event) => {
       let ranking = r.ranking != null ? parseInt(String(r.ranking), 10) : null;
       if (!Number.isFinite(ranking)) ranking = null;
 
+      const upsertValues = [
+        cfbdRecruitId.slice(0, 64),
+        aid || null,
+        recruitType || null,
+        name.slice(0, 255),
+        committedTo,
+        school,
+        displayTeam,
+        seasonYear,
+        pos,
+        city || null,
+        st || null,
+        country || null,
+        hometownFull,
+        lat,
+        lon,
+        stars,
+        rating,
+        ranking,
+      ];
+
+      if (upsertValues.length !== PLAYER_HOMETOWNS_UPSERT_BIND_COUNT) {
+        throw new Error(
+          `PlayerHometowns insert mismatch: expected ${PLAYER_HOMETOWNS_UPSERT_BIND_COUNT} bound values, got ${upsertValues.length}`
+        );
+      }
+
+      if (!loggedFirstUpsert) {
+        loggedFirstUpsert = true;
+        const cityState = [city || null, st || null].filter(Boolean).join("/") || null;
+        console.error("[recruit-map-sync] first upsert sample", {
+          insertColumnCount: PLAYER_HOMETOWNS_UPSERT_COLUMN_COUNT,
+          bindCount: upsertValues.length,
+          recruitId: cfbdRecruitId.slice(0, 64),
+          playerName: name.slice(0, 120),
+          committedTo: committedTo || null,
+          cityState,
+          stars,
+          hometownInfoHasLatLng: lat != null && lon != null,
+        });
+      }
+
       await conn.query(
         `INSERT INTO PlayerHometowns (
           cfbd_player_id, cfbd_recruit_id, athlete_id, recruit_type,
           player_name, committed_to, school, team, team_school, conference, season_year, \`position\`,
           hometown_city, hometown_state, hometown_country, hometown_full,
           latitude, longitude, stars, rating, ranking, source, updated_at
-        ) VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'cfbd_recruiting_players', NOW(3))
+        ) VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'cfbd_recruiting_players', NOW(3))
         ON DUPLICATE KEY UPDATE
           athlete_id = VALUES(athlete_id),
           recruit_type = VALUES(recruit_type),
@@ -274,6 +323,9 @@ exports.handler = async (event) => {
           committed_to = VALUES(committed_to),
           school = VALUES(school),
           team = VALUES(team),
+          team_school = VALUES(team_school),
+          conference = VALUES(conference),
+          season_year = VALUES(season_year),
           \`position\` = VALUES(\`position\`),
           hometown_city = VALUES(hometown_city),
           hometown_state = VALUES(hometown_state),
@@ -286,26 +338,7 @@ exports.handler = async (event) => {
           ranking = VALUES(ranking),
           source = VALUES(source),
           updated_at = NOW(3)`,
-        [
-          cfbdRecruitId.slice(0, 64),
-          aid || null,
-          recruitType || null,
-          name.slice(0, 255),
-          committedTo,
-          school,
-          displayTeam,
-          seasonYear,
-          pos,
-          city || null,
-          st || null,
-          country || null,
-          hometownFull,
-          lat,
-          lon,
-          stars,
-          rating,
-          ranking,
-        ]
+        upsertValues
       );
       stats.rowsTouched += 1;
     }
@@ -323,6 +356,21 @@ exports.handler = async (event) => {
     });
   } catch (err) {
     console.error("admin-recruit-map-sync:", err);
+    if (
+      err.message &&
+      String(err.message).includes("PlayerHometowns insert mismatch")
+    ) {
+      return json(500, {
+        error: "Recruit sync insert mapping error: columns and values do not match.",
+        details: err.message,
+      });
+    }
+    if (err.errno === 1136 || err.code === "ER_WRONG_VALUE_COUNT_ON_ROW") {
+      return json(500, {
+        error: "Recruit sync insert mapping error: columns and values do not match.",
+        details: err.message || "SQL column/value count mismatch",
+      });
+    }
     if (err.code === "NO_DATABASE_URL") {
       return json(500, { error: "Server misconfiguration" });
     }

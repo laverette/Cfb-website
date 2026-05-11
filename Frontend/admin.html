@@ -512,7 +512,17 @@
         return { authFail: false, rateLimited: true, aborted: false, data };
       }
       if (!res.ok) {
-        const msg = data.details ? (data.error + ': ' + data.details) : (data.message || data.error || res.statusText);
+        let msg;
+        if (
+          data.error &&
+          String(data.error).indexOf('Recruit sync insert mapping error') !== -1
+        ) {
+          msg = String(data.error);
+        } else {
+          msg = data.details
+            ? data.error + ': ' + data.details
+            : data.message || data.error || res.statusText;
+        }
         throw new Error(msg);
       }
       return { authFail: false, rateLimited: false, aborted: false, data };
