@@ -10,12 +10,23 @@ function sqlIdent(column) {
   return `\`${c}\``;
 }
 
+function normalizeFilterScalar(v) {
+  if (v == null) return null;
+  if (typeof v === "bigint") {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : String(v);
+  }
+  return v;
+}
+
 async function distinctColumn(pool, column) {
   const col = sqlIdent(column);
   const [rows] = await pool.query(
     `SELECT DISTINCT ${col} AS v FROM PlayerHometowns WHERE ${col} IS NOT NULL AND TRIM(${col}) <> '' ORDER BY v ASC`
   );
-  return rows.map((r) => r.v).filter(Boolean);
+  return rows
+    .map((r) => normalizeFilterScalar(r.v))
+    .filter((v) => v != null && String(v).trim() !== "");
 }
 
 async function safeDistinct(pool, column) {
@@ -32,10 +43,35 @@ async function distinctStars(pool) {
     const [rows] = await pool.query(
       `SELECT DISTINCT stars AS v FROM PlayerHometowns WHERE stars IS NOT NULL ORDER BY stars DESC`
     );
-    return rows.map((r) => r.v).filter((v) => v != null);
+    return rows
+      .map((r) => normalizeFilterScalar(r.v))
+      .filter((v) => v != null);
   } catch (err) {
     console.error("[recruit-map-filters] distinct stars", err && err.message);
     return [];
+  }
+}
+
+async function distinctTeamLikeValues(pool) {
+  try {
+    const [rows] = await pool.query(
+      `SELECT DISTINCT v FROM (
+         SELECT TRIM(team) AS v FROM PlayerHometowns
+           WHERE team IS NOT NULL AND TRIM(team) <> ''
+         UNION
+         SELECT TRIM(committed_to) AS v FROM PlayerHometowns
+           WHERE committed_to IS NOT NULL AND TRIM(committed_to) <> ''
+         UNION
+         SELECT TRIM(school) AS v FROM PlayerHometowns
+           WHERE school IS NOT NULL AND TRIM(school) <> ''
+       ) t
+       WHERE v IS NOT NULL AND v <> ''
+       ORDER BY v ASC`
+    );
+    return rows.map((r) => (r.v != null ? String(r.v).trim() : "")).filter(Boolean);
+  } catch (err) {
+    console.error("[recruit-map-filters] team union", err && err.message);
+    return safeDistinct(pool, "team");
   }
 }
 
@@ -55,14 +91,21 @@ exports.handler = async (event) => {
       classifications,
       starLevels,
     ] = await Promise.all([
-      safeDistinct(pool, "team"),
+      distinctTeamLikeValues(pool),
       safeDistinct(pool, "conference"),
       (async () => {
         try {
           const [y] = await pool.query(
             `SELECT DISTINCT season_year AS v FROM PlayerHometowns ORDER BY v DESC`
           );
-          return y.map((r) => r.v).filter((v) => v != null);
+          return y
+            .map((r) => {
+              const x = normalizeFilterScalar(r.v);
+              if (x == null) return null;
+              const n = parseInt(String(x), 10);
+              return Number.isFinite(n) ? n : null;
+            })
+            .filter((v) => v != null);
         } catch (err) {
           console.error("[recruit-map-filters] years", err);
           return [];

@@ -1,4 +1,21 @@
+function jsonBigIntReplacer(_key, value) {
+  if (typeof value === "bigint") {
+    const n = Number(value);
+    return Number.isSafeInteger(n) ? n : String(value);
+  }
+  return value;
+}
+
 function json(statusCode, body, extraHeaders = {}) {
+  let serialized;
+  try {
+    serialized = JSON.stringify(body, jsonBigIntReplacer);
+  } catch (e) {
+    serialized = JSON.stringify({
+      error: "JSON serialization failed",
+      details: e && e.message ? String(e.message).slice(0, 200) : "unknown",
+    });
+  }
   return {
     statusCode,
     headers: {
@@ -6,7 +23,7 @@ function json(statusCode, body, extraHeaders = {}) {
       "cache-control": "no-store",
       ...extraHeaders,
     },
-    body: JSON.stringify(body),
+    body: serialized,
   };
 }
 
