@@ -2,7 +2,7 @@
  * GET /api/recruit-map/stats?year=2025
  * Aggregate counts for PlayerHometowns (no row payloads).
  */
-const { getPool } = require("./db");
+const { getPool, isMysqlConnectionLimitError } = require("./db");
 const { json } = require("./_http");
 
 function numOrNull(v) {
@@ -55,6 +55,13 @@ exports.handler = async (event) => {
     });
   } catch (err) {
     console.error("recruit-map-stats:", err);
+    if (isMysqlConnectionLimitError(err)) {
+      return json(503, {
+        error: "DB_CONNECTION_LIMIT",
+        message:
+          "Database connection limit reached. Wait a few minutes and try again.",
+      });
+    }
     if (err.code === "NO_DATABASE_URL") {
       return json(500, { error: "Server misconfiguration" });
     }

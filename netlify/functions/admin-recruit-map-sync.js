@@ -6,7 +6,7 @@
  * }
  * Fetches full CFBD GET /recruiting/players, then upserts only recruits.slice(rowOffset, rowOffset + rowLimit).
  */
-const { getPool } = require("./db");
+const { getPool, isMysqlConnectionLimitError } = require("./db");
 const { json, parseJsonBody } = require("./_http");
 const { requireAdmin } = require("./_auth");
 
@@ -160,10 +160,7 @@ exports.handler = async (event) => {
     if (!stats.sampleSkippedReason) stats.sampleSkippedReason = reason;
   }
 
-  let conn;
   try {
-    if (delayMs > 0) await sleep(delayMs);
-
     let recruits;
     try {
       const raw = await cfbdFetch(requestPath, apiKey);
@@ -237,9 +234,9 @@ exports.handler = async (event) => {
     const nextRowOffset = rowOffset + processedThisBatch;
     const done = nextRowOffset >= recruitsTotal;
 
-    const pool = getPool();
-    conn = await pool.getConnection();
+    if (delayMs > 0) await sleep(delayMs);
 
+    const pool = getPool();
     let loggedFirstUpsert = false;
 
     for (const r of batch) {
@@ -355,7 +352,7 @@ exports.handler = async (event) => {
         });
       }
 
-      await conn.query(
+      await pool.query(
         `INSERT INTO PlayerHometowns (
           cfbd_player_id, cfbd_recruit_id, athlete_id, recruit_type,
           player_name, committed_to, school, team, team_school, conference, season_year, \`position\`,
@@ -408,6 +405,13 @@ exports.handler = async (event) => {
     });
   } catch (err) {
     console.error("admin-recruit-map-sync:", err);
+    if (isMysqlConnectionLimitError(err)) {
+      return json(503, {
+        error: "DB_CONNECTION_LIMIT",
+        message:
+          "Database connection limit reached. Wait a few minutes and try again.",
+      });
+    }
     if (
       err.message &&
       String(err.message).includes("PlayerHometowns insert mismatch")
@@ -440,7 +444,5 @@ exports.handler = async (event) => {
       });
     }
     return json(500, { error: err.message || "Internal server error" });
-  } finally {
-    if (conn) conn.release();
   }
 };

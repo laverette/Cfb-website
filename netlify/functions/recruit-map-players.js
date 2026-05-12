@@ -4,7 +4,7 @@
  *   includeMissingCoords (optional: true to include rows without lat/lng — map still skips them client-side)
  * Default: only rows with latitude and longitude (200 + empty array if none).
  */
-const { getPool } = require("./db");
+const { getPool, isMysqlConnectionLimitError } = require("./db");
 const { json } = require("./_http");
 
 function numOrNull(v) {
@@ -223,6 +223,13 @@ exports.handler = async (event) => {
     console.error("[recruit-map-players] query error", err && err.stack ? err.stack : err);
     console.error("[recruit-map-players] sql branch", branch);
     console.error("[recruit-map-players] message", err && err.message);
+    if (isMysqlConnectionLimitError(err)) {
+      return json(503, {
+        error: "DB_CONNECTION_LIMIT",
+        message:
+          "Database connection limit reached. Wait a few minutes and try again.",
+      });
+    }
     if (err.code === "NO_DATABASE_URL") {
       return json(500, { error: "Server misconfiguration" });
     }

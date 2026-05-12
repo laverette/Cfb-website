@@ -432,6 +432,8 @@
 
     /** After a successful batch, next CFBD row index to start (null if complete). */
     var recruitMapSyncInMemoryNextOffset = null;
+    /** Blocks overlapping POST /api/admin/recruit-map/sync calls from the same page. */
+    var recruitMapSyncPostInFlight = 0;
 
     function recruitMapSleep(ms) {
       return new Promise(function (r) { setTimeout(r, ms); });
@@ -636,73 +638,109 @@
     }
 
     async function postRecruitingSyncRequest(statusEl, loadingMsg, extraBody) {
-      const base = recruitMapSyncFormBody();
-      if (!Number.isFinite(base.year)) {
-        alert('Choose a valid year.');
-        return { authFail: false, rateLimited: false, aborted: true, timedOut: false };
-      }
-      var rowOffset = 0;
-      var rowLimit = RECRUIT_SYNC_ROW_LIMIT;
-      if (extraBody) {
-        if (extraBody.rowOffset != null) {
-          var ro = parseInt(extraBody.rowOffset, 10);
-          if (Number.isFinite(ro) && ro >= 0) rowOffset = ro;
+      if (recruitMapSyncPostInFlight > 0) {
+        if (statusEl) {
+          statusEl.innerHTML =
+            '<div class="status-message status-error">A recruit sync request is already running. Wait for it to finish.</div>';
         }
-        if (extraBody.rowLimit != null) {
-          var rl = parseInt(extraBody.rowLimit, 10);
-          if (Number.isFinite(rl)) rowLimit = Math.min(500, Math.max(1, rl));
+        return {
+          authFail: false,
+          rateLimited: false,
+          aborted: true,
+          timedOut: false,
+          dbLimit: false,
+          busy: true,
+        };
+      }
+      recruitMapSyncPostInFlight += 1;
+      try {
+        const base = recruitMapSyncFormBody();
+        if (!Number.isFinite(base.year)) {
+          alert('Choose a valid year.');
+          return { authFail: false, rateLimited: false, aborted: true, timedOut: false, dbLimit: false };
         }
-      }
-      var body = Object.assign({}, base, extraBody || {});
-      body.rowOffset = rowOffset;
-      body.rowLimit = rowLimit;
-      if (statusEl) statusEl.innerHTML = '<div class="loading">' + loadingMsg + '</div>';
-      const res = await fetch(API_BASE + '/api/admin/recruit-map/sync', {
-        method: 'POST',
-        headers: adminAuthHeaders(true),
-        body: JSON.stringify(body),
-      });
-      if (checkAdminFetch(res)) {
-        recruitMapSyncButtonsBusy(false);
-        return { authFail: true, rateLimited: false, aborted: false, timedOut: false };
-      }
-      const data = await res.json().catch(function () {
-        return {};
-      });
-      if (res.status === 429 && data.error === 'CFBD_RATE_LIMITED') {
-        const w = data.retryAfterSeconds != null ? data.retryAfterSeconds : 120;
-        statusEl.innerHTML =
-          '<div class="status-message status-error"><strong>CFBD rate limit.</strong> Wait about ' + w + ' seconds and try again.</div>' +
-          recruitMapFormatRecruitSyncHtml(data, 'Partial response');
-        return { authFail: false, rateLimited: true, aborted: false, timedOut: false, data: data };
-      }
-      if (res.status === 504 || res.status === 502) {
-        const resumeAt = recruitMapGetSavedNextOffset();
-        var tmsg =
-          '<div class="status-message status-error"><strong>Sync timed out</strong> (HTTP ' +
-          res.status +
-          '). ';
-        if (resumeAt != null) {
-          tmsg += 'Resume from row <strong>' + resumeAt + '</strong> (last fully completed batch end).</div>';
-        } else {
-          tmsg +=
-            'No saved row offset yet in this browser — if a batch finished, try <strong>Resume</strong> after refreshing, or run <strong>Load Next Recruit Batch</strong>.</div>';
+        var rowOffset = 0;
+        var rowLimit = RECRUIT_SYNC_ROW_LIMIT;
+        if (extraBody) {
+          if (extraBody.rowOffset != null) {
+            var ro = parseInt(extraBody.rowOffset, 10);
+            if (Number.isFinite(ro) && ro >= 0) rowOffset = ro;
+          }
+          if (extraBody.rowLimit != null) {
+            var rl = parseInt(extraBody.rowLimit, 10);
+            if (Number.isFinite(rl)) rowLimit = Math.min(500, Math.max(1, rl));
+          }
         }
-        statusEl.innerHTML = tmsg;
-        return { authFail: false, rateLimited: false, aborted: false, timedOut: true, data: data };
-      }
-      if (!res.ok) {
-        let msg;
-        if (data.error && String(data.error).indexOf('Recruit sync insert mapping error') !== -1) {
-          msg = String(data.error);
-        } else {
-          msg = data.details
-            ? data.error + ': ' + data.details
-            : data.message || data.error || res.statusText;
+        var body = Object.assign({}, base, extraBody || {});
+        body.rowOffset = rowOffset;
+        body.rowLimit = rowLimit;
+        if (statusEl) statusEl.innerHTML = '<div class="loading">' + loadingMsg + '</div>';
+        const res = await fetch(API_BASE + '/api/admin/recruit-map/sync', {
+          method: 'POST',
+          headers: adminAuthHeaders(true),
+          body: JSON.stringify(body),
+        });
+        if (checkAdminFetch(res)) {
+          recruitMapSyncButtonsBusy(false);
+          return { authFail: true, rateLimited: false, aborted: false, timedOut: false, dbLimit: false };
         }
-        throw new Error(msg);
+        const data = await res.json().catch(function () {
+          return {};
+        });
+        if (
+          (res.status === 503 || res.status === 500) &&
+          data.error === 'DB_CONNECTION_LIMIT'
+        ) {
+          if (statusEl) {
+            statusEl.innerHTML =
+              '<div class="status-message status-error"><strong>Database connection limit reached.</strong> Wait a few minutes, then resume.</div>';
+          }
+          return {
+            authFail: false,
+            rateLimited: false,
+            aborted: false,
+            timedOut: false,
+            dbLimit: true,
+            data: data,
+          };
+        }
+        if (res.status === 429 && data.error === 'CFBD_RATE_LIMITED') {
+          const w = data.retryAfterSeconds != null ? data.retryAfterSeconds : 120;
+          statusEl.innerHTML =
+            '<div class="status-message status-error"><strong>CFBD rate limit.</strong> Wait about ' + w + ' seconds and try again.</div>' +
+            recruitMapFormatRecruitSyncHtml(data, 'Partial response');
+          return { authFail: false, rateLimited: true, aborted: false, timedOut: false, dbLimit: false, data: data };
+        }
+        if (res.status === 504 || res.status === 502) {
+          const resumeAt = recruitMapGetSavedNextOffset();
+          var tmsg =
+            '<div class="status-message status-error"><strong>Sync timed out</strong> (HTTP ' +
+            res.status +
+            '). ';
+          if (resumeAt != null) {
+            tmsg += 'Resume from row <strong>' + resumeAt + '</strong> (last fully completed batch end).</div>';
+          } else {
+            tmsg +=
+              'No saved row offset yet in this browser — if a batch finished, try <strong>Resume</strong> after refreshing, or run <strong>Load Next Recruit Batch</strong>.</div>';
+          }
+          statusEl.innerHTML = tmsg;
+          return { authFail: false, rateLimited: false, aborted: false, timedOut: true, dbLimit: false, data: data };
+        }
+        if (!res.ok) {
+          let msg;
+          if (data.error && String(data.error).indexOf('Recruit sync insert mapping error') !== -1) {
+            msg = String(data.error);
+          } else {
+            msg = data.details
+              ? data.error + ': ' + data.details
+              : data.message || data.error || res.statusText;
+          }
+          throw new Error(msg);
+        }
+        return { authFail: false, rateLimited: false, aborted: false, timedOut: false, dbLimit: false, data: data };
+      } finally {
+        recruitMapSyncPostInFlight = Math.max(0, recruitMapSyncPostInFlight - 1);
       }
-      return { authFail: false, rateLimited: false, aborted: false, timedOut: false, data: data };
     }
 
     async function recruitMapRunBatchSyncLoop(statusEl, startOffset) {
@@ -715,16 +753,15 @@
           rowLimit: RECRUIT_SYNC_ROW_LIMIT,
         });
         if (r.authFail || r.aborted) return { stopped: 'auth', last: last };
+        if (r.busy) return { stopped: 'busy', last: last };
         if (r.rateLimited) return { stopped: 'rate', last: last };
         if (r.timedOut) return { stopped: 'timeout', last: last };
+        if (r.dbLimit) return { stopped: 'dbLimit', last: last };
         last = r.data;
         if (!last) return { stopped: 'error', last: last };
         var progressHtml = recruitMapBuildProgressHtml(last);
-        var dbTotal = await recruitMapFetchDbTotalForYear(recruitMapSyncFilterParts().year);
         statusEl.innerHTML =
-          progressHtml +
-          recruitMapSavedVsCfbdLine(dbTotal, last.recruitsSeen) +
-          recruitMapFormatRecruitSyncHtml(last, 'Latest batch');
+          progressHtml + recruitMapFormatRecruitSyncHtml(last, 'Latest batch');
         recruitMapApplySuccessfulBatch(last);
         if (last.done) return { stopped: null, last: last };
         offset = last.nextRowOffset;
@@ -748,8 +785,10 @@
           rowLimit: RECRUIT_SYNC_ROW_LIMIT,
         });
         if (r.authFail || r.aborted) return;
+        if (r.busy) return;
         if (r.rateLimited) return;
         if (r.timedOut) return;
+        if (r.dbLimit) return;
         recruitMapApplySuccessfulBatch(r.data);
         var dbTot = await recruitMapFetchDbTotalForYear(recruitMapSyncFilterParts().year);
         statusEl.innerHTML =
@@ -774,7 +813,7 @@
           headers: adminAuthHeaders(true),
           body: JSON.stringify({ limit: RECRUIT_GEOCODE_LIMIT, delayMs: RECRUIT_GEOCODE_DELAY_MS }),
         });
-        if (checkAdminFetch(res)) return { stoppedAuth: true, geocodedTotal, rateLimited: false };
+        if (checkAdminFetch(res)) return { stoppedAuth: true, geocodedTotal, rateLimited: false, dbLimit: false };
         const data = await res.json().catch(() => ({}));
         if (res.status === 429 && data.error === 'GEOCODER_RATE_LIMITED') {
           const w = data.retryAfterSeconds != null ? data.retryAfterSeconds : 120;
@@ -782,7 +821,15 @@
             '<div class="status-message status-error"><strong>Geocoder rate limit.</strong> ' +
             (data.message || 'Wait before running geocode again.') +
             ' Suggested wait: <strong>' + w + '</strong> seconds.</div>';
-          return { stoppedAuth: false, geocodedTotal, rateLimited: true };
+          return { stoppedAuth: false, geocodedTotal, rateLimited: true, dbLimit: false };
+        }
+        if (
+          (res.status === 503 || res.status === 500) &&
+          data.error === 'DB_CONNECTION_LIMIT'
+        ) {
+          statusEl.innerHTML =
+            '<div class="status-message status-error"><strong>Database connection limit reached.</strong> Wait a few minutes, then resume geocoding.</div>';
+          return { stoppedAuth: false, geocodedTotal, rateLimited: false, dbLimit: true };
         }
         if (!res.ok) throw new Error(data.message || data.error || res.statusText);
         geocodedTotal += data.geocoded || 0;
@@ -792,7 +839,7 @@
         if ((data.geocoded || 0) === 0 && (data.notFound || 0) > 0) break;
         await recruitMapSleep(RECRUIT_GEOCODE_PAUSE_BETWEEN_ROUNDS_MS);
       }
-      return { stoppedAuth: false, geocodedTotal, rateLimited: false };
+      return { stoppedAuth: false, geocodedTotal, rateLimited: false, dbLimit: false };
     }
 
     async function recruitMapAutoSync() {
@@ -802,7 +849,10 @@
       try {
         var start = recruitMapGetSavedNextOffset() != null ? recruitMapGetSavedNextOffset() : 0;
         var result = await recruitMapRunBatchSyncLoop(statusEl, start);
-        if (result.stopped === 'auth' || result.stopped === 'rate') return;
+        if (result.stopped === 'auth' || result.stopped === 'rate' || result.stopped === 'busy') return;
+        if (result.stopped === 'dbLimit') {
+          return;
+        }
         if (result.stopped === 'timeout') {
           return;
         }
@@ -819,6 +869,7 @@
         const geo = await runRecruitGeocodePasses(statusEl);
         if (geo.stoppedAuth) return;
         if (geo.rateLimited) return;
+        if (geo.dbLimit) return;
         statusEl.innerHTML =
           '<div class="status-message status-success">All set. Geocoding added ' +
           geo.geocodedTotal.toLocaleString() +
@@ -873,7 +924,10 @@
             (result.last ? recruitMapFormatRecruitSyncHtml(result.last, 'Last successful batch') : '');
           return;
         }
-        if (result.stopped === 'auth' || result.stopped === 'rate') return;
+        if (result.stopped === 'auth' || result.stopped === 'rate' || result.stopped === 'busy') return;
+        if (result.stopped === 'dbLimit') {
+          return;
+        }
         if (result.stopped === 'error') {
           statusEl.innerHTML =
             '<div class="status-message status-error">Sync stopped (unexpected).</div>';
@@ -940,6 +994,7 @@
         const geo = await runRecruitGeocodePasses(statusEl);
         if (geo.stoppedAuth) return;
         if (geo.rateLimited) return;
+        if (geo.dbLimit) return;
         statusEl.innerHTML =
           `<div class="status-message status-success">Finished. Added ${geo.geocodedTotal.toLocaleString()} locations on the map.</div>`;
       } catch (e) {

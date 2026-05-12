@@ -179,6 +179,15 @@
     let map = null;
     let clusterLayer = null;
     const markersById = {};
+    var recruitMapRedrawDebounceTimer = null;
+
+    function scheduleRedrawMapAndList() {
+      if (recruitMapRedrawDebounceTimer) clearTimeout(recruitMapRedrawDebounceTimer);
+      recruitMapRedrawDebounceTimer = setTimeout(function () {
+        recruitMapRedrawDebounceTimer = null;
+        redrawMapAndList();
+      }, 280);
+    }
 
     async function fetchFilters() {
       const res = await fetch('/api/recruit-map/filters');
@@ -445,7 +454,7 @@
       fillSelect(document.getElementById('fltStars'), fData.starLevels || [], String);
 
       ['fltTeam','fltConference','fltYear','fltState','fltPosition','fltClassification','fltStars'].forEach(function (id) {
-        document.getElementById(id).addEventListener('change', redrawMapAndList);
+        document.getElementById(id).addEventListener('change', scheduleRedrawMapAndList);
       });
       var searchEl = document.getElementById('fltSearch');
       var tmr;

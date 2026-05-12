@@ -2,7 +2,7 @@
  * GET /api/recruit-map/filters
  * Distinct filter values from PlayerHometowns.
  */
-const { getPool } = require("./db");
+const { getPool, isMysqlConnectionLimitError } = require("./db");
 const { json } = require("./_http");
 
 function sqlIdent(column) {
@@ -128,6 +128,13 @@ exports.handler = async (event) => {
     });
   } catch (err) {
     console.error("recruit-map-filters:", err);
+    if (isMysqlConnectionLimitError(err)) {
+      return json(503, {
+        error: "DB_CONNECTION_LIMIT",
+        message:
+          "Database connection limit reached. Wait a few minutes and try again.",
+      });
+    }
     if (err.code === "NO_DATABASE_URL") {
       return json(500, { error: "Server misconfiguration" });
     }
