@@ -321,9 +321,22 @@
       gap: 0.5rem;
       margin-bottom: 0.35rem;
     }
-    .recruit-detail-inner.has-team-branding,
-    .recruit-detail-box.has-team-branding {
-      border-left: 3px solid var(--recruit-team-primary, var(--gold));
+    .recruit-detail-box {
+      position: relative;
+      padding-left: 2rem;
+    }
+    .recruit-detail-box.has-team-branding::before {
+      content: "";
+      position: absolute;
+      left: 0.65rem;
+      top: 1rem;
+      bottom: 1rem;
+      width: 5px;
+      border-radius: 999px;
+      background: var(--recruit-team-primary, var(--gold));
+    }
+    .recruit-detail-inner {
+      position: relative;
     }
     .player-list-row.has-team-branding {
       border-left: 3px solid var(--recruit-team-primary, var(--gold));
@@ -362,6 +375,76 @@
     body.team-theme-active #resultCount strong {
       color: var(--recruit-team-primary, var(--gold));
     }
+    .college-picker-wrap {
+      position: relative;
+    }
+    #fltTeamSuggestions {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: calc(100% + 2px);
+      z-index: 40;
+      max-height: 220px;
+      overflow-y: auto;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-brown);
+      background: #1a1a1a;
+      box-shadow: var(--shadow-soft);
+    }
+    .college-suggestion-item {
+      display: block;
+      width: 100%;
+      text-align: left;
+      padding: 0.45rem 0.65rem;
+      border: 0;
+      border-bottom: 1px solid rgba(141,110,99,0.25);
+      background: transparent;
+      color: var(--text-main);
+      font-size: 0.88rem;
+      cursor: pointer;
+    }
+    .college-suggestion-item:hover,
+    .college-suggestion-item.is-top {
+      background: rgba(255,215,0,0.1);
+      color: var(--gold);
+    }
+    .recruit-star-marker-wrap {
+      background: transparent !important;
+      border: 0 !important;
+    }
+    .recruit-star-marker {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.72rem;
+      font-weight: 900;
+      border: 2px solid rgba(0,0,0,0.35);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.45);
+      color: #1a1a1a;
+    }
+    .recruit-star-marker--5 {
+      background: linear-gradient(145deg, #ffe566, #FFD700);
+      color: #3e2723;
+      border-color: #b8860b;
+    }
+    .recruit-star-marker--4 {
+      background: linear-gradient(145deg, #5eb8ff, #1e88e5);
+      color: #fff;
+      border-color: #1565c0;
+    }
+    .recruit-star-marker--3 {
+      background: linear-gradient(145deg, #9aa5b1, #607d8b);
+      color: #fff;
+      border-color: #455a64;
+    }
+    .recruit-star-marker--low {
+      background: linear-gradient(145deg, #4a4a4a, #2a2a2a);
+      color: #d7c1a1;
+      border-color: #555;
+    }
   </style>
 </head>
 <body>
@@ -395,10 +478,10 @@
           <label for="fltDataset">Dataset</label>
           <select id="fltDataset" class="site-select"></select>
         </div>
-        <div id="wrapFltTeam">
+        <div id="wrapFltTeam" class="college-picker-wrap">
           <label for="fltTeam">Committed college</label>
-          <input type="text" id="fltTeam" class="site-input" list="fltTeamList" placeholder="Search committed college…" autocomplete="off">
-          <datalist id="fltTeamList"></datalist>
+          <input type="text" id="fltTeam" class="site-input" placeholder="Search committed college…" autocomplete="off">
+          <div id="fltTeamSuggestions" hidden></div>
         </div>
         <div>
           <label for="fltConference">Conference</label>
@@ -409,8 +492,8 @@
           <select id="fltYear" class="site-select"><option value="">All years</option></select>
         </div>
         <div>
-          <label for="fltState">State</label>
-          <select id="fltState" class="site-select"><option value="">All states</option></select>
+          <label for="fltLocation">Location</label>
+          <select id="fltLocation" class="site-select"><option value="">All locations</option></select>
         </div>
         <div>
           <label for="fltPosition">Position</label>
@@ -458,6 +541,8 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js" crossorigin=""></script>
   <script src="scripts/auth-ui.js"></script>
+  <script src="scripts/recruit-fbs-conferences.js"></script>
+  <script src="scripts/recruit-location.js"></script>
   <script src="scripts/recruit-team-branding.js"></script>
   <script src="scripts/recruit-map-static.js"></script>
   <script>

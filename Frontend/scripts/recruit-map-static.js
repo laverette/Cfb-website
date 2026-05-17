@@ -14,6 +14,10 @@
   let filterMeta = null;
   let recruitMapRedrawDebounceTimer = null;
   let datasetLoadToken = 0;
+  /** Committed college filter: only set when user selects a team from suggestions */
+  let selectedCommittedTeam = '';
+  let collegeSuggestionMatches = [];
+  let collegeSuggestionsOpen = false;
 
   function scheduleRedrawMapAndList() {
     if (recruitMapRedrawDebounceTimer) clearTimeout(recruitMapRedrawDebounceTimer);
@@ -47,9 +51,23 @@
     return null;
   }
 
+  function resolveFootballConference(college) {
+    if (!college) return null;
+    if (window.RecruitFbsConferences && window.RecruitFbsConferences.conferenceForTeam) {
+      return window.RecruitFbsConferences.conferenceForTeam(college);
+    }
+    return null;
+  }
+
   function normalizeRecruitForUi(r) {
     const college = committedCollege(r);
     const branding = college ? getBranding(college) : null;
+    const loc =
+      window.RecruitLocation &&
+      window.RecruitLocation.locationKeyForRecruit({
+        stateProvince: r.stateProvince || r.hometown_state,
+        country: r.country || r.hometown_country,
+      });
     return {
       id: r.id,
       player_name: r.name || r.player_name || '',
@@ -58,7 +76,9 @@
       school: r.school || null,
       branding: branding,
       team_school: r.team_school || null,
-      conference: r.conference || (branding && branding.conference) || null,
+      conference: resolveFootballConference(college),
+      location_key: loc ? loc.key : null,
+      location_label: loc ? loc.label : null,
       season_year: r.year != null ? r.year : r.season_year,
       position: r.position || null,
       recruit_type: r.recruitType || r.recruit_type || null,
@@ -101,7 +121,7 @@
     const colleges = [];
     const conferences = [];
     const years = [];
-    const states = [];
+    const locationMap = {};
     const positions = [];
     const classifications = [];
     const starLevels = [];
@@ -110,16 +130,28 @@
       if (p.committed_to) colleges.push(p.committed_to);
       if (p.conference) conferences.push(p.conference);
       if (p.season_year != null) years.push(p.season_year);
-      if (p.hometown_state) states.push(p.hometown_state);
+      if (p.location_key && p.location_label) {
+        locationMap[p.location_key] = p.location_label;
+      }
       if (p.position) positions.push(p.position);
       if (p.recruit_type) classifications.push(p.recruit_type);
       if (p.stars != null) starLevels.push(p.stars);
     });
+    const locations = Object.keys(locationMap)
+      .map(function (key) {
+        return { key: key, label: locationMap[key] };
+      })
+      .sort(function (a, b) {
+        if (window.RecruitLocation && window.RecruitLocation.sortLocationLabels) {
+          return window.RecruitLocation.sortLocationLabels(a.label, b.label);
+        }
+        return a.label.localeCompare(b.label);
+      });
     return {
       colleges: uniqueSorted(colleges),
       conferences: uniqueSorted(conferences),
       years: uniqueSorted(years, true),
-      states: uniqueSorted(states),
+      locations: locations,
       positions: uniqueSorted(positions),
       classifications: uniqueSorted(classifications),
       starLevels: uniqueSorted(starLevels, true),
@@ -200,23 +232,29 @@
     }
   }
 
-  function fillCollegeDatalist(colleges) {
-    const list = document.getElementById('fltTeamList');
-    if (!list) return;
-    list.innerHTML = '';
-    (colleges || []).forEach(function (name) {
+  function fillLocationSelect(locations) {
+    const sel = document.getElementById('fltLocation');
+    if (!sel) return;
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">All locations</option>';
+    (locations || []).forEach(function (loc) {
       const o = document.createElement('option');
-      o.value = String(name);
-      list.appendChild(o);
+      o.value = loc.key;
+      o.textContent = loc.label;
+      sel.appendChild(o);
     });
+    if ([...sel.options].some(function (opt) {
+      return opt.value === cur;
+    })) {
+      sel.value = cur;
+    }
   }
 
   function applyFilterMetaToSelects() {
     if (!filterMeta) return;
-    fillCollegeDatalist(filterMeta.colleges);
+    fillLocationSelect(filterMeta.locations);
     fillSelect(document.getElementById('fltConference'), filterMeta.conferences, null, 'All conferences');
     fillSelect(document.getElementById('fltYear'), filterMeta.years, String, 'All years');
-    fillSelect(document.getElementById('fltState'), filterMeta.states, null, 'All states');
     fillSelect(document.getElementById('fltPosition'), filterMeta.positions, null, 'All positions');
     fillSelect(document.getElementById('fltClassification'), filterMeta.classifications, null, 'All');
     fillSelect(document.getElementById('fltStars'), filterMeta.starLevels, String, 'All');
@@ -348,14 +386,142 @@
   function matchesCollegeFilter(committedTo, filterVal) {
     if (!filterVal) return true;
     if (!committedTo) return false;
-    const c = String(committedTo).toLowerCase();
-    const f = filterVal.toLowerCase();
-    return c === f || c.indexOf(f) !== -1;
+    return String(committedTo).toLowerCase() === String(filterVal).toLowerCase();
+  }
+
+  function hideCollegeSuggestions() {
+    collegeSuggestionsOpen = false;
+    collegeSuggestionMatches = [];
+    const box = document.getElementById('fltTeamSuggestions');
+    if (box) {
+      box.hidden = true;
+      box.innerHTML = '';
+    }
+  }
+
+  function showCollegeSuggestions(matches) {
+    const box = document.getElementById('fltTeamSuggestions');
+    if (!box) return;
+    collegeSuggestionMatches = matches || [];
+    collegeSuggestionsOpen = collegeSuggestionMatches.length > 0;
+    if (!collegeSuggestionsOpen) {
+      hideCollegeSuggestions();
+      return;
+    }
+    box.hidden = false;
+    box.innerHTML = '';
+    collegeSuggestionMatches.forEach(function (name, idx) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'college-suggestion-item' + (idx === 0 ? ' is-top' : '');
+      btn.textContent = name;
+      btn.addEventListener('mousedown', function (ev) {
+        ev.preventDefault();
+        selectCommittedCollege(name);
+      });
+      box.appendChild(btn);
+    });
+  }
+
+  function updateCollegeSuggestionsFromInput() {
+    const input = document.getElementById('fltTeam');
+    if (!input || !filterMeta) return;
+    const q = input.value.trim().toLowerCase();
+    if (!q) {
+      hideCollegeSuggestions();
+      return;
+    }
+    const matches = (filterMeta.colleges || []).filter(function (name) {
+      return String(name).toLowerCase().indexOf(q) !== -1;
+    });
+    matches.sort(function (a, b) {
+      const al = a.toLowerCase();
+      const bl = b.toLowerCase();
+      const aExact = al === q;
+      const bExact = bl === q;
+      if (aExact && !bExact) return -1;
+      if (!aExact && bExact) return 1;
+      if (al.startsWith(q) && !bl.startsWith(q)) return -1;
+      if (!al.startsWith(q) && bl.startsWith(q)) return 1;
+      return a.localeCompare(b);
+    });
+    showCollegeSuggestions(matches.slice(0, 12));
+  }
+
+  function selectCommittedCollege(name) {
+    const input = document.getElementById('fltTeam');
+    selectedCommittedTeam = String(name).trim();
+    if (input) input.value = selectedCommittedTeam;
+    hideCollegeSuggestions();
+    redrawMapAndList();
+  }
+
+  function clearCommittedCollegeSelection() {
+    selectedCommittedTeam = '';
+    hideCollegeSuggestions();
+  }
+
+  function onCollegeInputChange() {
+    const input = document.getElementById('fltTeam');
+    if (!input) return;
+    const val = input.value.trim();
+    if (!val) {
+      clearCommittedCollegeSelection();
+      redrawMapAndList();
+      return;
+    }
+    if (
+      selectedCommittedTeam &&
+      val.toLowerCase() !== selectedCommittedTeam.toLowerCase()
+    ) {
+      selectedCommittedTeam = '';
+      applyPageTeamThemeFromFilters();
+      updateCollegeSuggestionsFromInput();
+      redrawMapAndList();
+      return;
+    }
+    updateCollegeSuggestionsFromInput();
+  }
+
+  function starMarkerTier(stars) {
+    const n = parseInt(String(stars), 10);
+    if (!Number.isFinite(n) || n <= 0) return 'low';
+    if (n >= 5) return '5';
+    if (n >= 4) return '4';
+    if (n >= 3) return '3';
+    return 'low';
+  }
+
+  function starMarkerLabel(stars) {
+    const tier = starMarkerTier(stars);
+    if (tier === '5') return '5';
+    if (tier === '4') return '4';
+    if (tier === '3') return '3';
+    return '2';
+  }
+
+  function createStarMarkerIcon(p) {
+    const tier = starMarkerTier(p.stars);
+    const label = starMarkerLabel(p.stars);
+    return L.divIcon({
+      className: 'recruit-star-marker-wrap',
+      html:
+        '<div class="recruit-star-marker recruit-star-marker--' +
+        tier +
+        '" aria-label="' +
+        label +
+        ' star recruit">' +
+        label +
+        '</div>',
+      iconSize: [28, 28],
+      iconAnchor: [14, 14],
+      popupAnchor: [0, -14],
+    });
   }
 
   function updateFilterActiveStates() {
     const wrapMap = { fltTeam: 'wrapFltTeam' };
-    ['fltTeam', 'fltConference', 'fltYear', 'fltState', 'fltPosition', 'fltClassification', 'fltStars', 'fltSearch', 'fltSchool', 'fltDataset'].forEach(
+    ['fltConference', 'fltYear', 'fltLocation', 'fltPosition', 'fltClassification', 'fltStars', 'fltSearch', 'fltSchool', 'fltDataset'].forEach(
       function (inputId) {
         const el = document.getElementById(inputId);
         if (!el) return;
@@ -364,6 +530,10 @@
         wrap.classList.toggle('filter-active', !!(el.value && String(el.value).trim()));
       }
     );
+    const teamWrap = document.getElementById('wrapFltTeam');
+    if (teamWrap) {
+      teamWrap.classList.toggle('filter-active', !!selectedCommittedTeam);
+    }
   }
 
   function popupHtml(p) {
@@ -403,18 +573,8 @@
   function detailHtml(p) {
     const ht = hometownText(p);
     const commit = commitDisplay(p);
-    const brandStyle =
-      p.branding && window.RecruitTeamBranding
-        ? window.RecruitTeamBranding.brandStyleAttr(p.branding)
-        : '';
-    const boxCls =
-      'recruit-detail-inner' + (p.branding && p.branding.primary ? ' has-team-branding' : '');
     return (
-      '<div class="' +
-      boxCls +
-      '"' +
-      (brandStyle ? ' style="' + brandStyle + '"' : '') +
-      '>' +
+      '<div class="recruit-detail-inner">' +
       '<div class="recruit-detail-header">' +
       brandingLogoHtml(p, 'recruit-team-logo-detail') +
       '<div class="recruit-detail-name">' +
@@ -440,10 +600,10 @@
 
   function applyPageTeamThemeFromFilters() {
     if (!window.RecruitTeamBranding) return;
-    const teamInput = document.getElementById('fltTeam');
-    const val = teamInput ? teamInput.value.trim() : '';
-    const brand = window.RecruitTeamBranding.resolveExactFilterTeam(val);
-    window.RecruitTeamBranding.applyPageTheme(brand);
+    const brand = selectedCommittedTeam
+      ? window.RecruitTeamBranding.lookup(selectedCommittedTeam)
+      : null;
+    window.RecruitTeamBranding.applyPageTheme(brand && brand.primary ? brand : null);
   }
 
   function escapeHtml(s) {
@@ -460,10 +620,10 @@
       return el ? el.value.trim() : '';
     }
     const params = {};
-    if (v('fltTeam')) params.team = v('fltTeam');
+    if (selectedCommittedTeam) params.team = selectedCommittedTeam;
     if (v('fltConference')) params.conference = v('fltConference');
     if (v('fltYear')) params.year = v('fltYear');
-    if (v('fltState')) params.state = v('fltState');
+    if (v('fltLocation')) params.location = v('fltLocation');
     if (v('fltPosition')) params.position = v('fltPosition');
     if (v('fltClassification')) params.classification = v('fltClassification');
     if (v('fltStars')) params.stars = v('fltStars');
@@ -480,7 +640,19 @@
       if (params.team && !matchesCollegeFilter(p.committed_to, params.team)) return false;
       if (params.conference && p.conference !== params.conference) return false;
       if (params.year && String(p.season_year) !== String(params.year)) return false;
-      if (params.state && p.hometown_state !== params.state) return false;
+      if (
+        params.location &&
+        window.RecruitLocation &&
+        !window.RecruitLocation.matchesLocationFilter(
+          {
+            stateProvince: p.hometown_state,
+            country: p.hometown_country,
+          },
+          params.location
+        )
+      ) {
+        return false;
+      }
       if (params.position && p.position !== params.position) return false;
       if (params.classification && p.recruit_type !== params.classification) return false;
       if (params.stars !== '' && params.stars != null && String(p.stars) !== String(params.stars)) {
@@ -540,7 +712,7 @@
 
       let m = null;
       if (hasValidCoords(p)) {
-        m = L.marker([p.latitude, p.longitude]);
+        m = L.marker([p.latitude, p.longitude], { icon: createStarMarkerIcon(p) });
         const popupCls =
           'recruit-leaflet-popup' +
           (p.branding && p.branding.primary ? ' recruit-leaflet-popup-team' : '');
@@ -612,6 +784,10 @@
     const recruits = await fetchRecruitDataset(entry.file);
     if (token !== datasetLoadToken) return false;
     allRecruits = recruits;
+    selectedCommittedTeam = '';
+    const teamInput = document.getElementById('fltTeam');
+    if (teamInput) teamInput.value = '';
+    hideCollegeSuggestions();
     filterMeta = buildFilterMeta(recruits);
     applyFilterMetaToSelects();
     redrawMapAndList();
@@ -624,6 +800,9 @@
 
     if (window.RecruitTeamBranding && window.RecruitTeamBranding.load) {
       await window.RecruitTeamBranding.load();
+    }
+    if (window.RecruitFbsConferences && window.RecruitFbsConferences.load) {
+      await window.RecruitFbsConferences.load();
     }
 
     recruitManifest = await fetchManifest();
@@ -671,7 +850,7 @@
       }
     });
 
-    ['fltConference', 'fltYear', 'fltState', 'fltPosition', 'fltClassification', 'fltStars'].forEach(
+    ['fltConference', 'fltYear', 'fltLocation', 'fltPosition', 'fltClassification', 'fltStars'].forEach(
       function (id) {
         document.getElementById(id).addEventListener('change', scheduleRedrawMapAndList);
       }
@@ -679,15 +858,36 @@
     const teamEl = document.getElementById('fltTeam');
     const searchEl = document.getElementById('fltSearch');
     const schoolEl = document.getElementById('fltSchool');
-    let teamTmr;
     let searchTmr;
     let schoolTmr;
     if (teamEl) {
-      teamEl.addEventListener('input', function () {
-        clearTimeout(teamTmr);
-        teamTmr = setTimeout(redrawMapAndList, 320);
+      teamEl.addEventListener('input', onCollegeInputChange);
+      teamEl.addEventListener('focus', updateCollegeSuggestionsFromInput);
+      teamEl.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Enter') {
+          ev.preventDefault();
+          if (collegeSuggestionMatches.length) {
+            selectCommittedCollege(collegeSuggestionMatches[0]);
+          } else if (filterMeta && filterMeta.colleges) {
+            const q = teamEl.value.trim().toLowerCase();
+            const exact = filterMeta.colleges.find(function (n) {
+              return String(n).toLowerCase() === q;
+            });
+            if (exact) selectCommittedCollege(exact);
+          }
+          return;
+        }
+        if (ev.key === 'Escape') hideCollegeSuggestions();
+      });
+      teamEl.addEventListener('blur', function () {
+        setTimeout(hideCollegeSuggestions, 180);
       });
     }
+    document.addEventListener('mousedown', function (ev) {
+      const wrap = document.getElementById('wrapFltTeam');
+      if (!wrap || wrap.contains(ev.target)) return;
+      hideCollegeSuggestions();
+    });
     searchEl.addEventListener('input', function () {
       clearTimeout(searchTmr);
       searchTmr = setTimeout(redrawMapAndList, 320);
@@ -697,11 +897,13 @@
       schoolTmr = setTimeout(redrawMapAndList, 320);
     });
     document.getElementById('clearFiltersBtn').addEventListener('click', function () {
-      ['fltTeam', 'fltConference', 'fltYear', 'fltState', 'fltPosition', 'fltClassification', 'fltStars'].forEach(
+      ['fltConference', 'fltYear', 'fltLocation', 'fltPosition', 'fltClassification', 'fltStars'].forEach(
         function (id) {
           document.getElementById(id).value = '';
         }
       );
+      if (teamEl) teamEl.value = '';
+      clearCommittedCollegeSelection();
       searchEl.value = '';
       schoolEl.value = '';
       redrawMapAndList();
