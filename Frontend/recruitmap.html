@@ -270,6 +270,98 @@
       color: var(--text-main);
       font-size: 0.95rem;
     }
+    #recruitTeamThemeBanner {
+      display: none;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.65rem;
+      padding: 0.45rem 0.7rem;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-brown);
+      background: rgba(255, 215, 0, 0.06);
+      font-size: 0.84rem;
+      color: var(--text-main);
+    }
+    #recruitTeamThemeBanner strong { color: var(--gold); }
+    .recruit-theme-logo {
+      width: 22px;
+      height: 22px;
+      object-fit: contain;
+      flex-shrink: 0;
+    }
+    .player-list-row-inner {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
+    .player-list-row-logo {
+      flex-shrink: 0;
+      padding-top: 0.1rem;
+    }
+    .player-list-row-body { flex: 1; min-width: 0; }
+    .recruit-team-logo-sm,
+    .recruit-team-logo-detail,
+    .recruit-team-logo-popup {
+      width: 28px;
+      height: 28px;
+      object-fit: contain;
+      vertical-align: middle;
+    }
+    .recruit-team-logo-detail { width: 36px; height: 36px; }
+    .recruit-card-commit {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      flex-wrap: wrap;
+    }
+    .recruit-detail-header,
+    .recruit-popup-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.35rem;
+    }
+    .recruit-detail-inner.has-team-branding,
+    .recruit-detail-box.has-team-branding {
+      border-left: 3px solid var(--recruit-team-primary, var(--gold));
+    }
+    .player-list-row.has-team-branding {
+      border-left: 3px solid var(--recruit-team-primary, var(--gold));
+      padding-left: calc(0.7rem - 3px);
+    }
+    .player-list-row.has-team-branding.active {
+      background: color-mix(in srgb, var(--recruit-team-primary, #FFD700) 12%, transparent);
+    }
+    .player-list-row.has-team-branding .recruit-card-name {
+      color: color-mix(in srgb, var(--recruit-team-primary, #FFD700) 55%, var(--gold));
+    }
+    .recruit-popup-branded {
+      border-top: 3px solid var(--recruit-team-primary, var(--gold));
+    }
+    .leaflet-popup.recruit-leaflet-popup-team .leaflet-popup-content-wrapper {
+      border-top: 3px solid var(--recruit-team-primary, var(--gold));
+    }
+    body.team-theme-active .recruit-filters.section-card,
+    body.team-theme-active .recruit-map-panel {
+      border-color: color-mix(in srgb, var(--recruit-team-primary, #8D6E63) 65%, var(--border-brown));
+      box-shadow: 0 0 0 1px color-mix(in srgb, var(--recruit-team-primary, #FFD700) 18%, transparent);
+    }
+    body.team-theme-active .recruit-map-wrap {
+      border-color: var(--recruit-team-primary, var(--border-brown));
+    }
+    body.team-theme-active #recruitTeamThemeBanner {
+      border-color: var(--recruit-team-primary, var(--border-brown));
+      background: color-mix(in srgb, var(--recruit-team-primary, #3E2723) 18%, #1a1a1a);
+    }
+    body.team-theme-active .player-list-row.active {
+      border-left-color: var(--recruit-team-primary, var(--gold));
+    }
+    body.team-theme-active #wrapFltTeam.filter-active input {
+      border-color: var(--recruit-team-primary, var(--gold));
+    }
+    body.team-theme-active #resultCount strong {
+      color: var(--recruit-team-primary, var(--gold));
+    }
   </style>
 </head>
 <body>
@@ -297,6 +389,7 @@
     <div id="recruitMapPendingBanner" role="status"></div>
     <div class="section-card recruit-filters">
       <h2 class="gold-heading" style="font-size:1.15rem; margin-bottom:0.85rem;">Filters</h2>
+      <div id="recruitTeamThemeBanner" role="status" aria-live="polite"></div>
       <div class="filter-grid">
         <div style="grid-column: 1 / -1;">
           <label for="fltDataset">Dataset</label>
@@ -365,6 +458,7 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js" crossorigin=""></script>
   <script src="scripts/auth-ui.js"></script>
+  <script src="scripts/recruit-team-branding.js"></script>
   <script src="scripts/recruit-map-static.js"></script>
   <script>
     /* Menu only — recruit map logic is in scripts/recruit-map-static.js (static JSON, no JawsDB). */

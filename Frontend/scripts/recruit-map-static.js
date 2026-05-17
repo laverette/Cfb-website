@@ -40,16 +40,25 @@
     return c != null && String(c).trim() !== '' ? String(c).trim() : null;
   }
 
+  function getBranding(teamName) {
+    if (window.RecruitTeamBranding && window.RecruitTeamBranding.lookup) {
+      return window.RecruitTeamBranding.lookup(teamName);
+    }
+    return null;
+  }
+
   function normalizeRecruitForUi(r) {
     const college = committedCollege(r);
+    const branding = college ? getBranding(college) : null;
     return {
       id: r.id,
       player_name: r.name || r.player_name || '',
       committed_to: college,
       team: college,
       school: r.school || null,
+      branding: branding,
       team_school: r.team_school || null,
-      conference: r.conference || null,
+      conference: r.conference || (branding && branding.conference) || null,
       season_year: r.year != null ? r.year : r.season_year,
       position: r.position || null,
       recruit_type: r.recruitType || r.recruit_type || null,
@@ -228,6 +237,37 @@
     );
   }
 
+  function teamBadgeHtml(p) {
+    if (!p.committed_to) return '';
+    const b = p.branding;
+    let style = '';
+    if (b && b.primary && window.RecruitTeamBranding) {
+      const on = window.RecruitTeamBranding.contrastTextColor(b.primary, '#f5deb3', '#1a1a1a');
+      style =
+        ' style="border-color:' +
+        b.primary +
+        ';background:color-mix(in srgb,' +
+        b.primary +
+        ' 28%, #1a1a1a);color:' +
+        on +
+        ';"';
+    }
+    return (
+      '<span class="recruit-badge recruit-badge-team' +
+      (b && b.primary ? ' has-team-color' : '') +
+      '"' +
+      style +
+      '>' +
+      escapeHtml(p.committed_to) +
+      '</span>'
+    );
+  }
+
+  function brandingLogoHtml(p, className) {
+    if (!p.branding || !window.RecruitTeamBranding) return '';
+    return window.RecruitTeamBranding.logoImgHtml(p.branding, className, p.committed_to || '');
+  }
+
   function recruitBadgesHtml(p, mutedClass, opts) {
     opts = opts || {};
     const muted = mutedClass || 'recruit-badge-muted';
@@ -242,7 +282,7 @@
       badges.push('<span class="recruit-badge ' + muted + '">' + escapeHtml(String(p.recruit_type)) + '</span>');
     }
     if (p.committed_to && !opts.hideCollege) {
-      badges.push('<span class="recruit-badge">' + escapeHtml(p.committed_to) + '</span>');
+      badges.push(teamBadgeHtml(p));
     }
     const cls = 'recruit-badges' + (opts.compact ? ' recruit-badges-compact' : '');
     return badges.length ? '<div class="' + cls + '">' + badges.join('') + '</div>' : '';
@@ -275,19 +315,34 @@
     if (p.ranking != null && Number.isFinite(Number(p.ranking))) {
       stats.push('#' + String(p.ranking));
     }
+    const logo = brandingLogoHtml(p, 'recruit-team-logo-sm');
+    const commitLine = escapeHtml(commit);
     return (
+      '<div class="player-list-row-inner">' +
+      (p.branding && p.branding.logo ? '<div class="player-list-row-logo">' + logo + '</div>' : '') +
+      '<div class="player-list-row-body">' +
       '<div class="recruit-card-name">' +
       escapeHtml(p.player_name) +
       '</div>' +
       recruitBadgesHtml(p, 'recruit-badge-muted', { hideCollege: true, compact: true }) +
-      '<div class="recruit-card-meta">' +
-      escapeHtml(commit) +
+      '<div class="recruit-card-meta recruit-card-commit">' +
+      commitLine +
       (stats.length ? ' · ' + escapeHtml(stats.join(' · ')) : '') +
       '</div>' +
       '<div class="recruit-card-meta recruit-card-hometown">🏠 ' +
       escapeHtml(ht) +
-      '</div>'
+      '</div></div></div>'
     );
+  }
+
+  function applyRowTeamStyle(row, p) {
+    if (p.branding && p.branding.primary && window.RecruitTeamBranding) {
+      row.classList.add('has-team-branding');
+      row.setAttribute('style', window.RecruitTeamBranding.brandStyleAttr(p.branding));
+    } else {
+      row.classList.remove('has-team-branding');
+      row.removeAttribute('style');
+    }
   }
 
   function matchesCollegeFilter(committedTo, filterVal) {
@@ -314,13 +369,26 @@
   function popupHtml(p) {
     const ht = hometownText(p);
     const commit = commitDisplay(p);
-    return (
-      '<div class="recruit-popup">' +
+    const brandCls = p.branding && p.branding.primary ? ' recruit-popup-branded' : '';
+    const brandStyle =
+      p.branding && window.RecruitTeamBranding
+        ? window.RecruitTeamBranding.brandStyleAttr(p.branding)
+        : '';
+    const header =
+      '<div class="recruit-popup-header">' +
+      brandingLogoHtml(p, 'recruit-team-logo-popup') +
       '<div class="recruit-popup-name">' +
       escapeHtml(p.player_name) +
-      '</div>' +
+      '</div></div>';
+    return (
+      '<div class="recruit-popup' +
+      brandCls +
+      '"' +
+      (brandStyle ? ' style="' + brandStyle + '"' : '') +
+      '>' +
+      header +
       recruitBadgesHtml(p, 'recruit-badge-muted', { hideCollege: true }) +
-      '<div class="recruit-popup-line"><strong>Committed:</strong> ' +
+      '<div class="recruit-popup-line recruit-popup-commit"><strong>Committed:</strong> ' +
       escapeHtml(commit) +
       '</div>' +
       (p.school
@@ -335,10 +403,23 @@
   function detailHtml(p) {
     const ht = hometownText(p);
     const commit = commitDisplay(p);
+    const brandStyle =
+      p.branding && window.RecruitTeamBranding
+        ? window.RecruitTeamBranding.brandStyleAttr(p.branding)
+        : '';
+    const boxCls =
+      'recruit-detail-inner' + (p.branding && p.branding.primary ? ' has-team-branding' : '');
     return (
+      '<div class="' +
+      boxCls +
+      '"' +
+      (brandStyle ? ' style="' + brandStyle + '"' : '') +
+      '>' +
+      '<div class="recruit-detail-header">' +
+      brandingLogoHtml(p, 'recruit-team-logo-detail') +
       '<div class="recruit-detail-name">' +
       escapeHtml(p.player_name) +
-      '</div>' +
+      '</div></div>' +
       recruitBadgesHtml(p, 'recruit-badge-muted') +
       '<div class="recruit-detail-line"><strong>Committed:</strong> ' +
       escapeHtml(commit) +
@@ -352,8 +433,17 @@
       (p.conference
         ? '<div class="recruit-detail-line"><strong>Conference:</strong> ' + escapeHtml(p.conference) + '</div>'
         : '') +
-      recruitStatsLine(p)
+      recruitStatsLine(p) +
+      '</div>'
     );
+  }
+
+  function applyPageTeamThemeFromFilters() {
+    if (!window.RecruitTeamBranding) return;
+    const teamInput = document.getElementById('fltTeam');
+    const val = teamInput ? teamInput.value.trim() : '';
+    const brand = window.RecruitTeamBranding.resolveExactFilterTeam(val);
+    window.RecruitTeamBranding.applyPageTheme(brand);
   }
 
   function escapeHtml(s) {
@@ -407,8 +497,16 @@
       r.classList.toggle('active', r.dataset.playerId === String(id));
     });
     const p = playerById[id];
-    if (p) {
-      document.getElementById('detailBox').innerHTML = detailHtml(p);
+    const detailEl = document.getElementById('detailBox');
+    if (p && detailEl) {
+      detailEl.innerHTML = detailHtml(p);
+      if (p.branding && p.branding.primary && window.RecruitTeamBranding) {
+        detailEl.classList.add('has-team-branding');
+        detailEl.setAttribute('style', window.RecruitTeamBranding.brandStyleAttr(p.branding));
+      } else {
+        detailEl.classList.remove('has-team-branding');
+        detailEl.removeAttribute('style');
+      }
     }
     if (scroll) {
       const row = document.querySelector('.player-list-row[data-player-id="' + id + '"]');
@@ -443,7 +541,10 @@
       let m = null;
       if (hasValidCoords(p)) {
         m = L.marker([p.latitude, p.longitude]);
-        m.bindPopup(popupHtml(p), { className: 'recruit-leaflet-popup', maxWidth: 260 });
+        const popupCls =
+          'recruit-leaflet-popup' +
+          (p.branding && p.branding.primary ? ' recruit-leaflet-popup-team' : '');
+        m.bindPopup(popupHtml(p), { className: popupCls, maxWidth: 260 });
         m.__player = p;
         m.on('click', function () {
           selectPlayerRow(p.id, true);
@@ -458,6 +559,7 @@
       row.dataset.playerId = String(p.id);
       if (!hasValidCoords(p)) row.style.opacity = '0.72';
       row.innerHTML = playerListRowHtml(p);
+      applyRowTeamStyle(row, p);
       row.addEventListener('click', function () {
         selectPlayerRow(p.id);
         if (hasValidCoords(p)) {
@@ -492,6 +594,7 @@
     }
 
     updateFilterActiveStates();
+    applyPageTeamThemeFromFilters();
     if (map) {
       setTimeout(function () {
         map.invalidateSize();
@@ -518,6 +621,10 @@
   async function bootstrap() {
     const emptyEl = document.getElementById('recruitEmptyState');
     const mainEl = document.getElementById('recruitMainContent');
+
+    if (window.RecruitTeamBranding && window.RecruitTeamBranding.load) {
+      await window.RecruitTeamBranding.load();
+    }
 
     recruitManifest = await fetchManifest();
     if (!recruitManifest || !recruitManifest.datasets.length) {
