@@ -228,7 +228,8 @@
     );
   }
 
-  function recruitBadgesHtml(p, mutedClass) {
+  function recruitBadgesHtml(p, mutedClass, opts) {
+    opts = opts || {};
     const muted = mutedClass || 'recruit-badge-muted';
     const badges = [];
     const sd = starDisplay(p.stars);
@@ -237,13 +238,14 @@
     if (p.season_year != null) {
       badges.push('<span class="recruit-badge ' + muted + '">' + escapeHtml(String(p.season_year)) + '</span>');
     }
-    if (p.recruit_type) {
+    if (p.recruit_type && !opts.hideClass) {
       badges.push('<span class="recruit-badge ' + muted + '">' + escapeHtml(String(p.recruit_type)) + '</span>');
     }
-    if (p.committed_to) {
+    if (p.committed_to && !opts.hideCollege) {
       badges.push('<span class="recruit-badge">' + escapeHtml(p.committed_to) + '</span>');
     }
-    return badges.length ? '<div class="recruit-badges">' + badges.join('') + '</div>' : '';
+    const cls = 'recruit-badges' + (opts.compact ? ' recruit-badges-compact' : '');
+    return badges.length ? '<div class="' + cls + '">' + badges.join('') + '</div>' : '';
   }
 
   function recruitStatsLine(p) {
@@ -277,7 +279,7 @@
       '<div class="recruit-card-name">' +
       escapeHtml(p.player_name) +
       '</div>' +
-      recruitBadgesHtml(p, 'recruit-badge-muted') +
+      recruitBadgesHtml(p, 'recruit-badge-muted', { hideCollege: true, compact: true }) +
       '<div class="recruit-card-meta">' +
       escapeHtml(commit) +
       (stats.length ? ' · ' + escapeHtml(stats.join(' · ')) : '') +
@@ -317,7 +319,7 @@
       '<div class="recruit-popup-name">' +
       escapeHtml(p.player_name) +
       '</div>' +
-      recruitBadgesHtml(p, 'recruit-badge-muted') +
+      recruitBadgesHtml(p, 'recruit-badge-muted', { hideCollege: true }) +
       '<div class="recruit-popup-line"><strong>Committed:</strong> ' +
       escapeHtml(commit) +
       '</div>' +
@@ -441,7 +443,7 @@
       let m = null;
       if (hasValidCoords(p)) {
         m = L.marker([p.latitude, p.longitude]);
-        m.bindPopup(popupHtml(p));
+        m.bindPopup(popupHtml(p), { className: 'recruit-leaflet-popup', maxWidth: 260 });
         m.__player = p;
         m.on('click', function () {
           selectPlayerRow(p.id, true);
