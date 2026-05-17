@@ -1,6 +1,14 @@
 {
   "datasets": [
     {
+      "year": 2026,
+      "classification": "HighSchool",
+      "file": "2026-HighSchool.json",
+      "count": 3107,
+      "withCoordinates": 3051,
+      "lastUpdated": "2026-05-17"
+    },
+    {
       "year": 2025,
       "classification": "HighSchool",
       "file": "2025-HighSchool.json",
