@@ -2,6 +2,9 @@
   "name": "cfb-netlify-site",
   "private": true,
   "description": "Netlify site + functions for CFB picks frontend",
+  "scripts": {
+    "export:recruits": "node scripts/export-recruit-map-data.js"
+  },
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "jsonwebtoken": "^9.0.2",

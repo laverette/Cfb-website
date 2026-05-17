@@ -112,7 +112,8 @@
 
   <main class="recruit-shell page-shell">
     <div id="recruitEmptyState" role="status">
-      <p>Recruit map data is not loaded yet. Please check back soon.</p>
+      <p>Recruit map data is not loaded yet.</p>
+      <p style="font-size:0.9rem; font-weight:500; margin-top:0.75rem; color:var(--text-muted);">Run the recruit export after admin sync, then deploy the JSON files.</p>
     </div>
 
     <div id="recruitMainContent">
@@ -120,9 +121,13 @@
     <div class="section-card recruit-filters">
       <h2 class="gold-heading" style="font-size:1.15rem; margin-bottom:0.85rem;">Filters</h2>
       <div class="filter-grid">
+        <div style="grid-column: 1 / -1;">
+          <label for="fltDataset">Dataset</label>
+          <select id="fltDataset" class="site-select"></select>
+        </div>
         <div>
-          <label for="fltTeam">Team</label>
-          <select id="fltTeam" class="site-select"><option value="">All teams</option></select>
+          <label for="fltTeam">Committed college</label>
+          <select id="fltTeam" class="site-select"><option value="">All colleges</option></select>
         </div>
         <div>
           <label for="fltConference">Conference</label>
@@ -152,6 +157,10 @@
           <label for="fltSearch">Player name</label>
           <input type="text" id="fltSearch" class="search-input site-input" placeholder="Search…" autocomplete="off">
         </div>
+        <div>
+          <label for="fltSchool">High school</label>
+          <input type="text" id="fltSchool" class="search-input site-input" placeholder="School name…" autocomplete="off">
+        </div>
       </div>
       <div style="display:flex; flex-wrap:wrap; gap:0.75rem; align-items:center; margin-top:0.85rem;">
         <button type="button" class="btn btn-brown" id="clearFiltersBtn">Clear filters</button>
@@ -175,305 +184,9 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js" crossorigin=""></script>
   <script src="scripts/auth-ui.js"></script>
+  <script src="scripts/recruit-map-static.js"></script>
   <script>
-    let map = null;
-    let clusterLayer = null;
-    const markersById = {};
-    var recruitMapRedrawDebounceTimer = null;
-
-    function scheduleRedrawMapAndList() {
-      if (recruitMapRedrawDebounceTimer) clearTimeout(recruitMapRedrawDebounceTimer);
-      recruitMapRedrawDebounceTimer = setTimeout(function () {
-        recruitMapRedrawDebounceTimer = null;
-        redrawMapAndList();
-      }, 280);
-    }
-
-    async function fetchFilters() {
-      const res = await fetch('/api/recruit-map/filters');
-      const data = await res.json().catch(() => ({}));
-      return data;
-    }
-
-    function hasFilterLists(fData) {
-      if (!fData) return false;
-      return !!(
-        (fData.teams && fData.teams.length) ||
-        (fData.years && fData.years.length) ||
-        (fData.conferences && fData.conferences.length) ||
-        (fData.states && fData.states.length) ||
-        (fData.positions && fData.positions.length) ||
-        (fData.classifications && fData.classifications.length) ||
-        (fData.starLevels && fData.starLevels.length)
-      );
-    }
-
-    function hasRecruitDataset(fData, playerSample) {
-      var count = playerSample && typeof playerSample.count === 'number'
-        ? playerSample.count
-        : (playerSample && playerSample.players ? playerSample.players.length : 0);
-      return hasFilterLists(fData) || count > 0;
-    }
-
-    function setMapPendingBanner(visible, message) {
-      var el = document.getElementById('recruitMapPendingBanner');
-      if (!el) return;
-      if (visible && message) {
-        el.textContent = message;
-        el.style.display = 'block';
-      } else {
-        el.textContent = '';
-        el.style.display = 'none';
-      }
-    }
-
-    async function fetchPlayers(params) {
-      const q = new URLSearchParams(params);
-      const res = await fetch('/api/recruit-map/players?' + q.toString());
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || res.statusText);
-      return data;
-    }
-
-    function fillSelect(sel, values, formatter) {
-      const cur = sel.value;
-      sel.innerHTML = sel.querySelector('[value=""]') ? sel.querySelector('[value=""]').outerHTML : '<option value="">All</option>';
-      (values || []).forEach(function (v) {
-        const o = document.createElement('option');
-        o.value = v;
-        o.textContent = formatter ? formatter(v) : v;
-        sel.appendChild(o);
-      });
-      if ([...sel.options].some(function (opt) { return opt.value === cur; })) sel.value = cur;
-    }
-
-    function starDisplay(stars) {
-      var n = parseInt(String(stars), 10);
-      if (!Number.isFinite(n) || n <= 0) return '';
-      n = Math.min(5, Math.max(1, n));
-      return String(n) + '★';
-    }
-
-    function recruitRatingRankingHtml(p) {
-      var bits = [];
-      var sd = starDisplay(p.stars);
-      if (sd) bits.push(sd);
-      if (p.rating != null && Number.isFinite(Number(p.rating))) {
-        bits.push('<span style="opacity:0.88;font-size:0.92em;">rating ' + Number(p.rating).toFixed(2) + '</span>');
-      }
-      if (p.ranking != null && Number.isFinite(Number(p.ranking))) {
-        bits.push('<span style="opacity:0.88;font-size:0.92em;">#' + String(p.ranking) + ' national</span>');
-      }
-      if (p.recruit_type) bits.push(escapeHtml(String(p.recruit_type)));
-      return bits.length ? '<div style="margin-top:4px;">' + bits.join(' · ') + '</div>' : '';
-    }
-
-    function commitDisplay(p) {
-      var c = p.committed_to || p.team || p.school || p.team_school;
-      return c ? String(c) : '—';
-    }
-
-    function popupHtml(p) {
-      var ht = p.hometown_full || [p.hometown_city, p.hometown_state, p.hometown_country].filter(Boolean).join(', ') || '—';
-      var commit = commitDisplay(p);
-      return (
-        '<div style="min-width:200px;line-height:1.35;color:#222;">' +
-        '<strong>' + escapeHtml(p.player_name) + '</strong>' +
-        recruitRatingRankingHtml(p) +
-        '<small style="display:block;margin-top:6px;">' +
-        'Commit / team: ' + escapeHtml(commit) + '<br>' +
-        'Conference: ' + escapeHtml(p.conference || '—') + '<br>' +
-        'Class year: ' + escapeHtml(String(p.season_year)) + '<br>' +
-        'Position: ' + escapeHtml(p.position || '—') + '<br>' +
-        'Hometown: ' + escapeHtml(ht) +
-        '</small></div>'
-      );
-    }
-
-    function detailHtml(p) {
-      var ht = p.hometown_full || [p.hometown_city, p.hometown_state, p.hometown_country].filter(Boolean).join(', ') || '—';
-      var commit = commitDisplay(p);
-      return (
-        '<div><strong class="gold-heading">' + escapeHtml(p.player_name) + '</strong>' +
-        recruitRatingRankingHtml(p) + '</div>' +
-        '<div style="margin-top:6px;"><strong>Commit / team:</strong> ' + escapeHtml(commit) + '</div>' +
-        '<div><strong>Conference:</strong> ' + escapeHtml(p.conference || '—') + '</div>' +
-        '<div><strong>Class year:</strong> ' + escapeHtml(String(p.season_year)) + '</div>' +
-        '<div><strong>Position:</strong> ' + escapeHtml(p.position || '—') + '</div>' +
-        '<div><strong>Hometown:</strong> ' + escapeHtml(ht) + '</div>'
-      );
-    }
-
-    function escapeHtml(s) {
-      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-    }
-
-    function getFilterParams() {
-      function v(id) {
-        var el = document.getElementById(id);
-        return el ? el.value.trim() : '';
-      }
-      var params = {};
-      if (v('fltTeam')) params.team = v('fltTeam');
-      if (v('fltConference')) params.conference = v('fltConference');
-      if (v('fltYear')) params.year = v('fltYear');
-      if (v('fltState')) params.state = v('fltState');
-      if (v('fltPosition')) params.position = v('fltPosition');
-      if (v('fltClassification')) params.classification = v('fltClassification');
-      if (v('fltStars')) params.stars = v('fltStars');
-      if (v('fltSearch')) params.search = v('fltSearch');
-      return params;
-    }
-
-    function selectPlayerRow(id, scroll) {
-      document.querySelectorAll('.player-list-row').forEach(function (r) {
-        r.classList.toggle('active', r.dataset.playerId === String(id));
-      });
-      var p = markersById[id] ? markersById[id].__player : null;
-      if (p) {
-        document.getElementById('detailBox').innerHTML = detailHtml(p);
-      }
-      if (scroll) {
-        var row = document.querySelector('.player-list-row[data-player-id="' + id + '"]');
-        if (row) row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-      }
-    }
-
-    async function redrawMapAndList() {
-      const params = getFilterParams();
-      const wrap = document.getElementById('playerList');
-      const countEl = document.getElementById('resultCount');
-      wrap.innerHTML = '';
-      Object.keys(markersById).forEach(function (k) { delete markersById[k]; });
-
-      try {
-        const data = await fetchPlayers(params);
-        const players = data.players || [];
-        countEl.textContent = players.length + ' shown';
-
-        if (clusterLayer) clusterLayer.clearLayers();
-
-        players.forEach(function (p) {
-          if (!Number.isFinite(p.latitude) || !Number.isFinite(p.longitude)) return;
-          const m = L.marker([p.latitude, p.longitude]);
-          m.bindPopup(popupHtml(p));
-          m.__player = p;
-          m.on('click', function () {
-            selectPlayerRow(p.id, true);
-          });
-          clusterLayer.addLayer(m);
-          markersById[p.id] = m;
-
-          const row = document.createElement('div');
-          row.className = 'player-list-row';
-          row.dataset.playerId = String(p.id);
-          var hometown = p.hometown_full || [p.hometown_city, p.hometown_state].filter(Boolean).join(', ');
-          var starL = starDisplay(p.stars);
-          var rateL = (p.rating != null && Number.isFinite(Number(p.rating))) ? (' · r' + Number(p.rating).toFixed(2)) : '';
-          var rankL = (p.ranking != null && Number.isFinite(Number(p.ranking))) ? (' · #' + String(p.ranking)) : '';
-          row.innerHTML =
-            '<strong>' + escapeHtml(p.player_name) + '</strong>' +
-            (starL ? '<span style="margin-left:6px;color:#FFD700;font-size:0.85rem;">' + starL + rateL + rankL + '</span>' : '') +
-            '<div style="font-size:0.78rem; opacity:0.88;">' + escapeHtml(commitDisplay(p) + ' · ' + String(p.season_year)) + '</div>' +
-            '<div style="font-size:0.78rem; opacity:0.82;">🏠 ' + escapeHtml(hometown || '—') + '</div>';
-          row.addEventListener('click', function () {
-            selectPlayerRow(p.id);
-            map.setView([p.latitude, p.longitude], Math.max(map.getZoom(), 11));
-            m.openPopup();
-          });
-          wrap.appendChild(row);
-        });
-
-        if (!players.length) {
-          wrap.innerHTML = '<div style="padding:1rem; text-align:center; color:#d7c1a1;">No players match these filters.</div>';
-        }
-        if (players.length > 0) {
-          setMapPendingBanner(false);
-        }
-      } catch (e) {
-        countEl.textContent = '—';
-        wrap.innerHTML = '<div style="padding:1rem;color:#f44336;">Unable to load players right now. Try again later.</div>';
-      }
-    }
-
-    async function bootstrap() {
-      var fData = {};
-      try {
-        fData = await fetchFilters();
-      } catch (e) {
-        fData = {};
-      }
-
-      var pdata = { players: [], count: 0 };
-      try {
-        const res = await fetch('/api/recruit-map/players');
-        pdata = await res.json().catch(() => ({}));
-        if (!res.ok) pdata = { players: [], count: 0 };
-      } catch (e) {
-        pdata = { players: [], count: 0 };
-      }
-
-      var loaded = hasRecruitDataset(fData, pdata);
-      var playersArr = Array.isArray(pdata.players) ? pdata.players : [];
-      if (playersArr.length === 0 && !hasFilterLists(fData)) {
-        loaded = false;
-      }
-      var emptyEl = document.getElementById('recruitEmptyState');
-      var mainEl = document.getElementById('recruitMainContent');
-
-      if (!loaded) {
-        emptyEl.style.display = 'block';
-        mainEl.classList.add('recruit-hidden');
-        return;
-      }
-
-      emptyEl.style.display = 'none';
-      mainEl.classList.remove('recruit-hidden');
-
-      var initialCount = typeof pdata.count === 'number' ? pdata.count : playersArr.length;
-      var hasMeta = hasFilterLists(fData);
-      if (initialCount === 0 && hasMeta) {
-        setMapPendingBanner(true, "We're still preparing the map. Please check back soon.");
-      } else {
-        setMapPendingBanner(false);
-      }
-
-      map = L.map('recruitMap').setView([39.8283, -98.5795], 5);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-      }).addTo(map);
-      clusterLayer = L.markerClusterGroup({ maxClusterRadius: 52 });
-      map.addLayer(clusterLayer);
-
-      fillSelect(document.getElementById('fltTeam'), fData.teams || []);
-      fillSelect(document.getElementById('fltConference'), fData.conferences || []);
-      fillSelect(document.getElementById('fltYear'), fData.years || [], String);
-      fillSelect(document.getElementById('fltState'), fData.states || []);
-      fillSelect(document.getElementById('fltPosition'), fData.positions || []);
-      fillSelect(document.getElementById('fltClassification'), fData.classifications || []);
-      fillSelect(document.getElementById('fltStars'), fData.starLevels || [], String);
-
-      ['fltTeam','fltConference','fltYear','fltState','fltPosition','fltClassification','fltStars'].forEach(function (id) {
-        document.getElementById(id).addEventListener('change', scheduleRedrawMapAndList);
-      });
-      var searchEl = document.getElementById('fltSearch');
-      var tmr;
-      searchEl.addEventListener('input', function () {
-        clearTimeout(tmr);
-        tmr = setTimeout(redrawMapAndList, 320);
-      });
-      document.getElementById('clearFiltersBtn').addEventListener('click', function () {
-        ['fltTeam','fltConference','fltYear','fltState','fltPosition','fltClassification','fltStars'].forEach(function (id) {
-          document.getElementById(id).value = '';
-        });
-        searchEl.value = '';
-        redrawMapAndList();
-      });
-
-      await redrawMapAndList();
-    }
-
-    document.addEventListener('DOMContentLoaded', bootstrap);
+    /* Menu only — recruit map logic is in scripts/recruit-map-static.js (static JSON, no JawsDB). */
 
     function closeMenu() {
       var menu = document.getElementById('dropdownMenu');
