@@ -7,6 +7,14 @@
       "count": 2507,
       "withCoordinates": 2460,
       "lastUpdated": "2026-05-17"
+    },
+    {
+      "year": 2024,
+      "classification": "HighSchool",
+      "file": "2024-HighSchool.json",
+      "count": 2548,
+      "withCoordinates": 2506,
+      "lastUpdated": "2026-05-17"
     }
   ]
 }
