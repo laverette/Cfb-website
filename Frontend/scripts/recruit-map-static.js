@@ -35,12 +35,18 @@
     }
   }
 
+  function committedCollege(r) {
+    const c = r.committedTo != null ? r.committedTo : r.committed_to;
+    return c != null && String(c).trim() !== '' ? String(c).trim() : null;
+  }
+
   function normalizeRecruitForUi(r) {
+    const college = committedCollege(r);
     return {
       id: r.id,
       player_name: r.name || r.player_name || '',
-      committed_to: r.committedTo != null ? r.committedTo : r.committed_to,
-      team: r.team || r.committedTo || r.committed_to || null,
+      committed_to: college,
+      team: college,
       school: r.school || null,
       team_school: r.team_school || null,
       conference: r.conference || null,
@@ -83,7 +89,7 @@
   }
 
   function buildFilterMeta(recruits) {
-    const teams = [];
+    const colleges = [];
     const conferences = [];
     const years = [];
     const states = [];
@@ -92,8 +98,7 @@
     const starLevels = [];
     recruits.forEach(function (r) {
       const p = normalizeRecruitForUi(r);
-      if (p.committed_to) teams.push(p.committed_to);
-      if (p.team && p.team !== p.committed_to) teams.push(p.team);
+      if (p.committed_to) colleges.push(p.committed_to);
       if (p.conference) conferences.push(p.conference);
       if (p.season_year != null) years.push(p.season_year);
       if (p.hometown_state) states.push(p.hometown_state);
@@ -102,7 +107,7 @@
       if (p.stars != null) starLevels.push(p.stars);
     });
     return {
-      teams: uniqueSorted(teams),
+      colleges: uniqueSorted(colleges),
       conferences: uniqueSorted(conferences),
       years: uniqueSorted(years, true),
       states: uniqueSorted(states),
@@ -186,9 +191,20 @@
     }
   }
 
+  function fillCollegeDatalist(colleges) {
+    const list = document.getElementById('fltTeamList');
+    if (!list) return;
+    list.innerHTML = '';
+    (colleges || []).forEach(function (name) {
+      const o = document.createElement('option');
+      o.value = String(name);
+      list.appendChild(o);
+    });
+  }
+
   function applyFilterMetaToSelects() {
     if (!filterMeta) return;
-    fillSelect(document.getElementById('fltTeam'), filterMeta.teams, null, 'All colleges');
+    fillCollegeDatalist(filterMeta.colleges);
     fillSelect(document.getElementById('fltConference'), filterMeta.conferences, null, 'All conferences');
     fillSelect(document.getElementById('fltYear'), filterMeta.years, String, 'All years');
     fillSelect(document.getElementById('fltState'), filterMeta.states, null, 'All states');
@@ -204,89 +220,137 @@
     return String(n) + '★';
   }
 
-  function recruitRatingRankingHtml(p) {
-    const bits = [];
+  function hometownText(p) {
+    return (
+      p.hometown_full ||
+      [p.hometown_city, p.hometown_state, p.hometown_country].filter(Boolean).join(', ') ||
+      '—'
+    );
+  }
+
+  function recruitBadgesHtml(p, mutedClass) {
+    const muted = mutedClass || 'recruit-badge-muted';
+    const badges = [];
     const sd = starDisplay(p.stars);
-    if (sd) bits.push(sd);
+    if (sd) badges.push('<span class="recruit-badge">' + escapeHtml(sd) + '</span>');
+    if (p.position) badges.push('<span class="recruit-badge ' + muted + '">' + escapeHtml(p.position) + '</span>');
+    if (p.season_year != null) {
+      badges.push('<span class="recruit-badge ' + muted + '">' + escapeHtml(String(p.season_year)) + '</span>');
+    }
+    if (p.recruit_type) {
+      badges.push('<span class="recruit-badge ' + muted + '">' + escapeHtml(String(p.recruit_type)) + '</span>');
+    }
+    if (p.committed_to) {
+      badges.push('<span class="recruit-badge">' + escapeHtml(p.committed_to) + '</span>');
+    }
+    return badges.length ? '<div class="recruit-badges">' + badges.join('') + '</div>' : '';
+  }
+
+  function recruitStatsLine(p) {
+    const bits = [];
     if (p.rating != null && Number.isFinite(Number(p.rating))) {
-      bits.push(
-        '<span style="opacity:0.88;font-size:0.92em;">rating ' +
-          Number(p.rating).toFixed(2) +
-          '</span>'
-      );
+      bits.push('Rating: ' + Number(p.rating).toFixed(2));
     }
     if (p.ranking != null && Number.isFinite(Number(p.ranking))) {
-      bits.push(
-        '<span style="opacity:0.88;font-size:0.92em;">#' + String(p.ranking) + ' national</span>'
-      );
+      bits.push('National rank: #' + String(p.ranking));
     }
-    if (p.recruit_type) bits.push(escapeHtml(String(p.recruit_type)));
-    return bits.length ? '<div style="margin-top:4px;">' + bits.join(' · ') + '</div>' : '';
+    return bits.length
+      ? '<div class="recruit-detail-stats">' + escapeHtml(bits.join(' · ')) + '</div>'
+      : '';
   }
 
   function commitDisplay(p) {
-    const c = p.committed_to || p.team || p.school || p.team_school;
-    return c ? String(c) : '—';
+    return p.committed_to ? String(p.committed_to) : 'Uncommitted';
+  }
+
+  function playerListRowHtml(p) {
+    const ht = hometownText(p);
+    const commit = commitDisplay(p);
+    const stats = [];
+    if (p.rating != null && Number.isFinite(Number(p.rating))) {
+      stats.push('r' + Number(p.rating).toFixed(2));
+    }
+    if (p.ranking != null && Number.isFinite(Number(p.ranking))) {
+      stats.push('#' + String(p.ranking));
+    }
+    return (
+      '<div class="recruit-card-name">' +
+      escapeHtml(p.player_name) +
+      '</div>' +
+      recruitBadgesHtml(p, 'recruit-badge-muted') +
+      '<div class="recruit-card-meta">' +
+      escapeHtml(commit) +
+      (stats.length ? ' · ' + escapeHtml(stats.join(' · ')) : '') +
+      '</div>' +
+      '<div class="recruit-card-meta recruit-card-hometown">🏠 ' +
+      escapeHtml(ht) +
+      '</div>'
+    );
+  }
+
+  function matchesCollegeFilter(committedTo, filterVal) {
+    if (!filterVal) return true;
+    if (!committedTo) return false;
+    const c = String(committedTo).toLowerCase();
+    const f = filterVal.toLowerCase();
+    return c === f || c.indexOf(f) !== -1;
+  }
+
+  function updateFilterActiveStates() {
+    const wrapMap = { fltTeam: 'wrapFltTeam' };
+    ['fltTeam', 'fltConference', 'fltYear', 'fltState', 'fltPosition', 'fltClassification', 'fltStars', 'fltSearch', 'fltSchool', 'fltDataset'].forEach(
+      function (inputId) {
+        const el = document.getElementById(inputId);
+        if (!el) return;
+        const wrap = wrapMap[inputId] ? document.getElementById(wrapMap[inputId]) : el.parentElement;
+        if (!wrap) return;
+        wrap.classList.toggle('filter-active', !!(el.value && String(el.value).trim()));
+      }
+    );
   }
 
   function popupHtml(p) {
-    const ht =
-      p.hometown_full ||
-      [p.hometown_city, p.hometown_state, p.hometown_country].filter(Boolean).join(', ') ||
-      '—';
+    const ht = hometownText(p);
     const commit = commitDisplay(p);
     return (
-      '<div style="min-width:200px;line-height:1.35;color:#222;">' +
-      '<strong>' +
+      '<div class="recruit-popup">' +
+      '<div class="recruit-popup-name">' +
       escapeHtml(p.player_name) +
-      '</strong>' +
-      recruitRatingRankingHtml(p) +
-      '<small style="display:block;margin-top:6px;">' +
-      'Commit / team: ' +
+      '</div>' +
+      recruitBadgesHtml(p, 'recruit-badge-muted') +
+      '<div class="recruit-popup-line"><strong>Committed:</strong> ' +
       escapeHtml(commit) +
-      '<br>' +
-      'Conference: ' +
-      escapeHtml(p.conference || '—') +
-      '<br>' +
-      'Class year: ' +
-      escapeHtml(String(p.season_year)) +
-      '<br>' +
-      'Position: ' +
-      escapeHtml(p.position || '—') +
-      '<br>' +
-      'Hometown: ' +
-      escapeHtml(ht) +
-      '</small></div>'
+      '</div>' +
+      (p.school
+        ? '<div class="recruit-popup-line"><strong>High school:</strong> ' + escapeHtml(p.school) + '</div>'
+        : '') +
+      '<div class="recruit-popup-line">🏠 ' + escapeHtml(ht) + '</div>' +
+      recruitStatsLine(p) +
+      '</div>'
     );
   }
 
   function detailHtml(p) {
-    const ht =
-      p.hometown_full ||
-      [p.hometown_city, p.hometown_state, p.hometown_country].filter(Boolean).join(', ') ||
-      '—';
+    const ht = hometownText(p);
     const commit = commitDisplay(p);
     return (
-      '<div><strong class="gold-heading">' +
+      '<div class="recruit-detail-name">' +
       escapeHtml(p.player_name) +
-      '</strong>' +
-      recruitRatingRankingHtml(p) +
       '</div>' +
-      '<div style="margin-top:6px;"><strong>Commit / team:</strong> ' +
+      recruitBadgesHtml(p, 'recruit-badge-muted') +
+      '<div class="recruit-detail-line"><strong>Committed:</strong> ' +
       escapeHtml(commit) +
       '</div>' +
-      '<div><strong>Conference:</strong> ' +
-      escapeHtml(p.conference || '—') +
-      '</div>' +
-      '<div><strong>Class year:</strong> ' +
-      escapeHtml(String(p.season_year)) +
-      '</div>' +
-      '<div><strong>Position:</strong> ' +
-      escapeHtml(p.position || '—') +
-      '</div>' +
-      '<div><strong>Hometown:</strong> ' +
+      (p.school
+        ? '<div class="recruit-detail-line"><strong>High school:</strong> ' + escapeHtml(p.school) + '</div>'
+        : '') +
+      '<div class="recruit-detail-line recruit-card-hometown">🏠 <strong>Hometown:</strong> ' +
       escapeHtml(ht) +
-      '</div>'
+      '</div>' +
+      (p.conference
+        ? '<div class="recruit-detail-line"><strong>Conference:</strong> ' + escapeHtml(p.conference) + '</div>'
+        : '') +
+      recruitStatsLine(p)
     );
   }
 
@@ -321,10 +385,7 @@
     const schoolQ = (params.school || '').toLowerCase();
     return recruits.filter(function (raw) {
       const p = normalizeRecruitForUi(raw);
-      if (params.team) {
-        const t = params.team;
-        if (p.committed_to !== t && p.team !== t) return false;
-      }
+      if (params.team && !matchesCollegeFilter(p.committed_to, params.team)) return false;
       if (params.conference && p.conference !== params.conference) return false;
       if (params.year && String(p.season_year) !== String(params.year)) return false;
       if (params.state && p.hometown_state !== params.state) return false;
@@ -394,34 +455,7 @@
       row.className = 'player-list-row';
       row.dataset.playerId = String(p.id);
       if (!hasValidCoords(p)) row.style.opacity = '0.72';
-      const hometown =
-        p.hometown_full || [p.hometown_city, p.hometown_state].filter(Boolean).join(', ');
-      const starL = starDisplay(p.stars);
-      const rateL =
-        p.rating != null && Number.isFinite(Number(p.rating))
-          ? ' · r' + Number(p.rating).toFixed(2)
-          : '';
-      const rankL =
-        p.ranking != null && Number.isFinite(Number(p.ranking))
-          ? ' · #' + String(p.ranking)
-          : '';
-      row.innerHTML =
-        '<strong>' +
-        escapeHtml(p.player_name) +
-        '</strong>' +
-        (starL
-          ? '<span style="margin-left:6px;color:#FFD700;font-size:0.85rem;">' +
-            starL +
-            rateL +
-            rankL +
-            '</span>'
-          : '') +
-        '<div style="font-size:0.78rem; opacity:0.88;">' +
-        escapeHtml(commitDisplay(p) + ' · ' + String(p.season_year)) +
-        '</div>' +
-        '<div style="font-size:0.78rem; opacity:0.82;">🏠 ' +
-        escapeHtml(hometown || '—') +
-        '</div>';
+      row.innerHTML = playerListRowHtml(p);
       row.addEventListener('click', function () {
         selectPlayerRow(p.id);
         if (hasValidCoords(p)) {
@@ -453,6 +487,13 @@
       setMapPendingBanner(true, 'No recruits with coordinates match these filters.');
     } else {
       setMapPendingBanner(false);
+    }
+
+    updateFilterActiveStates();
+    if (map) {
+      setTimeout(function () {
+        map.invalidateSize();
+      }, 80);
     }
   }
 
@@ -494,6 +535,9 @@
     }).addTo(map);
     clusterLayer = L.markerClusterGroup({ maxClusterRadius: 52 });
     map.addLayer(clusterLayer);
+    setTimeout(function () {
+      if (map) map.invalidateSize();
+    }, 150);
 
     fillDatasetSelect(recruitManifest, null);
     const defaultKey = datasetKey(recruitManifest.datasets[0]);
@@ -518,15 +562,23 @@
       }
     });
 
-    ['fltTeam', 'fltConference', 'fltYear', 'fltState', 'fltPosition', 'fltClassification', 'fltStars'].forEach(
+    ['fltConference', 'fltYear', 'fltState', 'fltPosition', 'fltClassification', 'fltStars'].forEach(
       function (id) {
         document.getElementById(id).addEventListener('change', scheduleRedrawMapAndList);
       }
     );
+    const teamEl = document.getElementById('fltTeam');
     const searchEl = document.getElementById('fltSearch');
     const schoolEl = document.getElementById('fltSchool');
+    let teamTmr;
     let searchTmr;
     let schoolTmr;
+    if (teamEl) {
+      teamEl.addEventListener('input', function () {
+        clearTimeout(teamTmr);
+        teamTmr = setTimeout(redrawMapAndList, 320);
+      });
+    }
     searchEl.addEventListener('input', function () {
       clearTimeout(searchTmr);
       searchTmr = setTimeout(redrawMapAndList, 320);

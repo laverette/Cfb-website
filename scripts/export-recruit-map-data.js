@@ -17,6 +17,7 @@ const CFBD_BASE = "https://api.collegefootballdata.com";
 const CLIENT_ROOT = path.resolve(__dirname, "..");
 const OUT_DIR = path.join(CLIENT_ROOT, "Frontend", "data", "recruits");
 const MANIFEST_PATH = path.join(OUT_DIR, "manifest.json");
+const TEAM_CONF_PATH = path.join(CLIENT_ROOT, "Frontend", "data", "team-conferences.json");
 
 const CLASSIFICATIONS = new Set(["HighSchool", "JUCO", "PrepSchool"]);
 
@@ -118,7 +119,40 @@ function buildHometown(city, state, country) {
   return parts.length ? parts.join(", ") : null;
 }
 
-function cfbdToRecruit(r, defaultClassification, defaultYear) {
+function loadStaticConferenceMap() {
+  try {
+    const data = JSON.parse(fs.readFileSync(TEAM_CONF_PATH, "utf8"));
+    return data && data.teams && typeof data.teams === "object" ? { ...data.teams } : {};
+  } catch {
+    return {};
+  }
+}
+
+async function loadConferenceMap(apiKey) {
+  const map = loadStaticConferenceMap();
+  try {
+    const teams = await cfbdFetch("/teams/fbs", apiKey);
+    if (Array.isArray(teams)) {
+      for (const t of teams) {
+        const school = str(t.school);
+        const conf = str(t.conference);
+        if (school && conf) map[school] = conf;
+      }
+    }
+    console.error(`Conference map: ${Object.keys(map).length} schools`);
+  } catch (e) {
+    console.error("Warning: FBS teams fetch failed, using static map only:", e.message);
+  }
+  return map;
+}
+
+function conferenceForCollege(college, conferenceMap) {
+  if (!college) return null;
+  const c = conferenceMap[college];
+  return c ? String(c) : null;
+}
+
+function cfbdToRecruit(r, defaultClassification, defaultYear, conferenceMap) {
   const ridRaw = r.id ?? r.recruitId;
   const aid = str(r.athleteId ?? r.athlete_id);
   let id = ridRaw != null && ridRaw !== "" ? str(ridRaw) : "";
@@ -147,7 +181,6 @@ function cfbdToRecruit(r, defaultClassification, defaultYear) {
 
   const committedTo = str(r.committedTo ?? r.committed_to) || null;
   const school = str(r.school) || null;
-  const displayTeam = committedTo || school || null;
 
   let stars = r.stars != null ? safeInt(r.stars) : null;
   if (stars != null && stars > 5) stars = 5;
@@ -170,8 +203,8 @@ function cfbdToRecruit(r, defaultClassification, defaultYear) {
     name,
     school,
     committedTo,
-    team: displayTeam,
-    conference: r.conference != null ? str(r.conference) || null : null,
+    team: committedTo,
+    conference: conferenceForCollege(committedTo, conferenceMap),
     position: str(r.position) || null,
     height,
     weight,
@@ -262,6 +295,8 @@ async function main() {
     process.exit(1);
   }
 
+  const conferenceMap = await loadConferenceMap(apiKey.trim());
+
   const requestPath = buildRecruitingPath(year, classification, team, state, position);
   console.error("Fetching", requestPath);
 
@@ -273,7 +308,7 @@ async function main() {
   let skippedNoName = 0;
 
   for (const r of rows) {
-    const rec = cfbdToRecruit(r, classification, year);
+    const rec = cfbdToRecruit(r, classification, year, conferenceMap);
     if (!rec) {
       const name = str(r.name);
       const rid = r.id ?? r.recruitId;

@@ -12,57 +12,181 @@
   <style>
     .recruit-shell { width: min(1400px, calc(100% - 2rem)); margin: 0 auto 2rem auto; padding-top: 1rem; }
     .recruit-filters.section-card {
-      padding: 1rem 1.25rem;
-      margin-bottom: 1rem;
+      padding: 0.9rem 1.15rem;
+      margin-bottom: 0.85rem;
     }
     .recruit-layout {
       display: grid;
-      grid-template-columns: 320px minmax(0, 1fr);
+      grid-template-columns: 340px minmax(0, 1fr);
       gap: 1rem;
       align-items: stretch;
-      min-height: 70vh;
+      min-height: clamp(620px, 72vh, 820px);
     }
     @media (max-width: 991px) {
       .recruit-layout { grid-template-columns: 1fr; min-height: auto; }
     }
+    .recruit-map-panel {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      height: 100%;
+      padding: 0.7rem !important;
+    }
+    .recruit-map-panel h3 { margin: 0 0 0.5rem 0; font-size: 1rem; }
     #recruitMap {
-      height: min(640px, 55vh);
+      flex: 1 1 auto;
       width: 100%;
+      min-height: clamp(420px, 58vh, 700px);
+      height: 100%;
       border-radius: var(--radius-md);
       border: 2px solid var(--border-brown);
       z-index: 1;
     }
+    @media (max-width: 991px) {
+      #recruitMap { min-height: clamp(320px, 42vh, 480px); }
+    }
+    .recruit-sidebar {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      height: 100%;
+    }
     .player-list-wrap {
-      max-height: min(540px, 45vh);
+      flex: 1 1 auto;
+      min-height: 200px;
+      max-height: min(480px, 42vh);
       overflow-y: auto;
       border-radius: var(--radius-sm);
       border: 1px solid var(--border-brown);
       background: var(--bg-main);
     }
+    @media (min-width: 992px) {
+      .player-list-wrap { max-height: none; }
+    }
     .player-list-row {
-      padding: 0.65rem 0.85rem;
+      padding: 0.6rem 0.8rem;
       cursor: pointer;
       border-bottom: 1px solid rgba(141,110,99,0.35);
       color: var(--text-main);
+      transition: background 0.15s ease;
     }
     .player-list-row:hover, .player-list-row.active {
-      background: rgba(255,215,0,0.08);
+      background: rgba(255,215,0,0.1);
+    }
+    .player-list-row.active { border-left: 3px solid var(--gold); padding-left: calc(0.8rem - 3px); }
+    .recruit-card-name {
+      color: var(--gold);
+      font-weight: 800;
+      font-size: 0.95rem;
+      line-height: 1.25;
+    }
+    .player-list-row.active .recruit-card-name { color: #ffe566; }
+    .recruit-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.3rem;
+      margin-top: 0.35rem;
+    }
+    .recruit-badge {
+      display: inline-block;
+      padding: 0.12rem 0.45rem;
+      border-radius: 999px;
+      font-size: 0.68rem;
+      font-weight: 800;
+      line-height: 1.3;
+      border: 1px solid rgba(255,215,0,0.35);
+      background: rgba(255,215,0,0.1);
       color: var(--gold);
     }
-    .detail-panel {
-      font-size: 0.92rem;
+    .recruit-badge-muted {
+      border-color: rgba(141,110,99,0.5);
+      background: rgba(30,30,30,0.6);
+      color: var(--text-muted);
+    }
+    .recruit-card-meta {
+      font-size: 0.74rem;
+      color: var(--text-muted);
+      margin-top: 0.3rem;
+      line-height: 1.35;
+    }
+    .recruit-card-hometown { opacity: 0.9; }
+    .recruit-detail-box {
+      margin-top: 0.75rem;
+      padding: 0.85rem 0.95rem;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-brown);
+      background: #1a1a1a;
+      font-size: 0.9rem;
       line-height: 1.45;
+      flex-shrink: 0;
+    }
+    .recruit-detail-name {
+      color: var(--gold);
+      font-weight: 900;
+      font-size: 1.05rem;
+      margin: 0 0 0.4rem 0;
+    }
+    .recruit-detail-line {
+      margin: 0.25rem 0;
+      color: var(--text-main);
+    }
+    .recruit-detail-line strong { color: var(--text-muted); font-weight: 700; }
+    .recruit-detail-stats {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 0.35rem;
     }
     .filter-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-      gap: 0.65rem;
+      grid-template-columns: repeat(auto-fill, minmax(155px, 1fr));
+      gap: 0.55rem 0.65rem;
     }
-    .filter-grid label { font-size: 0.82rem; color: var(--text-muted); display: block; margin-bottom: 0.2rem; }
+    .filter-grid label {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      display: block;
+      margin-bottom: 0.15rem;
+      font-weight: 600;
+    }
     .filter-grid select,
     .filter-grid input.site-input {
       width: 100%;
+      font-size: 0.88rem;
     }
+    .filter-grid .filter-active select,
+    .filter-grid .filter-active input.site-input {
+      border-color: var(--gold);
+      box-shadow: 0 0 0 1px rgba(255,215,0,0.25);
+    }
+    #fltDataset { font-weight: 700; }
+    .recruit-filter-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.65rem;
+      align-items: center;
+      margin-top: 0.7rem;
+      padding-top: 0.65rem;
+      border-top: 1px solid rgba(141,110,99,0.35);
+    }
+  #clearFiltersBtn {
+      font-size: 0.85rem;
+      padding: 0.35rem 0.85rem;
+    }
+    #resultCount {
+      font-weight: 700;
+      color: var(--text-main);
+      font-size: 0.88rem;
+      line-height: 1.4;
+    }
+    .leaflet-popup-content-wrapper {
+      border-radius: var(--radius-sm);
+      box-shadow: var(--shadow-soft);
+    }
+    .recruit-popup { min-width: 200px; max-width: 260px; line-height: 1.35; color: #1e1e1e; }
+    .recruit-popup-name { font-weight: 800; font-size: 1rem; margin-bottom: 0.35rem; }
+    .recruit-popup .recruit-badges { margin: 0.35rem 0; }
+    .recruit-popup .recruit-badge { font-size: 0.65rem; color: #3e2723; border-color: rgba(62,39,35,0.35); background: rgba(255,215,0,0.2); }
+    .recruit-popup-line { font-size: 0.82rem; margin: 0.2rem 0; }
     #recruitEmptyState {
       display: none;
       text-align: center;
@@ -125,9 +249,10 @@
           <label for="fltDataset">Dataset</label>
           <select id="fltDataset" class="site-select"></select>
         </div>
-        <div>
+        <div id="wrapFltTeam">
           <label for="fltTeam">Committed college</label>
-          <select id="fltTeam" class="site-select"><option value="">All colleges</option></select>
+          <input type="text" id="fltTeam" class="site-input" list="fltTeamList" placeholder="Search committed college…" autocomplete="off">
+          <datalist id="fltTeamList"></datalist>
         </div>
         <div>
           <label for="fltConference">Conference</label>
@@ -162,19 +287,20 @@
           <input type="text" id="fltSchool" class="search-input site-input" placeholder="School name…" autocomplete="off">
         </div>
       </div>
-      <div style="display:flex; flex-wrap:wrap; gap:0.75rem; align-items:center; margin-top:0.85rem;">
+      <div class="recruit-filter-actions">
         <button type="button" class="btn btn-brown" id="clearFiltersBtn">Clear filters</button>
-        <span id="resultCount" style="font-weight:800; color:#f5deb3;">—</span>
+        <span id="resultCount">—</span>
       </div>
     </div>
 
     <div class="recruit-layout">
-      <div class="section-card detail-panel">
-        <h3 class="gold-heading" style="font-size:1rem;">Players</h3>
+      <div class="section-card recruit-sidebar">
+        <h3 class="gold-heading" style="font-size:1rem; margin-bottom:0.5rem;">Players</h3>
         <div class="player-list-wrap" id="playerList"></div>
-        <div id="detailBox" style="margin-top:1rem; padding:0.75rem; border-radius:var(--radius-sm); border:1px solid var(--border-brown); background:#1e1e1e; min-height:4rem;"></div>
+        <div id="detailBox" class="recruit-detail-box">Select a player to view details.</div>
       </div>
-      <div class="section-card" style="padding:0.85rem;">
+      <div class="section-card recruit-map-panel">
+        <h3 class="gold-heading">Map</h3>
         <div id="recruitMap" role="application" aria-label="Player hometown map"></div>
       </div>
     </div>
