@@ -1,7 +1,7 @@
 /**
  * Public Recruit Map — static JSON only (no JawsDB).
  * Data: /data/recruits/manifest.json + dataset files.
- * Export: Client/scripts/export-recruit-map-data.js (after admin sync).
+ * Export: Client/scripts/export-recruit-map-data.js (CFBD → JSON; no MySQL).
  */
 (function () {
   const RECRUITS_DATA_BASE = '/data/recruits/';

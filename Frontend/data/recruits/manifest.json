@@ -4,7 +4,8 @@
       "year": 2025,
       "classification": "HighSchool",
       "file": "2025-HighSchool.json",
-      "count": 2501,
+      "count": 2507,
+      "withCoordinates": 2460,
       "lastUpdated": "2026-05-17"
     }
   ]

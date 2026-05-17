@@ -261,9 +261,19 @@
     </div>
 
     <div id="recruitMapAdminSection" class="admin-section" style="display: none;">
-      <h2>Recruit Map Sync</h2>
-      <p style="color:#f5deb3; margin-bottom:1rem;">
-        Load CFBD recruiting data for the public <a href="recruitmap.html" style="color:#FFD700; font-weight:bold;">Recruit Map</a> (server-side only; visitors never run this).
+      <h2>Recruit Map</h2>
+      <p style="color:#f5deb3; margin-bottom:0.75rem;">
+        The public <a href="recruitmap.html" style="color:#FFD700; font-weight:bold;">Recruit Map</a> reads static JSON only (no MySQL). Update map data locally:
+      </p>
+      <p style="color:#bfa88a; font-size:0.88rem; margin-bottom:1rem; padding:0.65rem 0.85rem; border:1px solid var(--border-brown); border-radius:var(--radius-sm);">
+        <strong>Current workflow:</strong> from the <code style="color:#FFD700;">Client</code> folder run
+        <code style="color:#FFD700;">npm run export:recruits -- --year=2025 --classification=HighSchool</code>
+        (requires <code style="color:#FFD700;">CFBD_API_KEY</code> in <code style="color:#FFD700;">Client/.env</code>),
+        then commit <code style="color:#FFD700;">Frontend/data/recruits/</code> and deploy.
+      </p>
+      <h3 style="color:#FFD700; font-size:1rem; margin:0 0 0.5rem 0;">Legacy — JawsDB sync (not used by public map)</h3>
+      <p style="color:#bfa88a; font-size:0.88rem; margin-bottom:0.75rem;">
+        The buttons below write to <code style="color:#FFD700;">PlayerHometowns</code> in MySQL. They are optional and not required for recruitmap.html.
       </p>
       <div class="form-row-3" style="display:flex; flex-wrap:wrap; gap:1rem; align-items:end;">
         <div class="form-group" style="max-width: 200px;">
@@ -954,31 +964,47 @@
       }
       const statusEl = document.getElementById('recruitMapSyncStatus');
       recruitMapSyncButtonsBusy(true);
-      statusEl.innerHTML = '<div class="loading">Loading map stats…</div>';
+      statusEl.innerHTML = '<div class="loading">Reading static recruit map manifest…</div>';
       try {
-        const res = await fetch(
-          API_BASE + '/api/recruit-map/stats?year=' + encodeURIComponent(String(p.year))
-        );
-        const data = await res.json().catch(function () {
-          return {};
+        const res = await fetch('/data/recruits/manifest.json', { cache: 'no-store' });
+        const manifest = await res.json().catch(function () {
+          return { datasets: [] };
         });
-        if (!res.ok) throw new Error(data.error || res.statusText);
-        statusEl.innerHTML =
-          '<div class="status-message status-success">Map data for season year <strong>' +
-          data.year +
-          '</strong></div>' +
-          '<ul style="margin:0;padding-left:1.2rem;color:#f5deb3;line-height:1.5;">' +
-          '<li>Total rows in PlayerHometowns: <strong>' +
-          data.totalRows +
-          '</strong></li>' +
-          '<li>Rows with coordinates: <strong>' +
-          data.rowsWithCoordinates +
-          '</strong></li>' +
-          '<li>Rows missing coordinates: <strong>' +
-          data.rowsMissingCoordinates +
-          '</strong></li>' +
-          '</ul>' +
-          '<p style="color:#bfa88a;font-size:0.88rem;">The public map lists only players with coordinates; geocode adds the rest.</p>';
+        if (!res.ok) throw new Error('manifest.json not found');
+        const cls = p.classification || 'HighSchool';
+        const match = (manifest.datasets || []).filter(function (d) {
+          if (Number.isFinite(p.year) && d.year !== p.year) return false;
+          if (cls && d.classification !== cls) return false;
+          return true;
+        });
+        if (!match.length) throw new Error('No static dataset in manifest. Run export:recruits locally.');
+        let html =
+          '<div class="status-message status-success">Static recruit map data (no MySQL)</div>' +
+          '<ul style="margin:0;padding-left:1.2rem;color:#f5deb3;line-height:1.5;">';
+        match.forEach(function (d) {
+          const missing =
+            d.withCoordinates != null ? Math.max(0, d.count - d.withCoordinates) : '—';
+          html +=
+            '<li><strong>' +
+            d.year +
+            ' ' +
+            d.classification +
+            '</strong> — <code style="color:#FFD700;">' +
+            d.file +
+            '</code>: <strong>' +
+            d.count +
+            '</strong> recruits, <strong>' +
+            (d.withCoordinates != null ? d.withCoordinates : '—') +
+            '</strong> with coordinates';
+          if (d.withCoordinates != null) {
+            html += ', <strong>' + missing + '</strong> without map coords';
+          }
+          if (d.lastUpdated) html += ' (updated ' + d.lastUpdated + ')';
+          html += '</li>';
+        });
+        html +=
+          '</ul><p style="color:#bfa88a;font-size:0.88rem;">Public recruitmap.html loads these JSON files only.</p>';
+        statusEl.innerHTML = html;
       } catch (e) {
         statusEl.innerHTML = '<div class="status-message status-error">' + e.message + '</div>';
       } finally {

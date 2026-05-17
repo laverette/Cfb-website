@@ -1,4 +1,5 @@
 /**
+ * LEGACY: MySQL-backed recruit list — public map uses static JSON (/data/recruits/).
  * GET /api/recruit-map/players
  * Query: team, conference, year, search, state, position, classification (recruit_type), stars,
  *   includeMissingCoords (optional: true to include rows without lat/lng — map still skips them client-side)

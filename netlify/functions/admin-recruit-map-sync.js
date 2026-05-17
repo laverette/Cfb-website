@@ -1,4 +1,5 @@
 /**
+ * LEGACY: JawsDB PlayerHometowns sync — not used by public recruitmap.html (static JSON).
  * POST /api/admin/recruit-map/sync
  * Body JSON: {
  *   year, classification?, team?, state?, position?, delayMs?,

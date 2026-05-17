@@ -1,4 +1,5 @@
 /**
+ * LEGACY: Admin CFBD debug — not used by public recruitmap.html (static JSON).
  * GET /api/admin/recruit-map/debug-recruits?year=2025&classification=HighSchool&team=&state=&position=
  * Admin-only: summarizes CFBD /recruiting/players without persisting. No API key in response.
  */

@@ -1,4 +1,5 @@
 /**
+ * LEGACY: MySQL stats — public map uses manifest.json (/data/recruits/).
  * GET /api/recruit-map/stats?year=2025
  * Aggregate counts for PlayerHometowns (no row payloads).
  */

@@ -1,4 +1,5 @@
 /**
+ * LEGACY: JawsDB geocode for PlayerHometowns — not used by public recruitmap.html (static JSON).
  * POST /api/admin/recruit-map/geocode-missing
  * Body: { limit?: 10, delayMs?: 1200 }
  * Geocode rows with city/state but no lat/lng via Nominatim; cache in DB.

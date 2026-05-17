@@ -1,4 +1,5 @@
 /**
+ * LEGACY: MySQL-backed filters — public map uses static JSON (/data/recruits/).
  * GET /api/recruit-map/filters
  * Distinct filter values from PlayerHometowns.
  */
