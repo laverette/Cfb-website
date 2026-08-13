@@ -47,23 +47,6 @@
         <img width="100%" height="auto" src="https://images.seattletimes.com/wp-content/uploads/2017/05/2459f782f2c946859a21920650fc2c75.jpg?d=2040x1253" alt="Image" class="img-fluid rounded shadow big-img" style="max-height: 300px; object-fit: cover;">
       </div>
     </div>
-
-    <!-- Live Scores Section -->
-    <div id="liveScoresContainer" class="live-scores-container" style="display: none;">
-      <div class="live-scores-header">
-        <h2 class="live-scores-title">🏈 Live Scores</h2>
-        <button id="refreshScoresBtn" class="refresh-scores-btn" onclick="refreshLiveScores()">
-          <span class="refresh-icon">🔄</span>
-          <span class="refresh-text">Refresh</span>
-        </button>
-      </div>
-      <div id="liveScoresContent" class="live-scores-content">
-        <p class="scores-loading">Loading live scores...</p>
-      </div>
-      <div class="live-scores-footer">
-        <p class="last-updated" id="lastUpdatedTime">Last updated: --</p>
-      </div>
-    </div>
     
     <div class="week11-layout">
       <div class="form-section">
@@ -679,7 +662,7 @@
       return `<a href="${teamPageHref(espnId, name)}" class="team-link-inline">${logo}${safeText(name)}</a>`;
     }
 
-    function renderDbGamesIntoForm(games) {
+    function renderDbGamesIntoForm(games, liveScores = null) {
       const container = document.getElementById('dbWeekPicksContainer');
       if (!container) return false;
 
@@ -699,8 +682,40 @@
         const awayLogo = g?.awayTeamLogoUrl || '';
         const homeLogo = g?.homeTeamLogoUrl || '';
         const awayEspnId = g?.awayTeamEspnId;
-        const homeEspnId = g?.homeTeamEspnId;
+        const homeEspnId = g?.homeEspnId;
         const isCompleted = !!g?.isCompleted;
+
+        // Find live score data for this game
+        let liveScoreHtml = '';
+        if (liveScores && Array.isArray(liveScores)) {
+          const liveGame = liveScores.find(ls => 
+            (ls.away_team === awayName || ls.away_team?.includes(awayName.split(' ')[0])) &&
+            (ls.home_team === homeName || ls.home_team?.includes(homeName.split(' ')[0]))
+          );
+          
+          if (liveGame) {
+            const status = getGameStatus(liveGame);
+            const awayScore = liveGame.away_points ?? 0;
+            const homeScore = liveGame.home_points ?? 0;
+            
+            if (status !== 'SCHEDULED') {
+              const statusClass = status === 'LIVE' ? 'live-status-badge' : 'final-status-badge';
+              const awayWinning = awayScore > homeScore ? 'score-winning' : '';
+              const homeWinning = homeScore > awayScore ? 'score-winning' : '';
+              
+              liveScoreHtml = `
+                <div class="inline-score-display">
+                  <span class="${statusClass}">${status}</span>
+                  <span class="inline-score">
+                    <span class="score-team-display ${awayWinning}">${awayName} ${awayScore}</span>
+                    <span style="opacity:0.6;">-</span>
+                    <span class="score-team-display ${homeWinning}">${homeName} ${homeScore}</span>
+                  </span>
+                </div>
+              `;
+            }
+          }
+        }
 
         // Fields may not exist yet in the API response; show only if present
         const gameDate = g?.gameDate || g?.game_date || null;
@@ -726,6 +741,7 @@
               ${teamLinkHtml(homeEspnId, homeName, homeLogo)}
               ${formatStatusBadge(isCompleted)}
             </span>
+            ${liveScoreHtml}
             ${extraLine}
             <label>
               <select
@@ -788,12 +804,19 @@
 
         const gamesBody = await gamesResp.json().catch(() => ({}));
         const games = normalizeGamesPickerBody(gamesBody);
+        
+        // Cache the games for live score updates
+        cachedDbGames = games;
+        
         const built = renderDbGamesIntoForm(games);
 
         if (!built) {
           showNoGamesMessage();
           return;
         }
+
+        // Load live scores and start auto-refresh
+        await initializeLiveScores();
 
         // If we successfully built dynamic games, re-run submission status logic using the active week id.
         await checkSubmissionStatus();
@@ -892,11 +915,9 @@
       syncPicksAuthState();
 
       // Phase 1: Load active week + games from backend DB.
+      // Live scores will be loaded automatically after games are loaded
       hideHardcodedGameRows();
       loadActiveWeekAndGames();
-
-      // Load live scores on page load (since Weekly Picks tab is default active)
-      initializeLiveScores();
 
       // Optional CFBD smoke test (kept for later; OFF in Phase 1)
       // if (USE_CFBD_GAMES_FOR_WEEKLY_PICKS) { ... }
@@ -1630,10 +1651,11 @@
     }
 
     // =========================================================================
-    // LIVE SCORES FEATURE
+    // LIVE SCORES FEATURE - Integrated inline with games
     // =========================================================================
     let liveScoresRefreshInterval = null;
-    let lastScoresFetchTime = null;
+    let cachedDbGames = null;
+    let cachedLiveScores = null;
 
     async function fetchLiveScores() {
       if (!activeWeekMeta) {
@@ -1655,38 +1677,11 @@
           seasonType: 'regular'
         });
 
-        lastScoresFetchTime = new Date();
         return games;
       } catch (error) {
         console.error('Failed to fetch live scores:', error);
         return null;
       }
-    }
-
-    function formatScoreTime(dateString) {
-      if (!dateString) return 'TBD';
-      const date = new Date(dateString);
-      if (isNaN(date.getTime())) return 'TBD';
-      
-      const now = new Date();
-      const diffMs = now - date;
-      const diffMins = Math.floor(diffMs / 60000);
-      
-      // If game started within last 4 hours, it might be live
-      if (diffMins >= 0 && diffMins <= 240) {
-        return 'LIVE';
-      }
-      
-      // Future game - show time
-      if (diffMs < 0) {
-        return date.toLocaleTimeString('en-US', { 
-          hour: 'numeric', 
-          minute: '2-digit',
-          hour12: true 
-        });
-      }
-      
-      return 'FINAL';
     }
 
     function getGameStatus(game) {
@@ -1711,91 +1706,13 @@
       return 'FINAL';
     }
 
-    function renderLiveScores(games) {
-      const container = document.getElementById('liveScoresContainer');
-      const content = document.getElementById('liveScoresContent');
-      const lastUpdated = document.getElementById('lastUpdatedTime');
+    async function refreshInlineScores() {
+      if (!cachedDbGames) return;
       
-      if (!container || !content) return;
-
-      if (!games || games.length === 0) {
-        container.style.display = 'none';
-        return;
-      }
-
-      container.style.display = 'block';
-      
-      // Update last updated time
-      if (lastUpdated && lastScoresFetchTime) {
-        const timeStr = lastScoresFetchTime.toLocaleTimeString('en-US', {
-          hour: 'numeric',
-          minute: '2-digit',
-          second: '2-digit',
-          hour12: true
-        });
-        lastUpdated.textContent = `Last updated: ${timeStr}`;
-      }
-
-      // Sort games by start time
-      const sortedGames = games.sort((a, b) => {
-        const dateA = new Date(a.start_date);
-        const dateB = new Date(b.start_date);
-        return dateA - dateB;
-      });
-
-      let html = '';
-      
-      sortedGames.forEach(game => {
-        const homeTeam = game.home_team || 'TBD';
-        const awayTeam = game.away_team || 'TBD';
-        const homeScore = game.home_points ?? 0;
-        const awayScore = game.away_points ?? 0;
-        const status = getGameStatus(game);
-        
-        const homeWinning = homeScore > awayScore;
-        const awayWinning = awayScore > homeScore;
-        const isTied = homeScore === awayScore;
-        
-        const statusClass = status === 'LIVE' ? 'status-live' : 
-                           status === 'FINAL' ? 'status-final' : 
-                           'status-scheduled';
-        
-        const homeClass = (status !== 'SCHEDULED' && homeWinning) ? 'team-winning' : '';
-        const awayClass = (status !== 'SCHEDULED' && awayWinning) ? 'team-winning' : '';
-        
-        html += `
-          <div class="live-score-card">
-            <div class="score-status ${statusClass}">${status}</div>
-            <div class="score-matchup">
-              <div class="score-team ${awayClass}">
-                <span class="team-name">${awayTeam}</span>
-                <span class="team-score">${status === 'SCHEDULED' ? '-' : awayScore}</span>
-              </div>
-              <div class="score-divider">@</div>
-              <div class="score-team ${homeClass}">
-                <span class="team-name">${homeTeam}</span>
-                <span class="team-score">${status === 'SCHEDULED' ? '-' : homeScore}</span>
-              </div>
-            </div>
-          </div>
-        `;
-      });
-      
-      content.innerHTML = html;
-    }
-
-    async function refreshLiveScores() {
-      const btn = document.getElementById('refreshScoresBtn');
-      const icon = btn?.querySelector('.refresh-icon');
-      
-      if (icon) {
-        icon.style.animation = 'spin 1s linear';
-        setTimeout(() => { icon.style.animation = ''; }, 1000);
-      }
-      
-      const games = await fetchLiveScores();
-      if (games) {
-        renderLiveScores(games);
+      const liveScores = await fetchLiveScores();
+      if (liveScores) {
+        cachedLiveScores = liveScores;
+        renderDbGamesIntoForm(cachedDbGames, liveScores);
       }
     }
 
@@ -1807,10 +1724,7 @@
       
       // Refresh every 60 seconds
       liveScoresRefreshInterval = setInterval(async () => {
-        const games = await fetchLiveScores();
-        if (games) {
-          renderLiveScores(games);
-        }
+        await refreshInlineScores();
       }, 60000); // 60 seconds
     }
 
@@ -1821,42 +1735,15 @@
       }
     }
 
-    // Initialize live scores when Results tab is opened
+    // Initialize live scores
     async function initializeLiveScores() {
-      const games = await fetchLiveScores();
-      if (games) {
-        renderLiveScores(games);
+      const liveScores = await fetchLiveScores();
+      if (liveScores && cachedDbGames) {
+        cachedLiveScores = liveScores;
+        renderDbGamesIntoForm(cachedDbGames, liveScores);
         startLiveScoresAutoRefresh();
       }
     }
-
-    // Modify the existing openTab function to load live scores when Results tab is opened
-    const originalOpenTab = window.openTab;
-    window.openTab = function(evt, tabName) {
-      // Call original function
-      if (originalOpenTab) {
-        originalOpenTab(evt, tabName);
-      } else {
-        var i, tabcontent, tablinks;
-        tabcontent = document.getElementsByClassName("tab-content");
-        for (i = 0; i < tabcontent.length; i++) {
-          tabcontent[i].classList.remove("active");
-        }
-        tablinks = document.getElementsByClassName("tab-button");
-        for (i = 0; i < tablinks.length; i++) {
-          tablinks[i].classList.remove("active");
-        }
-        document.getElementById(tabName).classList.add("active");
-        evt.currentTarget.classList.add("active");
-      }
-      
-      // Load live scores when Picks tab is opened
-      if (tabName === 'week11-picks') {
-        initializeLiveScores();
-      } else {
-        stopLiveScoresAutoRefresh();
-      }
-    };
 
     // Clean up interval when page is unloaded
     window.addEventListener('beforeunload', () => {
