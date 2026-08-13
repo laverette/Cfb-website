@@ -687,7 +687,20 @@
 
         // Find live score data for this game
         let liveScoreHtml = '';
-        if (liveScores && Array.isArray(liveScores)) {
+        
+        // TEST MODE: Force display on NC vs TCU game
+        if (awayName.includes('North Carolina') && homeName.includes('TCU')) {
+          liveScoreHtml = `
+            <div class="inline-score-display">
+              <span class="live-status-badge">LIVE</span>
+              <span class="inline-score">
+                <span class="score-team-display">North Carolina 17</span>
+                <span style="opacity:0.6;">-</span>
+                <span class="score-team-display score-winning">TCU 24</span>
+              </span>
+            </div>
+          `;
+        } else if (liveScores && Array.isArray(liveScores)) {
           const liveGame = liveScores.find(ls => 
             (ls.away_team === awayName || ls.away_team?.includes(awayName.split(' ')[0])) &&
             (ls.home_team === homeName || ls.home_team?.includes(homeName.split(' ')[0]))
