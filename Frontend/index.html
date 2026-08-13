@@ -18,29 +18,40 @@
           </button>
           <div class="dropdown-menu" id="dropdownMenu"></div>
 
-          <h1 class="site-title">My College Football Site</h1>
+          <h1 class="site-title">
+            <span class="site-title-full">My College Football Site</span>
+            <span class="site-title-short">Logan A Poll</span>
+          </h1>
 
           <div id="auth-nav" class="navbar-auth-cluster"></div>
         </div>
       </div>
     </nav>
     <div class="menu-overlay" id="menuOverlay" onclick="closeMenu()"></div>
-    <main class="container my-5 page-shell">
+    <main class="page-shell">
+        <nav class="home-mobile-shortcuts" aria-label="Quick links">
+            <a href="weeklypicks.html" class="is-primary">Weekly Picks</a>
+            <a href="teams.html">Teams</a>
+            <a href="predictor.html">Model</a>
+            <a href="CFPPredictions.html">CFP</a>
+        </nav>
+
         <div class="home-layout">
             <!-- Left: Poll -->
             <section class="section-card home-main-card">
                 <div class="poll-card-header">
                   <div>
-                    <div class="season-badge">🏈 2025 Season</div>
+                    <div class="poll-card-kicker">
+                      <div class="season-badge">🏈 2025 Season</div>
+                    </div>
                     <h2 class="gold-heading" style="margin: 0.35rem 0 0 0; font-size: clamp(1.8rem, 3vw, 2.4rem);">Logan A Poll</h2>
-                    <div style="margin-top: 0.35rem; color: rgba(245, 222, 179, 0.82); font-weight: 700;">
+                    <div class="poll-card-lede">
                       Weekly picks, rankings, team pages, and college football predictions.
                     </div>
                   </div>
-                  <div class="site-badge" style="white-space: nowrap;">CFB Dashboard</div>
                 </div>
 
-                <ol class="list-group list-group-numbered poll-list" style="margin: 0;">
+                <ol id="loganPoll" class="list-group list-group-numbered poll-list is-collapsed">
                 <li class="list-group-item">Ohio State Buckeyes</li>
                 <li class="list-group-item">Georgia Bulldogs</li>
                 <li class="list-group-item">LSU Tigers</li>
@@ -54,27 +65,30 @@
                 <li class="list-group-item">Florida State Seminoles</li>
                 <li class="list-group-item">Utah Utes</li>
                 <li class="list-group-item">Oklahoma Sooners</li>
-                <li class="list-group-item">Texas A&M Aggies</li>
+                <li class="list-group-item">Texas A&amp;M Aggies</li>
                 <li class="list-group-item">Clemson Tigers</li>
                 <li class="list-group-item">Ole Miss Rebels</li>
                 <li class="list-group-item">Arizona State Sun Devils</li>
-                <li class="list-group-item">Auburn Tigers</li> 
+                <li class="list-group-item">Auburn Tigers</li>
                 <li class="list-group-item">Florida Gators</li>
-                <li class="list-group-item">Texas Tech Red Raiders</li> 
+                <li class="list-group-item">Texas Tech Red Raiders</li>
                 <li class="list-group-item">Michigan Wolverines</li>
                 <li class="list-group-item">USF Bulls</li>
-                <li class="list-group-item">Louisville Cardinals</li>  
-                <li class="list-group-item">Illinois Fighting Illini</li> 
-                <li class="list-group-item">Baylor Bears</li>   
+                <li class="list-group-item">Louisville Cardinals</li>
+                <li class="list-group-item">Illinois Fighting Illini</li>
+                <li class="list-group-item">Baylor Bears</li>
             </ol>
+                <button type="button" class="btn btn-brown poll-expand-btn" id="pollExpandBtn" aria-controls="loganPoll" aria-expanded="false">
+                  See full Top 25
+                </button>
             </section>
 
             <!-- Right: Feature + navigation -->
             <aside class="section-card home-side-card">
               <div class="feature-image-card">
-                <div class="gold-heading" style="font-size: 1.25rem; margin-bottom: 0.65rem;">Explore the Site</div>
-                <img src="https://a.espncdn.com/photo/2014/0714/ncf_trophy1_ms_1296x729.jpg" alt="Trophy" class="img-fluid">
-                <div style="margin-top: 0.75rem; color: rgba(245, 222, 179, 0.82); font-weight: 700;">
+                <div class="gold-heading">This season</div>
+                <img src="https://a.espncdn.com/photo/2014/0714/ncf_trophy1_ms_1296x729.jpg" alt="College Football Playoff trophy" class="img-fluid">
+                <div class="home-side-lede">
                   Jump into picks, teams, and model tools.
                 </div>
               </div>
@@ -83,11 +97,7 @@
                 <a href="weeklypicks.html" class="btn btn-gold btn-lg rounded-pill">Weekly Picks</a>
                 <a href="teams.html" class="btn btn-brown btn-lg rounded-pill">Teams</a>
                 <a href="predictor.html" class="btn btn-brown btn-lg rounded-pill">Model</a>
-                <a href="prediction-history.html" class="btn btn-brown btn-lg rounded-pill">History</a>
-                <a href="mypredictions.html" class="btn btn-brown btn-lg rounded-pill">Bama Schedule</a>
-                <a href="bama.html" class="btn btn-brown btn-lg rounded-pill">Bama Predictions</a>
                 <a href="CFPPredictions.html" class="btn btn-brown btn-lg rounded-pill">CFP Picks</a>
-                <a href="list.html" class="btn btn-brown btn-lg rounded-pill">Heisman</a>
               </div>
             </aside>
         </div>
@@ -129,6 +139,17 @@
       document.addEventListener('keydown', function(event) {
         if (event.key === 'Escape') closeMenu();
       });
+
+      (function () {
+        const poll = document.getElementById('loganPoll');
+        const btn = document.getElementById('pollExpandBtn');
+        if (!poll || !btn) return;
+        btn.addEventListener('click', function () {
+          const collapsed = poll.classList.toggle('is-collapsed');
+          btn.textContent = collapsed ? 'See full Top 25' : 'Show top 10';
+          btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+        });
+      })();
     </script>
 </body>
 </html>

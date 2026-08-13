@@ -31,7 +31,7 @@ body {
 
 /* Page shell / headings */
 .page-shell {
-  width: min(1200px, calc(100% - 2rem));
+  width: min(1400px, calc(100% - 2rem));
   margin-left: auto;
   margin-right: auto;
   padding-top: 1.25rem;
@@ -62,6 +62,10 @@ body {
   text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
 }
 
+body.menu-open {
+  overflow: hidden;
+}
+
 /* -------------------------------------------------------------------------- */
 /* Home page helpers (reusable)                                               */
 /* -------------------------------------------------------------------------- */
@@ -77,24 +81,26 @@ body {
   border: 1px solid rgba(255, 215, 0, 0.35);
 }
 
+.home-mobile-shortcuts {
+  display: none;
+}
+
 .home-layout {
   display: grid;
-  grid-template-columns: 1.15fr 0.85fr;
+  grid-template-columns: minmax(0, 1.7fr) minmax(260px, 0.7fr);
   gap: 1.5rem;
   align-items: start;
 }
 
-.home-main-card {
-  padding: 1.25rem;
-}
-
+.home-main-card,
 .home-side-card {
+  min-width: 0;
   padding: 1.25rem;
 }
 
 .poll-card-header {
   display: flex;
-  align-items: baseline;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
   margin-bottom: 0.85rem;
@@ -102,7 +108,26 @@ body {
   border-bottom: 1px solid rgba(141, 110, 99, 0.55);
 }
 
+.poll-card-kicker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.poll-card-lede {
+  margin-top: 0.35rem;
+  color: rgba(245, 222, 179, 0.82);
+  font-weight: 700;
+}
+
+.poll-list {
+  margin: 0;
+}
+
 .poll-list .list-group-item {
+  font-size: 1rem !important;
+  padding: 0.55rem 0.75rem !important;
   transition: transform 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
 }
 
@@ -112,11 +137,31 @@ body {
   background-color: rgba(255, 215, 0, 0.06) !important;
 }
 
+.poll-expand-btn {
+  display: none;
+  width: 100%;
+  margin-top: 0.85rem;
+}
+
 .feature-image-card img {
   width: 100%;
+  max-height: 220px;
+  object-fit: cover;
+  object-position: center;
   border-radius: 12px;
   border: 2px solid rgba(255, 215, 0, 0.25);
   box-shadow: var(--shadow-soft);
+}
+
+.feature-image-card .gold-heading {
+  font-size: 1.25rem;
+  margin-bottom: 0.65rem;
+}
+
+.home-side-lede {
+  margin-top: 0.75rem;
+  color: rgba(245, 222, 179, 0.82);
+  font-weight: 700;
 }
 
 .home-button-grid {
@@ -126,12 +171,79 @@ body {
   margin-top: 1rem;
 }
 
+@media (min-width: 993px) {
+  .home-side-card {
+    position: sticky;
+    top: 1rem;
+  }
+
+  .poll-list.list-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: repeat(13, auto);
+    grid-auto-flow: column;
+    gap: 0.35rem 1rem;
+  }
+
+  .poll-list .list-group-item {
+    border-radius: 8px !important;
+  }
+}
+
 @media (max-width: 992px) {
   .home-layout {
     grid-template-columns: 1fr;
   }
-  .home-button-grid {
-    grid-template-columns: 1fr;
+
+  .home-mobile-shortcuts {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.6rem;
+    margin-bottom: 1rem;
+  }
+
+  .home-mobile-shortcuts a {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 0.55rem 0.75rem;
+    border-radius: 9999px;
+    border: 1px solid var(--border-brown);
+    background: var(--bg-panel);
+    color: var(--text-main);
+    font-weight: 800;
+    text-decoration: none;
+    text-align: center;
+  }
+
+  .home-mobile-shortcuts a:hover,
+  .home-mobile-shortcuts a:focus-visible {
+    border-color: var(--gold);
+    color: var(--gold);
+  }
+
+  .home-mobile-shortcuts a.is-primary {
+    background: linear-gradient(135deg, var(--gold), var(--gold-dark));
+    color: #1e1e1e;
+    border: none;
+  }
+
+  .poll-list.is-collapsed .list-group-item:nth-child(n + 11) {
+    display: none;
+  }
+
+  .poll-expand-btn {
+    display: inline-flex;
+  }
+
+  .feature-image-card img {
+    max-height: 140px;
+  }
+
+  .home-button-grid .btn {
+    font-size: 0.95rem;
+    padding: 0.55rem 0.7rem;
   }
 }
 
@@ -155,8 +267,9 @@ body {
   justify-content: space-between;
   width: 100%;
   gap: 1rem;
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
+  flex-wrap: nowrap;
 }
 
 .site-title {
@@ -165,6 +278,60 @@ body {
   letter-spacing: 0.2px;
   margin: 0;
   font-size: 1.15rem;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.site-title-short {
+  display: none;
+}
+
+.desktop-nav {
+  display: none;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.desktop-nav-link {
+  color: var(--text-main);
+  text-decoration: none;
+  font-weight: 800;
+  font-size: 0.92rem;
+  padding: 0.4rem 0.7rem;
+  border-radius: 9999px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.desktop-nav-link:hover,
+.desktop-nav-link:focus-visible {
+  color: var(--gold);
+  border-color: rgba(255, 215, 0, 0.35);
+  background: rgba(255, 215, 0, 0.08);
+}
+
+.desktop-nav-link.is-active {
+  color: #1e1e1e;
+  background: linear-gradient(135deg, var(--gold), var(--gold-dark));
+  border-color: var(--gold-dark);
+}
+
+@media (min-width: 993px) {
+  .desktop-nav {
+    display: flex;
+  }
+}
+
+@media (max-width: 1199px) {
+  .desktop-nav-optional {
+    display: none;
+  }
 }
 
 /* Hamburger Menu Button */
@@ -179,6 +346,7 @@ body {
   gap: 4px;
   transition: all 0.3s ease;
   z-index: 1001;
+  flex-shrink: 0;
 }
 
 .hamburger-menu-btn:hover {
@@ -246,6 +414,31 @@ body {
 .dropdown-item:hover {
   background-color: rgba(255, 215, 0, 0.2);
   color: var(--gold);
+}
+
+.dropdown-item.is-active {
+  color: var(--gold);
+  background-color: rgba(255, 215, 0, 0.12);
+}
+
+.dropdown-group {
+  padding-bottom: 0.25rem;
+}
+
+.dropdown-group + .dropdown-group {
+  border-top: 1px solid rgba(255, 215, 0, 0.18);
+  margin-top: 0.25rem;
+  padding-top: 0.35rem;
+}
+
+.dropdown-group-label {
+  padding: 0.45rem 1.25rem 0.2rem;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gold);
+  opacity: 0.85;
 }
 
 /* Drawer overlay (mobile) */
@@ -400,16 +593,30 @@ button.dropdown-item.auth-dropdown-logout:hover {
     top: 0;
   }
 
+  .site-title {
+    font-size: 1rem;
+  }
+
+  .site-title-full {
+    display: none;
+  }
+
+  .site-title-short {
+    display: inline;
+  }
+
   .dropdown-menu {
     position: fixed;
-    top: 0.75rem;
-    left: 0.75rem;
-    width: min(82vw, 300px);
-    max-height: calc(100vh - 1.5rem);
+    top: 0;
+    left: 0;
+    width: min(86vw, 320px);
+    height: 100vh;
+    max-height: 100vh;
     overflow-y: auto;
     margin-top: 0;
-    border-radius: 10px;
+    border-radius: 0 12px 12px 0;
     z-index: 1005;
+    padding-top: 4.25rem;
   }
 }
 

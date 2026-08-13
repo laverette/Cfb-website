@@ -1,6 +1,7 @@
 /**
  * Site-wide nav: auth cluster + standardized dropdown (single source of truth).
  * Requires: #dropdownMenu, #auth-nav.navbar-auth-cluster
+ * Injects #desktop-nav into .site-nav-inner when present.
  * Admin link visibility: UI hint only (currentUser.role === 'admin'). Server enforces JWT.
  */
 (function () {
@@ -8,16 +9,22 @@
   var STORAGE_USER = "currentUser";
 
   var NAV_LINKS = [
-    { href: "index.html", label: "🏠 Home" },
-    { href: "weeklypicks.html", label: "📅 Weekly Picks" },
-    { href: "teams.html", label: "🏈 Teams" },
-    { href: "mypredictions.html", label: "📊 My Picks" },
-    { href: "prediction-history.html", label: "🧾 Pick History" },
-    { href: "CFPPredictions.html", label: "🏆 CFP Picks" },
-    { href: "list.html", label: "👑 Heisman" },
-    { href: "bama.html", label: "🐘 Bama Schedule" },
-    { href: "predictor.html", label: "🤖 Predictor" },
-    { href: "recruitmap.html", label: "🗺️ Recruit Map" },
+    { href: "index.html", label: "🏠 Home", shortLabel: "Home", group: "rankings" },
+    { href: "weeklypicks.html", label: "📅 Weekly Picks", shortLabel: "Picks", group: "picks", primary: true },
+    { href: "teams.html", label: "🏈 Teams", shortLabel: "Teams", group: "rankings", primary: true },
+    { href: "mypredictions.html", label: "📊 My Picks", shortLabel: "My Picks", group: "picks" },
+    { href: "prediction-history.html", label: "🧾 Pick History", shortLabel: "History", group: "picks" },
+    { href: "CFPPredictions.html", label: "🏆 CFP Picks", shortLabel: "CFP", group: "picks", primary: true },
+    { href: "list.html", label: "👑 Heisman", shortLabel: "Heisman", group: "rankings", primary: true, optional: true },
+    { href: "bama.html", label: "🐘 Bama Schedule", shortLabel: "Bama", group: "tools" },
+    { href: "predictor.html", label: "🤖 Predictor", shortLabel: "Model", group: "tools", primary: true, optional: true },
+    { href: "recruitmap.html", label: "🗺️ Recruit Map", shortLabel: "Recruits", group: "tools" },
+  ];
+
+  var NAV_GROUPS = [
+    { id: "picks", label: "Picks" },
+    { id: "rankings", label: "Rankings & teams" },
+    { id: "tools", label: "Tools" },
   ];
 
   function basenameOnly(raw) {
@@ -115,6 +122,49 @@
     attachTopLogoutHandler();
   }
 
+  function currentPageName() {
+    return basenameOnly(window.location.pathname);
+  }
+
+  function ensureDesktopNavHost() {
+    var inner = document.querySelector(".site-nav-inner");
+    if (!inner) return null;
+    var host = document.getElementById("desktop-nav");
+    if (host) return host;
+    host = document.createElement("nav");
+    host.id = "desktop-nav";
+    host.className = "desktop-nav";
+    host.setAttribute("aria-label", "Primary pages");
+    var title = inner.querySelector(".site-title");
+    var auth = document.getElementById("auth-nav");
+    if (title) inner.insertBefore(host, title.nextSibling);
+    else if (auth) inner.insertBefore(host, auth);
+    else inner.appendChild(host);
+    return host;
+  }
+
+  function populateDesktopNav() {
+    var host = ensureDesktopNavHost();
+    if (!host) return;
+    var html = "";
+    for (var i = 0; i < NAV_LINKS.length; i++) {
+      var item = NAV_LINKS[i];
+      if (!item.primary) continue;
+      var cls = "desktop-nav-link";
+      if (item.optional) cls += " desktop-nav-optional";
+      if (item.href === currentPageName()) cls += " is-active";
+      html +=
+        '<a href="' +
+        item.href +
+        '" class="' +
+        cls +
+        '">' +
+        (item.shortLabel || item.label) +
+        "</a>";
+    }
+    host.innerHTML = html;
+  }
+
   function populateDropdownMenu() {
     var menu = document.getElementById("dropdownMenu");
     if (!menu) return;
@@ -122,21 +172,38 @@
     var user = parseUser();
     var token = localStorage.getItem(STORAGE_TOKEN);
     var loggedIn = !!(user && token);
+    var page = currentPageName();
 
     var html = "";
-    for (var i = 0; i < NAV_LINKS.length; i++) {
-      var item = NAV_LINKS[i];
+    for (var g = 0; g < NAV_GROUPS.length; g++) {
+      var group = NAV_GROUPS[g];
       html +=
-        '<a href="' +
-        item.href +
-        '" class="dropdown-item">' +
-        item.label +
-        "</a>";
+        '<div class="dropdown-group">' +
+        '<div class="dropdown-group-label">' +
+        group.label +
+        "</div>";
+      for (var i = 0; i < NAV_LINKS.length; i++) {
+        var item = NAV_LINKS[i];
+        if (item.group !== group.id) continue;
+        var itemCls = "dropdown-item";
+        if (item.href === page) itemCls += " is-active";
+        html +=
+          '<a href="' +
+          item.href +
+          '" class="' +
+          itemCls +
+          '">' +
+          item.label +
+          "</a>";
+      }
+      html += "</div>";
     }
 
     if (loggedIn && isAdminRole(user)) {
       html +=
-        '<a href="admin.html" class="dropdown-item">🛠️ Admin</a>';
+        '<div class="dropdown-group">' +
+        '<a href="admin.html" class="dropdown-item">🛠️ Admin</a>' +
+        "</div>";
     }
 
     if (loggedIn) {
@@ -172,6 +239,7 @@
 
   function refreshAll() {
     renderAuthNav();
+    populateDesktopNav();
     populateDropdownMenu();
   }
 
