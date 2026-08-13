@@ -18,39 +18,82 @@
           </button>
           <div class="dropdown-menu" id="dropdownMenu"></div>
 
-          <h1 class="site-title">
-            <span class="site-title-full">My College Football Site</span>
-            <span class="site-title-short">Logan A Poll</span>
-          </h1>
+          <h1 class="site-title">My College Football Site</h1>
 
           <div id="auth-nav" class="navbar-auth-cluster"></div>
         </div>
       </div>
     </nav>
     <div class="menu-overlay" id="menuOverlay" onclick="closeMenu()"></div>
-    <main class="page-shell">
-        <section class="section-card home-explore">
-            <div class="home-explore-copy">
-                <div class="season-badge">🏈 2025 Season</div>
-                <h2 class="gold-heading home-explore-title">Explore the Site</h2>
-                <p class="home-explore-lede">
-                    Jump into picks, teams, and model tools.
-                </p>
-                <div class="home-button-grid">
-                    <a href="weeklypicks.html" class="btn btn-gold btn-lg rounded-pill">Weekly Picks</a>
-                    <a href="teams.html" class="btn btn-brown btn-lg rounded-pill">Teams</a>
-                    <a href="predictor.html" class="btn btn-brown btn-lg rounded-pill">Model</a>
-                    <a href="prediction-history.html" class="btn btn-brown btn-lg rounded-pill">History</a>
-                    <a href="mypredictions.html" class="btn btn-brown btn-lg rounded-pill">Bama Schedule</a>
-                    <a href="bama.html" class="btn btn-brown btn-lg rounded-pill">Bama Predictions</a>
-                    <a href="CFPPredictions.html" class="btn btn-brown btn-lg rounded-pill">CFP Picks</a>
-                    <a href="list.html" class="btn btn-brown btn-lg rounded-pill">Heisman</a>
+    <main class="container my-5 page-shell">
+        <div class="home-layout">
+            <!-- Left: Poll -->
+            <section class="section-card home-main-card">
+                <div class="poll-card-header">
+                  <div>
+                    <div class="season-badge">🏈 2025 Season</div>
+                    <h2 class="gold-heading poll-title">Logan A Poll</h2>
+                    <div class="poll-subtitle">
+                      Weekly picks, rankings, team pages, and college football predictions.
+                    </div>
+                  </div>
+                  <div class="site-badge poll-dashboard-badge">CFB Dashboard</div>
                 </div>
-            </div>
-            <div class="home-explore-media">
-                <img src="https://a.espncdn.com/photo/2014/0714/ncf_trophy1_ms_1296x729.jpg" alt="College Football Playoff trophy">
-            </div>
-        </section>
+
+                <ol class="list-group list-group-numbered poll-list poll-collapsed" id="homePollList">
+                <li class="list-group-item">Ohio State Buckeyes</li>
+                <li class="list-group-item">Georgia Bulldogs</li>
+                <li class="list-group-item">LSU Tigers</li>
+                <li class="list-group-item">Penn State Nittany Lions</li>
+                <li class="list-group-item">Texas Longhorns</li>
+                <li class="list-group-item">Oregon Ducks</li>
+                <li class="list-group-item">Miami Hurricanes</li>
+                <li class="list-group-item">Notre Dame Fighting Irish</li>
+                <li class="list-group-item">Tennessee Volunteers</li>
+                <li class="list-group-item">Alabama Crimson Tide</li>
+                <li class="list-group-item">Florida State Seminoles</li>
+                <li class="list-group-item">Utah Utes</li>
+                <li class="list-group-item">Oklahoma Sooners</li>
+                <li class="list-group-item">Texas A&M Aggies</li>
+                <li class="list-group-item">Clemson Tigers</li>
+                <li class="list-group-item">Ole Miss Rebels</li>
+                <li class="list-group-item">Arizona State Sun Devils</li>
+                <li class="list-group-item">Auburn Tigers</li>
+                <li class="list-group-item">Florida Gators</li>
+                <li class="list-group-item">Texas Tech Red Raiders</li>
+                <li class="list-group-item">Michigan Wolverines</li>
+                <li class="list-group-item">USF Bulls</li>
+                <li class="list-group-item">Louisville Cardinals</li>
+                <li class="list-group-item">Illinois Fighting Illini</li>
+                <li class="list-group-item">Baylor Bears</li>
+            </ol>
+                <button type="button" class="poll-toggle-btn" id="pollToggleBtn" aria-expanded="false" aria-controls="homePollList">
+                  Show full Top 25
+                </button>
+            </section>
+
+            <!-- Right: Feature + navigation -->
+            <aside class="section-card home-side-card">
+              <div class="feature-image-card">
+                <div class="gold-heading" style="font-size: 1.25rem; margin-bottom: 0.65rem;">Explore the Site</div>
+                <img src="https://a.espncdn.com/photo/2014/0714/ncf_trophy1_ms_1296x729.jpg" alt="Trophy" class="img-fluid">
+                <div style="margin-top: 0.75rem; color: rgba(245, 222, 179, 0.82); font-weight: 700;">
+                  Jump into picks, teams, and model tools.
+                </div>
+              </div>
+
+              <div class="home-button-grid">
+                <a href="weeklypicks.html" class="btn btn-gold btn-lg rounded-pill">Weekly Picks</a>
+                <a href="teams.html" class="btn btn-brown btn-lg rounded-pill">Teams</a>
+                <a href="predictor.html" class="btn btn-brown btn-lg rounded-pill">Model</a>
+                <a href="prediction-history.html" class="btn btn-brown btn-lg rounded-pill">History</a>
+                <a href="mypredictions.html" class="btn btn-brown btn-lg rounded-pill">Bama Schedule</a>
+                <a href="bama.html" class="btn btn-brown btn-lg rounded-pill">Bama Predictions</a>
+                <a href="CFPPredictions.html" class="btn btn-brown btn-lg rounded-pill">CFP Picks</a>
+                <a href="list.html" class="btn btn-brown btn-lg rounded-pill">Heisman</a>
+              </div>
+            </aside>
+        </div>
     </main>
     <script src="scripts/auth-ui.js"></script>
     <script>
@@ -89,6 +132,18 @@
       document.addEventListener('keydown', function(event) {
         if (event.key === 'Escape') closeMenu();
       });
+
+      (function () {
+        const pollList = document.getElementById('homePollList');
+        const toggleBtn = document.getElementById('pollToggleBtn');
+        if (!pollList || !toggleBtn) return;
+
+        toggleBtn.addEventListener('click', function () {
+          const collapsed = pollList.classList.toggle('poll-collapsed');
+          toggleBtn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+          toggleBtn.textContent = collapsed ? 'Show full Top 25' : 'Show less';
+        });
+      })();
     </script>
 </body>
 </html>

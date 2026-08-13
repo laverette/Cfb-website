@@ -8,22 +8,16 @@
   var STORAGE_USER = "currentUser";
 
   var NAV_LINKS = [
-    { href: "index.html", label: "🏠 Home", group: "rankings" },
-    { href: "weeklypicks.html", label: "📅 Weekly Picks", group: "picks" },
-    { href: "teams.html", label: "🏈 Teams", group: "rankings" },
-    { href: "mypredictions.html", label: "📊 My Picks", group: "picks" },
-    { href: "prediction-history.html", label: "🧾 Pick History", group: "picks" },
-    { href: "CFPPredictions.html", label: "🏆 CFP Picks", group: "picks" },
-    { href: "list.html", label: "👑 Heisman", group: "rankings" },
-    { href: "bama.html", label: "🐘 Bama Schedule", group: "tools" },
-    { href: "predictor.html", label: "🤖 Predictor", group: "tools" },
-    { href: "recruitmap.html", label: "🗺️ Recruit Map", group: "tools" },
-  ];
-
-  var NAV_GROUPS = [
-    { id: "picks", label: "Picks" },
-    { id: "rankings", label: "Rankings & teams" },
-    { id: "tools", label: "Tools" },
+    { href: "index.html", label: "🏠 Home" },
+    { href: "weeklypicks.html", label: "📅 Weekly Picks" },
+    { href: "teams.html", label: "🏈 Teams" },
+    { href: "mypredictions.html", label: "📊 My Picks" },
+    { href: "prediction-history.html", label: "🧾 Pick History" },
+    { href: "CFPPredictions.html", label: "🏆 CFP Picks" },
+    { href: "list.html", label: "👑 Heisman" },
+    { href: "bama.html", label: "🐘 Bama Schedule" },
+    { href: "predictor.html", label: "🤖 Predictor" },
+    { href: "recruitmap.html", label: "🗺️ Recruit Map" },
   ];
 
   function basenameOnly(raw) {
@@ -121,10 +115,6 @@
     attachTopLogoutHandler();
   }
 
-  function currentPageName() {
-    return basenameOnly(window.location.pathname);
-  }
-
   function populateDropdownMenu() {
     var menu = document.getElementById("dropdownMenu");
     if (!menu) return;
@@ -132,38 +122,21 @@
     var user = parseUser();
     var token = localStorage.getItem(STORAGE_TOKEN);
     var loggedIn = !!(user && token);
-    var page = currentPageName();
 
     var html = "";
-    for (var g = 0; g < NAV_GROUPS.length; g++) {
-      var group = NAV_GROUPS[g];
+    for (var i = 0; i < NAV_LINKS.length; i++) {
+      var item = NAV_LINKS[i];
       html +=
-        '<div class="dropdown-group">' +
-        '<div class="dropdown-group-label">' +
-        group.label +
-        "</div>";
-      for (var i = 0; i < NAV_LINKS.length; i++) {
-        var item = NAV_LINKS[i];
-        if (item.group !== group.id) continue;
-        var itemCls = "dropdown-item";
-        if (item.href === page) itemCls += " is-active";
-        html +=
-          '<a href="' +
-          item.href +
-          '" class="' +
-          itemCls +
-          '">' +
-          item.label +
-          "</a>";
-      }
-      html += "</div>";
+        '<a href="' +
+        item.href +
+        '" class="dropdown-item">' +
+        item.label +
+        "</a>";
     }
 
     if (loggedIn && isAdminRole(user)) {
       html +=
-        '<div class="dropdown-group">' +
-        '<a href="admin.html" class="dropdown-item">🛠️ Admin</a>' +
-        "</div>";
+        '<a href="admin.html" class="dropdown-item">🛠️ Admin</a>';
     }
 
     if (loggedIn) {
