@@ -337,6 +337,23 @@
   <div id="week10-results" class="tab-content">
     <h1 class="title" id="resultsTabTitle">Weekly Results</h1>
     
+    <!-- Live Scores Section -->
+    <div id="liveScoresContainer" class="live-scores-container" style="display: none;">
+      <div class="live-scores-header">
+        <h2 class="live-scores-title">🏈 Live Scores</h2>
+        <button id="refreshScoresBtn" class="refresh-scores-btn" onclick="refreshLiveScores()">
+          <span class="refresh-icon">🔄</span>
+          <span class="refresh-text">Refresh</span>
+        </button>
+      </div>
+      <div id="liveScoresContent" class="live-scores-content">
+        <p class="scores-loading">Loading live scores...</p>
+      </div>
+      <div class="live-scores-footer">
+        <p class="last-updated" id="lastUpdatedTime">Last updated: --</p>
+      </div>
+    </div>
+
     <div class="leaderboards-container">
       <div class="Leaderboard last-week">
         <h3 class="leaderboard-title">🏆 Last Week</h3>
@@ -1608,6 +1625,240 @@
       `;
       document.body.appendChild(modal);
     }
+
+    // =========================================================================
+    // LIVE SCORES FEATURE
+    // =========================================================================
+    let liveScoresRefreshInterval = null;
+    let lastScoresFetchTime = null;
+
+    async function fetchLiveScores() {
+      if (!activeWeekMeta) {
+        return null;
+      }
+
+      const weekNumber = activeWeekMeta.weekNumber ?? activeWeekMeta.week_number;
+      const seasonYear = activeWeekMeta.seasonYear ?? activeWeekMeta.season_year;
+
+      if (!weekNumber || !seasonYear) {
+        return null;
+      }
+
+      try {
+        // Fetch games from CFBD API
+        const games = await cfbdProxyRequest('/games', {
+          year: seasonYear,
+          week: weekNumber,
+          seasonType: 'regular'
+        });
+
+        lastScoresFetchTime = new Date();
+        return games;
+      } catch (error) {
+        console.error('Failed to fetch live scores:', error);
+        return null;
+      }
+    }
+
+    function formatScoreTime(dateString) {
+      if (!dateString) return 'TBD';
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return 'TBD';
+      
+      const now = new Date();
+      const diffMs = now - date;
+      const diffMins = Math.floor(diffMs / 60000);
+      
+      // If game started within last 4 hours, it might be live
+      if (diffMins >= 0 && diffMins <= 240) {
+        return 'LIVE';
+      }
+      
+      // Future game - show time
+      if (diffMs < 0) {
+        return date.toLocaleTimeString('en-US', { 
+          hour: 'numeric', 
+          minute: '2-digit',
+          hour12: true 
+        });
+      }
+      
+      return 'FINAL';
+    }
+
+    function getGameStatus(game) {
+      if (game.completed) return 'FINAL';
+      
+      const startDate = new Date(game.start_date);
+      const now = new Date();
+      const diffMs = now - startDate;
+      const diffMins = Math.floor(diffMs / 60000);
+      
+      // Game started within last 4 hours = likely live
+      if (diffMins >= 0 && diffMins <= 240) {
+        return 'LIVE';
+      }
+      
+      // Future game
+      if (diffMs < 0) {
+        return 'SCHEDULED';
+      }
+      
+      // Game started more than 4 hours ago but not marked complete
+      return 'FINAL';
+    }
+
+    function renderLiveScores(games) {
+      const container = document.getElementById('liveScoresContainer');
+      const content = document.getElementById('liveScoresContent');
+      const lastUpdated = document.getElementById('lastUpdatedTime');
+      
+      if (!container || !content) return;
+
+      if (!games || games.length === 0) {
+        container.style.display = 'none';
+        return;
+      }
+
+      container.style.display = 'block';
+      
+      // Update last updated time
+      if (lastUpdated && lastScoresFetchTime) {
+        const timeStr = lastScoresFetchTime.toLocaleTimeString('en-US', {
+          hour: 'numeric',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: true
+        });
+        lastUpdated.textContent = `Last updated: ${timeStr}`;
+      }
+
+      // Sort games by start time
+      const sortedGames = games.sort((a, b) => {
+        const dateA = new Date(a.start_date);
+        const dateB = new Date(b.start_date);
+        return dateA - dateB;
+      });
+
+      let html = '';
+      
+      sortedGames.forEach(game => {
+        const homeTeam = game.home_team || 'TBD';
+        const awayTeam = game.away_team || 'TBD';
+        const homeScore = game.home_points ?? 0;
+        const awayScore = game.away_points ?? 0;
+        const status = getGameStatus(game);
+        
+        const homeWinning = homeScore > awayScore;
+        const awayWinning = awayScore > homeScore;
+        const isTied = homeScore === awayScore;
+        
+        const statusClass = status === 'LIVE' ? 'status-live' : 
+                           status === 'FINAL' ? 'status-final' : 
+                           'status-scheduled';
+        
+        const homeClass = (status !== 'SCHEDULED' && homeWinning) ? 'team-winning' : '';
+        const awayClass = (status !== 'SCHEDULED' && awayWinning) ? 'team-winning' : '';
+        
+        html += `
+          <div class="live-score-card">
+            <div class="score-status ${statusClass}">${status}</div>
+            <div class="score-matchup">
+              <div class="score-team ${awayClass}">
+                <span class="team-name">${awayTeam}</span>
+                <span class="team-score">${status === 'SCHEDULED' ? '-' : awayScore}</span>
+              </div>
+              <div class="score-divider">@</div>
+              <div class="score-team ${homeClass}">
+                <span class="team-name">${homeTeam}</span>
+                <span class="team-score">${status === 'SCHEDULED' ? '-' : homeScore}</span>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+      
+      content.innerHTML = html;
+    }
+
+    async function refreshLiveScores() {
+      const btn = document.getElementById('refreshScoresBtn');
+      const icon = btn?.querySelector('.refresh-icon');
+      
+      if (icon) {
+        icon.style.animation = 'spin 1s linear';
+        setTimeout(() => { icon.style.animation = ''; }, 1000);
+      }
+      
+      const games = await fetchLiveScores();
+      if (games) {
+        renderLiveScores(games);
+      }
+    }
+
+    function startLiveScoresAutoRefresh() {
+      // Clear any existing interval
+      if (liveScoresRefreshInterval) {
+        clearInterval(liveScoresRefreshInterval);
+      }
+      
+      // Refresh every 60 seconds
+      liveScoresRefreshInterval = setInterval(async () => {
+        const games = await fetchLiveScores();
+        if (games) {
+          renderLiveScores(games);
+        }
+      }, 60000); // 60 seconds
+    }
+
+    function stopLiveScoresAutoRefresh() {
+      if (liveScoresRefreshInterval) {
+        clearInterval(liveScoresRefreshInterval);
+        liveScoresRefreshInterval = null;
+      }
+    }
+
+    // Initialize live scores when Results tab is opened
+    async function initializeLiveScores() {
+      const games = await fetchLiveScores();
+      if (games) {
+        renderLiveScores(games);
+        startLiveScoresAutoRefresh();
+      }
+    }
+
+    // Modify the existing openTab function to load live scores when Results tab is opened
+    const originalOpenTab = window.openTab;
+    window.openTab = function(evt, tabName) {
+      // Call original function
+      if (originalOpenTab) {
+        originalOpenTab(evt, tabName);
+      } else {
+        var i, tabcontent, tablinks;
+        tabcontent = document.getElementsByClassName("tab-content");
+        for (i = 0; i < tabcontent.length; i++) {
+          tabcontent[i].classList.remove("active");
+        }
+        tablinks = document.getElementsByClassName("tab-button");
+        for (i = 0; i < tablinks.length; i++) {
+          tablinks[i].classList.remove("active");
+        }
+        document.getElementById(tabName).classList.add("active");
+        evt.currentTarget.classList.add("active");
+      }
+      
+      // Load live scores when Results tab is opened
+      if (tabName === 'week10-results') {
+        initializeLiveScores();
+      } else {
+        stopLiveScoresAutoRefresh();
+      }
+    };
+
+    // Clean up interval when page is unloaded
+    window.addEventListener('beforeunload', () => {
+      stopLiveScoresAutoRefresh();
+    });
 
 </script>
 </body>
