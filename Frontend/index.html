@@ -6,6 +6,7 @@
     <title>CFB</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
     <link rel="stylesheet" href="styles/site-theme.css">
+    <link rel="stylesheet" href="Resources/Styles/index.css">
 </head>
 <body>
     <!-- Site Header -->
@@ -24,120 +25,69 @@
       </div>
     </nav>
     <div class="menu-overlay" id="menuOverlay" onclick="closeMenu()"></div>
-    <main class="page-shell home-page">
-        <section class="section-card home-links-band" aria-label="Quick links">
-            <a href="weeklypicks.html" class="btn btn-gold home-link-featured">Weekly Picks</a>
-            <div class="home-button-grid">
-                <a href="teams.html" class="btn btn-brown rounded-pill">Teams</a>
-                <a href="predictor.html" class="btn btn-brown rounded-pill">Model</a>
-                <a href="prediction-history.html" class="btn btn-brown rounded-pill">History</a>
-                <a href="mypredictions.html" class="btn btn-brown rounded-pill">Bama Schedule</a>
-                <a href="bama.html" class="btn btn-brown rounded-pill">Bama Predictions</a>
-                <a href="CFPPredictions.html" class="btn btn-brown rounded-pill">CFP Picks</a>
-                <a href="list.html" class="btn btn-brown rounded-pill">Heisman</a>
-                <a href="recruitmap.html" class="btn btn-brown rounded-pill">Recruit Map</a>
-            </div>
-        </section>
-
+    <main class="container my-5 page-shell">
         <div class="home-layout">
+            <!-- Left: Poll -->
             <section class="section-card home-main-card">
                 <div class="poll-card-header">
                   <div>
-                    <div class="season-badge">2025 Season</div>
-                    <h2 class="gold-heading home-poll-title">Rankings</h2>
-                  </div>
-                  <div class="site-badge">Top 25</div>
-                </div>
-
-                <div class="poll-tabs" role="tablist" aria-label="Poll source">
-                  <button type="button" class="poll-tab is-active" role="tab" aria-selected="true" data-poll="logan">Logan A</button>
-                  <button type="button" class="poll-tab" role="tab" aria-selected="false" data-poll="ap">AP</button>
-                  <button type="button" class="poll-tab" role="tab" aria-selected="false" data-poll="cfp">CFP</button>
-                </div>
-
-                <div id="poll-logan" class="poll-panel" role="tabpanel">
-                  <div class="poll-columns">
-                    <div class="poll-col">
-                      <div class="home-poll-row"><span class="rank-circle">1</span><span class="home-poll-name">Ohio State Buckeyes</span></div>
-                      <div class="home-poll-row"><span class="rank-circle">2</span><span class="home-poll-name">Georgia Bulldogs</span></div>
-                      <div class="home-poll-row"><span class="rank-circle">3</span><span class="home-poll-name">LSU Tigers</span></div>
-                      <div class="home-poll-row"><span class="rank-circle">4</span><span class="home-poll-name">Penn State Nittany Lions</span></div>
-                      <div class="home-poll-row"><span class="rank-circle">5</span><span class="home-poll-name">Texas Longhorns</span></div>
-                      <div class="home-poll-row"><span class="rank-circle">6</span><span class="home-poll-name">Oregon Ducks</span></div>
-                      <div class="home-poll-row"><span class="rank-circle">7</span><span class="home-poll-name">Miami Hurricanes</span></div>
-                      <div class="home-poll-row"><span class="rank-circle">8</span><span class="home-poll-name">Notre Dame Fighting Irish</span></div>
-                      <div class="home-poll-row"><span class="rank-circle">9</span><span class="home-poll-name">Tennessee Volunteers</span></div>
-                      <div class="home-poll-row"><span class="rank-circle">10</span><span class="home-poll-name">Alabama Crimson Tide</span></div>
-                      <div class="home-poll-row"><span class="rank-circle">11</span><span class="home-poll-name">Florida State Seminoles</span></div>
-                      <div class="home-poll-row"><span class="rank-circle">12</span><span class="home-poll-name">Utah Utes</span></div>
-                      <div class="home-poll-row"><span class="rank-circle">13</span><span class="home-poll-name">Oklahoma Sooners</span></div>
-                    </div>
-                    <div class="poll-col">
-                      <div class="home-poll-row"><span class="rank-circle">14</span><span class="home-poll-name">Texas A&amp;M Aggies</span></div>
-                      <div class="home-poll-row"><span class="rank-circle">15</span><span class="home-poll-name">Clemson Tigers</span></div>
-                      <div class="home-poll-row"><span class="rank-circle">16</span><span class="home-poll-name">Ole Miss Rebels</span></div>
-                      <div class="home-poll-row"><span class="rank-circle">17</span><span class="home-poll-name">Arizona State Sun Devils</span></div>
-                      <div class="home-poll-row"><span class="rank-circle">18</span><span class="home-poll-name">Auburn Tigers</span></div>
-                      <div class="home-poll-row"><span class="rank-circle">19</span><span class="home-poll-name">Florida Gators</span></div>
-                      <div class="home-poll-row"><span class="rank-circle">20</span><span class="home-poll-name">Texas Tech Red Raiders</span></div>
-                      <div class="home-poll-row"><span class="rank-circle">21</span><span class="home-poll-name">Michigan Wolverines</span></div>
-                      <div class="home-poll-row"><span class="rank-circle">22</span><span class="home-poll-name">USF Bulls</span></div>
-                      <div class="home-poll-row"><span class="rank-circle">23</span><span class="home-poll-name">Louisville Cardinals</span></div>
-                      <div class="home-poll-row"><span class="rank-circle">24</span><span class="home-poll-name">Illinois Fighting Illini</span></div>
-                      <div class="home-poll-row"><span class="rank-circle">25</span><span class="home-poll-name">Baylor Bears</span></div>
+                    <div class="season-badge">🏈 2025 Season</div>
+                    <h2 class="gold-heading" style="margin: 0.35rem 0 0 0; font-size: clamp(1.8rem, 3vw, 2.4rem);">Logan A Poll</h2>
+                    <div style="margin-top: 0.35rem; color: rgba(245, 222, 179, 0.82); font-weight: 700;">
+                      Weekly picks, rankings, team pages, and college football predictions.
                     </div>
                   </div>
+                  <div class="site-badge" style="white-space: nowrap;">CFB Dashboard</div>
                 </div>
 
-                <div id="poll-ap" class="poll-panel" role="tabpanel" hidden>
-                  <div class="poll-placeholder">AP Top 25 will land here. Same board, different source.</div>
-                </div>
-                <div id="poll-cfp" class="poll-panel" role="tabpanel" hidden>
-                  <div class="poll-placeholder">CFP rankings will land here once the committee poll starts.</div>
-                </div>
+                <ol class="list-group list-group-numbered poll-list" style="margin: 0;">
+                <li class="list-group-item">Ohio State Buckeyes</li>
+                <li class="list-group-item">Georgia Bulldogs</li>
+                <li class="list-group-item">LSU Tigers</li>
+                <li class="list-group-item">Penn State Nittany Lions</li>
+                <li class="list-group-item">Texas Longhorns</li>
+                <li class="list-group-item">Oregon Ducks</li>
+                <li class="list-group-item">Miami Hurricanes</li>
+                <li class="list-group-item">Notre Dame Fighting Irish</li>
+                <li class="list-group-item">Tennessee Volunteers</li>
+                <li class="list-group-item">Alabama Crimson Tide</li>
+                <li class="list-group-item">Florida State Seminoles</li>
+                <li class="list-group-item">Utah Utes</li>
+                <li class="list-group-item">Oklahoma Sooners</li>
+                <li class="list-group-item">Texas A&M Aggies</li>
+                <li class="list-group-item">Clemson Tigers</li>
+                <li class="list-group-item">Ole Miss Rebels</li>
+                <li class="list-group-item">Arizona State Sun Devils</li>
+                <li class="list-group-item">Auburn Tigers</li> 
+                <li class="list-group-item">Florida Gators</li>
+                <li class="list-group-item">Texas Tech Red Raiders</li> 
+                <li class="list-group-item">Michigan Wolverines</li>
+                <li class="list-group-item">USF Bulls</li>
+                <li class="list-group-item">Louisville Cardinals</li>  
+                <li class="list-group-item">Illinois Fighting Illini</li> 
+                <li class="list-group-item">Baylor Bears</li>   
+            </ol>
             </section>
 
-            <aside class="section-card home-heisman-card">
-              <div class="poll-card-header">
-                <h2 class="gold-heading home-heisman-title">Heisman Race</h2>
-                <a href="list.html" class="home-view-all">View all</a>
+            <!-- Right: Feature + navigation -->
+            <aside class="section-card home-side-card">
+              <div class="feature-image-card">
+                <div class="gold-heading" style="font-size: 1.25rem; margin-bottom: 0.65rem;">Explore the Site</div>
+                <img src="https://a.espncdn.com/photo/2014/0714/ncf_trophy1_ms_1296x729.jpg" alt="Trophy" class="img-fluid">
+                <div style="margin-top: 0.75rem; color: rgba(245, 222, 179, 0.82); font-weight: 700;">
+                  Jump into picks, teams, and model tools.
+                </div>
               </div>
-              <div class="home-heisman-list">
-                <div class="ranking-row">
-                  <span class="rank-circle">1</span>
-                  <span class="ranking-text">
-                    <span class="ranking-primary">Jeremiyah Love</span>
-                    <span class="ranking-secondary">ND • HB</span>
-                  </span>
-                </div>
-                <div class="ranking-row">
-                  <span class="rank-circle">2</span>
-                  <span class="ranking-text">
-                    <span class="ranking-primary">Fernando Mendoza</span>
-                    <span class="ranking-secondary">INDY • QB</span>
-                  </span>
-                </div>
-                <div class="ranking-row">
-                  <span class="rank-circle">3</span>
-                  <span class="ranking-text">
-                    <span class="ranking-primary">Julian Sayin</span>
-                    <span class="ranking-secondary">OSU • QB</span>
-                  </span>
-                </div>
-                <div class="ranking-row">
-                  <span class="rank-circle">4</span>
-                  <span class="ranking-text">
-                    <span class="ranking-primary">Jacob Rodriguez</span>
-                    <span class="ranking-secondary">TTU • LB</span>
-                  </span>
-                </div>
-                <div class="ranking-row">
-                  <span class="rank-circle">5</span>
-                  <span class="ranking-text">
-                    <span class="ranking-primary">Diego Pavia</span>
-                    <span class="ranking-secondary">VANDY • QB</span>
-                  </span>
-                </div>
+
+              <div class="home-button-grid">
+                <a href="weeklypicks.html" class="btn btn-gold btn-lg rounded-pill">Weekly Picks</a>
+                <a href="teams.html" class="btn btn-brown btn-lg rounded-pill">Teams</a>
+                <a href="predictor.html" class="btn btn-brown btn-lg rounded-pill">Model</a>
+                <a href="prediction-history.html" class="btn btn-brown btn-lg rounded-pill">History</a>
+                <a href="mypredictions.html" class="btn btn-brown btn-lg rounded-pill">Bama Schedule</a>
+                <a href="bama.html" class="btn btn-brown btn-lg rounded-pill">Bama Predictions</a>
+                <a href="CFPPredictions.html" class="btn btn-brown btn-lg rounded-pill">CFP Picks</a>
+                <a href="list.html" class="btn btn-brown btn-lg rounded-pill">Heisman</a>
               </div>
             </aside>
         </div>
@@ -179,24 +129,6 @@
       document.addEventListener('keydown', function(event) {
         if (event.key === 'Escape') closeMenu();
       });
-
-      (function initPollTabs() {
-        const tabs = document.querySelectorAll('.poll-tab');
-        const panels = document.querySelectorAll('.poll-panel');
-        tabs.forEach(function(tab) {
-          tab.addEventListener('click', function() {
-            const id = tab.getAttribute('data-poll');
-            tabs.forEach(function(t) {
-              const on = t === tab;
-              t.classList.toggle('is-active', on);
-              t.setAttribute('aria-selected', on ? 'true' : 'false');
-            });
-            panels.forEach(function(panel) {
-              panel.hidden = panel.id !== 'poll-' + id;
-            });
-          });
-        });
-      })();
     </script>
 </body>
 </html>
