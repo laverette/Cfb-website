@@ -332,6 +332,86 @@ body {
   color: var(--gold);
 }
 
+/* Prominent Home link */
+.dropdown-item-home {
+  font-weight: 900;
+  font-size: 1.15rem;
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(255, 160, 0, 0.15));
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  margin: 0.25rem 0.5rem 0.75rem 0.5rem;
+  border-radius: 8px;
+  color: var(--gold);
+}
+
+.dropdown-item-home:hover {
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.25), rgba(255, 160, 0, 0.25));
+  border-color: var(--gold);
+  transform: scale(1.02);
+}
+
+/* Category accordion styles */
+.dropdown-category {
+  margin: 0.25rem 0;
+}
+
+.dropdown-category-header {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1.25rem;
+  background: rgba(255, 215, 0, 0.08);
+  border: none;
+  border-top: 1px solid rgba(255, 215, 0, 0.15);
+  border-bottom: 1px solid rgba(255, 215, 0, 0.15);
+  color: var(--gold);
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: left;
+  font-family: inherit;
+}
+
+.dropdown-category-header:hover {
+  background: rgba(255, 215, 0, 0.15);
+}
+
+.category-arrow {
+  font-size: 0.8rem;
+  transition: transform 0.3s ease;
+  color: var(--gold);
+}
+
+.dropdown-category-content {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+  background: rgba(30, 30, 30, 0.3);
+}
+
+.dropdown-category-content.active {
+  max-height: 500px;
+}
+
+.dropdown-subitem {
+  padding-left: 2rem;
+  font-size: 0.95rem;
+  border-bottom: 1px solid rgba(141, 110, 99, 0.1);
+}
+
+.dropdown-subitem:hover {
+  padding-left: 2.25rem;
+}
+
+/* Admin link styling */
+.dropdown-item-admin {
+  border-top: 2px solid rgba(255, 215, 0, 0.2);
+  margin-top: 0.5rem;
+  padding-top: 0.85rem;
+  font-weight: 700;
+}
+
 /* Drawer overlay (mobile) */
 .menu-overlay {
   position: fixed;

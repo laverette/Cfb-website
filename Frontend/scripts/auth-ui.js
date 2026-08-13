@@ -7,18 +7,28 @@
   var STORAGE_TOKEN = "authToken";
   var STORAGE_USER = "currentUser";
 
-  var NAV_LINKS = [
-    { href: "index.html", label: "🏠 Home" },
-    { href: "weeklypicks.html", label: "📅 Weekly Picks" },
-    { href: "teams.html", label: "🏈 Teams" },
-    { href: "mypredictions.html", label: "📊 My Picks" },
-    { href: "prediction-history.html", label: "🧾 Pick History" },
-    { href: "CFPPredictions.html", label: "🏆 CFP Picks" },
-    { href: "list.html", label: "👑 Heisman" },
-    { href: "bama.html", label: "🐘 Bama Schedule" },
-    { href: "predictor.html", label: "🤖 Predictor" },
-    { href: "recruitmap.html", label: "🗺️ Recruit Map" },
-  ];
+  var NAV_CATEGORIES = {
+    main: { href: "index.html", label: "🏠 Home" },
+    picks: {
+      label: "📅 Picks & Predictions",
+      items: [
+        { href: "weeklypicks.html", label: "📅 Weekly Picks" },
+        { href: "mypredictions.html", label: "📊 My Picks" },
+        { href: "prediction-history.html", label: "🧾 Pick History" },
+        { href: "CFPPredictions.html", label: "🏆 CFP Picks" },
+        { href: "predictor.html", label: "🤖 Predictor" },
+      ]
+    },
+    teams: {
+      label: "🏈 Teams & Players",
+      items: [
+        { href: "teams.html", label: "🏈 Teams" },
+        { href: "list.html", label: "👑 Heisman" },
+        { href: "bama.html", label: "🐘 Bama Schedule" },
+        { href: "recruitmap.html", label: "🗺️ Recruit Map" },
+      ]
+    }
+  };
 
   function basenameOnly(raw) {
     if (!raw || typeof raw !== "string") return "index.html";
@@ -124,19 +134,56 @@
     var loggedIn = !!(user && token);
 
     var html = "";
-    for (var i = 0; i < NAV_LINKS.length; i++) {
-      var item = NAV_LINKS[i];
+    
+    // Home link - prominent and always visible
+    html +=
+      '<a href="' +
+      NAV_CATEGORIES.main.href +
+      '" class="dropdown-item dropdown-item-home">' +
+      NAV_CATEGORIES.main.label +
+      "</a>";
+    
+    // Picks & Predictions category
+    html += '<div class="dropdown-category">';
+    html += 
+      '<button type="button" class="dropdown-category-header" onclick="toggleCategory(\'picks\')">' +
+      '<span>' + NAV_CATEGORIES.picks.label + '</span>' +
+      '<span class="category-arrow">▼</span>' +
+      '</button>';
+    html += '<div class="dropdown-category-content" id="category-picks">';
+    for (var i = 0; i < NAV_CATEGORIES.picks.items.length; i++) {
+      var item = NAV_CATEGORIES.picks.items[i];
       html +=
         '<a href="' +
         item.href +
-        '" class="dropdown-item">' +
+        '" class="dropdown-item dropdown-subitem">' +
         item.label +
         "</a>";
     }
+    html += '</div></div>';
+    
+    // Teams & Players category
+    html += '<div class="dropdown-category">';
+    html += 
+      '<button type="button" class="dropdown-category-header" onclick="toggleCategory(\'teams\')">' +
+      '<span>' + NAV_CATEGORIES.teams.label + '</span>' +
+      '<span class="category-arrow">▼</span>' +
+      '</button>';
+    html += '<div class="dropdown-category-content" id="category-teams">';
+    for (var j = 0; j < NAV_CATEGORIES.teams.items.length; j++) {
+      var teamItem = NAV_CATEGORIES.teams.items[j];
+      html +=
+        '<a href="' +
+        teamItem.href +
+        '" class="dropdown-item dropdown-subitem">' +
+        teamItem.label +
+        "</a>";
+    }
+    html += '</div></div>';
 
     if (loggedIn && isAdminRole(user)) {
       html +=
-        '<a href="admin.html" class="dropdown-item">🛠️ Admin</a>';
+        '<a href="admin.html" class="dropdown-item dropdown-item-admin">🛠️ Admin</a>';
     }
 
     if (loggedIn) {
@@ -156,6 +203,37 @@
       });
     }
   }
+  
+  // Accordion toggle function
+  window.toggleCategory = function(categoryId) {
+    var content = document.getElementById('category-' + categoryId);
+    var allContents = document.querySelectorAll('.dropdown-category-content');
+    var allArrows = document.querySelectorAll('.category-arrow');
+    
+    // Close all other categories
+    for (var i = 0; i < allContents.length; i++) {
+      if (allContents[i].id !== 'category-' + categoryId) {
+        allContents[i].classList.remove('active');
+      }
+    }
+    
+    // Reset all arrows
+    for (var j = 0; j < allArrows.length; j++) {
+      var parentContent = allArrows[j].closest('.dropdown-category').querySelector('.dropdown-category-content');
+      if (parentContent && parentContent.id !== 'category-' + categoryId) {
+        allArrows[j].textContent = '▼';
+      }
+    }
+    
+    // Toggle current category
+    if (content) {
+      var isActive = content.classList.toggle('active');
+      var arrow = content.previousElementSibling.querySelector('.category-arrow');
+      if (arrow) {
+        arrow.textContent = isActive ? '▲' : '▼';
+      }
+    }
+  };
 
   function closeAnyOpenMenu() {
     var menu = document.getElementById("dropdownMenu");
