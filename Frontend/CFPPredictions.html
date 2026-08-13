@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Weekly Picks</title>
+  <title>CFP Bracket Picker</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
   <link rel="stylesheet" href="styles/site-theme.css">
   <link rel="stylesheet" href="Resources/Styles/CFPPredictions.css">
@@ -18,7 +18,7 @@
         </button>
         <div class="dropdown-menu" id="dropdownMenu"></div>
 
-        <h1 class="site-title">My College Football Site</h1>
+        <h1 class="site-title">CFP Bracket Picker</h1>
 
         <div id="auth-nav" class="navbar-auth-cluster"></div>
       </div>
@@ -26,155 +26,265 @@
   </nav>
   <div class="menu-overlay" id="menuOverlay" onclick="closeMenu()"></div>
 
-  <main class="container my-5 page-shell">
-  <form name="predictions" class="form-container section-card" style="max-width: 900px; margin: 0 auto;">
-    <h1 class="page-title" style="text-align:center; font-size: clamp(1.8rem, 4vw, 2.6rem);">CFP Picks</h1>
-    <p class="page-subtitle">Pick winners for the slate below.</p>
-    <p>
-      <label>Your Name: 
-        <input id= "yourname" name="user" />
-      </label>
-    </p>
-    
-    <p>
-      <label>Game 1: ULM at Alabama
-        <select name="game1">
-          <option value="Bama">BAMA</option>
-          <option value="ULM">ULM</option>
-        </select>
-      </label>
-    </p>
+  <main class="cfp-container">
+    <div class="cfp-header">
+      <h1 class="page-title">🏆 College Football Playoff</h1>
+      <p class="page-subtitle">Pick your 12 teams, then predict the bracket all the way to the National Championship!</p>
+    </div>
 
-    <p>
-      <label>Game 2:Michigan at Oklahoma
-        <select name="game2">
-          <option value="MICH">MICH</option>
-          <option value="OKLA">OKLA</option>
-        </select>
-      </label>
-    </p>
-
-    <p>
-      <label>Game 3: Iowa at Iowa State
-        <select name="game3">
-          <option value="IOWA">IOWA</option>
-          <option value="ISU">ISU</option>
-        </select>
-      </label>
-    </p>
-
-    <p>
-      <label>Game 4: Oklahoma State at Oregon
-        <select name="game4">
-          <option value="OSU">OSU</option>
-          <option value="ORE">ORE</option>
-        </select>
-      </label>
-    </p>
-
-    <p>
-      <label>Game 5: Arizona State at Mississippi State 
-        <select name="game5">
-          <option value="ASU">ASU</option>
-          <option value="MISSST">MISSST</option>
-        </select>
-      </label>
-    </p>
-
-    <p>
-      <label>Game 6: Vanderbilt at Virginia Tech
-        <select name="game6">
-          <option value="VANDY">VANDY</option>
-          <option value="VATECH">VATECH</option>
-        </select>
-      </label>
-    </p>
-
-    <p>
-      <label>Game 7: Ole Miss at Kentucky
-        <select name="game7">
-          <option value="OLE">OLE</option>
-          <option value="UK">UK</option>
-        </select>
-      </label>
-    </p>
-
-    <p>
-      <label>Game 8: Baylor at SMU
-        <select name="game8">
-          <option value="BAY">BAY</option>
-          <option value="SMU">SMU</option>
-        </select>
-      </label>
-    </p>
-
-    <p>
-      <label>Game 9: Troy @ Clemson
-        <select name="game9">
-          <option value="TROY">TROY</option>
-          <option value="CLEM">CLEM</option>
-        </select>
-      </label>
-    </p>
-
-    <p>
-      <label>Game 10: Illinois at Duke
-        <select name="game10">
-          <option value="DUKE">DUKE</option>
-          <option value="ILLI">ILLI</option>
-        </select>
-      </label>
-    </p>
-
-    <p>
-      <label>Game 11: USF at Florida
-        <select name="game11">
-          <option value="USF">USF</option>
-          <option value="UF">UF</option>
-        </select>
-      </label>
-    </p>
-
-    <p>
-      <label>Game 12: Stanford at BYU
-        <select name="game12">
-          <option value="BYU">BYU</option>
-          <option value="STAN">STAN</option>
-        </select>
-      </label>
-    </p>
-
-    <p>
-      <button id="submit" type="submit" class="btn btn-gold">Submit Predictions</button>
-      <span class="text" style="margin-left: 10px; opacity: 0.9;">Scroll down to see results.</span>
-    </p>
-  </form>
-  <div id="results"></div>
-  </main>
-    <script src="scripts/auth-ui.js"></script>
-    <script>
-document.querySelector('form[name="predictions"]').addEventListener('submit', function(e) {
-  e.preventDefault(); // stop normal page reload
-
-  const form = e.target;
-  const formData = new FormData(form);
-
-  // ✅ 1. Build preview
-  const user = formData.get("user");
-  let html = `<h2 class="display-title">Your Predictions</h2><p class="name-display"><strong>Name:</strong> ${user}</p><ul class="list-group">`;
-  for (let i = 1; i <= 12; i++) {
-    html += `<li class="list-group-item">
-      Game ${i}: ${formData.get("game" + i)}
-    </li>`;
-  }
-  html += "</ul>";
-</script>
-});
-
-</body>
-<div class="col-md-10 ps-rg-6 text-end mb-5 mt-up">
-        <img width= 100% src="https://images.seattletimes.com/wp-content/uploads/2017/05/2459f782f2c946859a21920650fc2c75.jpg?d=2040x1253" alt="Image" class="img-fluid rounded shadow big-img">
+    <!-- Step 1: Team Selection -->
+    <div id="teamSelectionStep" class="bracket-step active">
+      <div class="step-header">
+        <h2 class="step-title">Step 1: Select Your 12 Teams</h2>
+        <p class="step-subtitle">Pick which teams you think will make the playoff</p>
       </div>
+      
+      <div class="team-picker-grid">
+        <div class="seed-picker" data-seed="1">
+          <label class="seed-label">#1 Seed</label>
+          <input type="text" class="team-input" id="seed1" placeholder="Enter team name...">
+        </div>
+        <div class="seed-picker" data-seed="2">
+          <label class="seed-label">#2 Seed</label>
+          <input type="text" class="team-input" id="seed2" placeholder="Enter team name...">
+        </div>
+        <div class="seed-picker" data-seed="3">
+          <label class="seed-label">#3 Seed</label>
+          <input type="text" class="team-input" id="seed3" placeholder="Enter team name...">
+        </div>
+        <div class="seed-picker" data-seed="4">
+          <label class="seed-label">#4 Seed</label>
+          <input type="text" class="team-input" id="seed4" placeholder="Enter team name...">
+        </div>
+        <div class="seed-picker" data-seed="5">
+          <label class="seed-label">#5 Seed</label>
+          <input type="text" class="team-input" id="seed5" placeholder="Enter team name...">
+        </div>
+        <div class="seed-picker" data-seed="6">
+          <label class="seed-label">#6 Seed</label>
+          <input type="text" class="team-input" id="seed6" placeholder="Enter team name...">
+        </div>
+        <div class="seed-picker" data-seed="7">
+          <label class="seed-label">#7 Seed</label>
+          <input type="text" class="team-input" id="seed7" placeholder="Enter team name...">
+        </div>
+        <div class="seed-picker" data-seed="8">
+          <label class="seed-label">#8 Seed</label>
+          <input type="text" class="team-input" id="seed8" placeholder="Enter team name...">
+        </div>
+        <div class="seed-picker" data-seed="9">
+          <label class="seed-label">#9 Seed</label>
+          <input type="text" class="team-input" id="seed9" placeholder="Enter team name...">
+        </div>
+        <div class="seed-picker" data-seed="10">
+          <label class="seed-label">#10 Seed</label>
+          <input type="text" class="team-input" id="seed10" placeholder="Enter team name...">
+        </div>
+        <div class="seed-picker" data-seed="11">
+          <label class="seed-label">#11 Seed</label>
+          <input type="text" class="team-input" id="seed11" placeholder="Enter team name...">
+        </div>
+        <div class="seed-picker" data-seed="12">
+          <label class="seed-label">#12 Seed</label>
+          <input type="text" class="team-input" id="seed12" placeholder="Enter team name...">
+        </div>
+      </div>
+
+      <button class="btn-next-step" onclick="goToBracket()">
+        Continue to Bracket →
+      </button>
+    </div>
+
+    <!-- Step 2: Bracket Predictions -->
+    <div id="bracketStep" class="bracket-step">
+      <div class="step-header">
+        <h2 class="step-title">Step 2: Make Your Predictions</h2>
+        <p class="step-subtitle">Pick the winners all the way to the National Championship</p>
+        <button class="btn-back" onclick="backToTeams()">← Back to Team Selection</button>
+      </div>
+
+      <div class="bracket-container">
+        <!-- Left Side of Bracket -->
+        <div class="bracket-side bracket-left">
+          <!-- First Round Left -->
+          <div class="bracket-round" id="firstRoundLeft">
+            <h3 class="round-title">First Round</h3>
+            <div class="matchup" data-game="fr1" onclick="pickWinner('fr1')">
+              <div class="team seed5" data-winner="false">
+                <span class="seed-num">5</span>
+                <span class="team-name" id="team5">TBD</span>
+              </div>
+              <div class="vs">vs</div>
+              <div class="team seed12" data-winner="false">
+                <span class="seed-num">12</span>
+                <span class="team-name" id="team12">TBD</span>
+              </div>
+            </div>
+            <div class="matchup" data-game="fr2" onclick="pickWinner('fr2')">
+              <div class="team seed8" data-winner="false">
+                <span class="seed-num">8</span>
+                <span class="team-name" id="team8">TBD</span>
+              </div>
+              <div class="vs">vs</div>
+              <div class="team seed9" data-winner="false">
+                <span class="seed-num">9</span>
+                <span class="team-name" id="team9">TBD</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quarterfinals Left -->
+          <div class="bracket-round" id="quarterfinalsLeft">
+            <h3 class="round-title">Quarterfinals</h3>
+            <div class="matchup" data-game="qf1" onclick="pickWinner('qf1')">
+              <div class="team seed1" data-winner="false">
+                <span class="seed-num">1</span>
+                <span class="team-name" id="team1">TBD</span>
+              </div>
+              <div class="vs">vs</div>
+              <div class="team winner-fr2" data-winner="false">
+                <span class="seed-num">?</span>
+                <span class="team-name" id="winnerFR2">TBD</span>
+              </div>
+            </div>
+            <div class="matchup" data-game="qf2" onclick="pickWinner('qf2')">
+              <div class="team seed4" data-winner="false">
+                <span class="seed-num">4</span>
+                <span class="team-name" id="team4">TBD</span>
+              </div>
+              <div class="vs">vs</div>
+              <div class="team winner-fr1" data-winner="false">
+                <span class="seed-num">?</span>
+                <span class="team-name" id="winnerFR1">TBD</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Semifinals Left -->
+          <div class="bracket-round" id="semifinalsLeft">
+            <h3 class="round-title">Semifinals</h3>
+            <div class="matchup" data-game="sf1" onclick="pickWinner('sf1')">
+              <div class="team winner-qf1" data-winner="false">
+                <span class="seed-num">?</span>
+                <span class="team-name" id="winnerQF1">TBD</span>
+              </div>
+              <div class="vs">vs</div>
+              <div class="team winner-qf2" data-winner="false">
+                <span class="seed-num">?</span>
+                <span class="team-name" id="winnerQF2">TBD</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Championship (Center) -->
+        <div class="bracket-center">
+          <div class="championship-container">
+            <h3 class="round-title">National Championship</h3>
+            <div class="matchup championship-matchup" data-game="championship" onclick="pickWinner('championship')">
+              <div class="team winner-sf1" data-winner="false">
+                <span class="team-name" id="winnerSF1">TBD</span>
+              </div>
+              <div class="vs">🏆</div>
+              <div class="team winner-sf2" data-winner="false">
+                <span class="team-name" id="winnerSF2">TBD</span>
+              </div>
+            </div>
+            <div class="champion-display" id="championDisplay" style="display: none;">
+              <div class="champion-trophy">🏆</div>
+              <div class="champion-name" id="championName">TBD</div>
+              <div class="champion-label">2026 National Champion</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Side of Bracket -->
+        <div class="bracket-side bracket-right">
+          <!-- First Round Right -->
+          <div class="bracket-round" id="firstRoundRight">
+            <h3 class="round-title">First Round</h3>
+            <div class="matchup" data-game="fr3" onclick="pickWinner('fr3')">
+              <div class="team seed7" data-winner="false">
+                <span class="seed-num">7</span>
+                <span class="team-name" id="team7">TBD</span>
+              </div>
+              <div class="vs">vs</div>
+              <div class="team seed10" data-winner="false">
+                <span class="seed-num">10</span>
+                <span class="team-name" id="team10">TBD</span>
+              </div>
+            </div>
+            <div class="matchup" data-game="fr4" onclick="pickWinner('fr4')">
+              <div class="team seed6" data-winner="false">
+                <span class="seed-num">6</span>
+                <span class="team-name" id="team6">TBD</span>
+              </div>
+              <div class="vs">vs</div>
+              <div class="team seed11" data-winner="false">
+                <span class="seed-num">11</span>
+                <span class="team-name" id="team11">TBD</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quarterfinals Right -->
+          <div class="bracket-round" id="quarterfinalsRight">
+            <h3 class="round-title">Quarterfinals</h3>
+            <div class="matchup" data-game="qf3" onclick="pickWinner('qf3')">
+              <div class="team seed2" data-winner="false">
+                <span class="seed-num">2</span>
+                <span class="team-name" id="team2">TBD</span>
+              </div>
+              <div class="vs">vs</div>
+              <div class="team winner-fr3" data-winner="false">
+                <span class="seed-num">?</span>
+                <span class="team-name" id="winnerFR3">TBD</span>
+              </div>
+            </div>
+            <div class="matchup" data-game="qf4" onclick="pickWinner('qf4')">
+              <div class="team seed3" data-winner="false">
+                <span class="seed-num">3</span>
+                <span class="team-name" id="team3">TBD</span>
+              </div>
+              <div class="vs">vs</div>
+              <div class="team winner-fr4" data-winner="false">
+                <span class="seed-num">?</span>
+                <span class="team-name" id="winnerFR4">TBD</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Semifinals Right -->
+          <div class="bracket-round" id="semifinalsRight">
+            <h3 class="round-title">Semifinals</h3>
+            <div class="matchup" data-game="sf2" onclick="pickWinner('sf2')">
+              <div class="team winner-qf3" data-winner="false">
+                <span class="seed-num">?</span>
+                <span class="team-name" id="winnerQF3">TBD</span>
+              </div>
+              <div class="vs">vs</div>
+              <div class="team winner-qf4" data-winner="false">
+                <span class="seed-num">?</span>
+                <span class="team-name" id="winnerQF4">TBD</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bracket-actions">
+        <button class="btn-save-bracket" onclick="saveBracket()">
+          💾 Save My Bracket
+        </button>
+        <button class="btn-reset-bracket" onclick="resetBracket()">
+          🔄 Reset Bracket
+        </button>
+      </div>
+    </div>
+  </main>
+
+  <script src="scripts/auth-ui.js"></script>
+  <script src="scripts/cfp-bracket.js"></script>
   <script>
     function closeMenu() {
       const menu = document.getElementById('dropdownMenu');

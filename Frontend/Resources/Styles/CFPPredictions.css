@@ -1,111 +1,468 @@
-body{
-    background-color: #1E1E1E;
-}
-/* rgb(78, 50, 25) */
-.title{
-    color: #F5F5F5;
-    font-weight: bold;
-    font-size: 3rem;
-    text-align: left;
-}
-.text-white {
-    color: #F5F5F5; /* Crimson color */
-    font-weight: bold;
+/* CFP Bracket Picker Styles */
+
+body {
+  background-color: #1E1E1E;
+  color: #f5deb3;
 }
 
-option {
-    background-color: #444444;
-    color:  #F5F5F5;
-    border: 2px solid rgb(78, 50, 25); 
-    font-weight: bold;
-    
+.cfp-container {
+  max-width: 100%;
+  padding: 1rem;
+  margin: 0 auto;
 }
 
-label {
-    color: #F5F5F5 ;
-    font-weight: bold;
+.cfp-header {
+  text-align: center;
+  margin-bottom: 2rem;
 }
 
-input, select {
-  background-color: #3E2723; 
-  color: #F5F5F5;      
+.page-title {
+  color: #FFD700;
+  font-size: clamp(1.8rem, 5vw, 2.5rem);
+  font-weight: 900;
+  margin-bottom: 0.5rem;
+}
+
+.page-subtitle {
+  color: rgba(245, 222, 179, 0.85);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+/* ========================================================================
+   STEP NAVIGATION
+   ======================================================================== */
+
+.bracket-step {
+  display: none;
+}
+
+.bracket-step.active {
+  display: block;
+}
+
+.step-header {
+  text-align: center;
+  margin-bottom: 2rem;
+  padding: 1rem;
+  background: linear-gradient(135deg, rgba(62, 39, 35, 0.5), rgba(30, 30, 30, 0.5));
+  border: 2px solid #8D6E63;
+  border-radius: 12px;
+}
+
+.step-title {
+  color: #FFD700;
+  font-size: 1.5rem;
+  font-weight: 800;
+  margin-bottom: 0.5rem;
+}
+
+.step-subtitle {
+  color: #f5deb3;
+  font-size: 0.95rem;
+  opacity: 0.9;
+}
+
+.btn-back {
+  margin-top: 1rem;
+  padding: 0.5rem 1rem;
+  background: rgba(255, 215, 0, 0.15);
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  border-radius: 8px;
+  color: #FFD700;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-back:hover {
+  background: rgba(255, 215, 0, 0.25);
+  border-color: #FFD700;
+}
+
+/* ========================================================================
+   TEAM SELECTION
+   ======================================================================== */
+
+.team-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin-bottom: 2rem;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.seed-picker {
+  background: linear-gradient(135deg, rgba(62, 39, 35, 0.6), rgba(30, 30, 30, 0.8));
+  border: 2px solid #8D6E63;
+  border-radius: 10px;
+  padding: 0.75rem;
+  transition: all 0.3s ease;
+}
+
+.seed-picker:focus-within {
+  border-color: #FFD700;
+  box-shadow: 0 0 8px rgba(255, 215, 0, 0.3);
+}
+
+.seed-label {
+  display: block;
+  color: #FFD700;
+  font-weight: 700;
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+}
+
+.team-input {
+  width: 100%;
+  padding: 0.6rem;
+  background: #3E2723;
   border: 1px solid #8D6E63;
-  border-radius: 6px;     
-  padding: 6px 10px;     
-  font-size: 14px;
+  border-radius: 6px;
+  color: #f5deb3;
+  font-size: 0.95rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
 }
 
-input:focus, select:focus {
+.team-input:focus {
   outline: none;
-  border-color: #FFD700; /* gold highlight */
+  border-color: #FFD700;
   box-shadow: 0 0 4px #FFD700;
 }
 
-#yourname{
-    background-color: #444444;
-    color: #F5F5F5;
-    border: 2px solid #3E2723;
-    box-shadow: 0 0 5px #3E2723, 0 0 15px #3E2723; 
-    font-weight: bold;
-} 
-
-.big-img {
-    width: 600px;    
-    max-width: 100%;
-    height: auto;
+.team-input::placeholder {
+  color: rgba(245, 222, 179, 0.4);
+  font-weight: 400;
 }
 
-#submit{
-    background-color: #3E2723; 
-    color: #F5F5F5;      
-    border: 1px solid #8D6E63;
-    border-radius: 6px;     
-    padding: 6px 10px;     
-    font-size: 14px;
-    font-weight: bold;
+.btn-next-step {
+  display: block;
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
+  padding: 1rem;
+  background: linear-gradient(135deg, #FFD700, #FFA000);
+  border: none;
+  border-radius: 12px;
+  color: #1E1E1E;
+  font-size: 1.1rem;
+  font-weight: 900;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
 }
 
-.mt-up {
-    position: absolute;
-    top: 75px;
-    right: 100px;
-    z-index: -1; /* behind other content */
+.btn-next-step:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(255, 215, 0, 0.4);
+}
+
+.btn-next-step:active {
+  transform: translateY(0);
+}
+
+/* ========================================================================
+   BRACKET LAYOUT
+   ======================================================================== */
+
+.bracket-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+
+.bracket-side {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.bracket-round {
+  background: linear-gradient(135deg, rgba(62, 39, 35, 0.4), rgba(30, 30, 30, 0.6));
+  border: 2px solid #8D6E63;
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+.round-title {
+  color: #FFD700;
+  font-size: 1.2rem;
+  font-weight: 800;
+  text-align: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid rgba(255, 215, 0, 0.3);
+}
+
+.matchup {
+  background: rgba(30, 30, 30, 0.5);
+  border: 1px solid #8D6E63;
+  border-radius: 8px;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.matchup:last-child {
+  margin-bottom: 0;
+}
+
+.matchup:hover {
+  border-color: #FFD700;
+  transform: scale(1.02);
+}
+
+.matchup:active {
+  transform: scale(0.98);
+}
+
+.team {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem;
+  background: rgba(62, 39, 35, 0.3);
+  border-radius: 6px;
+  transition: all 0.3s ease;
+}
+
+.team[data-winner="true"] {
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.2), rgba(255, 160, 0, 0.2));
+  border: 2px solid #FFD700;
+  font-weight: 900;
+}
+
+.seed-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: linear-gradient(135deg, #FFD700, #FFA000);
+  color: #1E1E1E;
+  font-weight: 900;
+  font-size: 0.85rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.team-name {
+  flex: 1;
+  color: #f5deb3;
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.team[data-winner="true"] .team-name {
+  color: #FFD700;
+}
+
+.vs {
+  text-align: center;
+  color: rgba(255, 215, 0, 0.6);
+  font-weight: 700;
+  font-size: 0.85rem;
+  padding: 0.25rem 0;
+}
+
+/* ========================================================================
+   CHAMPIONSHIP (CENTER)
+   ======================================================================== */
+
+.bracket-center {
+  order: 2;
+}
+
+.championship-container {
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(255, 160, 0, 0.15));
+  border: 3px solid #FFD700;
+  border-radius: 15px;
+  padding: 1.5rem;
+  box-shadow: 0 8px 20px rgba(255, 215, 0, 0.3);
+}
+
+.championship-matchup {
+  background: rgba(30, 30, 30, 0.8);
+  border: 2px solid #FFD700;
+}
+
+.championship-matchup .vs {
+  font-size: 2rem;
+}
+
+.champion-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+  padding: 1.5rem;
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.25), rgba(255, 160, 0, 0.25));
+  border: 2px solid #FFD700;
+  border-radius: 12px;
+  animation: championReveal 0.5s ease;
+}
+
+@keyframes championReveal {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.champion-trophy {
+  font-size: 3rem;
+  animation: trophySpin 2s ease infinite;
+}
+
+@keyframes trophySpin {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-10deg); }
+  75% { transform: rotate(10deg); }
+}
+
+.champion-name {
+  color: #FFD700;
+  font-size: 1.5rem;
+  font-weight: 900;
+  text-align: center;
+}
+
+.champion-label {
+  color: #f5deb3;
+  font-size: 1rem;
+  font-weight: 700;
+  text-align: center;
+  opacity: 0.9;
+}
+
+/* ========================================================================
+   BRACKET ACTIONS
+   ======================================================================== */
+
+.bracket-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.btn-save-bracket,
+.btn-reset-bracket {
+  padding: 0.9rem;
+  border: none;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-save-bracket {
+  background: linear-gradient(135deg, #FFD700, #FFA000);
+  color: #1E1E1E;
+  box-shadow: 0 4px 10px rgba(255, 215, 0, 0.3);
+}
+
+.btn-save-bracket:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px rgba(255, 215, 0, 0.4);
+}
+
+.btn-reset-bracket {
+  background: rgba(255, 68, 68, 0.15);
+  border: 2px solid rgba(255, 68, 68, 0.3);
+  color: #ff4444;
+}
+
+.btn-reset-bracket:hover {
+  background: rgba(255, 68, 68, 0.25);
+  border-color: #ff4444;
+}
+
+/* ========================================================================
+   RESPONSIVE LAYOUT
+   ======================================================================== */
+
+/* Order for mobile: Left side, Right side, Championship */
+.bracket-left {
+  order: 0;
+}
+
+.bracket-right {
+  order: 1;
 }
 
 @media (max-width: 768px) {
-    .mt-up {
-          display: none;
-    }
+  .cfp-container {
+    padding: 0.75rem;
+  }
+  
+  .team-picker-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+  
+  .bracket-container {
+    gap: 1.5rem;
+  }
+  
+  .round-title {
+    font-size: 1.1rem;
+  }
+  
+  .team-name {
+    font-size: 0.85rem;
+  }
+  
+  .seed-num {
+    width: 24px;
+    height: 24px;
+    font-size: 0.75rem;
+  }
+  
+  .champion-name {
+    font-size: 1.25rem;
+  }
+  
+  .champion-trophy {
+    font-size: 2.5rem;
+  }
 }
 
-.results-shown .mt-up {
-    margin-top: 2rem; /* positive margin instead of negative */
-}
-
-.text{
-    color: #F5F5F5;
-    font-weight: bold;
-}
-
-.name-display{
-    color: #F5F5F5;
-    text-align: center;
-    font-weight: bold;
-    font-size: 1.5rem;
-}
-
-.list-group-item{
-    background-color: #3E2723;
-    color: #F5F5F5;
-    border: 1px solid #8D6E63;
-    font-weight: bold;
-}
-
-.display-title{
-    color: #F5F5F5;
-    text-align: center;
-    font-weight: bold;
-    font-size: 2rem;
-    margin-top: 1rem;
-    margin-bottom: 1rem;
+@media (min-width: 1024px) {
+  .bracket-container {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+  
+  .bracket-side {
+    flex: 1;
+    max-width: 35%;
+  }
+  
+  .bracket-center {
+    flex: 0 0 auto;
+    width: 30%;
+    order: 1;
+  }
+  
+  .bracket-left {
+    order: 0;
+  }
+  
+  .bracket-right {
+    order: 2;
+  }
 }
