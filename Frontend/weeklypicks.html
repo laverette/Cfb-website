@@ -47,6 +47,23 @@
         <img width="100%" height="auto" src="https://images.seattletimes.com/wp-content/uploads/2017/05/2459f782f2c946859a21920650fc2c75.jpg?d=2040x1253" alt="Image" class="img-fluid rounded shadow big-img" style="max-height: 300px; object-fit: cover;">
       </div>
     </div>
+
+    <!-- Live Scores Section -->
+    <div id="liveScoresContainer" class="live-scores-container" style="display: none;">
+      <div class="live-scores-header">
+        <h2 class="live-scores-title">🏈 Live Scores</h2>
+        <button id="refreshScoresBtn" class="refresh-scores-btn" onclick="refreshLiveScores()">
+          <span class="refresh-icon">🔄</span>
+          <span class="refresh-text">Refresh</span>
+        </button>
+      </div>
+      <div id="liveScoresContent" class="live-scores-content">
+        <p class="scores-loading">Loading live scores...</p>
+      </div>
+      <div class="live-scores-footer">
+        <p class="last-updated" id="lastUpdatedTime">Last updated: --</p>
+      </div>
+    </div>
     
     <div class="week11-layout">
       <div class="form-section">
@@ -337,23 +354,6 @@
   <div id="week10-results" class="tab-content">
     <h1 class="title" id="resultsTabTitle">Weekly Results</h1>
     
-    <!-- Live Scores Section -->
-    <div id="liveScoresContainer" class="live-scores-container" style="display: none;">
-      <div class="live-scores-header">
-        <h2 class="live-scores-title">🏈 Live Scores</h2>
-        <button id="refreshScoresBtn" class="refresh-scores-btn" onclick="refreshLiveScores()">
-          <span class="refresh-icon">🔄</span>
-          <span class="refresh-text">Refresh</span>
-        </button>
-      </div>
-      <div id="liveScoresContent" class="live-scores-content">
-        <p class="scores-loading">Loading live scores...</p>
-      </div>
-      <div class="live-scores-footer">
-        <p class="last-updated" id="lastUpdatedTime">Last updated: --</p>
-      </div>
-    </div>
-
     <div class="leaderboards-container">
       <div class="Leaderboard last-week">
         <h3 class="leaderboard-title">🏆 Last Week</h3>
@@ -894,6 +894,9 @@
       // Phase 1: Load active week + games from backend DB.
       hideHardcodedGameRows();
       loadActiveWeekAndGames();
+
+      // Load live scores on page load (since Weekly Picks tab is default active)
+      initializeLiveScores();
 
       // Optional CFBD smoke test (kept for later; OFF in Phase 1)
       // if (USE_CFBD_GAMES_FOR_WEEKLY_PICKS) { ... }
@@ -1847,8 +1850,8 @@
         evt.currentTarget.classList.add("active");
       }
       
-      // Load live scores when Results tab is opened
-      if (tabName === 'week10-results') {
+      // Load live scores when Picks tab is opened
+      if (tabName === 'week11-picks') {
         initializeLiveScores();
       } else {
         stopLiveScoresAutoRefresh();
