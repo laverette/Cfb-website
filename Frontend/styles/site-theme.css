@@ -352,6 +352,7 @@ body {
 /* Category accordion styles */
 .dropdown-category {
   margin: 0.25rem 0;
+  position: relative;
 }
 
 .dropdown-category-header {
@@ -371,6 +372,8 @@ body {
   transition: all 0.3s ease;
   text-align: left;
   font-family: inherit;
+  position: relative;
+  z-index: 2;
 }
 
 .dropdown-category-header:hover {
@@ -381,6 +384,7 @@ body {
   font-size: 0.8rem;
   transition: transform 0.3s ease;
   color: var(--gold);
+  pointer-events: none;
 }
 
 .dropdown-category-content {
@@ -388,6 +392,8 @@ body {
   overflow: hidden;
   transition: max-height 0.3s ease;
   background: rgba(30, 30, 30, 0.3);
+  position: relative;
+  z-index: 1;
 }
 
 .dropdown-category-content.active {
