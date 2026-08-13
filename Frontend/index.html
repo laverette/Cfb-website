@@ -29,78 +29,19 @@
     </nav>
     <div class="menu-overlay" id="menuOverlay" onclick="closeMenu()"></div>
     <main class="page-shell">
-        <nav class="home-mobile-shortcuts" aria-label="Quick links">
-            <a href="weeklypicks.html" class="is-primary">Weekly Picks</a>
-            <a href="teams.html">Teams</a>
-            <a href="predictor.html">Model</a>
-            <a href="CFPPredictions.html">CFP</a>
-        </nav>
-
-        <div class="home-layout">
-            <!-- Left: Poll -->
-            <section class="section-card home-main-card">
-                <div class="poll-card-header">
-                  <div>
-                    <div class="poll-card-kicker">
-                      <div class="season-badge">🏈 2025 Season</div>
-                    </div>
-                    <h2 class="gold-heading" style="margin: 0.35rem 0 0 0; font-size: clamp(1.8rem, 3vw, 2.4rem);">Logan A Poll</h2>
-                    <div class="poll-card-lede">
-                      Weekly picks, rankings, team pages, and college football predictions.
-                    </div>
-                  </div>
-                </div>
-
-                <ol id="loganPoll" class="list-group list-group-numbered poll-list is-collapsed">
-                <li class="list-group-item">Ohio State Buckeyes</li>
-                <li class="list-group-item">Georgia Bulldogs</li>
-                <li class="list-group-item">LSU Tigers</li>
-                <li class="list-group-item">Penn State Nittany Lions</li>
-                <li class="list-group-item">Texas Longhorns</li>
-                <li class="list-group-item">Oregon Ducks</li>
-                <li class="list-group-item">Miami Hurricanes</li>
-                <li class="list-group-item">Notre Dame Fighting Irish</li>
-                <li class="list-group-item">Tennessee Volunteers</li>
-                <li class="list-group-item">Alabama Crimson Tide</li>
-                <li class="list-group-item">Florida State Seminoles</li>
-                <li class="list-group-item">Utah Utes</li>
-                <li class="list-group-item">Oklahoma Sooners</li>
-                <li class="list-group-item">Texas A&amp;M Aggies</li>
-                <li class="list-group-item">Clemson Tigers</li>
-                <li class="list-group-item">Ole Miss Rebels</li>
-                <li class="list-group-item">Arizona State Sun Devils</li>
-                <li class="list-group-item">Auburn Tigers</li>
-                <li class="list-group-item">Florida Gators</li>
-                <li class="list-group-item">Texas Tech Red Raiders</li>
-                <li class="list-group-item">Michigan Wolverines</li>
-                <li class="list-group-item">USF Bulls</li>
-                <li class="list-group-item">Louisville Cardinals</li>
-                <li class="list-group-item">Illinois Fighting Illini</li>
-                <li class="list-group-item">Baylor Bears</li>
-            </ol>
-                <button type="button" class="btn btn-brown poll-expand-btn" id="pollExpandBtn" aria-controls="loganPoll" aria-expanded="false">
-                  See full Top 25
-                </button>
-            </section>
-
-            <!-- Right: Feature + navigation -->
-            <aside class="section-card home-side-card">
-              <div class="feature-image-card">
-                <div class="gold-heading">This season</div>
-                <img src="https://a.espncdn.com/photo/2014/0714/ncf_trophy1_ms_1296x729.jpg" alt="College Football Playoff trophy" class="img-fluid">
-                <div class="home-side-lede">
-                  Jump into picks, teams, and model tools.
-                </div>
-              </div>
-
-              <div class="home-button-grid">
-                <a href="weeklypicks.html" class="btn btn-gold btn-lg rounded-pill">Weekly Picks</a>
-                <a href="teams.html" class="btn btn-brown btn-lg rounded-pill">Teams</a>
-                <a href="predictor.html" class="btn btn-brown btn-lg rounded-pill">Model</a>
-                <a href="CFPPredictions.html" class="btn btn-brown btn-lg rounded-pill">CFP Picks</a>
-              </div>
-            </aside>
-        </div>
+        <section class="section-card home-hero">
+            <div class="home-hero-copy">
+                <div class="season-badge">🏈 2025 Season</div>
+                <h2 class="gold-heading home-hero-title">Logan A Poll</h2>
+                <p class="home-hero-lede">
+                    Weekly picks, team pages, and college football predictions — all in one place.
+                </p>
+                <a href="weeklypicks.html" class="btn btn-gold btn-lg rounded-pill home-hero-cta">Make this week's picks</a>
+            </div>
+            <div class="home-hero-media">
+                <img src="https://a.espncdn.com/photo/2014/0714/ncf_trophy1_ms_1296x729.jpg" alt="College Football Playoff trophy">
+            </div>
+        </section>
     </main>
     <script src="scripts/auth-ui.js"></script>
     <script>
@@ -139,17 +80,6 @@
       document.addEventListener('keydown', function(event) {
         if (event.key === 'Escape') closeMenu();
       });
-
-      (function () {
-        const poll = document.getElementById('loganPoll');
-        const btn = document.getElementById('pollExpandBtn');
-        if (!poll || !btn) return;
-        btn.addEventListener('click', function () {
-          const collapsed = poll.classList.toggle('is-collapsed');
-          btn.textContent = collapsed ? 'See full Top 25' : 'Show top 10';
-          btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-        });
-      })();
     </script>
 </body>
 </html>

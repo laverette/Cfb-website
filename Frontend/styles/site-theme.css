@@ -67,7 +67,7 @@ body.menu-open {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Home page helpers (reusable)                                               */
+/* Home page helpers                                                          */
 /* -------------------------------------------------------------------------- */
 .season-badge {
   display: inline-flex;
@@ -81,71 +81,34 @@ body.menu-open {
   border: 1px solid rgba(255, 215, 0, 0.35);
 }
 
-.home-mobile-shortcuts {
-  display: none;
-}
-
-.home-layout {
+.home-hero {
   display: grid;
-  grid-template-columns: minmax(0, 1.7fr) minmax(260px, 0.7fr);
-  gap: 1.5rem;
-  align-items: start;
-}
-
-.home-main-card,
-.home-side-card {
-  min-width: 0;
-  padding: 1.25rem;
-}
-
-.poll-card-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 0.85rem;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid rgba(141, 110, 99, 0.55);
-}
-
-.poll-card-kicker {
-  display: flex;
-  flex-wrap: wrap;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 2rem;
   align-items: center;
-  gap: 0.5rem;
+  padding: 2rem;
 }
 
-.poll-card-lede {
-  margin-top: 0.35rem;
+.home-hero-title {
+  margin: 0.75rem 0 0 0;
+  font-size: clamp(2rem, 4vw, 3.1rem);
+}
+
+.home-hero-lede {
+  margin: 0.85rem 0 1.35rem 0;
   color: rgba(245, 222, 179, 0.82);
   font-weight: 700;
+  font-size: 1.1rem;
+  max-width: 34rem;
 }
 
-.poll-list {
-  margin: 0;
+.home-hero-cta {
+  display: inline-flex;
 }
 
-.poll-list .list-group-item {
-  font-size: 1rem !important;
-  padding: 0.55rem 0.75rem !important;
-  transition: transform 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
-}
-
-.poll-list .list-group-item:hover {
-  transform: translateX(3px);
-  border-color: rgba(255, 215, 0, 0.55) !important;
-  background-color: rgba(255, 215, 0, 0.06) !important;
-}
-
-.poll-expand-btn {
-  display: none;
+.home-hero-media img {
   width: 100%;
-  margin-top: 0.85rem;
-}
-
-.feature-image-card img {
-  width: 100%;
-  max-height: 220px;
+  max-height: 320px;
   object-fit: cover;
   object-position: center;
   border-radius: 12px;
@@ -153,97 +116,21 @@ body.menu-open {
   box-shadow: var(--shadow-soft);
 }
 
-.feature-image-card .gold-heading {
-  font-size: 1.25rem;
-  margin-bottom: 0.65rem;
-}
-
-.home-side-lede {
-  margin-top: 0.75rem;
-  color: rgba(245, 222, 179, 0.82);
-  font-weight: 700;
-}
-
-.home-button-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.75rem;
-  margin-top: 1rem;
-}
-
-@media (min-width: 993px) {
-  .home-side-card {
-    position: sticky;
-    top: 1rem;
-  }
-
-  .poll-list.list-group {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: repeat(13, auto);
-    grid-auto-flow: column;
-    gap: 0.35rem 1rem;
-  }
-
-  .poll-list .list-group-item {
-    border-radius: 8px !important;
-  }
-}
-
 @media (max-width: 992px) {
-  .home-layout {
+  .section-card.home-hero,
+  .home-hero {
     grid-template-columns: 1fr;
+    padding: 1.25rem;
+    gap: 1.25rem;
   }
 
-  .home-mobile-shortcuts {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.6rem;
-    margin-bottom: 1rem;
+  .home-hero-media img {
+    max-height: 180px;
   }
 
-  .home-mobile-shortcuts a {
-    display: flex;
-    align-items: center;
+  .home-hero-cta {
+    width: 100%;
     justify-content: center;
-    min-height: 44px;
-    padding: 0.55rem 0.75rem;
-    border-radius: 9999px;
-    border: 1px solid var(--border-brown);
-    background: var(--bg-panel);
-    color: var(--text-main);
-    font-weight: 800;
-    text-decoration: none;
-    text-align: center;
-  }
-
-  .home-mobile-shortcuts a:hover,
-  .home-mobile-shortcuts a:focus-visible {
-    border-color: var(--gold);
-    color: var(--gold);
-  }
-
-  .home-mobile-shortcuts a.is-primary {
-    background: linear-gradient(135deg, var(--gold), var(--gold-dark));
-    color: #1e1e1e;
-    border: none;
-  }
-
-  .poll-list.is-collapsed .list-group-item:nth-child(n + 11) {
-    display: none;
-  }
-
-  .poll-expand-btn {
-    display: inline-flex;
-  }
-
-  .feature-image-card img {
-    max-height: 140px;
-  }
-
-  .home-button-grid .btn {
-    font-size: 0.95rem;
-    padding: 0.55rem 0.7rem;
   }
 }
 
@@ -322,14 +209,45 @@ body.menu-open {
   border-color: var(--gold-dark);
 }
 
+.desktop-more {
+  position: relative;
+}
+
+.desktop-more-btn {
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+}
+
+.desktop-more-btn[aria-expanded="true"] {
+  color: var(--gold);
+  border-color: rgba(255, 215, 0, 0.35);
+  background: rgba(255, 215, 0, 0.08);
+}
+
+.desktop-more-menu {
+  position: absolute;
+  top: calc(100% + 0.45rem);
+  right: 0;
+  min-width: 220px;
+  background: linear-gradient(135deg, var(--bg-panel), var(--bg-panel-2));
+  border: 2px solid var(--border-brown);
+  border-radius: 8px;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+  z-index: 1002;
+  padding: 0.5rem 0;
+}
+
+.desktop-more-menu[hidden] {
+  display: none !important;
+}
+
 @media (min-width: 993px) {
   .desktop-nav {
     display: flex;
   }
-}
 
-@media (max-width: 1199px) {
-  .desktop-nav-optional {
+  .hamburger-menu-btn {
     display: none;
   }
 }
@@ -693,6 +611,10 @@ option {
 .section-card {
   padding: 1.25rem;
   border-width: 2px;
+}
+
+.section-card.home-hero {
+  padding: 2rem;
 }
 
 .site-card {

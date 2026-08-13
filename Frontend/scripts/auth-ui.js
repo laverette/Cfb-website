@@ -15,9 +15,9 @@
     { href: "mypredictions.html", label: "📊 My Picks", shortLabel: "My Picks", group: "picks" },
     { href: "prediction-history.html", label: "🧾 Pick History", shortLabel: "History", group: "picks" },
     { href: "CFPPredictions.html", label: "🏆 CFP Picks", shortLabel: "CFP", group: "picks", primary: true },
-    { href: "list.html", label: "👑 Heisman", shortLabel: "Heisman", group: "rankings", primary: true, optional: true },
+    { href: "list.html", label: "👑 Heisman", shortLabel: "Heisman", group: "rankings", primary: true },
     { href: "bama.html", label: "🐘 Bama Schedule", shortLabel: "Bama", group: "tools" },
-    { href: "predictor.html", label: "🤖 Predictor", shortLabel: "Model", group: "tools", primary: true, optional: true },
+    { href: "predictor.html", label: "🤖 Predictor", shortLabel: "Model", group: "tools", primary: true },
     { href: "recruitmap.html", label: "🗺️ Recruit Map", shortLabel: "Recruits", group: "tools" },
   ];
 
@@ -146,13 +146,13 @@
   function populateDesktopNav() {
     var host = ensureDesktopNavHost();
     if (!host) return;
+    var page = currentPageName();
     var html = "";
     for (var i = 0; i < NAV_LINKS.length; i++) {
       var item = NAV_LINKS[i];
       if (!item.primary) continue;
       var cls = "desktop-nav-link";
-      if (item.optional) cls += " desktop-nav-optional";
-      if (item.href === currentPageName()) cls += " is-active";
+      if (item.href === page) cls += " is-active";
       html +=
         '<a href="' +
         item.href +
@@ -162,7 +162,89 @@
         (item.shortLabel || item.label) +
         "</a>";
     }
+
+    html +=
+      '<div class="desktop-more">' +
+      '<button type="button" class="desktop-nav-link desktop-more-btn" id="desktopMoreBtn" aria-expanded="false" aria-controls="desktopMoreMenu">More</button>' +
+      '<div class="desktop-more-menu" id="desktopMoreMenu" hidden></div>' +
+      "</div>";
+
     host.innerHTML = html;
+    populateDesktopMoreMenu();
+    attachDesktopMoreHandler();
+  }
+
+  function populateDesktopMoreMenu() {
+    var menu = document.getElementById("desktopMoreMenu");
+    if (!menu) return;
+    var user = parseUser();
+    var token = localStorage.getItem(STORAGE_TOKEN);
+    var loggedIn = !!(user && token);
+    var page = currentPageName();
+    var html = "";
+
+    for (var g = 0; g < NAV_GROUPS.length; g++) {
+      var group = NAV_GROUPS[g];
+      var groupHtml = "";
+      for (var i = 0; i < NAV_LINKS.length; i++) {
+        var item = NAV_LINKS[i];
+        if (item.group !== group.id || item.primary) continue;
+        var itemCls = "dropdown-item";
+        if (item.href === page) itemCls += " is-active";
+        groupHtml +=
+          '<a href="' +
+          item.href +
+          '" class="' +
+          itemCls +
+          '">' +
+          item.label +
+          "</a>";
+      }
+      if (!groupHtml) continue;
+      html +=
+        '<div class="dropdown-group">' +
+        '<div class="dropdown-group-label">' +
+        group.label +
+        "</div>" +
+        groupHtml +
+        "</div>";
+    }
+
+    if (loggedIn && isAdminRole(user)) {
+      html +=
+        '<div class="dropdown-group">' +
+        '<a href="admin.html" class="dropdown-item">🛠️ Admin</a>' +
+        "</div>";
+    }
+
+    menu.innerHTML = html;
+  }
+
+  function closeDesktopMore() {
+    var menu = document.getElementById("desktopMoreMenu");
+    var btn = document.getElementById("desktopMoreBtn");
+    if (menu) {
+      menu.hidden = true;
+      menu.classList.remove("show");
+    }
+    if (btn) btn.setAttribute("aria-expanded", "false");
+  }
+
+  function attachDesktopMoreHandler() {
+    var btn = document.getElementById("desktopMoreBtn");
+    var menu = document.getElementById("desktopMoreMenu");
+    if (!btn || !menu || btn.dataset.authUiBound) return;
+    btn.dataset.authUiBound = "1";
+    btn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      var open = menu.hidden;
+      closeAnyOpenMenu();
+      if (open) {
+        menu.hidden = false;
+        menu.classList.add("show");
+        btn.setAttribute("aria-expanded", "true");
+      }
+    });
   }
 
   function populateDropdownMenu() {
@@ -235,6 +317,7 @@
     }
     if (overlay) overlay.classList.remove("show");
     if (document.body) document.body.classList.remove("menu-open");
+    closeDesktopMore();
   }
 
   function refreshAll() {
@@ -307,6 +390,26 @@
   function onReady() {
     refreshAll();
     maybeValidateToken();
+
+    document.addEventListener("click", function (e) {
+      var wrap = document.querySelector(".desktop-more");
+      if (!wrap || wrap.contains(e.target)) return;
+      closeDesktopMore();
+    });
+
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") closeDesktopMore();
+    });
+
+    if (window.matchMedia) {
+      var desktopMq = window.matchMedia("(min-width: 993px)");
+      var onBreakpoint = function (e) {
+        if (e.matches) closeAnyOpenMenu();
+        else closeDesktopMore();
+      };
+      if (desktopMq.addEventListener) desktopMq.addEventListener("change", onBreakpoint);
+      else if (desktopMq.addListener) desktopMq.addListener(onBreakpoint);
+    }
   }
 
   if (document.readyState === "loading") {
