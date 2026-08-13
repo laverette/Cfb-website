@@ -1677,6 +1677,26 @@
           seasonType: 'regular'
         });
 
+        // TEST MODE: Add mock live score for North Carolina vs TCU
+        if (games && Array.isArray(games)) {
+          // Find NC vs TCU game
+          const ncTcuIndex = games.findIndex(g => 
+            (g.away_team === 'North Carolina' || g.away_team?.includes('North Carolina')) &&
+            (g.home_team === 'TCU' || g.home_team?.includes('TCU'))
+          );
+          
+          if (ncTcuIndex >= 0) {
+            // Inject mock live score
+            games[ncTcuIndex] = {
+              ...games[ncTcuIndex],
+              away_points: 17,
+              home_points: 24,
+              completed: false,
+              start_date: new Date(Date.now() - 7200000).toISOString() // Started 2 hours ago
+            };
+          }
+        }
+
         return games;
       } catch (error) {
         console.error('Failed to fetch live scores:', error);
