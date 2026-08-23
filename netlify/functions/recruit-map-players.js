@@ -2,7 +2,7 @@
  * LEGACY: DB-backed recruit list — public map uses static JSON (/data/recruits/).
  * GET /api/recruit-map/players
  */
-const { getSupabase, selectAllPages, isMysqlConnectionLimitError } = require("./db");
+const { getSupabase, selectAllPages } = require("./db");
 const { json } = require("./_http");
 
 function numOrNull(v) {
@@ -26,7 +26,6 @@ function sanitizeDbDetail(err) {
   const code = err.code || err.errno;
   const combined = [code, msg].filter(Boolean).join(" | ");
   return combined
-    .replace(/mysql:\/\/[^\s]+/gi, "[db]")
     .replace(/postgres(ql)?:\/\/[^\s]+/gi, "[db]")
     .replace(/:\/\/[^\s]+@[^\s]+/g, "://[redacted]")
     .slice(0, 500);
@@ -117,12 +116,6 @@ exports.handler = async (event) => {
     return json(200, { count: players.length, players });
   } catch (err) {
     console.error("[recruit-map-players] query error", err && err.stack ? err.stack : err);
-    if (isMysqlConnectionLimitError(err)) {
-      return json(503, {
-        error: "DB_CONNECTION_LIMIT",
-        message: "Database connection limit reached. Wait a few minutes and try again.",
-      });
-    }
     if (err.code === "NO_DATABASE_URL") {
       return json(500, { error: "Server misconfiguration" });
     }

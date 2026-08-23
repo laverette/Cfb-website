@@ -18,10 +18,9 @@
 - **Architecture**: RESTful API design with proper HTTP methods and status codes
 
 ## Database
-- **Type**: MYSQL JAWSDB
-- **Data Access**: Write SQL queries directly, no ORM
-- **File Location**: Store SQLite database file in the `/api` folder
-- **Connection String**: Store in `appsettings.json` for simplicity (e.g., "Data Source=./api/database.db")
+- **Type**: Supabase Postgres
+- **Access**: Netlify Functions use `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`
+- **Schema**: `Client/sql/supabase_schema.sql`
 
 ## Project Structure Guidelines
 - Keep frontend and backend in separate folders/directories

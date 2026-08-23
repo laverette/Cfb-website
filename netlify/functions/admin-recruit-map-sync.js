@@ -1,5 +1,5 @@
 /**
- * LEGACY: JawsDB PlayerHometowns sync — not used by public recruitmap.html (static JSON).
+ * LEGACY: player_hometowns sync — not used by public recruitmap.html (static JSON).
  * POST /api/admin/recruit-map/sync
  * Body JSON: {
  *   year, classification?, team?, state?, position?, delayMs?,
@@ -7,7 +7,7 @@
  * }
  * Fetches full CFBD GET /recruiting/players, then upserts only recruits.slice(rowOffset, rowOffset + rowLimit).
  */
-const { getSupabase, dbError, isMysqlConnectionLimitError } = require("./db");
+const { getSupabase, dbError } = require("./db");
 const { json, parseJsonBody } = require("./_http");
 const { requireAdmin } = require("./_auth");
 
@@ -416,13 +416,6 @@ exports.handler = async (event) => {
     });
   } catch (err) {
     console.error("admin-recruit-map-sync:", err);
-    if (isMysqlConnectionLimitError(err)) {
-      return json(503, {
-        error: "DB_CONNECTION_LIMIT",
-        message:
-          "Database connection limit reached. Wait a few minutes and try again.",
-      });
-    }
     if (
       err.message &&
       String(err.message).includes("PlayerHometowns insert mismatch")
@@ -432,27 +425,8 @@ exports.handler = async (event) => {
         details: err.message,
       });
     }
-    if (err.errno === 1136 || err.code === "ER_WRONG_VALUE_COUNT_ON_ROW") {
-      return json(500, {
-        error: "Recruit sync insert mapping error: columns and values do not match.",
-        details: err.message || "SQL column/value count mismatch",
-      });
-    }
     if (err.code === "NO_DATABASE_URL") {
       return json(500, { error: "Server misconfiguration" });
-    }
-    if (err.code === "ER_BAD_FIELD_ERROR" || err.code === "ER_NO_SUCH_COLUMN") {
-      return json(503, {
-        error: "Database schema out of date",
-        details:
-          "Run Client/sql/player_hometowns_recruiting_migration.sql (or recreate from Client/sql/player_hometowns.sql).",
-      });
-    }
-    if (err.code === "ER_NO_SUCH_TABLE") {
-      return json(503, {
-        error: "PlayerHometowns table missing",
-        hint: "Run Client/sql/player_hometowns.sql",
-      });
     }
     return json(500, { error: err.message || "Internal server error" });
   }

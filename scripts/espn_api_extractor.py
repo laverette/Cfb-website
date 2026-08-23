@@ -13,9 +13,6 @@ import json
 from typing import List, Dict, Optional
 from datetime import datetime
 import sys
-import mysql.connector
-from mysql.connector import Error
-import os
 
 class ESPNAPIExtractor:
     def __init__(self):
@@ -151,58 +148,6 @@ class ESPNAPIExtractor:
             print(f"[ERROR] Error getting game: {e}")
             return None
     
-    def insert_games_to_database(self, games: List[Dict], week_id: int, db_config: Dict) -> bool:
-        """
-        Insert games directly into MySQL database
-        
-        Args:
-            games: List of game dictionaries
-            week_id: Week ID from Weeks table
-            db_config: Dictionary with database connection info
-                {'host': '...', 'port': 3306, 'database': '...', 'user': '...', 'password': '...'}
-        
-        Returns:
-            True if successful, False otherwise
-        """
-        try:
-            connection = mysql.connector.connect(**db_config)
-            cursor = connection.cursor()
-            
-            inserted_count = 0
-            for idx, game in enumerate(games, start=1):
-                sql = """INSERT INTO Games (week_id, game_number, home_team_espn_id, away_team_espn_id, 
-                        home_team_name, away_team_name, home_team_logo_url, away_team_logo_url, 
-                        game_date, betting_line, is_completed)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"""
-                
-                values = (
-                    week_id,
-                    idx,
-                    game['home_team_espn_id'],
-                    game['away_team_espn_id'],
-                    game['home_team_name'],
-                    game['away_team_name'],
-                    game['home_team_logo_url'],
-                    game['away_team_logo_url'],
-                    game.get('game_date'),  # May be None
-                    game.get('betting_line'),  # May be None
-                    False  # is_completed
-                )
-                
-                cursor.execute(sql, values)
-                inserted_count += 1
-            
-            connection.commit()
-            cursor.close()
-            connection.close()
-            
-            print(f"\n[SUCCESS] Inserted {inserted_count} games into database!")
-            return True
-            
-        except Error as e:
-            print(f"\n[ERROR] Database insertion failed: {e}")
-            return False
-    
     def generate_sql_inserts(self, games: List[Dict], week_id: int) -> str:
         """Generate SQL INSERT statements for manual execution"""
         sql_statements = []
@@ -212,7 +157,7 @@ class ESPNAPIExtractor:
             game_date = f"'{game.get('game_date')}'" if game.get('game_date') else 'NULL'
             betting_line = str(game.get('betting_line')) if game.get('betting_line') is not None else 'NULL'
             
-            sql = f"""INSERT INTO Games (week_id, game_number, home_team_espn_id, away_team_espn_id, 
+            sql = f"""INSERT INTO games (week_id, game_number, home_team_espn_id, away_team_espn_id, 
                     home_team_name, away_team_name, home_team_logo_url, away_team_logo_url, 
                     game_date, betting_line, is_completed)
 VALUES ({week_id}, {idx}, 
@@ -367,62 +312,20 @@ def main():
         print("=" * 60)
         print(json.dumps(found_games, indent=2))
         
-        print("\n" + "=" * 60)
-        print("DATABASE OPTIONS:")
-        print("=" * 60)
-        print("\nOption 1: Auto-insert into database")
-        print("  Provide database config and week_id:")
-        print("  extractor.insert_games_to_database(found_games, week_id=1, db_config={...})")
+        print("\nUse the Admin panel to save games to Supabase.")
+        print("Or paste SQL from generate_sql_inserts() into the Supabase SQL editor.\n")
         
-        print("\nOption 2: Generate SQL for manual insertion")
-        print("  The script will generate SQL INSERT statements you can run manually")
-        
-        # Ask user what they want to do
-        print("\n" + "=" * 60)
-        response = input("\nAuto-insert to database? (y/n): ").strip().lower()
-        
-        if response == 'y':
-            # Get database config from environment or prompt
-            db_config = {}
-            print("\nEnter database connection info:")
-            db_config['host'] = input("Host (or press Enter for DB_HOST): ").strip() or os.getenv('DB_HOST', '')
-            db_config['port'] = int(input("Port (or press Enter for 3306): ").strip() or '3306')
-            db_config['database'] = input("Database (or press Enter for DB_NAME): ").strip() or os.getenv('DB_NAME', '')
-            db_config['user'] = input("User (or press Enter for DB_USER): ").strip() or os.getenv('DB_USER', '')
-            db_config['password'] = input("Password (or press Enter for DB_PASSWORD): ").strip() or os.getenv('DB_PASSWORD', '')
-            
-            week_id = input("Week ID (from Weeks table): ").strip()
-            
-            if week_id:
-                extractor.insert_games_to_database(found_games, int(week_id), db_config)
-            else:
-                print("[ERROR] Week ID required")
-        else:
-            # Generate SQL
+        week_id = input("Enter week_id to print SQL (or press Enter to skip): ").strip()
+        if week_id:
+            sql = extractor.generate_sql_inserts(found_games, int(week_id))
             print("\n" + "=" * 60)
-            print("SQL INSERT STATEMENTS:")
+            print("SQL INSERT STATEMENTS (Supabase):")
             print("=" * 60)
-            print("\nFirst, you need to know your week_id from the Weeks table.")
-            print("If you don't have a week yet, create one first:")
-            print("\n  INSERT INTO Weeks (week_number, season_year, start_date, end_date)")
-            print("  VALUES (10, 2024, '2024-11-01', '2024-11-03');")
-            print("\nThen use the week_id in the statements below:\n")
-            
-            week_id = input("Enter week_id (or press Enter to skip): ").strip()
-            if week_id:
-                sql = extractor.generate_sql_inserts(found_games, int(week_id))
-                print("\n" + "=" * 60)
-                print("SQL INSERT STATEMENTS:")
-                print("=" * 60)
-                print(sql)
-                
-                # Save to file
-                filename = f"game_inserts_week_{week_id}.sql"
-                with open(filename, 'w') as f:
-                    f.write(sql)
-                print(f"\n[SUCCESS] SQL saved to {filename}")
-            else:
-                print("\n[INFO] Skipping SQL generation. Run script again with week_id when ready.")
+            print(sql)
+            filename = f"game_inserts_week_{week_id}.sql"
+            with open(filename, "w") as f:
+                f.write(sql)
+            print(f"\n[SUCCESS] SQL saved to {filename}")
     else:
         print("\n[ERROR] No games found. They might not be scheduled for this week.")
 

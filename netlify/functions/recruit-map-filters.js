@@ -2,7 +2,7 @@
  * LEGACY: DB-backed filters — public map uses static JSON (/data/recruits/).
  * GET /api/recruit-map/filters
  */
-const { getSupabase, selectAllPages, isMysqlConnectionLimitError } = require("./db");
+const { getSupabase, selectAllPages } = require("./db");
 const { json } = require("./_http");
 
 function uniqueSorted(values, { numeric = false, desc = false } = {}) {
@@ -111,12 +111,6 @@ exports.handler = async (event) => {
     });
   } catch (err) {
     console.error("recruit-map-filters:", err);
-    if (isMysqlConnectionLimitError(err)) {
-      return json(503, {
-        error: "DB_CONNECTION_LIMIT",
-        message: "Database connection limit reached. Wait a few minutes and try again.",
-      });
-    }
     if (err.code === "NO_DATABASE_URL") {
       return json(500, { error: "Server misconfiguration" });
     }

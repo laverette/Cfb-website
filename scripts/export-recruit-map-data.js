@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Export CFBD recruiting players to static JSON for the public Recruit Map.
- * No MySQL/JawsDB — uses CFBD API only (local script; key never committed).
+ * Uses CFBD API only (local script; key never committed).
  *
  * Workflow:
  * 1. Set CFBD_API_KEY in Client/.env (local only).

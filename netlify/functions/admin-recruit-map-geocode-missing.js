@@ -1,11 +1,11 @@
 /**
- * LEGACY: JawsDB geocode for PlayerHometowns — not used by public recruitmap.html (static JSON).
+ * LEGACY: geocode for player_hometowns — not used by public recruitmap.html (static JSON).
  * POST /api/admin/recruit-map/geocode-missing
  * Body: { limit?: 10, delayMs?: 1200 }
  * Geocode rows with city/state but no lat/lng via Nominatim; cache in DB.
  * One invocation processes at most `limit` rows; callers should loop with delays, not huge batches.
  */
-const { getSupabase, dbError, isMysqlConnectionLimitError } = require("./db");
+const { getSupabase, dbError } = require("./db");
 const { json, parseJsonBody } = require("./_http");
 const { requireAdmin } = require("./_auth");
 const { geocodeCityState, parseRetryAfterSeconds } = require("./_nominatim");
@@ -142,21 +142,8 @@ exports.handler = async (event) => {
     });
   } catch (err) {
     console.error("admin-recruit-map-geocode-missing:", err);
-    if (isMysqlConnectionLimitError(err)) {
-      return json(503, {
-        error: "DB_CONNECTION_LIMIT",
-        message:
-          "Database connection limit reached. Wait a few minutes and try again.",
-      });
-    }
     if (err.code === "NO_DATABASE_URL") {
       return json(500, { error: "Server misconfiguration" });
-    }
-    if (err.code === "ER_NO_SUCH_TABLE") {
-      return json(503, {
-        error: "PlayerHometowns table missing",
-        hint: "Run Client/sql/player_hometowns.sql",
-      });
     }
     return json(500, {
       error: "Geocoding failed",

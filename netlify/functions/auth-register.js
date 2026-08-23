@@ -78,7 +78,7 @@ exports.handler = async (event) => {
     if (err.code === "EMAIL_EXISTS") {
       return json(400, { message: "Email already exists" });
     }
-    if (err.code === "23505" || err.code === "ER_DUP_ENTRY") {
+    if (err.code === "23505") {
       return json(400, { message: "Username or email already exists" });
     }
     if (err.code === "NO_DATABASE_URL" || err.code === "NO_JWT_SECRET") {

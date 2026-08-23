@@ -1,56 +1,25 @@
-# How to Create a Week Record in Your Database
+# How to Create a Week Record
 
-You need to create a Week record before inserting games. Here are your options:
+Create weeks in **Supabase** (SQL editor or Table Editor), or use the Admin panel on the site.
 
-## Option 1: Using MySQL Command Line
+## Supabase SQL editor
 
-1. **Open Terminal/Command Prompt**
+```sql
+insert into weeks (week_number, season_year, start_date, end_date, is_completed)
+values (1, 2026, '2026-08-28', '2026-09-02', false);
 
-2. **Connect to your database** using host, user, password, and database name from your local environment (never commit those values):
-   ```bash
-   mysql -h "$DB_HOST" -P 3306 -u "$DB_USER" -p "$DB_NAME"
-   ```
+select id, week_number, season_year from weeks order by id desc limit 1;
+```
 
-3. **Run the SQL:**
-   ```sql
-   INSERT INTO Weeks (week_number, season_year, start_date, end_date, is_completed)
-   VALUES (10, 2024, '2024-11-01', '2024-11-03', FALSE);
-   ```
+Point the site at that week:
 
-4. **Get the week_id:**
-   ```sql
-   SELECT * FROM Weeks ORDER BY id DESC LIMIT 1;
-   ```
-   Note the `id` value - that's your week_id!
+```sql
+insert into settings (setting_key, setting_value)
+values ('current_week_id', '3')
+on conflict (setting_key)
+do update set setting_value = excluded.setting_value;
+```
 
-## Option 2: Using MySQL Workbench (GUI Tool)
+Use the `id` you just selected as `current_week_id`.
 
-1. **Download MySQL Workbench** (if you don't have it): https://dev.mysql.com/downloads/workbench/
-
-2. **Create a new connection** with the host, username, password, and database from your local environment. Do not store those values in this repo.
-
-3. **Connect and run the SQL** from `create_week.sql`
-
-## Option 3: Online Database Tool
-
-Use an online MySQL client like:
-- **Adminer**: https://www.adminer.org/ (run locally or use online version)
-- **phpMyAdmin**: If you have web hosting
-- **HeidiSQL**: Windows tool
-
-## Option 4: Heroku Database Tool
-
-If your Heroku JawsDB add-on has a web console, you can run SQL directly there.
-
----
-
-## After Creating the Week
-
-Once you have the `week_id`, you can:
-1. Run the Python script: `python espn_api_extractor.py`
-2. Choose "Auto-insert to database"
-3. Enter the week_id when prompted
-
-Or manually use the SQL INSERT statements the script generates.
-
-
+Then add games from **Admin → Weekly Picks Games** (CFBD fetch + save).

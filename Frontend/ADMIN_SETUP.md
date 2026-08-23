@@ -11,50 +11,29 @@ The admin panel allows you to manage weekly picks by:
 ### 1. Add Role Column to Users Table
 Run the SQL migration to add the `role` column:
 
-```sql
-ALTER TABLE Users 
-ADD COLUMN role VARCHAR(20) DEFAULT 'user' AFTER bio;
-```
+The live site uses Supabase. Run `Client/sql/supabase_schema.sql` in the Supabase SQL editor if the tables are not already there. The `users.role` and `settings` tables are included in that schema.
 
-**Note:** If you get an error saying the column already exists, that's fine - it means the column is already there. You can safely ignore that error.
-
-### 2. Create Settings Table
-The Settings table stores the current active week:
+### Point Weekly Picks at a week
 
 ```sql
-CREATE TABLE IF NOT EXISTS Settings (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    `key` VARCHAR(100) UNIQUE NOT NULL,
-    value TEXT,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_key (`key`)
-);
+insert into settings (setting_key, setting_value)
+values ('current_week_id', '3')
+on conflict (setting_key)
+do update set setting_value = excluded.setting_value;
 ```
-
-**Note:** `key` is a reserved word in MySQL, so we use backticks around it.
-
-### 3. Add Unique Constraint to Games Table (optional)
-Ensure games have a unique constraint on week_id and game_number:
-
-```sql
-ALTER TABLE Games 
-ADD UNIQUE KEY unique_week_game (week_id, game_number);
-```
-
-**Note:** If you get an error saying the key already exists, that's fine - it means the constraint is already there.
 
 ## Making a User an Admin
 
 To make a user an admin, update their role in the database:
 
 ```sql
-UPDATE Users SET role = 'admin' WHERE username = 'your_username';
+update users set role = 'admin' where username = 'your_username';
 ```
 
 Or for a specific user ID:
 
 ```sql
-UPDATE Users SET role = 'admin' WHERE id = 1;
+update users set role = 'admin' where id = 1;
 ```
 
 ## Using the Admin Panel

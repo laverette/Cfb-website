@@ -263,7 +263,7 @@
     <div id="recruitMapAdminSection" class="admin-section" style="display: none;">
       <h2>Recruit Map</h2>
       <p style="color:#f5deb3; margin-bottom:0.75rem;">
-        The public <a href="recruitmap.html" style="color:#FFD700; font-weight:bold;">Recruit Map</a> reads static JSON only (no MySQL). Update map data locally:
+        The public <a href="recruitmap.html" style="color:#FFD700; font-weight:bold;">Recruit Map</a> reads static JSON only. Update map data locally:
       </p>
       <p style="color:#bfa88a; font-size:0.88rem; margin-bottom:1rem; padding:0.65rem 0.85rem; border:1px solid var(--border-brown); border-radius:var(--radius-sm);">
         <strong>Current workflow:</strong> from the <code style="color:#FFD700;">Client</code> folder run
@@ -271,9 +271,9 @@
         (requires <code style="color:#FFD700;">CFBD_API_KEY</code> in <code style="color:#FFD700;">Client/.env</code>),
         then commit <code style="color:#FFD700;">Frontend/data/recruits/</code> and deploy.
       </p>
-      <h3 style="color:#FFD700; font-size:1rem; margin:0 0 0.5rem 0;">Legacy — JawsDB sync (not used by public map)</h3>
+      <h3 style="color:#FFD700; font-size:1rem; margin:0 0 0.5rem 0;">Legacy — database sync (not used by public map)</h3>
       <p style="color:#bfa88a; font-size:0.88rem; margin-bottom:0.75rem;">
-        The buttons below write to <code style="color:#FFD700;">PlayerHometowns</code> in MySQL. They are optional and not required for recruitmap.html.
+        The buttons below write to <code style="color:#FFD700;">player_hometowns</code> in Supabase. They are optional and not required for recruitmap.html.
       </p>
       <div class="form-row-3" style="display:flex; flex-wrap:wrap; gap:1rem; align-items:end;">
         <div class="form-group" style="max-width: 200px;">
@@ -328,7 +328,7 @@
     <!-- Weekly Picks Games -->
     <div class="admin-section">
       <h2>Weekly Picks Games</h2>
-      <p style="color:#f5deb3; margin-bottom:1rem;">Choose a week, fetch CFBD schedule server-side, pick games, save to MySQL. Weekly Picks reads from the same <code style="color:#FFD700;">Games</code> rows.</p>
+      <p style="color:#f5deb3; margin-bottom:1rem;">Choose a week, fetch CFBD schedule server-side, pick games, save to Supabase. Weekly Picks reads from the same <code style="color:#FFD700;">games</code> rows.</p>
 
       <div class="form-group">
         <label>Week to edit</label>
@@ -979,7 +979,7 @@
         });
         if (!match.length) throw new Error('No static dataset in manifest. Run export:recruits locally.');
         let html =
-          '<div class="status-message status-success">Static recruit map data (no MySQL)</div>' +
+          '<div class="status-message status-success">Static recruit map data</div>' +
           '<ul style="margin:0;padding-left:1.2rem;color:#f5deb3;line-height:1.5;">';
         match.forEach(function (d) {
           const missing =
