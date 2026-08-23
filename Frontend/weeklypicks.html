@@ -1225,7 +1225,6 @@
         const pick = resolvePickForGame(savedPicks, form, i, game);
         const pickedName = pick.name;
         const pickedEspnId = pick.espnId;
-        const game = games.find((g) => Number(g.gameNumber) === i) || games[i - 1] || null;
         const awayName = game?.awayTeamName || (pickedName ? '' : 'TBD');
         const homeName = game?.homeTeamName || '';
         const awayLogo = resolveTeamLogo(game?.awayTeamLogoUrl, game?.awayTeamEspnId);
