@@ -5,3 +5,9 @@
 .env.*.local
 
 node_modules
+
+# Build output and local API secrets
+api/bin/
+api/obj/
+api/appsettings.Development.json
+scripts/__pycache__/

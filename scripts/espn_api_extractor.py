@@ -385,11 +385,11 @@ def main():
             # Get database config from environment or prompt
             db_config = {}
             print("\nEnter database connection info:")
-            db_config['host'] = input("Host (or press Enter for default from env): ").strip() or os.getenv('DB_HOST', 'etdq12exrvdjisg6.cbetxkdyhwsb.us-east-1.rds.amazonaws.com')
+            db_config['host'] = input("Host (or press Enter for DB_HOST): ").strip() or os.getenv('DB_HOST', '')
             db_config['port'] = int(input("Port (or press Enter for 3306): ").strip() or '3306')
-            db_config['database'] = input("Database (or press Enter for default from env): ").strip() or os.getenv('DB_NAME', 'c86v9vfflniegysr')
-            db_config['user'] = input("User (or press Enter for default from env): ").strip() or os.getenv('DB_USER', 'x8kicio7cckzkrin')
-            db_config['password'] = input("Password (or press Enter for default from env): ").strip() or os.getenv('DB_PASSWORD', 'jv3nfhqf64jj44m4')
+            db_config['database'] = input("Database (or press Enter for DB_NAME): ").strip() or os.getenv('DB_NAME', '')
+            db_config['user'] = input("User (or press Enter for DB_USER): ").strip() or os.getenv('DB_USER', '')
+            db_config['password'] = input("Password (or press Enter for DB_PASSWORD): ").strip() or os.getenv('DB_PASSWORD', '')
             
             week_id = input("Week ID (from Weeks table): ").strip()
             

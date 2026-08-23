@@ -6,11 +6,10 @@ You need to create a Week record before inserting games. Here are your options:
 
 1. **Open Terminal/Command Prompt**
 
-2. **Connect to your database:**
+2. **Connect to your database** using host, user, password, and database name from your local environment (never commit those values):
    ```bash
-   mysql -h etdq12exrvdjisg6.cbetxkdyhwsb.us-east-1.rds.amazonaws.com -P 3306 -u x8kicio7cckzkrin -p c86v9vfflniegysr
+   mysql -h "$DB_HOST" -P 3306 -u "$DB_USER" -p "$DB_NAME"
    ```
-   (It will prompt for password: `jv3nfhqf64jj44m4`)
 
 3. **Run the SQL:**
    ```sql
@@ -28,12 +27,7 @@ You need to create a Week record before inserting games. Here are your options:
 
 1. **Download MySQL Workbench** (if you don't have it): https://dev.mysql.com/downloads/workbench/
 
-2. **Create a new connection:**
-   - Host: `etdq12exrvdjisg6.cbetxkdyhwsb.us-east-1.rds.amazonaws.com`
-   - Port: `3306`
-   - Username: `x8kicio7cckzkrin`
-   - Password: `jv3nfhqf64jj44m4`
-   - Database: `c86v9vfflniegysr`
+2. **Create a new connection** with the host, username, password, and database from your local environment. Do not store those values in this repo.
 
 3. **Connect and run the SQL** from `create_week.sql`
 
