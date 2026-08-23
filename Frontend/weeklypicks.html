@@ -1231,8 +1231,8 @@
           <div class="picks-share-card" id="picksShareCard">
             <div class="picks-share-header">
               <p class="picks-share-brand">Weekly Picks</p>
-              <h2 class="picks-share-title">${safeUser}'s ${safeText(week.heading)}</h2>
-              ${week.sub ? `<p class="picks-share-week">${safeText(week.sub)}</p>` : ''}
+              <p class="picks-share-week-badge">${safeText(week.weekPart)}${week.yearPart ? safeText(week.yearPart) : ''}</p>
+              <h2 class="picks-share-title">${safeUser}</h2>
             </div>
             <div class="picks-share-grid">
               ${gamesHtml}
@@ -1358,6 +1358,7 @@
         }
       }
 
+      document.body.classList.add('picks-results-open');
       document.getElementById("results").innerHTML = buildPicksShareCardHtml({
         userName,
         form,

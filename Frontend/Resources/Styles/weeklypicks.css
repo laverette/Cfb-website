@@ -10,7 +10,8 @@ body{
     left: 0;
     width: 40px;
     height: 40px;
-    z-index: 1001;
+    z-index: 0;
+    pointer-events: none;
     animation: bounceAround 15s linear infinite;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
@@ -1268,16 +1269,26 @@ input:focus, select:focus {
     font-weight: bold !important;
 }
 
+body.picks-results-open .bouncing-football {
+    display: none;
+}
+
 .picks-share-wrap {
     margin: 1.5rem 0 2rem;
+    position: relative;
+    z-index: 3;
 }
 
 .picks-share-card {
-    background: linear-gradient(180deg, #2a2118 0%, #16110d 100%);
+    background:
+        radial-gradient(ellipse at top, rgba(255, 215, 0, 0.14), transparent 46%),
+        linear-gradient(180deg, #2c2218 0%, #14100c 100%);
     border: 2px solid #FFD700;
-    border-radius: 16px;
-    padding: 1.4rem 1.2rem 1.1rem;
-    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+    border-radius: 18px;
+    padding: 1.5rem 1.15rem 1.15rem;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+    isolation: isolate;
+    overflow: hidden;
 }
 
 .picks-share-header {
@@ -1300,6 +1311,23 @@ input:focus, select:focus {
     font-weight: 800;
     line-height: 1.2;
     text-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+}
+
+.picks-share-week-badge {
+    display: inline-block;
+    margin: 0 0 0.45rem;
+    padding: 0.22rem 0.7rem;
+    border-radius: 999px;
+    background: rgba(255, 215, 0, 0.14);
+    border: 1px solid #FFD700;
+    color: #FFD700;
+    font-size: 0.82rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+}
+
+.picks-share-actions .screenshot-button {
+    min-width: 220px;
 }
 
 .picks-share-week {
