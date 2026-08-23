@@ -1,8 +1,8 @@
 /**
  * GET /api/admin/games/week/:weekId
- * Returns saved Games rows for admin (includes cfbd_game_id, venue after migration).
+ * Returns saved Games rows for admin (includes cfbd_game_id, venue).
  */
-const { getPool } = require("./db");
+const { getSupabase, dbError } = require("./db");
 const { json } = require("./_http");
 const { parseWeekId, invalidWeekIdPayload } = require("./_parseWeekId");
 const { requireAdmin } = require("./_auth");
@@ -40,29 +40,21 @@ exports.handler = async (event) => {
   }
 
   try {
-    const pool = getPool();
-    const [gameRows] = await pool.query(
-      `SELECT id, week_id, cfbd_game_id, game_number, home_team_espn_id, away_team_espn_id,
-              home_team_name, away_team_name, home_team_logo_url, away_team_logo_url,
-              game_date, venue, betting_line, is_completed
-       FROM Games
-       WHERE week_id = ?
-       ORDER BY game_number ASC`,
-      [weekId]
-    );
+    const supabase = getSupabase();
+    const { data: gameRows, error } = await supabase
+      .from("games")
+      .select(
+        "id, week_id, cfbd_game_id, game_number, home_team_espn_id, away_team_espn_id, home_team_name, away_team_name, home_team_logo_url, away_team_logo_url, game_date, venue, betting_line, is_completed"
+      )
+      .eq("week_id", weekId)
+      .order("game_number", { ascending: true });
+    dbError(error);
 
-    const games = gameRows.map(mapGameRow);
-    return json(200, { games });
+    return json(200, { games: (gameRows || []).map(mapGameRow) });
   } catch (err) {
     console.error("admin-games-by-week:", err);
     if (err.code === "NO_DATABASE_URL") {
       return json(500, { error: "Server misconfiguration" });
-    }
-    if (err.code === "ER_BAD_FIELD_ERROR") {
-      return json(500, {
-        error: "Database migration required",
-        hint: "Run Client/sql/alter_games_cfbd_venue.sql on your MySQL database.",
-      });
     }
     return json(500, { error: "Internal server error" });
   }

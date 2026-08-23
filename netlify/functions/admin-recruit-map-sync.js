@@ -7,7 +7,7 @@
  * }
  * Fetches full CFBD GET /recruiting/players, then upserts only recruits.slice(rowOffset, rowOffset + rowLimit).
  */
-const { getPool, isMysqlConnectionLimitError } = require("./db");
+const { getSupabase, dbError, isMysqlConnectionLimitError } = require("./db");
 const { json, parseJsonBody } = require("./_http");
 const { requireAdmin } = require("./_auth");
 
@@ -237,7 +237,7 @@ exports.handler = async (event) => {
 
     if (delayMs > 0) await sleep(delayMs);
 
-    const pool = getPool();
+    const supabase = getSupabase();
     let loggedFirstUpsert = false;
 
     for (const r of batch) {
@@ -353,37 +353,47 @@ exports.handler = async (event) => {
         });
       }
 
-      await pool.query(
-        `INSERT INTO PlayerHometowns (
-          cfbd_player_id, cfbd_recruit_id, athlete_id, recruit_type,
-          player_name, committed_to, school, team, team_school, conference, season_year, \`position\`,
-          hometown_city, hometown_state, hometown_country, hometown_full,
-          latitude, longitude, stars, rating, ranking, source, updated_at
-        ) VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'cfbd_recruiting_players', NOW(3))
-        ON DUPLICATE KEY UPDATE
-          athlete_id = VALUES(athlete_id),
-          recruit_type = VALUES(recruit_type),
-          player_name = VALUES(player_name),
-          committed_to = VALUES(committed_to),
-          school = VALUES(school),
-          team = VALUES(team),
-          team_school = VALUES(team_school),
-          conference = VALUES(conference),
-          season_year = VALUES(season_year),
-          \`position\` = VALUES(\`position\`),
-          hometown_city = VALUES(hometown_city),
-          hometown_state = VALUES(hometown_state),
-          hometown_country = VALUES(hometown_country),
-          hometown_full = VALUES(hometown_full),
-          latitude = COALESCE(VALUES(latitude), latitude),
-          longitude = COALESCE(VALUES(longitude), longitude),
-          stars = VALUES(stars),
-          rating = VALUES(rating),
-          ranking = VALUES(ranking),
-          source = VALUES(source),
-          updated_at = NOW(3)`,
-        upsertValues
+      const { data: existing, error: existingErr } = await supabase
+        .from("player_hometowns")
+        .select("latitude, longitude")
+        .eq("cfbd_recruit_id", upsertValues[0])
+        .maybeSingle();
+      dbError(existingErr);
+
+      const nextLat =
+        lat != null ? lat : existing && existing.latitude != null ? existing.latitude : null;
+      const nextLon =
+        lon != null ? lon : existing && existing.longitude != null ? existing.longitude : null;
+
+      const { error: upsertErr } = await supabase.from("player_hometowns").upsert(
+        {
+          cfbd_player_id: null,
+          cfbd_recruit_id: upsertValues[0],
+          athlete_id: upsertValues[1],
+          recruit_type: upsertValues[2],
+          player_name: upsertValues[3],
+          committed_to: upsertValues[4],
+          school: upsertValues[5],
+          team: upsertValues[6],
+          team_school: null,
+          conference: null,
+          season_year: upsertValues[7],
+          position: upsertValues[8],
+          hometown_city: upsertValues[9],
+          hometown_state: upsertValues[10],
+          hometown_country: upsertValues[11],
+          hometown_full: upsertValues[12],
+          latitude: nextLat,
+          longitude: nextLon,
+          stars: upsertValues[15],
+          rating: upsertValues[16],
+          ranking: upsertValues[17],
+          source: "cfbd_recruiting_players",
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "cfbd_recruit_id" }
       );
+      dbError(upsertErr);
       stats.rowsTouched += 1;
     }
 

@@ -1,4 +1,4 @@
-const { getPool } = require("./db");
+const { getSupabase, dbError } = require("./db");
 const { parseWeekId, invalidWeekIdPayload } = require("./_parseWeekId");
 
 function json(statusCode, body, extraHeaders = {}) {
@@ -24,18 +24,17 @@ exports.handler = async (event) => {
   }
 
   try {
-    const pool = getPool();
-    const [gameRows] = await pool.query(
-      `SELECT id, week_id, cfbd_game_id, game_number, home_team_espn_id, away_team_espn_id,
-              home_team_name, away_team_name, home_team_logo_url, away_team_logo_url,
-              game_date, venue, betting_line, is_completed
-       FROM Games
-       WHERE week_id = ?
-       ORDER BY game_number`,
-      [weekId]
-    );
+    const supabase = getSupabase();
+    const { data: gameRows, error } = await supabase
+      .from("games")
+      .select(
+        "id, week_id, cfbd_game_id, game_number, home_team_espn_id, away_team_espn_id, home_team_name, away_team_name, home_team_logo_url, away_team_logo_url, game_date, venue, betting_line, is_completed"
+      )
+      .eq("week_id", weekId)
+      .order("game_number", { ascending: true });
+    dbError(error);
 
-    const games = gameRows.map((r) => ({
+    const games = (gameRows || []).map((r) => ({
       id: r.id,
       week_id: r.week_id,
       cfbd_game_id: r.cfbd_game_id != null ? r.cfbd_game_id : null,
@@ -57,15 +56,6 @@ exports.handler = async (event) => {
     console.error("picks-games-by-week:", err);
     if (err.code === "NO_DATABASE_URL") {
       return json(500, { error: "Server misconfiguration" });
-    }
-    if (err.code === "ER_NO_SUCH_TABLE") {
-      return json(500, { error: "Internal server error" });
-    }
-    if (err.code === "ER_BAD_FIELD_ERROR") {
-      return json(500, {
-        error: "Database migration required",
-        hint: "Run Client/sql/alter_games_cfbd_venue.sql on MySQL.",
-      });
     }
     return json(500, { error: "Internal server error" });
   }

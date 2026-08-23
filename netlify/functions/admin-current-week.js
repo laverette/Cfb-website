@@ -1,7 +1,7 @@
 /**
  * GET /api/admin/current-week
  */
-const { getPool } = require("./db");
+const { getSupabase, dbError } = require("./db");
 const { json } = require("./_http");
 const { requireAdmin } = require("./_auth");
 
@@ -14,36 +14,34 @@ exports.handler = async (event) => {
   if (authErr) return authErr;
 
   try {
-    const pool = getPool();
-    const [settingRows] = await pool.query(
-      "SELECT `value` FROM Settings WHERE `key` = ? LIMIT 1",
-      ["current_week_id"]
-    );
+    const supabase = getSupabase();
+    const { data: setting, error: settingErr } = await supabase
+      .from("settings")
+      .select("setting_value")
+      .eq("setting_key", "current_week_id")
+      .maybeSingle();
+    dbError(settingErr);
 
-    if (
-      !settingRows.length ||
-      settingRows[0].value == null ||
-      String(settingRows[0].value).trim() === ""
-    ) {
+    if (!setting || setting.setting_value == null || String(setting.setting_value).trim() === "") {
       return json(404, { error: "No active week set" });
     }
 
-    const weekId = parseInt(String(settingRows[0].value).trim(), 10);
+    const weekId = parseInt(String(setting.setting_value).trim(), 10);
     if (!Number.isFinite(weekId) || weekId < 1) {
       return json(404, { error: "No active week set" });
     }
 
-    const [weekRows] = await pool.query(
-      `SELECT id, week_number, season_year, start_date, end_date, is_completed
-       FROM Weeks WHERE id = ? LIMIT 1`,
-      [weekId]
-    );
+    const { data: w, error: weekErr } = await supabase
+      .from("weeks")
+      .select("id, week_number, season_year, start_date, end_date, is_completed")
+      .eq("id", weekId)
+      .maybeSingle();
+    dbError(weekErr);
 
-    if (!weekRows.length) {
+    if (!w) {
       return json(404, { error: "No active week set" });
     }
 
-    const w = weekRows[0];
     return json(200, {
       id: w.id,
       week_number: w.week_number,

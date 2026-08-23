@@ -490,7 +490,18 @@
       if (!value) return '';
       const d = new Date(value);
       if (Number.isNaN(d.getTime())) return String(value);
-      return d.toLocaleString();
+      // CFBD stores UTC. Local toLocaleString() in Central can roll the
+      // calendar date back one day (e.g. Sat 4am UTC → Fri 11pm CT).
+      return d.toLocaleString('en-US', {
+        timeZone: 'America/New_York',
+        weekday: 'short',
+        month: 'numeric',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        timeZoneName: 'short',
+      });
     }
 
     function isAug29_2026(startDate) {
@@ -722,7 +733,7 @@
         const venue = g?.venue || null;
         const extraLine = (gameDate || venue)
           ? `<div style="color:#f5deb3; opacity:0.9; margin: 6px 0 8px 0;">
-              ${gameDate ? safeText(new Date(gameDate).toLocaleString()) : ''}
+              ${gameDate ? safeText(formatGameDate(gameDate)) : ''}
               ${gameDate && venue ? ' · ' : ''}
               ${venue ? safeText(venue) : ''}
             </div>`

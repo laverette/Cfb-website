@@ -1,11 +1,8 @@
 /**
- * LEGACY: MySQL-backed recruit list — public map uses static JSON (/data/recruits/).
+ * LEGACY: DB-backed recruit list — public map uses static JSON (/data/recruits/).
  * GET /api/recruit-map/players
- * Query: team, conference, year, search, state, position, classification (recruit_type), stars,
- *   includeMissingCoords (optional: true to include rows without lat/lng — map still skips them client-side)
- * Default: only rows with latitude and longitude (200 + empty array if none).
  */
-const { getPool, isMysqlConnectionLimitError } = require("./db");
+const { getSupabase, selectAllPages, isMysqlConnectionLimitError } = require("./db");
 const { json } = require("./_http");
 
 function numOrNull(v) {
@@ -27,9 +24,7 @@ function sanitizeDbDetail(err) {
   if (!err || typeof err !== "object") return String(err);
   const msg = err.message || String(err);
   const code = err.code || err.errno;
-  const sqlState = err.sqlState;
-  const sqlMessage = err.sqlMessage;
-  const combined = [code, sqlState, sqlMessage, msg].filter(Boolean).join(" | ");
+  const combined = [code, msg].filter(Boolean).join(" | ");
   return combined
     .replace(/mysql:\/\/[^\s]+/gi, "[db]")
     .replace(/postgres(ql)?:\/\/[^\s]+/gi, "[db]")
@@ -70,78 +65,6 @@ function mapRowToPlayer(r) {
   };
 }
 
-function buildPlayersSql(ctx) {
-  const {
-    includeExtendedCols,
-    includeMissingCoords,
-    team,
-    conference,
-    year,
-    state,
-    position,
-    classification,
-    stars,
-    search,
-  } = ctx;
-
-  const selectList = includeExtendedCols
-    ? `id, cfbd_player_id, cfbd_recruit_id, athlete_id, recruit_type,
-           player_name, team, committed_to, school, team_school, conference, season_year,
-           \`position\`, hometown_city, hometown_state, hometown_country, hometown_full,
-           latitude, longitude, stars, rating, ranking`
-    : `id, cfbd_player_id, cfbd_recruit_id, athlete_id, recruit_type,
-           player_name, team, committed_to, school, season_year,
-           \`position\`, hometown_city, hometown_state, hometown_country, hometown_full,
-           latitude, longitude, stars, rating, ranking`;
-
-  let sql = `SELECT ${selectList}
-    FROM PlayerHometowns
-    WHERE 1=1`;
-  const params = [];
-
-  if (!includeMissingCoords) {
-    sql += " AND latitude IS NOT NULL AND longitude IS NOT NULL";
-  }
-  if (year != null) {
-    sql += " AND season_year = ?";
-    params.push(year);
-  }
-  if (team) {
-    sql += " AND (team = ? OR committed_to = ? OR school = ?)";
-    params.push(team, team, team);
-  }
-  if (conference && includeExtendedCols) {
-    sql += " AND conference = ?";
-    params.push(conference);
-  }
-  if (state) {
-    sql += " AND hometown_state = ?";
-    params.push(state);
-  }
-  if (position) {
-    sql += " AND \`position\` = ?";
-    params.push(position);
-  }
-  if (classification) {
-    sql += " AND recruit_type = ?";
-    params.push(classification);
-  }
-  if (stars != null) {
-    sql += " AND stars = ?";
-    params.push(stars);
-  }
-  if (search) {
-    const safe = search.replace(/[%_\\]/g, "").trim();
-    if (safe) {
-      sql += " AND player_name LIKE ?";
-      params.push("%" + safe + "%");
-    }
-  }
-
-  sql += " ORDER BY player_name ASC LIMIT 5000";
-  return { sql, params };
-}
-
 exports.handler = async (event) => {
   if (event.httpMethod && event.httpMethod !== "GET") {
     return json(405, { error: "Method not allowed" });
@@ -161,91 +84,47 @@ exports.handler = async (event) => {
     String(q.includeMissingCoords || "").toLowerCase() === "true" ||
     String(q.includeMissingCoords || "") === "1";
 
-  const branch = includeMissingCoords ? "all_coords_optional" : "geocoded_recruits_with_filters";
-  console.error("[recruit-map-players] query params", {
-    team: team || null,
-    conference: conference || null,
-    year: year != null ? year : null,
-    search: search ? "[set]" : null,
-    state: state || null,
-    position: position || null,
-    classification: classification || null,
-    stars: stars != null ? stars : null,
-    includeMissingCoords,
-    branch,
-  });
-
-  const ctxBase = {
-    includeMissingCoords,
-    team,
-    conference,
-    year,
-    state,
-    position,
-    classification,
-    stars,
-    search,
-  };
-
   try {
-    const pool = getPool();
-    let rows;
-    let lastColErr = null;
-    for (const includeExtendedCols of [true, false]) {
-      const { sql, params } = buildPlayersSql({ ...ctxBase, includeExtendedCols });
-      try {
-        const [r] = await pool.query(sql, params);
-        rows = r;
-        if (conference && !includeExtendedCols) {
-          console.error(
-            "[recruit-map-players] conference filter skipped (no conference/team_school columns in schema)"
-          );
-        }
-        break;
-      } catch (e) {
-        if (
-          includeExtendedCols &&
-          (e.code === "ER_BAD_FIELD_ERROR" || e.code === "ER_NO_SUCH_COLUMN")
-        ) {
-          lastColErr = e;
-          console.error("[recruit-map-players] retrying without extended columns", e.message);
-          continue;
-        }
-        throw e;
+    const supabase = getSupabase();
+    const rows = await selectAllPages(() => {
+      let query = supabase
+        .from("player_hometowns")
+        .select(
+          "id, cfbd_player_id, cfbd_recruit_id, athlete_id, recruit_type, player_name, team, committed_to, school, team_school, conference, season_year, position, hometown_city, hometown_state, hometown_country, hometown_full, latitude, longitude, stars, rating, ranking"
+        )
+        .order("player_name", { ascending: true });
+
+      if (!includeMissingCoords) {
+        query = query.not("latitude", "is", null).not("longitude", "is", null);
       }
-    }
-    if (rows === undefined) {
-      throw lastColErr || new Error("recruit-map-players: query failed");
-    }
-    const players = (rows || []).map(mapRowToPlayer);
-    const body = { count: players.length, players };
-    return json(200, body);
+      if (year != null) query = query.eq("season_year", year);
+      if (conference) query = query.eq("conference", conference);
+      if (state) query = query.eq("hometown_state", state);
+      if (position) query = query.eq("position", position);
+      if (classification) query = query.eq("recruit_type", classification);
+      if (stars != null) query = query.eq("stars", stars);
+      if (search) {
+        const safe = search.replace(/[%_,.()]/g, "").trim();
+        if (safe) query = query.ilike("player_name", `%${safe}%`);
+      }
+      return query;
+    });
+
+    const filtered = team
+      ? rows.filter((r) => r.team === team || r.committed_to === team || r.school === team)
+      : rows;
+    const players = filtered.slice(0, 5000).map(mapRowToPlayer);
+    return json(200, { count: players.length, players });
   } catch (err) {
     console.error("[recruit-map-players] query error", err && err.stack ? err.stack : err);
-    console.error("[recruit-map-players] sql branch", branch);
-    console.error("[recruit-map-players] message", err && err.message);
     if (isMysqlConnectionLimitError(err)) {
       return json(503, {
         error: "DB_CONNECTION_LIMIT",
-        message:
-          "Database connection limit reached. Wait a few minutes and try again.",
+        message: "Database connection limit reached. Wait a few minutes and try again.",
       });
     }
     if (err.code === "NO_DATABASE_URL") {
       return json(500, { error: "Server misconfiguration" });
-    }
-    if (err.code === "ER_NO_SUCH_TABLE") {
-      return json(503, {
-        error: "Recruit map is unavailable right now.",
-        details: "PlayerHometowns table not found",
-      });
-    }
-    if (err.code === "ER_BAD_FIELD_ERROR" || err.code === "ER_NO_SUCH_COLUMN") {
-      return json(503, {
-        error: "Recruit map is unavailable right now.",
-        details:
-          "Database columns missing. Run Client/sql/player_hometowns_recruiting_migration.sql",
-      });
     }
     return json(500, {
       error: "Recruit map players query failed",

@@ -6,6 +6,7 @@
     "export:recruits": "node scripts/export-recruit-map-data.js"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.57.4",
     "bcryptjs": "^2.4.3",
     "jsonwebtoken": "^9.0.2",
     "mysql2": "^3.12.0"

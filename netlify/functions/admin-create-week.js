@@ -3,7 +3,7 @@
  * Body: { season_year, week_number } or { seasonYear, weekNumber }
  * Optional: start_date, end_date
  */
-const { getPool } = require("./db");
+const { getSupabase, dbError } = require("./db");
 const { json, parseJsonBody } = require("./_http");
 const { requireAdmin } = require("./_auth");
 
@@ -30,44 +30,46 @@ exports.handler = async (event) => {
   const endDate = body.endDate ?? body.end_date ?? null;
 
   try {
-    const pool = getPool();
+    const supabase = getSupabase();
+    const { data: existing, error: findErr } = await supabase
+      .from("weeks")
+      .select("id, week_number, season_year, start_date, end_date, is_completed")
+      .eq("season_year", seasonYear)
+      .eq("week_number", weekNumber)
+      .maybeSingle();
+    dbError(findErr);
 
-    const [existing] = await pool.query(
-      "SELECT id, week_number, season_year, start_date, end_date, is_completed FROM Weeks WHERE season_year = ? AND week_number = ? LIMIT 1",
-      [seasonYear, weekNumber]
-    );
-
-    if (existing.length) {
-      const w = existing[0];
+    if (existing) {
       return json(200, {
         message: "Week already exists",
         week: {
-          id: w.id,
-          week_number: w.week_number,
-          season_year: w.season_year,
-          start_date: w.start_date,
-          end_date: w.end_date,
-          is_completed: Boolean(w.is_completed),
+          id: existing.id,
+          week_number: existing.week_number,
+          season_year: existing.season_year,
+          start_date: existing.start_date,
+          end_date: existing.end_date,
+          is_completed: Boolean(existing.is_completed),
         },
       });
     }
 
-    const [ins] = await pool.query(
-      `INSERT INTO Weeks (week_number, season_year, start_date, end_date, is_completed)
-       VALUES (?, ?, ?, ?, FALSE)`,
-      [
-        weekNumber,
-        seasonYear,
-        startDate ? new Date(startDate) : null,
-        endDate ? new Date(endDate) : null,
-      ]
-    );
+    const { data: created, error: insErr } = await supabase
+      .from("weeks")
+      .insert({
+        week_number: weekNumber,
+        season_year: seasonYear,
+        start_date: startDate || null,
+        end_date: endDate || null,
+        is_completed: false,
+      })
+      .select("id")
+      .single();
+    dbError(insErr);
 
-    const id = ins.insertId;
     return json(201, {
       message: "Week created",
       week: {
-        id,
+        id: created.id,
         week_number: weekNumber,
         season_year: seasonYear,
         start_date: startDate,

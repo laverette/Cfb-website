@@ -1,78 +1,47 @@
 /**
- * LEGACY: MySQL-backed filters — public map uses static JSON (/data/recruits/).
+ * LEGACY: DB-backed filters — public map uses static JSON (/data/recruits/).
  * GET /api/recruit-map/filters
- * Distinct filter values from PlayerHometowns.
  */
-const { getPool, isMysqlConnectionLimitError } = require("./db");
+const { getSupabase, selectAllPages, isMysqlConnectionLimitError } = require("./db");
 const { json } = require("./_http");
 
-function sqlIdent(column) {
-  const c = String(column).replace(/`/g, "");
-  return `\`${c}\``;
-}
-
-function normalizeFilterScalar(v) {
-  if (v == null) return null;
-  if (typeof v === "bigint") {
-    const n = Number(v);
-    return Number.isFinite(n) ? n : String(v);
+function uniqueSorted(values, { numeric = false, desc = false } = {}) {
+  const seen = new Set();
+  const out = [];
+  for (const raw of values) {
+    if (raw == null) continue;
+    if (numeric) {
+      const n = parseInt(String(raw), 10);
+      if (!Number.isFinite(n) || seen.has(n)) continue;
+      seen.add(n);
+      out.push(n);
+    } else {
+      const s = String(raw).trim();
+      if (!s || seen.has(s)) continue;
+      seen.add(s);
+      out.push(s);
+    }
   }
-  return v;
+  out.sort((a, b) => {
+    if (numeric) return desc ? b - a : a - b;
+    return String(a).localeCompare(String(b));
+  });
+  return out;
 }
 
-async function distinctColumn(pool, column) {
-  const col = sqlIdent(column);
-  const [rows] = await pool.query(
-    `SELECT DISTINCT ${col} AS v FROM PlayerHometowns WHERE ${col} IS NOT NULL AND TRIM(${col}) <> '' ORDER BY v ASC`
+async function distinctColumn(column) {
+  const rows = await selectAllPages(() =>
+    getSupabase().from("player_hometowns").select(column).not(column, "is", null)
   );
-  return rows
-    .map((r) => normalizeFilterScalar(r.v))
-    .filter((v) => v != null && String(v).trim() !== "");
+  return uniqueSorted(rows.map((r) => r[column]));
 }
 
-async function safeDistinct(pool, column) {
+async function safeDistinct(column) {
   try {
-    return await distinctColumn(pool, column);
+    return await distinctColumn(column);
   } catch (err) {
     console.error("[recruit-map-filters] distinct failed", column, err && err.message);
     return [];
-  }
-}
-
-async function distinctStars(pool) {
-  try {
-    const [rows] = await pool.query(
-      `SELECT DISTINCT stars AS v FROM PlayerHometowns WHERE stars IS NOT NULL ORDER BY stars DESC`
-    );
-    return rows
-      .map((r) => normalizeFilterScalar(r.v))
-      .filter((v) => v != null);
-  } catch (err) {
-    console.error("[recruit-map-filters] distinct stars", err && err.message);
-    return [];
-  }
-}
-
-async function distinctTeamLikeValues(pool) {
-  try {
-    const [rows] = await pool.query(
-      `SELECT DISTINCT v FROM (
-         SELECT TRIM(team) AS v FROM PlayerHometowns
-           WHERE team IS NOT NULL AND TRIM(team) <> ''
-         UNION
-         SELECT TRIM(committed_to) AS v FROM PlayerHometowns
-           WHERE committed_to IS NOT NULL AND TRIM(committed_to) <> ''
-         UNION
-         SELECT TRIM(school) AS v FROM PlayerHometowns
-           WHERE school IS NOT NULL AND TRIM(school) <> ''
-       ) t
-       WHERE v IS NOT NULL AND v <> ''
-       ORDER BY v ASC`
-    );
-    return rows.map((r) => (r.v != null ? String(r.v).trim() : "")).filter(Boolean);
-  } catch (err) {
-    console.error("[recruit-map-filters] team union", err && err.message);
-    return safeDistinct(pool, "team");
   }
 }
 
@@ -82,41 +51,54 @@ exports.handler = async (event) => {
   }
 
   try {
-    const pool = getPool();
-    const [
-      teams,
-      conferences,
-      years,
-      states,
-      positions,
-      classifications,
-      starLevels,
-    ] = await Promise.all([
-      distinctTeamLikeValues(pool),
-      safeDistinct(pool, "conference"),
-      (async () => {
-        try {
-          const [y] = await pool.query(
-            `SELECT DISTINCT season_year AS v FROM PlayerHometowns ORDER BY v DESC`
-          );
-          return y
-            .map((r) => {
-              const x = normalizeFilterScalar(r.v);
-              if (x == null) return null;
-              const n = parseInt(String(x), 10);
-              return Number.isFinite(n) ? n : null;
-            })
-            .filter((v) => v != null);
-        } catch (err) {
-          console.error("[recruit-map-filters] years", err);
-          return [];
-        }
-      })(),
-      safeDistinct(pool, "hometown_state"),
-      safeDistinct(pool, "position"),
-      safeDistinct(pool, "recruit_type"),
-      distinctStars(pool),
-    ]);
+    const [teams, conferences, years, states, positions, classifications, starLevels] =
+      await Promise.all([
+        (async () => {
+          try {
+            const rows = await selectAllPages(() =>
+              getSupabase().from("player_hometowns").select("team, committed_to, school")
+            );
+            return uniqueSorted(
+              rows.flatMap((r) => [r.team, r.committed_to, r.school])
+            );
+          } catch (err) {
+            console.error("[recruit-map-filters] team union", err && err.message);
+            return safeDistinct("team");
+          }
+        })(),
+        safeDistinct("conference"),
+        (async () => {
+          try {
+            const rows = await selectAllPages(() =>
+              getSupabase().from("player_hometowns").select("season_year").not("season_year", "is", null)
+            );
+            return uniqueSorted(
+              rows.map((r) => r.season_year),
+              { numeric: true, desc: true }
+            );
+          } catch (err) {
+            console.error("[recruit-map-filters] years", err);
+            return [];
+          }
+        })(),
+        safeDistinct("hometown_state"),
+        safeDistinct("position"),
+        safeDistinct("recruit_type"),
+        (async () => {
+          try {
+            const rows = await selectAllPages(() =>
+              getSupabase().from("player_hometowns").select("stars").not("stars", "is", null)
+            );
+            return uniqueSorted(
+              rows.map((r) => r.stars),
+              { numeric: true, desc: true }
+            );
+          } catch (err) {
+            console.error("[recruit-map-filters] distinct stars", err && err.message);
+            return [];
+          }
+        })(),
+      ]);
 
     return json(200, {
       teams,
@@ -132,24 +114,11 @@ exports.handler = async (event) => {
     if (isMysqlConnectionLimitError(err)) {
       return json(503, {
         error: "DB_CONNECTION_LIMIT",
-        message:
-          "Database connection limit reached. Wait a few minutes and try again.",
+        message: "Database connection limit reached. Wait a few minutes and try again.",
       });
     }
     if (err.code === "NO_DATABASE_URL") {
       return json(500, { error: "Server misconfiguration" });
-    }
-    if (err.code === "ER_NO_SUCH_TABLE") {
-      return json(200, {
-        teams: [],
-        conferences: [],
-        years: [],
-        states: [],
-        positions: [],
-        classifications: [],
-        starLevels: [],
-        hint: "Database table not found.",
-      });
     }
     return json(200, {
       teams: [],

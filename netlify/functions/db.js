@@ -1,58 +1,66 @@
 /**
- * Shared MySQL pool for Netlify Functions (single pool per warm isolate).
- * Set MYSQL_URL (or JawsDB / common fallbacks) in Netlify environment variables.
- * Uses globalThis so reused lambdas do not create multiple pools.
+ * Shared Supabase client for Netlify Functions (one client per warm isolate).
+ * Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in Netlify / local .env.
+ * Service role is server-only and bypasses RLS.
  */
-const mysql = require("mysql2/promise");
+const { createClient } = require("@supabase/supabase-js");
 
-const GLOBAL_POOL_KEY = "__cfb_mysql2_pool__";
+const GLOBAL_CLIENT_KEY = "__cfb_supabase_client__";
 
-function getMysqlUrl() {
-  return (
-    process.env.MYSQL_URL ||
-    process.env.JAWSDB_URL ||
-    process.env.CLEARDB_DATABASE_URL ||
-    process.env.DATABASE_URL ||
-    ""
-  ).trim();
+function getSupabaseConfig() {
+  const url = String(process.env.SUPABASE_URL || "").trim();
+  const key = String(process.env.SUPABASE_SERVICE_ROLE_KEY || "").trim();
+  return { url, key };
 }
 
-/**
- * JawsDB often caps max_user_connections at 10; keep pool small so parallel
- * invocations (map + admin + auth) do not exhaust the account.
- */
-function getPool() {
-  const url = getMysqlUrl();
-  if (!url) {
-    const err = new Error("Database URL not configured");
+function getSupabase() {
+  const { url, key } = getSupabaseConfig();
+  if (!url || !key) {
+    const err = new Error("Supabase is not configured");
     err.code = "NO_DATABASE_URL";
     throw err;
   }
-  if (!globalThis[GLOBAL_POOL_KEY]) {
-    globalThis[GLOBAL_POOL_KEY] = mysql.createPool(url, {
-      waitForConnections: true,
-      connectionLimit: 2,
-      maxIdle: 2,
-      queueLimit: 0,
-      idleTimeout: 60000,
-      enableKeepAlive: true,
-      keepAliveInitialDelay: 0,
+  if (!globalThis[GLOBAL_CLIENT_KEY]) {
+    globalThis[GLOBAL_CLIENT_KEY] = createClient(url, key, {
+      auth: { persistSession: false, autoRefreshToken: false },
     });
   }
-  return globalThis[GLOBAL_POOL_KEY];
+  return globalThis[GLOBAL_CLIENT_KEY];
 }
 
-/** True when the server refused a new connection for this MySQL user. */
-function isMysqlConnectionLimitError(err) {
-  if (!err || typeof err !== "object") return false;
-  const msg = String(err.message || err.sqlMessage || "");
-  if (/max_user_connections|max_connections|too many connections/i.test(msg)) {
-    return true;
+function dbError(error) {
+  if (!error) return;
+  const err = new Error(error.message || "Database error");
+  err.code = error.code || "DB_ERROR";
+  err.details = error.details;
+  err.hint = error.hint;
+  throw err;
+}
+
+async function selectAllPages(makeQuery, pageSize = 1000) {
+  const rows = [];
+  let from = 0;
+  for (;;) {
+    const { data, error } = await makeQuery().range(from, from + pageSize - 1);
+    dbError(error);
+    if (!data || data.length === 0) break;
+    rows.push(...data);
+    if (data.length < pageSize) break;
+    from += pageSize;
   }
-  const n = err.errno != null ? Number(err.errno) : NaN;
-  if (n === 1040 || n === 1203 || n === 1226) return true;
-  if (err.code === "ER_CON_COUNT_ERROR" || err.code === "ER_USER_LIMIT_REACHED") return true;
+  return rows;
+}
+
+/** Kept so older catch blocks still compile; Supabase HTTP is not connection-capped like JawsDB. */
+function isMysqlConnectionLimitError() {
   return false;
 }
 
-module.exports = { getPool, getMysqlUrl, isMysqlConnectionLimitError };
+module.exports = {
+  getSupabase,
+  getPool: getSupabase,
+  dbError,
+  selectAllPages,
+  getSupabaseConfig,
+  isMysqlConnectionLimitError,
+};

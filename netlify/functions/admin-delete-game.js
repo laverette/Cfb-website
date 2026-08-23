@@ -1,7 +1,7 @@
 /**
  * DELETE /api/admin/games/:gameId (rewritten to ?gameId=:splat)
  */
-const { getPool } = require("./db");
+const { getSupabase, dbError } = require("./db");
 const { json } = require("./_http");
 const { parseGameId, invalidGameIdPayload } = require("./_parseGameId");
 const { requireAdmin } = require("./_auth");
@@ -20,9 +20,15 @@ exports.handler = async (event) => {
   }
 
   try {
-    const pool = getPool();
-    const [r] = await pool.query("DELETE FROM Games WHERE id = ?", [gameId]);
-    if (r.affectedRows === 0) {
+    const supabase = getSupabase();
+    const { data, error } = await supabase
+      .from("games")
+      .delete()
+      .eq("id", gameId)
+      .select("id")
+      .maybeSingle();
+    dbError(error);
+    if (!data) {
       return json(404, { error: "Game not found" });
     }
     return json(200, { ok: true, deletedId: gameId });

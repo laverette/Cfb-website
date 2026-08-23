@@ -1,23 +1,11 @@
 /**
  * POST /api/admin/set-current-week
  * Body: { seasonYear, weekNumber } or { season_year, week_number }
- * Optional: startDate/end_date — creates the week row if missing, then sets Settings.current_week_id.
+ * Optional: startDate/end_date — creates the week row if missing, then sets settings.current_week_id.
  */
-const { getPool } = require("./db");
+const { getSupabase, dbError } = require("./db");
 const { json, parseJsonBody } = require("./_http");
 const { requireAdmin } = require("./_auth");
-
-async function ensureSettingsTable(pool) {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS Settings (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      \`key\` VARCHAR(100) UNIQUE NOT NULL,
-      value TEXT,
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      INDEX idx_key (\`key\`)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-  `);
-}
 
 exports.handler = async (event) => {
   if (event.httpMethod !== "POST") {
@@ -42,36 +30,43 @@ exports.handler = async (event) => {
   const endDate = body.endDate ?? body.end_date ?? null;
 
   try {
-    const pool = getPool();
-    await ensureSettingsTable(pool);
-
-    let [rows] = await pool.query(
-      "SELECT id FROM Weeks WHERE season_year = ? AND week_number = ? LIMIT 1",
-      [seasonYear, weekNumber]
-    );
+    const supabase = getSupabase();
+    const { data: existing, error: findErr } = await supabase
+      .from("weeks")
+      .select("id")
+      .eq("season_year", seasonYear)
+      .eq("week_number", weekNumber)
+      .maybeSingle();
+    dbError(findErr);
 
     let weekId;
-    if (rows.length) {
-      weekId = rows[0].id;
+    if (existing) {
+      weekId = existing.id;
     } else {
-      const [ins] = await pool.query(
-        `INSERT INTO Weeks (week_number, season_year, start_date, end_date, is_completed)
-         VALUES (?, ?, ?, ?, FALSE)`,
-        [
-          weekNumber,
-          seasonYear,
-          startDate ? new Date(startDate) : null,
-          endDate ? new Date(endDate) : null,
-        ]
-      );
-      weekId = ins.insertId;
+      const { data: created, error: insErr } = await supabase
+        .from("weeks")
+        .insert({
+          week_number: weekNumber,
+          season_year: seasonYear,
+          start_date: startDate || null,
+          end_date: endDate || null,
+          is_completed: false,
+        })
+        .select("id")
+        .single();
+      dbError(insErr);
+      weekId = created.id;
     }
 
-    await pool.query(
-      `INSERT INTO Settings (\`key\`, value) VALUES ('current_week_id', ?)
-       ON DUPLICATE KEY UPDATE value = VALUES(value)`,
-      [String(weekId)]
+    const { error: upsertErr } = await supabase.from("settings").upsert(
+      {
+        setting_key: "current_week_id",
+        setting_value: String(weekId),
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "setting_key" }
     );
+    dbError(upsertErr);
 
     return json(200, { message: "Current week set", weekId });
   } catch (err) {

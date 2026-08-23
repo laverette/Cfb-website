@@ -5,7 +5,7 @@
  * Geocode rows with city/state but no lat/lng via Nominatim; cache in DB.
  * One invocation processes at most `limit` rows; callers should loop with delays, not huge batches.
  */
-const { getPool, isMysqlConnectionLimitError } = require("./db");
+const { getSupabase, dbError, isMysqlConnectionLimitError } = require("./db");
 const { json, parseJsonBody } = require("./_http");
 const { requireAdmin } = require("./_auth");
 const { geocodeCityState, parseRetryAfterSeconds } = require("./_nominatim");
@@ -26,37 +26,22 @@ exports.handler = async (event) => {
   );
 
   try {
-    const pool = getPool();
-    let rows;
-    try {
-      const [r] = await pool.query(
-        `SELECT id, hometown_city, hometown_state, hometown_country, hometown_full
-         FROM PlayerHometowns
-         WHERE (latitude IS NULL OR longitude IS NULL)
-           AND (hometown_city IS NOT NULL AND TRIM(hometown_city) <> ''
-                OR hometown_full IS NOT NULL AND TRIM(hometown_full) <> '')
-         ORDER BY id ASC
-         LIMIT ${limit}`,
-        []
-      );
-      rows = r;
-    } catch (e) {
-      if (e.code === "ER_BAD_FIELD_ERROR" || e.code === "ER_NO_SUCH_COLUMN") {
-        const [r] = await pool.query(
-          `SELECT id, hometown_city, hometown_state, hometown_full
-           FROM PlayerHometowns
-           WHERE (latitude IS NULL OR longitude IS NULL)
-             AND (hometown_city IS NOT NULL AND TRIM(hometown_city) <> ''
-                  OR hometown_full IS NOT NULL AND TRIM(hometown_full) <> '')
-           ORDER BY id ASC
-           LIMIT ${limit}`,
-          []
-        );
-        rows = r;
-      } else {
-        throw e;
-      }
-    }
+    const supabase = getSupabase();
+    const { data: missingRows, error: missingErr } = await supabase
+      .from("player_hometowns")
+      .select("id, hometown_city, hometown_state, hometown_country, hometown_full, latitude, longitude")
+      .or("latitude.is.null,longitude.is.null")
+      .order("id", { ascending: true })
+      .limit(Math.max(limit * 4, 40));
+    dbError(missingErr);
+
+    const rows = (missingRows || [])
+      .filter((r) => {
+        const city = r.hometown_city != null && String(r.hometown_city).trim() !== "";
+        const full = r.hometown_full != null && String(r.hometown_full).trim() !== "";
+        return city || full;
+      })
+      .slice(0, limit);
 
     let updated = 0;
     let failed = 0;
@@ -135,10 +120,15 @@ exports.handler = async (event) => {
       }
 
       if (coords) {
-        await pool.query(
-          "UPDATE PlayerHometowns SET latitude = ?, longitude = ?, updated_at = NOW(3) WHERE id = ?",
-          [coords.lat, coords.lon, r.id]
-        );
+        const { error: updateErr } = await supabase
+          .from("player_hometowns")
+          .update({
+            latitude: coords.lat,
+            longitude: coords.lon,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", r.id);
+        dbError(updateErr);
         updated += 1;
       } else {
         failed += 1;

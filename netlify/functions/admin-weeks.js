@@ -1,7 +1,7 @@
 /**
  * GET /api/admin/weeks
  */
-const { getPool } = require("./db");
+const { getSupabase, dbError } = require("./db");
 const { json } = require("./_http");
 const { requireAdmin } = require("./_auth");
 
@@ -14,14 +14,15 @@ exports.handler = async (event) => {
   if (authErr) return authErr;
 
   try {
-    const pool = getPool();
-    const [rows] = await pool.query(
-      `SELECT id, week_number, season_year, start_date, end_date, is_completed
-       FROM Weeks
-       ORDER BY season_year DESC, week_number DESC`
-    );
+    const supabase = getSupabase();
+    const { data: rows, error } = await supabase
+      .from("weeks")
+      .select("id, week_number, season_year, start_date, end_date, is_completed")
+      .order("season_year", { ascending: false })
+      .order("week_number", { ascending: false });
+    dbError(error);
 
-    const weeks = rows.map((w) => ({
+    const weeks = (rows || []).map((w) => ({
       id: w.id,
       week_number: w.week_number,
       season_year: w.season_year,

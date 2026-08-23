@@ -3,7 +3,7 @@
  * Body: { usernameOrEmail } or { username } or { email }, plus { password }
  */
 const bcrypt = require("bcryptjs");
-const { getPool } = require("./db");
+const { getSupabase, dbError } = require("./db");
 const { json, parseJsonBody } = require("./_http");
 const { signUserToken, jwtSecretOr500 } = require("./_auth");
 
@@ -26,13 +26,13 @@ function rowToUser(row) {
   };
 }
 
-async function logLogin(pool, userId) {
+async function logLogin(supabase, userId) {
   try {
-    await pool.query(
-      `INSERT INTO UserActivity (user_id, activity_type, activity_data, created_at)
-       VALUES (?, 'login', JSON_OBJECT('login_time', NOW(3)), NOW(3))`,
-      [userId]
-    );
+    await supabase.from("user_activity").insert({
+      user_id: userId,
+      activity_type: "login",
+      activity_data: { login_time: new Date().toISOString() },
+    });
   } catch {
     /* optional */
   }
@@ -61,20 +61,30 @@ exports.handler = async (event) => {
   }
 
   try {
-    const pool = getPool();
-    const [rows] = await pool.query(
-      `SELECT id, username, email, password_hash, display_name, avatar_url, bio, role, created_at
-       FROM Users
-       WHERE username = ? OR email = ?
-       LIMIT 2`,
-      [usernameOrEmail, usernameOrEmail]
-    );
+    const supabase = getSupabase();
+    const userCols =
+      "id, username, email, password_hash, display_name, avatar_url, bio, role, created_at";
+    const { data: byUsername, error: userErr } = await supabase
+      .from("users")
+      .select(userCols)
+      .eq("username", usernameOrEmail)
+      .maybeSingle();
+    dbError(userErr);
 
-    if (!rows.length) {
-      return json(401, { message: "Invalid username or password" });
+    let row = byUsername;
+    if (!row) {
+      const { data: byEmail, error: emailErr } = await supabase
+        .from("users")
+        .select(userCols)
+        .eq("email", usernameOrEmail)
+        .maybeSingle();
+      dbError(emailErr);
+      row = byEmail;
     }
 
-    const row = rows[0];
+    if (!row) {
+      return json(401, { message: "Invalid username or password" });
+    }
     const hash = row.password_hash != null ? String(row.password_hash) : "";
     if (!hash) {
       return json(401, { message: "Invalid username or password" });
@@ -85,7 +95,7 @@ exports.handler = async (event) => {
       return json(401, { message: "Invalid username or password" });
     }
 
-    await logLogin(pool, row.id);
+    await logLogin(supabase, row.id);
 
     const token = signUserToken(row);
     const user = rowToUser(row);
