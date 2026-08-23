@@ -1,4 +1,4 @@
-const { getSupabase, dbError } = require("./db");
+const { loadGamesByWeek } = require("./db");
 const { parseWeekId, invalidWeekIdPayload } = require("./_parseWeekId");
 
 function json(statusCode, body, extraHeaders = {}) {
@@ -24,33 +24,7 @@ exports.handler = async (event) => {
   }
 
   try {
-    const supabase = getSupabase();
-    const { data: gameRows, error } = await supabase
-      .from("games")
-      .select(
-        "id, week_id, cfbd_game_id, game_number, home_team_espn_id, away_team_espn_id, home_team_name, away_team_name, home_team_logo_url, away_team_logo_url, game_date, venue, betting_line, is_completed"
-      )
-      .eq("week_id", weekId)
-      .order("game_number", { ascending: true });
-    dbError(error);
-
-    const games = (gameRows || []).map((r) => ({
-      id: r.id,
-      week_id: r.week_id,
-      cfbd_game_id: r.cfbd_game_id != null ? r.cfbd_game_id : null,
-      game_number: r.game_number,
-      home_team_espn_id: r.home_team_espn_id,
-      away_team_espn_id: r.away_team_espn_id,
-      home_team_name: r.home_team_name,
-      away_team_name: r.away_team_name,
-      home_team_logo_url: r.home_team_logo_url,
-      away_team_logo_url: r.away_team_logo_url,
-      game_date: r.game_date,
-      venue: r.venue != null ? r.venue : null,
-      betting_line: r.betting_line,
-      is_completed: Boolean(r.is_completed),
-    }));
-
+    const games = await loadGamesByWeek(weekId);
     return json(200, { games });
   } catch (err) {
     console.error("picks-games-by-week:", err);

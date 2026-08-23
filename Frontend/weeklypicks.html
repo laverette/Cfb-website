@@ -826,13 +826,20 @@
           return;
         }
 
-        // Load live scores and start auto-refresh
-        await initializeLiveScores();
+        try {
+          await initializeLiveScores();
+        } catch (liveErr) {
+          console.warn('Live scores unavailable:', liveErr);
+        }
 
-        // If we successfully built dynamic games, re-run submission status logic using the active week id.
-        await checkSubmissionStatus();
+        try {
+          await checkSubmissionStatus();
+        } catch {
+          /* ignore */
+        }
       } catch (e) {
-        // Netlify picks API failed. Do not flash leftover hardcoded matchups.
+        console.error('loadActiveWeekAndGames:', e);
+        if (cachedDbGames && cachedDbGames.length) return;
         activeWeekId = FALLBACK_WEEK_ID;
         showGamesLoadErrorMessage();
         try { await checkSubmissionStatus(); } catch { /* ignore */ }
