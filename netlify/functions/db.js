@@ -270,7 +270,7 @@ async function registerUser({ username, email, passwordHash, displayName }) {
   return created;
 }
 
-async function getUserWeekSubmission(userId, weekId) {
+async function getUserWeekSubmission(userId, weekId, options = {}) {
   const supabase = getSupabase();
   const { count, error } = await supabase
     .from("user_picks")
@@ -292,7 +292,15 @@ async function getUserWeekSubmission(userId, weekId) {
     dbError(latestErr);
     lastSubmitted = data && data.submitted_at ? data.submitted_at : null;
   }
-  return { hasSubmitted: pickCount > 0, pickCount, lastSubmitted };
+  const lock = options.lock || (await getWeekPickLock(weekId));
+  return {
+    hasSubmitted: pickCount > 0,
+    pickCount,
+    lastSubmitted,
+    picksLocked: lock.picksLocked,
+    locksAt: lock.locksAt,
+    canEdit: !lock.picksLocked,
+  };
 }
 
 async function getUserPicksForWeek(userId, weekId) {
@@ -332,18 +340,50 @@ function alreadySubmittedError() {
   return err;
 }
 
-async function submitUserPicks({ userId, weekId, picks }) {
-  const existing = await getUserWeekSubmission(userId, weekId);
-  if (existing.hasSubmitted) {
-    throw alreadySubmittedError();
-  }
+function picksLockedError(locksAt) {
+  const err = new Error(
+    locksAt
+      ? `Picks are locked. The first game started ${locksAt}.`
+      : "Picks are locked for this week."
+  );
+  err.code = "PICKS_LOCKED";
+  err.locksAt = locksAt || null;
+  return err;
+}
 
+function weekLockFromGames(games, now = new Date()) {
+  const dates = (games || [])
+    .map((g) => g.game_date)
+    .filter((d) => d != null && String(d).trim() !== "")
+    .map((d) => new Date(d))
+    .filter((d) => Number.isFinite(d.getTime()))
+    .sort((a, b) => a.getTime() - b.getTime());
+  const locksAt = dates.length ? dates[0].toISOString() : null;
+  return {
+    picksLocked: Boolean(locksAt && now.getTime() >= new Date(locksAt).getTime()),
+    locksAt,
+  };
+}
+
+async function getWeekPickLock(weekId) {
+  const games = await loadGamesByWeek(weekId);
+  return weekLockFromGames(games);
+}
+
+async function submitUserPicks({ userId, weekId, picks }) {
   const games = await loadGamesByWeek(weekId);
   if (!games.length) {
     const err = new Error("No games found for this week");
     err.code = "NO_GAMES";
     throw err;
   }
+
+  const lock = weekLockFromGames(games);
+  if (lock.picksLocked) {
+    throw picksLockedError(lock.locksAt);
+  }
+
+  const existing = await getUserWeekSubmission(userId, weekId, { lock });
 
   const byId = new Map(games.map((g) => [Number(g.id), g]));
   const byNumber = new Map(games.map((g) => [Number(g.game_number), g]));
@@ -374,6 +414,7 @@ async function submitUserPicks({ userId, weekId, picks }) {
       week_id: weekId,
       picked_team_espn_id: pickedEspnId,
       picked_team_name: pickedTeamName,
+      submitted_at: new Date().toISOString(),
     });
   }
 
@@ -384,10 +425,9 @@ async function submitUserPicks({ userId, weekId, picks }) {
   }
 
   const supabase = getSupabase();
-  const { error } = await supabase.from("user_picks").insert(rows);
-  if (error && (error.code === "23505" || /duplicate/i.test(error.message || ""))) {
-    throw alreadySubmittedError();
-  }
+  const { error } = await supabase.from("user_picks").upsert(rows, {
+    onConflict: "user_id,game_id",
+  });
   dbError(error);
 
   await supabase.from("weekly_user_stats").upsert(
@@ -406,14 +446,14 @@ async function submitUserPicks({ userId, weekId, picks }) {
   try {
     await supabase.from("user_activity").insert({
       user_id: userId,
-      activity_type: "picks_submitted",
+      activity_type: existing.hasSubmitted ? "picks_updated" : "picks_submitted",
       activity_data: { week_id: weekId, pick_count: rows.length },
     });
   } catch {
     /* optional */
   }
 
-  return { saved: rows.length };
+  return { saved: rows.length, updated: Boolean(existing.hasSubmitted), locksAt: lock.locksAt };
 }
 
 module.exports = {
@@ -432,5 +472,6 @@ module.exports = {
   registerUser,
   getUserWeekSubmission,
   getUserPicksForWeek,
+  getWeekPickLock,
   submitUserPicks,
 };

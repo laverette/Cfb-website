@@ -1,7 +1,7 @@
 /**
  * POST /api/picks/submit
  * Body: { weekId, picks: [{ gameId?, gameNumber?, pickedTeamEspnId }] }
- * One submission per user per week. Updates are rejected.
+ * One set per user per week. Updates allowed until the first game starts.
  */
 const { submitUserPicks } = require("./db");
 const { json, parseJsonBody } = require("./_http");
@@ -38,12 +38,21 @@ exports.handler = async (event) => {
   try {
     const result = await submitUserPicks({ userId, weekId, picks });
     return json(200, {
-      message: "Picks submitted successfully",
+      message: result.updated ? "Picks updated" : "Picks submitted successfully",
       saved: result.saved,
+      updated: Boolean(result.updated),
+      locksAt: result.locksAt || null,
       errors: 0,
     });
   } catch (err) {
     console.error("picks-submit:", err);
+    if (err.code === "PICKS_LOCKED") {
+      return json(400, {
+        message: "Picks are locked. The first game of the week has started.",
+        code: "PICKS_LOCKED",
+        locksAt: err.locksAt || null,
+      });
+    }
     if (err.code === "ALREADY_SUBMITTED") {
       return json(400, {
         message: "You have already submitted picks for this week. Only one submission per week is allowed.",

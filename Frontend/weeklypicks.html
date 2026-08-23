@@ -977,10 +977,23 @@
           try {
             const result = await response.json();
             
-            if (result.hasSubmitted) {
+            if (result.picksLocked && result.hasSubmitted) {
               disableFormForAlreadySubmitted();
-              showAlreadySubmittedMessage(result.lastSubmitted);
+              showPicksStatusBanner(result);
               await showSavedPicksForWeek(result.lastSubmitted);
+            } else if (result.picksLocked && !result.hasSubmitted) {
+              disableFormForAlreadySubmitted();
+              hideLockedPicksForm();
+              showPicksStatusBanner(result);
+            } else if (result.hasSubmitted) {
+              showPicksStatusBanner(result);
+              await fillSavedPicksKeepForm();
+              const submitBtn = document.getElementById('submit');
+              if (submitBtn) {
+                submitBtn.style.display = '';
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Update Picks';
+              }
             }
           } catch (jsonError) {
             // Silently fail - API may not be available
@@ -1019,20 +1032,22 @@
       }
     }
 
-    // Show message that user has already submitted
-    function showAlreadySubmittedMessage(lastSubmitted) {
+    function showPicksStatusBanner(status) {
       const form = document.querySelector('form[name="predictions"]');
       if (!form) return;
-      if (document.querySelector('.already-submitted-message')) return;
+      document.querySelectorAll('.already-submitted-message').forEach((el) => el.remove());
 
-      const submittedDate = lastSubmitted ? new Date(lastSubmitted).toLocaleString() : 'previously';
-      
+      const weekNumber = weekLabelParts(activeWeekMeta).weekNumber || '';
+      const submittedDate = status.lastSubmitted
+        ? new Date(status.lastSubmitted).toLocaleString()
+        : '';
+      const lockLabel = status.locksAt ? formatGameDate(status.locksAt) : '';
       const messageDiv = document.createElement('div');
       messageDiv.className = 'already-submitted-message';
       messageDiv.style.cssText = `
         background: linear-gradient(135deg, #FFD700, #FFA000);
         color: #1E1E1E;
-        padding: 1.5rem;
+        padding: 1.25rem 1.5rem;
         border-radius: 12px;
         margin: 1rem 0;
         text-align: center;
@@ -1040,22 +1055,35 @@
         box-shadow: 0 4px 8px rgba(255, 215, 0, 0.3);
         border: 2px solid #FFD700;
       `;
-      // Get week number from title
-      const weekNumber = weekLabelParts(activeWeekMeta).weekNumber || '';
-      
-      messageDiv.innerHTML = `
-        <h3 style="margin: 0 0 0.5rem 0; color: #1E1E1E;">✅ Already Submitted!</h3>
-        <p style="margin: 0; color: #1E1E1E;">
-          You've already submitted your predictions for Week ${weekNumber}.<br>
-          <small style="font-size: 0.9em;">Submitted: ${submittedDate}</small>
-        </p>
-        <p style="margin: 0.5rem 0 0 0; font-size: 0.9em; color: #1E1E1E; opacity: 0.9;">
-          Only one submission per week is allowed.
-        </p>
-      `;
 
-      // Insert before the form
+      let title = 'Picks saved';
+      let body = '';
+      if (status.picksLocked && status.hasSubmitted) {
+        title = 'Picks locked';
+        body = `Your Week ${weekNumber} picks are locked because the first game has started.`;
+      } else if (status.picksLocked) {
+        title = 'Picks locked';
+        body = 'The first game of the week has started, so new picks are closed.';
+      } else if (status.hasSubmitted) {
+        title = 'Picks saved';
+        body = lockLabel
+          ? `You can change these until the first kickoff (${lockLabel}).`
+          : 'You can still change these until the first game starts.';
+      }
+      messageDiv.innerHTML = `
+        <h3 style="margin: 0 0 0.5rem 0; color: #1E1E1E;">${title}</h3>
+        <p style="margin: 0; color: #1E1E1E;">${body}</p>
+        ${submittedDate ? `<p style="margin: 0.4rem 0 0; font-size: 0.9em; color: #1E1E1E; opacity: 0.9;">Last saved: ${submittedDate}</p>` : ''}
+      `;
       form.parentNode.insertBefore(messageDiv, form);
+    }
+
+    function showAlreadySubmittedMessage(lastSubmitted) {
+      showPicksStatusBanner({
+        hasSubmitted: true,
+        picksLocked: true,
+        lastSubmitted,
+      });
     }
 
     function hideLockedPicksForm() {
@@ -1101,18 +1129,32 @@
       }
     }
 
+    async function fetchSavedPicksForWeek() {
+      const weekIdToUse = activeWeekId ?? FALLBACK_WEEK_ID;
+      const response = await fetch(`/api/picks/week/${weekIdToUse}`, {
+        method: 'GET',
+        headers: authHeaders(),
+      });
+      if (!response.ok) return [];
+      const result = await response.json().catch(() => ({}));
+      return Array.isArray(result.picks) ? result.picks : [];
+    }
+
+    async function fillSavedPicksKeepForm() {
+      try {
+        const savedPicks = await fetchSavedPicksForWeek();
+        if (savedPicks.length) applySavedPicksToForm(savedPicks);
+      } catch {
+        /* keep empty form if saved picks cannot load */
+      }
+    }
+
     async function showSavedPicksForWeek(lastSubmitted) {
       const authToken = localStorage.getItem('authToken');
       if (!authToken) return;
       const weekIdToUse = activeWeekId ?? FALLBACK_WEEK_ID;
       try {
-        const response = await fetch(`/api/picks/week/${weekIdToUse}`, {
-          method: 'GET',
-          headers: authHeaders(),
-        });
-        if (!response.ok) return;
-        const result = await response.json().catch(() => ({}));
-        const savedPicks = Array.isArray(result.picks) ? result.picks : [];
+        const savedPicks = await fetchSavedPicksForWeek();
         if (!savedPicks.length) return;
         applySavedPicksToForm(savedPicks);
         hideLockedPicksForm();
@@ -1364,30 +1406,50 @@
           alert('Please log in to submit picks.');
           return;
         }
-        if (result.code === 'ALREADY_SUBMITTED' || /already submitted/i.test(result.message || '')) {
+        if (result.code === 'PICKS_LOCKED') {
           disableFormForAlreadySubmitted();
-          showAlreadySubmittedMessage(result.lastSubmitted || new Date().toISOString());
-          alert(result.message || 'You have already submitted picks for this week.');
+          hideLockedPicksForm();
+          showPicksStatusBanner({
+            hasSubmitted: true,
+            picksLocked: true,
+            lastSubmitted: new Date().toISOString(),
+            locksAt: result.locksAt,
+          });
+          alert(result.message || 'Picks are locked. The first game has started.');
           return;
         }
         if (!response.ok) {
           alert(result.message || result.error || 'Could not save picks. Try again.');
           return;
         }
-        disableFormForAlreadySubmitted();
-        showAlreadySubmittedMessage(new Date().toISOString());
+        const stillOpen = result.locksAt && Date.now() < new Date(result.locksAt).getTime();
+        showPicksStatusBanner({
+          hasSubmitted: true,
+          canEdit: stillOpen,
+          picksLocked: !stillOpen,
+          lastSubmitted: new Date().toISOString(),
+          locksAt: result.locksAt,
+        });
+        if (stillOpen) {
+          submitBtn.textContent = 'Update Picks';
+          submitBtn.style.display = '';
+          submitBtn.disabled = false;
+        } else {
+          disableFormForAlreadySubmitted();
+          hideLockedPicksForm();
+          document.body.classList.add('picks-results-open');
+        }
       } catch (submitError) {
         console.error('Picks submit error:', submitError);
         alert('Could not save picks. Try again.');
         return;
       } finally {
-        submitBtn.textContent = originalText;
-        if (submitBtn.style.display !== 'none') {
+        if (submitBtn.style.display !== 'none' && submitBtn.textContent === 'Submitting...') {
+          submitBtn.textContent = originalText;
           submitBtn.disabled = false;
         }
       }
 
-      document.body.classList.add('picks-results-open');
       document.getElementById("results").innerHTML = buildPicksShareCardHtml({
         userName,
         form,
