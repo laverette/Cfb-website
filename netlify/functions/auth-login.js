@@ -3,7 +3,7 @@
  * Body: { usernameOrEmail } or { username } or { email }, plus { password }
  */
 const bcrypt = require("bcryptjs");
-const { getSupabase, dbError } = require("./db");
+const { findUserByUsernameOrEmail, logUserLogin } = require("./db");
 const { json, parseJsonBody } = require("./_http");
 const { signUserToken, jwtSecretOr500 } = require("./_auth");
 
@@ -24,18 +24,6 @@ function rowToUser(row) {
         ? row.created_at.toISOString()
         : row.created_at,
   };
-}
-
-async function logLogin(supabase, userId) {
-  try {
-    await supabase.from("user_activity").insert({
-      user_id: userId,
-      activity_type: "login",
-      activity_data: { login_time: new Date().toISOString() },
-    });
-  } catch {
-    /* optional */
-  }
 }
 
 exports.handler = async (event) => {
@@ -61,30 +49,11 @@ exports.handler = async (event) => {
   }
 
   try {
-    const supabase = getSupabase();
-    const userCols =
-      "id, username, email, password_hash, display_name, avatar_url, bio, role, created_at";
-    const { data: byUsername, error: userErr } = await supabase
-      .from("users")
-      .select(userCols)
-      .eq("username", usernameOrEmail)
-      .maybeSingle();
-    dbError(userErr);
-
-    let row = byUsername;
-    if (!row) {
-      const { data: byEmail, error: emailErr } = await supabase
-        .from("users")
-        .select(userCols)
-        .eq("email", usernameOrEmail)
-        .maybeSingle();
-      dbError(emailErr);
-      row = byEmail;
-    }
-
+    const row = await findUserByUsernameOrEmail(usernameOrEmail);
     if (!row) {
       return json(401, { message: "Invalid username or password" });
     }
+
     const hash = row.password_hash != null ? String(row.password_hash) : "";
     if (!hash) {
       return json(401, { message: "Invalid username or password" });
@@ -95,11 +64,10 @@ exports.handler = async (event) => {
       return json(401, { message: "Invalid username or password" });
     }
 
-    await logLogin(supabase, row.id);
+    await logUserLogin(row.id);
 
     const token = signUserToken(row);
-    const user = rowToUser(row);
-    return json(200, { token, user });
+    return json(200, { token, user: rowToUser(row) });
   } catch (err) {
     console.error("auth-login:", err);
     if (err.code === "NO_DATABASE_URL" || err.code === "NO_JWT_SECRET") {

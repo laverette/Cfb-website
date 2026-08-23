@@ -228,6 +228,217 @@ async function loadGamesByWeek(weekId) {
   return (gameRows || []).map(mapGameRow);
 }
 
+const USER_COLS =
+  "id, username, email, password_hash, display_name, avatar_url, bio, role, created_at";
+
+function mysqlUrlReady() {
+  const url = getMysqlUrl();
+  return Boolean(url && /^mysql/i.test(url));
+}
+
+async function findUserByUsernameOrEmail(usernameOrEmail) {
+  if (hasSupabase()) {
+    const supabase = getSupabase();
+    const { data: byUsername, error: userErr } = await supabase
+      .from("users")
+      .select(USER_COLS)
+      .eq("username", usernameOrEmail)
+      .maybeSingle();
+    dbError(userErr);
+    if (byUsername) return byUsername;
+
+    const { data: byEmail, error: emailErr } = await supabase
+      .from("users")
+      .select(USER_COLS)
+      .eq("email", usernameOrEmail)
+      .maybeSingle();
+    dbError(emailErr);
+    if (byEmail) return byEmail;
+  }
+
+  if (!mysqlUrlReady()) return null;
+  const pool = getMysqlPool();
+  const [rows] = await pool.query(
+    `SELECT id, username, email, password_hash, display_name, avatar_url, bio, role, created_at
+     FROM Users
+     WHERE username = ? OR email = ?
+     LIMIT 1`,
+    [usernameOrEmail, usernameOrEmail]
+  );
+  return rows && rows[0] ? rows[0] : null;
+}
+
+async function findUserById(userId) {
+  if (hasSupabase()) {
+    const supabase = getSupabase();
+    const { data, error } = await supabase
+      .from("users")
+      .select(USER_COLS)
+      .eq("id", userId)
+      .maybeSingle();
+    dbError(error);
+    if (data) return data;
+  }
+
+  if (!mysqlUrlReady()) return null;
+  const pool = getMysqlPool();
+  const [rows] = await pool.query(
+    `SELECT id, username, email, password_hash, display_name, avatar_url, bio, role, created_at
+     FROM Users WHERE id = ? LIMIT 1`,
+    [userId]
+  );
+  return rows && rows[0] ? rows[0] : null;
+}
+
+async function findProfileByUserId(userId) {
+  if (hasSupabase()) {
+    const supabase = getSupabase();
+    const { data, error } = await supabase
+      .from("user_profiles")
+      .select(
+        "id, user_id, favorite_team_espn_id, favorite_conference, location, total_picks, correct_picks, accuracy, current_streak, best_streak, ranking, last_pick_date"
+      )
+      .eq("user_id", userId)
+      .maybeSingle();
+    dbError(error);
+    if (data) return data;
+  }
+
+  if (!mysqlUrlReady()) return null;
+  const pool = getMysqlPool();
+  const [rows] = await pool.query(
+    `SELECT id, user_id, favorite_team_espn_id, favorite_conference, location,
+            total_picks, correct_picks, accuracy, current_streak, best_streak, ranking, last_pick_date
+     FROM UserProfiles WHERE user_id = ? LIMIT 1`,
+    [userId]
+  );
+  return rows && rows[0] ? rows[0] : null;
+}
+
+async function logUserLogin(userId) {
+  try {
+    if (hasSupabase()) {
+      await getSupabase().from("user_activity").insert({
+        user_id: userId,
+        activity_type: "login",
+        activity_data: { login_time: new Date().toISOString() },
+      });
+      return;
+    }
+    if (mysqlUrlReady()) {
+      const pool = getMysqlPool();
+      await pool.query(
+        `INSERT INTO UserActivity (user_id, activity_type, activity_data, created_at)
+         VALUES (?, 'login', JSON_OBJECT('login_time', NOW(3)), NOW(3))`,
+        [userId]
+      );
+    }
+  } catch {
+    /* optional */
+  }
+}
+
+async function registerUser({ username, email, passwordHash, displayName }) {
+  if (hasSupabase()) {
+    const supabase = getSupabase();
+    const { data: existingU, error: uErr } = await supabase
+      .from("users")
+      .select("id")
+      .eq("username", username)
+      .maybeSingle();
+    dbError(uErr);
+    if (existingU) {
+      const err = new Error("Username already exists");
+      err.code = "USER_EXISTS";
+      throw err;
+    }
+    const { data: existingE, error: eErr } = await supabase
+      .from("users")
+      .select("id")
+      .eq("email", email)
+      .maybeSingle();
+    dbError(eErr);
+    if (existingE) {
+      const err = new Error("Email already exists");
+      err.code = "EMAIL_EXISTS";
+      throw err;
+    }
+
+    const { data: created, error: insErr } = await supabase
+      .from("users")
+      .insert({
+        username,
+        email,
+        password_hash: passwordHash,
+        display_name: displayName,
+        role: "user",
+      })
+      .select("id, username, email, display_name, avatar_url, bio, role, created_at")
+      .single();
+    dbError(insErr);
+
+    await supabase.from("user_profiles").insert({
+      user_id: created.id,
+      total_picks: 0,
+      correct_picks: 0,
+      accuracy: 0,
+    });
+    await supabase.from("user_settings").insert({
+      user_id: created.id,
+      email_notifications: true,
+      theme: "dark",
+      notifications_enabled: true,
+    });
+    return created;
+  }
+
+  if (!mysqlUrlReady()) {
+    const err = new Error("Database URL not configured");
+    err.code = "NO_DATABASE_URL";
+    throw err;
+  }
+
+  const pool = getMysqlPool();
+  const conn = await pool.getConnection();
+  try {
+    const [existingU] = await conn.query("SELECT id FROM Users WHERE username = ? LIMIT 1", [username]);
+    if (existingU.length) {
+      const err = new Error("Username already exists");
+      err.code = "USER_EXISTS";
+      throw err;
+    }
+    const [existingE] = await conn.query("SELECT id FROM Users WHERE email = ? LIMIT 1", [email]);
+    if (existingE.length) {
+      const err = new Error("Email already exists");
+      err.code = "EMAIL_EXISTS";
+      throw err;
+    }
+    const [ins] = await conn.query(
+      `INSERT INTO Users (username, email, password_hash, display_name, role, created_at, updated_at)
+       VALUES (?, ?, ?, ?, 'user', NOW(3), NOW(3))`,
+      [username, email, passwordHash, displayName]
+    );
+    const userId = ins.insertId;
+    await conn.query(
+      `INSERT INTO UserProfiles (user_id, total_picks, correct_picks, accuracy) VALUES (?, 0, 0, 0.00)`,
+      [userId]
+    );
+    await conn.query(
+      `INSERT INTO UserSettings (user_id, email_notifications, theme, notifications_enabled)
+       VALUES (?, TRUE, 'dark', TRUE)`,
+      [userId]
+    );
+    const [created] = await conn.query(
+      `SELECT id, username, email, display_name, avatar_url, bio, role, created_at
+       FROM Users WHERE id = ? LIMIT 1`,
+      [userId]
+    );
+    return created[0];
+  } finally {
+    conn.release();
+  }
+}
+
 module.exports = {
   getSupabase,
   getPool: getSupabase,
@@ -240,4 +451,9 @@ module.exports = {
   isMysqlConnectionLimitError,
   loadCurrentWeek,
   loadGamesByWeek,
+  findUserByUsernameOrEmail,
+  findUserById,
+  findProfileByUserId,
+  logUserLogin,
+  registerUser,
 };

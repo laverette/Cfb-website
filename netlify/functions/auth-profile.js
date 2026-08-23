@@ -1,7 +1,7 @@
 /**
  * GET /api/auth/profile — requires Bearer JWT
  */
-const { getSupabase, dbError } = require("./db");
+const { findUserById, findProfileByUserId } = require("./db");
 const { json } = require("./_http");
 const { requireAuth } = require("./_auth");
 
@@ -59,26 +59,11 @@ exports.handler = async (event) => {
   }
 
   try {
-    const supabase = getSupabase();
-    const { data: userRow, error: userErr } = await supabase
-      .from("users")
-      .select("id, username, email, display_name, avatar_url, bio, role, created_at")
-      .eq("id", userId)
-      .maybeSingle();
-    dbError(userErr);
+    const userRow = await findUserById(userId);
     if (!userRow) {
       return json(404, { message: "User not found" });
     }
-
-    const { data: profileRow, error: profileErr } = await supabase
-      .from("user_profiles")
-      .select(
-        "id, user_id, favorite_team_espn_id, favorite_conference, location, total_picks, correct_picks, accuracy, current_streak, best_streak, ranking, last_pick_date"
-      )
-      .eq("user_id", userId)
-      .maybeSingle();
-    dbError(profileErr);
-
+    const profileRow = await findProfileByUserId(userId);
     return json(200, {
       user: mapUser(userRow),
       profile: profileRow ? mapProfile(profileRow) : null,
