@@ -1336,6 +1336,17 @@ body.picks-results-open #cfbdWeek1PicksContainer {
     min-width: 220px;
 }
 
+.picks-share-actions .edit-picks-button {
+    margin-top: 0.65rem;
+    background: linear-gradient(135deg, #3E2723, #5D4037);
+    color: #FFD700;
+    border: 1px solid #FFD700;
+}
+
+.picks-share-actions .edit-picks-button:hover {
+    background: linear-gradient(135deg, #5D4037, #6D4C41);
+}
+
 .picks-share-week {
     margin: 0.35rem 0 0;
     color: #f5deb3;

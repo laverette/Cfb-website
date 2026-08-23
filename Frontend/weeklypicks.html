@@ -977,23 +977,17 @@
           try {
             const result = await response.json();
             
-            if (result.picksLocked && result.hasSubmitted) {
-              disableFormForAlreadySubmitted();
-              showPicksStatusBanner(result);
-              await showSavedPicksForWeek(result.lastSubmitted);
-            } else if (result.picksLocked && !result.hasSubmitted) {
+            window.__PICKS_STATUS__ = result;
+            if (result.hasSubmitted) {
+              await showSavedPicksForWeek({
+                lastSubmitted: result.lastSubmitted,
+                canEdit: Boolean(result.canEdit) && !result.picksLocked,
+                locksAt: result.locksAt,
+              });
+            } else if (result.picksLocked) {
               disableFormForAlreadySubmitted();
               hideLockedPicksForm();
               showPicksStatusBanner(result);
-            } else if (result.hasSubmitted) {
-              showPicksStatusBanner(result);
-              await fillSavedPicksKeepForm();
-              const submitBtn = document.getElementById('submit');
-              if (submitBtn) {
-                submitBtn.style.display = '';
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Update Picks';
-              }
             }
           } catch (jsonError) {
             // Silently fail - API may not be available
@@ -1096,6 +1090,57 @@
       }
       const submitBtn = document.getElementById('submit');
       if (submitBtn) submitBtn.style.display = 'none';
+      const cancelBtn = document.getElementById('cancelEditPicks');
+      if (cancelBtn) cancelBtn.style.display = 'none';
+    }
+
+    function showPicksFormForEditing() {
+      document.body.classList.remove('picks-results-open');
+      document.querySelectorAll('.already-submitted-message').forEach((el) => el.remove());
+      const results = document.getElementById('results');
+      if (results) results.innerHTML = '';
+      const db = document.getElementById('dbWeekPicksContainer');
+      if (db) db.style.display = 'block';
+      const form = document.querySelector('form[name="predictions"]');
+      if (form) {
+        form.querySelectorAll('select, input, button').forEach((el) => {
+          if (el.id === 'cancelEditPicks') return;
+          el.disabled = false;
+          el.style.opacity = '';
+          el.style.cursor = '';
+        });
+      }
+      const submitBtn = document.getElementById('submit');
+      if (submitBtn) {
+        submitBtn.style.display = '';
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Change Picks';
+      }
+      ensureCancelEditButton();
+    }
+
+    function ensureCancelEditButton() {
+      const submitBtn = document.getElementById('submit');
+      if (!submitBtn || !submitBtn.parentNode) return;
+      let cancelBtn = document.getElementById('cancelEditPicks');
+      if (!cancelBtn) {
+        cancelBtn = document.createElement('button');
+        cancelBtn.type = 'button';
+        cancelBtn.id = 'cancelEditPicks';
+        cancelBtn.className = 'nav-button-link form-nav-link';
+        cancelBtn.style.marginLeft = '0.5rem';
+        cancelBtn.textContent = 'Cancel';
+        cancelBtn.addEventListener('click', async function () {
+          const status = window.__PICKS_STATUS__ || {};
+          await showSavedPicksForWeek({
+            lastSubmitted: status.lastSubmitted,
+            canEdit: Boolean(status.canEdit) && !status.picksLocked,
+            locksAt: status.locksAt,
+          });
+        });
+        submitBtn.parentNode.insertBefore(cancelBtn, submitBtn.nextSibling);
+      }
+      cancelBtn.style.display = '';
     }
 
     function applySavedPicksToForm(savedPicks) {
@@ -1122,10 +1167,38 @@
       });
     }
 
-    function wireShareCardActions() {
+    function wireShareCardActions(options = {}) {
       const screenshotBtn = document.getElementById('screenshotBtn');
       if (screenshotBtn) {
         screenshotBtn.addEventListener('click', takeScreenshot);
+      }
+      const editBtn = document.getElementById('editPicksBtn');
+      if (editBtn) {
+        editBtn.addEventListener('click', async function () {
+          const status = window.__PICKS_STATUS__ || {};
+          if (status.picksLocked || status.canEdit === false) {
+            alert('Picks are locked. The first game of the week has started.');
+            return;
+          }
+          try {
+            const savedPicks = await fetchSavedPicksForWeek();
+            applySavedPicksToForm(savedPicks);
+          } catch {
+            /* form may already have values */
+          }
+          showPicksFormForEditing();
+          showPicksStatusBanner({
+            hasSubmitted: true,
+            canEdit: true,
+            picksLocked: false,
+            lastSubmitted: status.lastSubmitted,
+            locksAt: status.locksAt || options.locksAt,
+          });
+          const form = document.querySelector('form[name="predictions"]');
+          if (form) {
+            form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        });
       }
     }
 
@@ -1140,24 +1213,17 @@
       return Array.isArray(result.picks) ? result.picks : [];
     }
 
-    async function fillSavedPicksKeepForm() {
-      try {
-        const savedPicks = await fetchSavedPicksForWeek();
-        if (savedPicks.length) applySavedPicksToForm(savedPicks);
-      } catch {
-        /* keep empty form if saved picks cannot load */
-      }
-    }
-
-    async function showSavedPicksForWeek(lastSubmitted) {
+    async function showSavedPicksForWeek(opts = {}) {
       const authToken = localStorage.getItem('authToken');
       if (!authToken) return;
-      const weekIdToUse = activeWeekId ?? FALLBACK_WEEK_ID;
+      const canEdit = Boolean(opts.canEdit);
+      const locksAt = opts.locksAt || (window.__PICKS_STATUS__ && window.__PICKS_STATUS__.locksAt) || null;
       try {
         const savedPicks = await fetchSavedPicksForWeek();
         if (!savedPicks.length) return;
         applySavedPicksToForm(savedPicks);
         hideLockedPicksForm();
+        document.querySelectorAll('.already-submitted-message').forEach((el) => el.remove());
         document.body.classList.add('picks-results-open');
         const userName = currentUser?.displayName || currentUser?.username || 'Guest';
         const gameCount = Math.max(
@@ -1171,10 +1237,16 @@
           gameCount,
           savedPicks,
           statusText: 'Your picks for this week',
+          canEdit,
+          locksAt,
         });
-        wireShareCardActions();
+        wireShareCardActions({ locksAt });
+        setTimeout(() => {
+          const card = document.getElementById('picksShareCard');
+          if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 80);
       } catch {
-        /* keep the already-submitted banner if the card cannot load */
+        /* keep previous UI if the card cannot load */
       }
     }
 
@@ -1256,10 +1328,11 @@
       };
     }
 
-    function buildPicksShareCardHtml({ userName, form, gameCount, savedPicks, statusText }) {
+    function buildPicksShareCardHtml({ userName, form, gameCount, savedPicks, statusText, canEdit, locksAt }) {
       const week = shareWeekLabel();
       const games = Array.isArray(window.__DB_GAMES__) ? window.__DB_GAMES__ : [];
       const safeUser = safeText(userName || 'Guest');
+      const lockLabel = locksAt ? formatGameDate(locksAt) : '';
       let gamesHtml = '';
 
       for (let i = 1; i <= gameCount; i++) {
@@ -1297,6 +1370,15 @@
         `;
       }
 
+      const editBlock = canEdit
+        ? `
+            <button id="editPicksBtn" class="screenshot-button edit-picks-button" type="button">Edit Picks</button>
+            <p class="screenshot-note">${lockLabel ? `You can edit until first kickoff (${safeText(lockLabel)}).` : 'You can edit until the first game starts.'}</p>
+          `
+        : `
+            <p class="screenshot-note">Picks are locked for this week.</p>
+          `;
+
       return `
         <div class="picks-share-wrap">
           <div class="picks-share-card" id="picksShareCard">
@@ -1311,12 +1393,12 @@
             <p class="picks-share-footer">${gameCount} picks · ${safeText(week.weekPart)}${week.yearPart ? safeText(week.yearPart) : ''}</p>
           </div>
           <div class="picks-share-actions">
-            <p class="success-message">${safeText(statusText || 'Predictions saved.')}</p>
+            <p class="success-message">${safeText(statusText || 'Your picks for this week')}</p>
             <p class="next-steps" id="seasonCounterLine"></p>
             <p class="next-steps">Save this card and send it to your friends.</p>
             <div class="screenshot-section">
               <button id="screenshotBtn" class="screenshot-button" type="button">Save image</button>
-              <p class="screenshot-note">Downloads a picture of your picks.</p>
+              ${editBlock}
             </div>
           </div>
         </div>
@@ -1407,13 +1489,18 @@
           return;
         }
         if (result.code === 'PICKS_LOCKED') {
-          disableFormForAlreadySubmitted();
-          hideLockedPicksForm();
-          showPicksStatusBanner({
+          window.__PICKS_STATUS__ = {
+            ...(window.__PICKS_STATUS__ || {}),
             hasSubmitted: true,
             picksLocked: true,
-            lastSubmitted: new Date().toISOString(),
+            canEdit: false,
             locksAt: result.locksAt,
+            lastSubmitted: new Date().toISOString(),
+          };
+          await showSavedPicksForWeek({
+            canEdit: false,
+            locksAt: result.locksAt,
+            lastSubmitted: window.__PICKS_STATUS__.lastSubmitted,
           });
           alert(result.message || 'Picks are locked. The first game has started.');
           return;
@@ -1422,68 +1509,43 @@
           alert(result.message || result.error || 'Could not save picks. Try again.');
           return;
         }
-        const stillOpen = result.locksAt && Date.now() < new Date(result.locksAt).getTime();
-        showPicksStatusBanner({
+        const stillOpen = !(result.locksAt && Date.now() >= new Date(result.locksAt).getTime());
+        window.__PICKS_STATUS__ = {
           hasSubmitted: true,
           canEdit: stillOpen,
           picksLocked: !stillOpen,
           lastSubmitted: new Date().toISOString(),
-          locksAt: result.locksAt,
+          locksAt: result.locksAt || null,
+        };
+        await showSavedPicksForWeek({
+          canEdit: stillOpen,
+          locksAt: result.locksAt || null,
+          lastSubmitted: window.__PICKS_STATUS__.lastSubmitted,
         });
-        if (stillOpen) {
-          submitBtn.textContent = 'Update Picks';
-          submitBtn.style.display = '';
-          submitBtn.disabled = false;
-        } else {
-          disableFormForAlreadySubmitted();
-          hideLockedPicksForm();
-          document.body.classList.add('picks-results-open');
-        }
       } catch (submitError) {
         console.error('Picks submit error:', submitError);
         alert('Could not save picks. Try again.');
         return;
       } finally {
-        if (submitBtn.style.display !== 'none' && submitBtn.textContent === 'Submitting...') {
+        if (submitBtn.style.display !== 'none' && /Submitting/i.test(submitBtn.textContent)) {
           submitBtn.textContent = originalText;
           submitBtn.disabled = false;
         }
       }
 
-      document.getElementById("results").innerHTML = buildPicksShareCardHtml({
-        userName,
-        form,
-        gameCount,
-      });
-        
-        // Scroll to results
-        setTimeout(() => {
-          document.getElementById("results").scrollIntoView({ 
-            behavior: 'smooth',
-            block: 'start'
-          });
-        }, 100);
-        
-        // Add screenshot functionality
-        wireShareCardActions();
-
-        // 2026 per-profile submission counter (local-only)
-        // This keeps things lightweight until you add a real backend leaderboard.
-        try {
+      // Share card is rendered by showSavedPicksForWeek above.
+      try {
           const year = shareWeekLabel().seasonYear || new Date().getFullYear();
           const keyUser = String(userName || 'Guest').trim().toLowerCase();
           const counterKey = `weeklyPicksSubmissions:${year}:${keyUser}`;
           const current = Number(localStorage.getItem(counterKey) || '0');
           const next = current + 1;
           localStorage.setItem(counterKey, String(next));
-
           const line = document.getElementById('seasonCounterLine');
-          if (line) {
-            line.textContent = `${year} submissions for ${userName}: ${next}`;
-          }
-        } catch (e) {
+          if (line) line.textContent = `${year} submissions for ${userName}: ${next}`;
+      } catch (e) {
           // ignore localStorage errors
-        }
+      }
     });
 
     // Screenshot functionality
