@@ -978,14 +978,9 @@
             const result = await response.json();
             
             if (result.hasSubmitted) {
-              // User has already submitted - disable form
               disableFormForAlreadySubmitted();
-              
-              // Show their previous submission
-              if (result.pickCount > 0) {
-                showAlreadySubmittedMessage(result.lastSubmitted);
-                loadPreviousSubmission();
-              }
+              showAlreadySubmittedMessage(result.lastSubmitted);
+              await showSavedPicksForWeek(result.lastSubmitted);
             }
           } catch (jsonError) {
             // Silently fail - API may not be available
@@ -1046,9 +1041,7 @@
         border: 2px solid #FFD700;
       `;
       // Get week number from title
-      const titleElement = document.querySelector('.title');
-      const weekText = titleElement ? titleElement.textContent.match(/Week (\d+)/) : null;
-      const weekNumber = weekText ? weekText[1] : weekId;
+      const weekNumber = weekLabelParts(activeWeekMeta).weekNumber || '';
       
       messageDiv.innerHTML = `
         <h3 style="margin: 0 0 0.5rem 0; color: #1E1E1E;">✅ Already Submitted!</h3>
@@ -1065,63 +1058,81 @@
       form.parentNode.insertBefore(messageDiv, form);
     }
 
-    // Load and display previous submission
-    async function loadPreviousSubmission() {
+    function hideLockedPicksForm() {
+      const db = document.getElementById('dbWeekPicksContainer');
+      if (db) db.style.display = 'none';
+      const legacy = document.getElementById('legacyHardcodedGames');
+      if (legacy) {
+        legacy.hidden = true;
+        legacy.style.display = 'none';
+      }
+      const submitBtn = document.getElementById('submit');
+      if (submitBtn) submitBtn.style.display = 'none';
+    }
+
+    function applySavedPicksToForm(savedPicks) {
+      (savedPicks || []).forEach((pick) => {
+        const gameNumber = pick.gameNumber ?? pick.game_number;
+        const select = document.querySelector(`select[name="game${gameNumber}"]`);
+        if (!select) return;
+        const pickedEspnId = Number(pick.pickedTeamEspnId ?? pick.picked_team_espn_id);
+        const options = Array.from(select.querySelectorAll('option'));
+        for (const option of options) {
+          const optEspnId = option.getAttribute('data-team-espn-id');
+          if (optEspnId && Number(optEspnId) === pickedEspnId) {
+            option.selected = true;
+            return;
+          }
+        }
+        const pickedName = String(pick.pickedTeamName ?? pick.picked_team_name ?? '');
+        for (const option of options) {
+          if (pickedName && option.value === pickedName) {
+            option.selected = true;
+            return;
+          }
+        }
+      });
+    }
+
+    function wireShareCardActions() {
+      const screenshotBtn = document.getElementById('screenshotBtn');
+      if (screenshotBtn) {
+        screenshotBtn.addEventListener('click', takeScreenshot);
+      }
+    }
+
+    async function showSavedPicksForWeek(lastSubmitted) {
       const authToken = localStorage.getItem('authToken');
       if (!authToken) return;
-
       const weekIdToUse = activeWeekId ?? FALLBACK_WEEK_ID;
-
       try {
         const response = await fetch(`/api/picks/week/${weekIdToUse}`, {
           method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${authToken}`,
-            'Content-Type': 'application/json'
-          }
+          headers: authHeaders(),
         });
-
-        if (response.ok) {
-          try {
-            const result = await response.json();
-            
-            if (result.picks && result.picks.length > 0) {
-              // Pre-fill form with previous picks (read-only)
-              result.picks.forEach(pick => {
-                const gameNumber = pick.gameNumber;
-                const select = document.querySelector(`select[name="game${gameNumber}"]`);
-                
-                if (select) {
-                  // Prefer matching by option data-team-espn-id (DB-driven selects)
-                  const options = Array.from(select.querySelectorAll('option'));
-                  let matched = false;
-                  for (const option of options) {
-                    const optEspnId = option.getAttribute('data-team-espn-id');
-                    if (optEspnId && Number(optEspnId) === Number(pick.pickedTeamEspnId)) {
-                      option.selected = true;
-                      matched = true;
-                      break;
-                    }
-                  }
-
-                  // Fallback: match the legacy hardcoded options by team code mapping
-                  if (!matched) {
-                    options.forEach(option => {
-                      const optionValue = option.value;
-                      const espnId = teamCodeToEspnId[optionValue];
-                      if (espnId === pick.pickedTeamEspnId) option.selected = true;
-                    });
-                  }
-                }
-              });
-            }
-          } catch (jsonError) {
-            // Silently ignore - API may not be available
-          }
-        }
-        // Silently ignore 404s - API may not be deployed
-      } catch (error) {
-        // Silently ignore - API may not be available
+        if (!response.ok) return;
+        const result = await response.json().catch(() => ({}));
+        const savedPicks = Array.isArray(result.picks) ? result.picks : [];
+        if (!savedPicks.length) return;
+        applySavedPicksToForm(savedPicks);
+        hideLockedPicksForm();
+        document.body.classList.add('picks-results-open');
+        const userName = currentUser?.displayName || currentUser?.username || 'Guest';
+        const gameCount = Math.max(
+          Number(window.__DB_GAME_COUNT__) || 0,
+          (window.__DB_GAMES__ || []).length,
+          savedPicks.length
+        );
+        document.getElementById('results').innerHTML = buildPicksShareCardHtml({
+          userName,
+          form: document.querySelector('form[name="predictions"]'),
+          gameCount,
+          savedPicks,
+          statusText: 'Your picks for this week',
+        });
+        wireShareCardActions();
+      } catch {
+        /* keep the already-submitted banner if the card cannot load */
       }
     }
 
@@ -1184,17 +1195,36 @@
       return `<img class="picks-share-logo" src="${safeText(url)}" alt="${safeText(name || '')}" crossorigin="anonymous" referrerpolicy="no-referrer">`;
     }
 
-    function buildPicksShareCardHtml({ userName, form, gameCount }) {
+    function resolvePickForGame(savedPicks, form, gameNumber, game) {
+      const saved = Array.isArray(savedPicks)
+        ? savedPicks.find((p) => Number(p.gameNumber ?? p.game_number) === gameNumber)
+          || savedPicks.find((p) => Number(p.gameId ?? p.game_id) === Number(game?.id))
+        : null;
+      if (saved) {
+        return {
+          name: String(saved.pickedTeamName ?? saved.picked_team_name ?? ''),
+          espnId: Number(saved.pickedTeamEspnId ?? saved.picked_team_espn_id),
+        };
+      }
+      const select = form && form.querySelector(`select[name="game${gameNumber}"]`);
+      const option = select && select.selectedOptions[0];
+      return {
+        name: select ? String(select.value || '') : '',
+        espnId: option ? parseInt(option.getAttribute('data-team-espn-id'), 10) : NaN,
+      };
+    }
+
+    function buildPicksShareCardHtml({ userName, form, gameCount, savedPicks, statusText }) {
       const week = shareWeekLabel();
       const games = Array.isArray(window.__DB_GAMES__) ? window.__DB_GAMES__ : [];
       const safeUser = safeText(userName || 'Guest');
       let gamesHtml = '';
 
       for (let i = 1; i <= gameCount; i++) {
-        const select = form.querySelector(`select[name="game${i}"]`);
-        const pickedName = select ? String(select.value || '') : '';
-        const option = select && select.selectedOptions[0];
-        const pickedEspnId = option ? parseInt(option.getAttribute('data-team-espn-id'), 10) : NaN;
+        const game = games.find((g) => Number(g.gameNumber) === i) || games[i - 1] || null;
+        const pick = resolvePickForGame(savedPicks, form, i, game);
+        const pickedName = pick.name;
+        const pickedEspnId = pick.espnId;
         const game = games.find((g) => Number(g.gameNumber) === i) || games[i - 1] || null;
         const awayName = game?.awayTeamName || (pickedName ? '' : 'TBD');
         const homeName = game?.homeTeamName || '';
@@ -1240,7 +1270,7 @@
             <p class="picks-share-footer">${gameCount} picks · ${safeText(week.weekPart)}${week.yearPart ? safeText(week.yearPart) : ''}</p>
           </div>
           <div class="picks-share-actions">
-            <p class="success-message">Predictions saved.</p>
+            <p class="success-message">${safeText(statusText || 'Predictions saved.')}</p>
             <p class="next-steps" id="seasonCounterLine"></p>
             <p class="next-steps">Save this card and send it to your friends.</p>
             <div class="screenshot-section">
@@ -1374,12 +1404,7 @@
         }, 100);
         
         // Add screenshot functionality
-        const screenshotBtn = document.getElementById('screenshotBtn');
-        if (screenshotBtn) {
-          screenshotBtn.addEventListener('click', function() {
-            takeScreenshot();
-          });
-        }
+        wireShareCardActions();
 
         // 2026 per-profile submission counter (local-only)
         // This keeps things lightweight until you add a real backend leaderboard.

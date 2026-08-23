@@ -1273,6 +1273,12 @@ body.picks-results-open .bouncing-football {
     display: none;
 }
 
+body.picks-results-open #dbWeekPicksContainer,
+body.picks-results-open #legacyHardcodedGames,
+body.picks-results-open #cfbdWeek1PicksContainer {
+    display: none !important;
+}
+
 .picks-share-wrap {
     margin: 1.5rem 0 2rem;
     position: relative;
