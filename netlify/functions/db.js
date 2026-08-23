@@ -270,6 +270,152 @@ async function registerUser({ username, email, passwordHash, displayName }) {
   return created;
 }
 
+async function getUserWeekSubmission(userId, weekId) {
+  const supabase = getSupabase();
+  const { count, error } = await supabase
+    .from("user_picks")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .eq("week_id", weekId);
+  dbError(error);
+  const pickCount = count || 0;
+  let lastSubmitted = null;
+  if (pickCount > 0) {
+    const { data, error: latestErr } = await supabase
+      .from("user_picks")
+      .select("submitted_at")
+      .eq("user_id", userId)
+      .eq("week_id", weekId)
+      .order("submitted_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    dbError(latestErr);
+    lastSubmitted = data && data.submitted_at ? data.submitted_at : null;
+  }
+  return { hasSubmitted: pickCount > 0, pickCount, lastSubmitted };
+}
+
+async function getUserPicksForWeek(userId, weekId) {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from("user_picks")
+    .select(
+      "id, game_id, week_id, picked_team_espn_id, picked_team_name, is_correct, submitted_at, games ( game_number, home_team_name, away_team_name, home_team_espn_id, away_team_espn_id )"
+    )
+    .eq("user_id", userId)
+    .eq("week_id", weekId);
+  dbError(error);
+  return (data || [])
+    .map((row) => {
+      const g = row.games || {};
+      return {
+        id: row.id,
+        gameId: row.game_id,
+        weekId: row.week_id,
+        gameNumber: g.game_number,
+        pickedTeamEspnId: row.picked_team_espn_id,
+        pickedTeamName: row.picked_team_name,
+        isCorrect: row.is_correct,
+        submittedAt: row.submitted_at,
+        homeTeamName: g.home_team_name,
+        awayTeamName: g.away_team_name,
+        homeTeamEspnId: g.home_team_espn_id,
+        awayTeamEspnId: g.away_team_espn_id,
+      };
+    })
+    .sort((a, b) => (a.gameNumber || 0) - (b.gameNumber || 0));
+}
+
+function alreadySubmittedError() {
+  const err = new Error("You have already submitted picks for this week.");
+  err.code = "ALREADY_SUBMITTED";
+  return err;
+}
+
+async function submitUserPicks({ userId, weekId, picks }) {
+  const existing = await getUserWeekSubmission(userId, weekId);
+  if (existing.hasSubmitted) {
+    throw alreadySubmittedError();
+  }
+
+  const games = await loadGamesByWeek(weekId);
+  if (!games.length) {
+    const err = new Error("No games found for this week");
+    err.code = "NO_GAMES";
+    throw err;
+  }
+
+  const byId = new Map(games.map((g) => [Number(g.id), g]));
+  const byNumber = new Map(games.map((g) => [Number(g.game_number), g]));
+  const usedGameIds = new Set();
+  const rows = [];
+
+  for (const pick of picks || []) {
+    const gameId = Number(pick.gameId ?? pick.game_id);
+    const gameNumber = Number(pick.gameNumber ?? pick.game_number);
+    const pickedEspnId = Number(pick.pickedTeamEspnId ?? pick.picked_team_espn_id);
+    const game =
+      (Number.isFinite(gameId) && byId.get(gameId)) ||
+      (Number.isFinite(gameNumber) && byNumber.get(gameNumber)) ||
+      null;
+    if (!game || usedGameIds.has(Number(game.id))) continue;
+
+    const homeId = Number(game.home_team_espn_id);
+    const awayId = Number(game.away_team_espn_id);
+    let pickedTeamName = null;
+    if (pickedEspnId === homeId) pickedTeamName = game.home_team_name;
+    else if (pickedEspnId === awayId) pickedTeamName = game.away_team_name;
+    else continue;
+
+    usedGameIds.add(Number(game.id));
+    rows.push({
+      user_id: userId,
+      game_id: game.id,
+      week_id: weekId,
+      picked_team_espn_id: pickedEspnId,
+      picked_team_name: pickedTeamName,
+    });
+  }
+
+  if (rows.length !== games.length) {
+    const err = new Error("Submit a pick for every game this week");
+    err.code = "INCOMPLETE_PICKS";
+    throw err;
+  }
+
+  const supabase = getSupabase();
+  const { error } = await supabase.from("user_picks").insert(rows);
+  if (error && (error.code === "23505" || /duplicate/i.test(error.message || ""))) {
+    throw alreadySubmittedError();
+  }
+  dbError(error);
+
+  await supabase.from("weekly_user_stats").upsert(
+    {
+      user_id: userId,
+      week_id: weekId,
+      total_picks: rows.length,
+      correct_picks: 0,
+      incorrect_picks: 0,
+      accuracy: 0,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "user_id,week_id" }
+  );
+
+  try {
+    await supabase.from("user_activity").insert({
+      user_id: userId,
+      activity_type: "picks_submitted",
+      activity_data: { week_id: weekId, pick_count: rows.length },
+    });
+  } catch {
+    /* optional */
+  }
+
+  return { saved: rows.length };
+}
+
 module.exports = {
   getSupabase,
   getPool: getSupabase,
@@ -284,4 +430,7 @@ module.exports = {
   findProfileByUserId,
   logUserLogin,
   registerUser,
+  getUserWeekSubmission,
+  getUserPicksForWeek,
+  submitUserPicks,
 };

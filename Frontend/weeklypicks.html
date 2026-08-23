@@ -422,14 +422,9 @@
     const USE_CFBD_GAMES_FOR_WEEKLY_PICKS = false;
 
     // -------------------------------------------------------------------------
-    // Phase 1: Netlify Functions + Supabase (read-only) — same-origin routes
-    // - GET /api/picks/current-week  → picks-current-week
-    // - GET /api/picks/games/week/:weekId → picks-games-by-week
-    // Check-submission / saved picks still use legacy remote API until Phase 2.
+    // Netlify Functions + Supabase — same-origin routes
     // -------------------------------------------------------------------------
     const FALLBACK_WEEK_ID = 14; // Only used if Netlify picks API cannot provide an active week
-    /** @deprecated Phase 2 — replace with Netlify functions */
-    const LEGACY_REMOTE_PICKS_API = 'https://cfb-website.onrender.com/api';
     let activeWeekId = null;
     let activeWeekMeta = null; // { weekNumber, seasonYear, startDate, endDate, isCompleted }
 
@@ -680,9 +675,9 @@
       const list = Array.isArray(games) ? games : [];
       if (list.length === 0) return false;
 
-      // Store count + matchup strings for the existing "preview" renderer
       window.__DB_GAME_COUNT__ = list.length;
       window.__DB_GAME_MATCHUPS__ = list.map(g => `${g?.awayTeamName || 'TBD'} @ ${g?.homeTeamName || 'TBD'}`);
+      window.__DB_GAMES__ = list;
 
       container.style.display = 'block';
       container.innerHTML = list.map((g) => {
@@ -693,7 +688,7 @@
         const awayLogo = g?.awayTeamLogoUrl || '';
         const homeLogo = g?.homeTeamLogoUrl || '';
         const awayEspnId = g?.awayTeamEspnId;
-        const homeEspnId = g?.homeEspnId;
+        const homeEspnId = g?.homeTeamEspnId;
         const isCompleted = !!g?.isCompleted;
 
         // Find live score data for this game
@@ -970,7 +965,7 @@
       const weekIdToUse = activeWeekId ?? FALLBACK_WEEK_ID;
 
       try {
-        const response = await fetch(`${LEGACY_REMOTE_PICKS_API}/picks/check-submission/${weekIdToUse}`, {
+        const response = await fetch(`/api/picks/check-submission/${weekIdToUse}`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${authToken}`,
@@ -1033,6 +1028,7 @@
     function showAlreadySubmittedMessage(lastSubmitted) {
       const form = document.querySelector('form[name="predictions"]');
       if (!form) return;
+      if (document.querySelector('.already-submitted-message')) return;
 
       const submittedDate = lastSubmitted ? new Date(lastSubmitted).toLocaleString() : 'previously';
       
@@ -1077,7 +1073,7 @@
       const weekIdToUse = activeWeekId ?? FALLBACK_WEEK_ID;
 
       try {
-        const response = await fetch(`${LEGACY_REMOTE_PICKS_API}/picks/week/${weekIdToUse}`, {
+        const response = await fetch(`/api/picks/week/${weekIdToUse}`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${authToken}`,
@@ -1157,16 +1153,143 @@
       'GASO': 290, 'APPST': 2026
     };
 
-    // No longer need to load games from API - we use game_number (1-12) directly
-    // Phase 2 hook:
-    // - When ready, replace the Netlify Forms POST with a call to:
-    //   POST /api/picks/submit (Netlify function, same-origin)
-    // - Use the select's data-game-id and the selected option's data-team-espn-id
-    //   to build the payload for SubmitPicksRequest.
+    function espnLogoUrl(espnId) {
+      const id = parseInt(espnId, 10);
+      if (!Number.isFinite(id) || id < 1) return '';
+      return `https://a.espncdn.com/i/teamlogos/ncaa/500/${id}.png`;
+    }
 
-    // Submission status check removed - no authentication required
+    function resolveTeamLogo(logoUrl, espnId) {
+      const fromDb = String(logoUrl || '').trim();
+      if (fromDb) return fromDb;
+      return espnLogoUrl(espnId);
+    }
 
-    // Prediction form handler - Submit to Netlify Forms
+    function shareWeekLabel() {
+      const { weekPart, yearPart, weekNumber, seasonYear } = weekLabelParts(activeWeekMeta);
+      return {
+        heading: `${weekPart} Picks`,
+        sub: seasonYear ? String(seasonYear) : '',
+        weekPart,
+        yearPart,
+        weekNumber,
+        seasonYear,
+        fileSlug: `week-${weekNumber || 'picks'}-predictions`,
+        shareTitle: `My ${weekPart} Picks`,
+      };
+    }
+
+    function logoImgHtml(url, name) {
+      if (!url) return `<span class="picks-share-logo-fallback">${safeText((name || '?').slice(0, 3).toUpperCase())}</span>`;
+      return `<img class="picks-share-logo" src="${safeText(url)}" alt="${safeText(name || '')}" crossorigin="anonymous" referrerpolicy="no-referrer">`;
+    }
+
+    function buildPicksShareCardHtml({ userName, form, gameCount }) {
+      const week = shareWeekLabel();
+      const games = Array.isArray(window.__DB_GAMES__) ? window.__DB_GAMES__ : [];
+      const safeUser = safeText(userName || 'Guest');
+      let gamesHtml = '';
+
+      for (let i = 1; i <= gameCount; i++) {
+        const select = form.querySelector(`select[name="game${i}"]`);
+        const pickedName = select ? String(select.value || '') : '';
+        const option = select && select.selectedOptions[0];
+        const pickedEspnId = option ? parseInt(option.getAttribute('data-team-espn-id'), 10) : NaN;
+        const game = games.find((g) => Number(g.gameNumber) === i) || games[i - 1] || null;
+        const awayName = game?.awayTeamName || (pickedName ? '' : 'TBD');
+        const homeName = game?.homeTeamName || '';
+        const awayLogo = resolveTeamLogo(game?.awayTeamLogoUrl, game?.awayTeamEspnId);
+        const homeLogo = resolveTeamLogo(game?.homeTeamLogoUrl, game?.homeTeamEspnId);
+        const awayIsPick = Number(game?.awayTeamEspnId) === pickedEspnId || awayName === pickedName;
+        const homeIsPick = Number(game?.homeTeamEspnId) === pickedEspnId || homeName === pickedName;
+        const pickLogo = awayIsPick ? awayLogo : homeIsPick ? homeLogo : resolveTeamLogo('', pickedEspnId);
+
+        gamesHtml += `
+          <div class="picks-share-game">
+            <div class="picks-share-game-num">Game ${i}</div>
+            <div class="picks-share-teams">
+              <div class="picks-share-team${awayIsPick ? ' is-pick' : ''}">
+                ${logoImgHtml(awayLogo, awayName)}
+                <span>${safeText(awayName || 'TBD')}</span>
+              </div>
+              <span class="picks-share-at">@</span>
+              <div class="picks-share-team${homeIsPick ? ' is-pick' : ''}">
+                ${logoImgHtml(homeLogo, homeName)}
+                <span>${safeText(homeName || 'TBD')}</span>
+              </div>
+            </div>
+            <div class="picks-share-pick">
+              ${logoImgHtml(pickLogo, pickedName)}
+              <span>${safeText(pickedName)}</span>
+            </div>
+          </div>
+        `;
+      }
+
+      return `
+        <div class="picks-share-wrap">
+          <div class="picks-share-card" id="picksShareCard">
+            <div class="picks-share-header">
+              <p class="picks-share-brand">Weekly Picks</p>
+              <h2 class="picks-share-title">${safeUser}'s ${safeText(week.heading)}</h2>
+              ${week.sub ? `<p class="picks-share-week">${safeText(week.sub)}</p>` : ''}
+            </div>
+            <div class="picks-share-grid">
+              ${gamesHtml}
+            </div>
+            <p class="picks-share-footer">${gameCount} picks · ${safeText(week.weekPart)}${week.yearPart ? safeText(week.yearPart) : ''}</p>
+          </div>
+          <div class="picks-share-actions">
+            <p class="success-message">Predictions saved.</p>
+            <p class="next-steps" id="seasonCounterLine"></p>
+            <p class="next-steps">Save this card and send it to your friends.</p>
+            <div class="screenshot-section">
+              <button id="screenshotBtn" class="screenshot-button" type="button">Save image</button>
+              <p class="screenshot-note">Downloads a picture of your picks.</p>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function authHeaders() {
+      const authToken = localStorage.getItem('authToken');
+      return {
+        'Content-Type': 'application/json',
+        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+      };
+    }
+
+    function collectPicksFromForm(form, gameCount) {
+      const picks = [];
+      const missingPicks = [];
+      for (let i = 1; i <= gameCount; i++) {
+        const select = form.querySelector(`select[name="game${i}"]`);
+        const pickedName = select ? select.value : '';
+        if (!select || !pickedName) {
+          missingPicks.push(`Game ${i}`);
+          continue;
+        }
+        const option = select.selectedOptions[0];
+        const gameId = parseInt(select.getAttribute('data-game-id'), 10);
+        const pickedTeamEspnId = parseInt(
+          option && option.getAttribute('data-team-espn-id'),
+          10
+        );
+        if (!Number.isFinite(pickedTeamEspnId)) {
+          missingPicks.push(`Game ${i}`);
+          continue;
+        }
+        picks.push({
+          gameNumber: i,
+          gameId: Number.isFinite(gameId) ? gameId : undefined,
+          pickedTeamEspnId,
+        });
+      }
+      return { picks, missingPicks };
+    }
+
+    // Prediction form handler — one locked set per user per week in Supabase
     document.querySelector('form[name="predictions"]').addEventListener('submit', async function(e) {
       e.preventDefault();
 
@@ -1178,9 +1301,7 @@
 
       const form = e.target;
       const formData = new FormData(form);
-      
-      // Validate all picks are selected
-      const missingPicks = [];
+      const weekIdToUse = activeWeekId ?? FALLBACK_WEEK_ID;
 
       const gameCount =
         (typeof window.__DB_GAME_COUNT__ === 'number' && window.__DB_GAME_COUNT__ > 0)
@@ -1189,133 +1310,59 @@
             ? window.__CFBD_GAME_COUNT__
           : 12;
 
-      for (let i = 1; i <= gameCount; i++) {
-        const pickedCode = formData.get(`game${i}`);
-        if (!pickedCode) {
-          missingPicks.push(`Game ${i}`);
-        }
-      }
+      const { picks, missingPicks } = collectPicksFromForm(form, gameCount);
 
       if (missingPicks.length > 0) {
         alert(`Please select picks for all ${gameCount} games!\n\nMissing: ${missingPicks.length} games`);
         return;
       }
 
-      // Show loading state
       const submitBtn = document.getElementById('submit');
       const originalText = submitBtn.textContent;
       submitBtn.textContent = 'Submitting...';
       submitBtn.disabled = true;
-      
-      // Build preview - display picks normally (show this regardless of submission status)
+
       const userName = formData.get("user") || currentUser?.displayName || currentUser?.username || "Guest";
-      
+
       try {
-        // Submit to Netlify Forms in the background
-        // Convert FormData to URLSearchParams for Netlify
-        const formDataParams = new URLSearchParams();
-        for (const [key, value] of formData.entries()) {
-          formDataParams.append(key, value);
-        }
-        
-        // Submit to Netlify (form-name is already in the form as hidden input)
-        const response = await fetch('/', {
+        const response = await fetch('/api/picks/submit', {
           method: 'POST',
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: formDataParams.toString()
+          headers: authHeaders(),
+          body: JSON.stringify({ weekId: weekIdToUse, picks }),
         });
-        
-        // Netlify forms can return 200 (ok) or redirect (302), both are success
-        // response.ok is true for 200-299, so we check for actual errors (400+)
-        if (response.status >= 400) {
-          console.warn(`Netlify submission warning: ${response.status} ${response.statusText}`);
-          // Continue anyway to show preview
-        } else {
-          console.log('Successfully submitted to Netlify Forms');
+        const result = await response.json().catch(() => ({}));
+        if (response.status === 401) {
+          alert('Please log in to submit picks.');
+          return;
         }
+        if (result.code === 'ALREADY_SUBMITTED' || /already submitted/i.test(result.message || '')) {
+          disableFormForAlreadySubmitted();
+          showAlreadySubmittedMessage(result.lastSubmitted || new Date().toISOString());
+          alert(result.message || 'You have already submitted picks for this week.');
+          return;
+        }
+        if (!response.ok) {
+          alert(result.message || result.error || 'Could not save picks. Try again.');
+          return;
+        }
+        disableFormForAlreadySubmitted();
+        showAlreadySubmittedMessage(new Date().toISOString());
       } catch (submitError) {
-        // Log error but continue to show preview
-        console.warn('Netlify submission error (showing preview anyway):', submitError);
+        console.error('Picks submit error:', submitError);
+        alert('Could not save picks. Try again.');
+        return;
+      } finally {
+        submitBtn.textContent = originalText;
+        if (submitBtn.style.display !== 'none') {
+          submitBtn.disabled = false;
+        }
       }
 
-      // Always show preview regardless of submission status
-      let html = `
-        <div class="prediction-results-container">
-          <div class="prediction-header">
-            <h2 class="prediction-title">🏆 ${userName}'s Bowl Week Predictions</h2>
-          </div>
-          <div class="predictions-grid">
-      `;
-      
-      const gameData = (USE_CFBD_GAMES_FOR_WEEKLY_PICKS && Array.isArray(window.__CFBD_GAME_MATCHUPS__) && window.__CFBD_GAME_MATCHUPS__.length)
-        ? window.__CFBD_GAME_MATCHUPS__
-        : (Array.isArray(window.__DB_GAME_MATCHUPS__) && window.__DB_GAME_MATCHUPS__.length)
-          ? window.__DB_GAME_MATCHUPS__
-        : [
-          "#6 Ole Miss vs #3 Georgia",
-          "#9 Alabama vs #1 Indiana",
-          "#5 Oregon vs #4 Texas Tech",
-          "#10 Miami vs #2 Ohio State",
-          "Nebraska vs #15 Utah",
-          "#18 Michigan vs #13 Texas",
-          "Arizona State vs Duke",
-          "#23 Iowa vs #14 Vanderbilt",
-          "#16 USC vs TCU",
-          "Tennessee vs Illinois",
-          "Coastal Carolina vs Louisiana Tech",
-          "Georgia Southern vs App State"
-        ];
-      
-      for (let i = 1; i <= gameCount; i++) {
-        const prediction = formData.get("game" + i);
-        
-        html += `
-          <div class="prediction-card">
-            <div class="game-info">
-              <span class="game-number">Game ${i}</span>
-              <span class="game-matchup">${gameData[i-1] || ''}</span>
-            </div>
-            <div class="prediction-result">
-              <span class="prediction-choice ${prediction.toLowerCase()}">${prediction}</span>
-            </div>
-          </div>
-        `;
-      }
-      
-      html += `
-          </div>
-          <div class="prediction-summary">
-          <div class="summary-stats">
-            <div class="stat-item">
-              <span class="stat-number">${gameCount}</span>
-              <span class="stat-label">Total Picks</span>
-            </div>
-            <div class="stat-item">
-              <span class="stat-number">-</span>
-              <span class="stat-label">Correct</span>
-            </div>
-            <div class="stat-item">
-              <span class="stat-number">-</span>
-              <span class="stat-label">Accuracy</span>
-            </div>
-          </div>
-            <div class="prediction-footer">
-              <p class="success-message">✅ Predictions submitted successfully!</p>
-              <p class="next-steps" id="seasonCounterLine" style="margin-top: 6px;"></p>
-              <p class="next-steps">Check back after the games to see how you did!</p>
-              <div class="screenshot-section">
-                <button id="screenshotBtn" class="screenshot-button">
-                  📸 Save to Photos
-                </button>
-                <p class="screenshot-note">Save your predictions to your camera roll!</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      `;
-      
-        // Show success message
-        document.getElementById("results").innerHTML = html;
+      document.getElementById("results").innerHTML = buildPicksShareCardHtml({
+        userName,
+        form,
+        gameCount,
+      });
         
         // Scroll to results
         setTimeout(() => {
@@ -1336,7 +1383,7 @@
         // 2026 per-profile submission counter (local-only)
         // This keeps things lightweight until you add a real backend leaderboard.
         try {
-          const year = 2026;
+          const year = shareWeekLabel().seasonYear || new Date().getFullYear();
           const keyUser = String(userName || 'Guest').trim().toLowerCase();
           const counterKey = `weeklyPicksSubmissions:${year}:${keyUser}`;
           const current = Number(localStorage.getItem(counterKey) || '0');
@@ -1350,9 +1397,6 @@
         } catch (e) {
           // ignore localStorage errors
         }
-        
-        submitBtn.textContent = originalText;
-        submitBtn.disabled = false;
     });
 
     // Screenshot functionality
@@ -1373,120 +1417,90 @@
       }
     }
 
-    function captureScreenshot() {
-      const resultsContainer = document.getElementById('results');
-      
-      // Create a temporary container with only the content we want to screenshot
-      const tempContainer = document.createElement('div');
-      tempContainer.style.position = 'absolute';
-      tempContainer.style.left = '-9999px';
-      tempContainer.style.top = '-9999px';
-      tempContainer.style.width = '100vw'; // Use full viewport width
-      tempContainer.style.maxWidth = '100vw';
-      tempContainer.style.backgroundColor = '#1E1E1E';
-      tempContainer.style.padding = '1rem';
-      tempContainer.style.borderRadius = '15px';
-      tempContainer.style.border = '2px solid #FFD700';
-      tempContainer.style.boxSizing = 'border-box';
-      tempContainer.style.overflow = 'visible';
-      
-      // Clone the content we want (exclude success messages and screenshot button)
-      const predictionContainer = resultsContainer.querySelector('.prediction-results-container');
-      if (predictionContainer) {
-        const clone = predictionContainer.cloneNode(true);
-        
-        // Remove the prediction footer (success messages and screenshot button)
-        const footer = clone.querySelector('.prediction-footer');
-        if (footer) {
-          footer.remove();
-        }
-        
-        // Ensure the predictions grid uses full width with 3 columns on mobile
-        const predictionsGrid = clone.querySelector('.predictions-grid');
-        if (predictionsGrid) {
-          predictionsGrid.style.width = '100%';
-          predictionsGrid.style.maxWidth = '100%';
-          predictionsGrid.style.display = 'grid';
-          predictionsGrid.style.gridTemplateColumns = 'repeat(3, 1fr)';
-          predictionsGrid.style.gap = '0.3rem';
-          predictionsGrid.style.padding = '0.3rem';
-          predictionsGrid.style.margin = '0';
-          predictionsGrid.style.boxSizing = 'border-box';
-        }
-        
-        // Ensure each prediction card fits properly in 3 columns
-        const predictionCards = clone.querySelectorAll('.prediction-card');
-        predictionCards.forEach(card => {
-          card.style.width = '100%';
-          card.style.minWidth = '100px';
-          card.style.maxWidth = '100%';
-          card.style.boxSizing = 'border-box';
-          card.style.padding = '0.3rem';
-          card.style.fontSize = '0.7rem';
-          card.style.margin = '0';
-          card.style.overflow = 'visible';
+    function waitForShareImages(root) {
+      const imgs = Array.from(root.querySelectorAll('img'));
+      return Promise.all(imgs.map((img) => {
+        if (img.complete) return Promise.resolve();
+        return new Promise((resolve) => {
+          img.onload = () => resolve();
+          img.onerror = () => resolve();
         });
-        
-        tempContainer.appendChild(clone);
-        document.body.appendChild(tempContainer);
+      }));
+    }
+
+    async function captureScreenshot() {
+      const source = document.getElementById('picksShareCard');
+      if (!source) {
+        alert('Nothing to save yet.');
+        return;
       }
-      
-      html2canvas(tempContainer, {
-        backgroundColor: '#1E1E1E',
-        scale: 1.2, // Slightly reduced scale for better fit
-        useCORS: true,
-        allowTaint: true,
-        scrollX: 0,
-        scrollY: 0,
-        width: tempContainer.scrollWidth,
-        height: tempContainer.scrollHeight,
-        logging: false,
-        removeContainer: false,
-        x: 0,
-        y: 0
-      }).then(canvas => {
-        // Check if Web Share API is supported (mobile)
+
+      const week = shareWeekLabel();
+      const tempContainer = document.createElement('div');
+      tempContainer.style.position = 'fixed';
+      tempContainer.style.left = '-10000px';
+      tempContainer.style.top = '0';
+      tempContainer.style.width = '900px';
+      tempContainer.style.background = '#1a1410';
+      tempContainer.style.zIndex = '-1';
+      const clone = source.cloneNode(true);
+      clone.id = 'picksShareCardCapture';
+      clone.classList.add('is-capture');
+      clone.style.width = '900px';
+      clone.style.maxWidth = '900px';
+      clone.style.margin = '0';
+      tempContainer.appendChild(clone);
+      document.body.appendChild(tempContainer);
+
+      try {
+        await waitForShareImages(clone);
+        const canvas = await html2canvas(clone, {
+          backgroundColor: '#1a1410',
+          scale: 2,
+          useCORS: true,
+          allowTaint: false,
+          scrollX: 0,
+          scrollY: 0,
+          width: 900,
+          logging: false,
+        });
+        const fileName = `${week.fileSlug}-${new Date().toISOString().split('T')[0]}.png`;
         if (navigator.share && navigator.canShare) {
-          canvas.toBlob(function(blob) {
-            const file = new File([blob], `bowl-week-predictions-${new Date().toISOString().split('T')[0]}.png`, { 
-              type: 'image/png' 
-            });
-            
-            // Use Web Share API for mobile
+          canvas.toBlob(function (blob) {
+            if (!blob) {
+              fallbackDownload(canvas, fileName);
+              return;
+            }
+            const file = new File([blob], fileName, { type: 'image/png' });
             if (navigator.canShare({ files: [file] })) {
               navigator.share({
                 files: [file],
-                title: 'My Bowl Week Predictions',
-                text: 'Check out my college football predictions!'
+                title: week.shareTitle,
+                text: `Check out my ${week.weekPart} picks!`,
               }).then(() => {
-                showSuccessMessage('Shared! Check your share options to save to photos.');
+                showSuccessMessage('Shared.');
               }).catch((error) => {
-                console.log('Share failed:', error);
-                fallbackDownload(canvas);
+                if (error && error.name === 'AbortError') return;
+                fallbackDownload(canvas, fileName);
               });
             } else {
-              fallbackDownload(canvas);
+              fallbackDownload(canvas, fileName);
             }
           });
         } else {
-          // Fallback for desktop or unsupported browsers
-          fallbackDownload(canvas);
+          fallbackDownload(canvas, fileName);
         }
-      }).catch(err => {
+      } catch (err) {
         console.error('Screenshot failed:', err);
-        alert('Screenshot failed. Please try again.');
-      }).finally(() => {
-        // Clean up temporary container
-        if (tempContainer && tempContainer.parentNode) {
-          tempContainer.parentNode.removeChild(tempContainer);
-        }
-      });
+        alert('Could not save the image. Try again.');
+      } finally {
+        if (tempContainer.parentNode) tempContainer.parentNode.removeChild(tempContainer);
+      }
     }
 
-    function fallbackDownload(canvas) {
-      // Create download link for desktop/fallback
+    function fallbackDownload(canvas, fileName) {
       const link = document.createElement('a');
-      link.download = `bowl-week-predictions-${new Date().toISOString().split('T')[0]}.png`;
+      link.download = fileName || `weekly-picks-${new Date().toISOString().split('T')[0]}.png`;
       link.href = canvas.toDataURL();
       
       // Trigger download

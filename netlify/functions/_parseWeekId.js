@@ -20,7 +20,9 @@ function parseWeekId(event) {
   }
 
   const path = event.path || "";
-  const pathMatch = path.match(/\/games\/week\/(\d+)(?:\/|$|\?)/);
+  const pathMatch = path.match(
+    /\/(?:games\/week|check-submission|picks\/week|week)\/(\d+)(?:\/|$|\?)/
+  );
   if (pathMatch && pathMatch[1]) {
     const n = parseInt(pathMatch[1], 10);
     if (Number.isFinite(n) && n > 0) return n;

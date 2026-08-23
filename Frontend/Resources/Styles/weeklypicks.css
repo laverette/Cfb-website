@@ -1268,6 +1268,178 @@ input:focus, select:focus {
     font-weight: bold !important;
 }
 
+.picks-share-wrap {
+    margin: 1.5rem 0 2rem;
+}
+
+.picks-share-card {
+    background: linear-gradient(180deg, #2a2118 0%, #16110d 100%);
+    border: 2px solid #FFD700;
+    border-radius: 16px;
+    padding: 1.4rem 1.2rem 1.1rem;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+}
+
+.picks-share-header {
+    text-align: center;
+    margin-bottom: 1.15rem;
+}
+
+.picks-share-brand {
+    margin: 0 0 0.35rem;
+    color: #d4b896;
+    font-size: 0.75rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+}
+
+.picks-share-title {
+    margin: 0;
+    color: #FFD700;
+    font-size: 1.65rem;
+    font-weight: 800;
+    line-height: 1.2;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+}
+
+.picks-share-week {
+    margin: 0.35rem 0 0;
+    color: #f5deb3;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.picks-share-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.7rem;
+}
+
+.picks-share-game {
+    background: rgba(62, 39, 35, 0.72);
+    border: 1px solid #6d4c41;
+    border-radius: 12px;
+    padding: 0.7rem 0.75rem 0.75rem;
+}
+
+.picks-share-game-num {
+    color: #FFD700;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 0.45rem;
+}
+
+.picks-share-teams {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.4rem;
+}
+
+.picks-share-team {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.3rem;
+    color: #f5deb3;
+    font-size: 0.82rem;
+    font-weight: 600;
+    text-align: center;
+    min-width: 0;
+}
+
+.picks-share-team span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+}
+
+.picks-share-team.is-pick {
+    color: #FFD700;
+}
+
+.picks-share-logo,
+.picks-share-logo-fallback {
+    width: 44px;
+    height: 44px;
+    object-fit: contain;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.25);
+}
+
+.picks-share-logo-fallback {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: 800;
+    color: #FFD700;
+}
+
+.picks-share-at {
+    color: #bfa88a;
+    font-weight: 700;
+    opacity: 0.8;
+    flex: 0 0 auto;
+}
+
+.picks-share-pick {
+    margin-top: 0.55rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    background: linear-gradient(135deg, #FFD700, #FFA000);
+    color: #1a1410;
+    border-radius: 999px;
+    padding: 0.28rem 0.7rem;
+    font-weight: 800;
+    font-size: 0.82rem;
+}
+
+.picks-share-pick .picks-share-logo,
+.picks-share-pick .picks-share-logo-fallback {
+    width: 22px;
+    height: 22px;
+    background: rgba(255, 255, 255, 0.25);
+}
+
+.picks-share-footer {
+    margin: 1rem 0 0;
+    text-align: center;
+    color: #d4b896;
+    font-size: 0.78rem;
+    letter-spacing: 0.04em;
+}
+
+.picks-share-actions {
+    margin-top: 1.1rem;
+    text-align: center;
+}
+
+.picks-share-card.is-capture .picks-share-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.8rem;
+}
+
+.picks-share-card.is-capture .picks-share-title {
+    font-size: 2rem;
+}
+
+@media (min-width: 720px) {
+    .picks-share-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .picks-share-title {
+        font-size: 2rem;
+    }
+}
+
 .prediction-summary {
     background: linear-gradient(135deg, #1E1E1E, #2E2E2E);
     border: 1px solid #8D6E63;

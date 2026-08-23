@@ -21,6 +21,21 @@
   status = 200
 
 [[redirects]]
+  from = "/api/picks/submit"
+  to = "/.netlify/functions/picks-submit"
+  status = 200
+
+[[redirects]]
+  from = "/api/picks/check-submission/*"
+  to = "/.netlify/functions/picks-check-submission?weekId=:splat"
+  status = 200
+
+[[redirects]]
+  from = "/api/picks/week/*"
+  to = "/.netlify/functions/picks-week?weekId=:splat"
+  status = 200
+
+[[redirects]]
   from = "/api/health/config"
   to = "/.netlify/functions/config-status"
   status = 200
