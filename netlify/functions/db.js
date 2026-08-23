@@ -1,18 +1,37 @@
 /**
  * Shared Supabase client for Netlify Functions (one client per warm isolate).
- * Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in Netlify / local .env.
- * Service role is server-only and bypasses RLS.
+ * The project URL is public and has a default. Set SUPABASE_SERVICE_ROLE_KEY
+ * in Netlify / local .env. Service role is server-only and bypasses RLS.
  */
 const { createClient } = require("@supabase/supabase-js");
 
 const GLOBAL_CLIENT_KEY = "__cfb_supabase_client__";
+const DEFAULT_SUPABASE_URL = "https://nkxitcvsqnmcsvvkndyx.supabase.co";
 
 const USER_COLS =
   "id, username, email, password_hash, display_name, avatar_url, bio, role, created_at";
 
+function stripWrappingQuotes(value) {
+  return String(value || "")
+    .trim()
+    .replace(/^['"]+|['"]+$/g, "")
+    .trim();
+}
+
+function normalizeSupabaseUrl(raw) {
+  let url = stripWrappingQuotes(raw);
+  url = url.replace(/\/+$/, "");
+  url = url.replace(/\/rest\/v1$/i, "");
+  return url;
+}
+
+function normalizeSupabaseKey(raw) {
+  return stripWrappingQuotes(raw).replace(/^Bearer\s+/i, "").trim();
+}
+
 function getSupabaseConfig() {
-  const url = String(process.env.SUPABASE_URL || "").trim();
-  const key = String(process.env.SUPABASE_SERVICE_ROLE_KEY || "").trim();
+  const url = normalizeSupabaseUrl(process.env.SUPABASE_URL) || DEFAULT_SUPABASE_URL;
+  const key = normalizeSupabaseKey(process.env.SUPABASE_SERVICE_ROLE_KEY);
   return { url, key };
 }
 

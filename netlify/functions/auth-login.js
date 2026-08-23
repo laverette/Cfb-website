@@ -3,7 +3,7 @@
  * Body: { usernameOrEmail } or { username } or { email }, plus { password }
  */
 const bcrypt = require("bcryptjs");
-const { findUserByUsernameOrEmail, logUserLogin } = require("./db");
+const { findUserByUsernameOrEmail, logUserLogin, getSupabaseConfig } = require("./db");
 const { json, parseJsonBody } = require("./_http");
 const { signUserToken, jwtSecretOr500 } = require("./_auth");
 
@@ -71,7 +71,14 @@ exports.handler = async (event) => {
   } catch (err) {
     console.error("auth-login:", err);
     if (err.code === "NO_DATABASE_URL" || err.code === "NO_JWT_SECRET") {
-      return json(500, { message: "Server misconfiguration" });
+      const { url, key } = getSupabaseConfig();
+      const missing = [];
+      if (!process.env.JWT_SECRET || !String(process.env.JWT_SECRET).trim()) {
+        missing.push("JWT_SECRET");
+      }
+      if (!url) missing.push("SUPABASE_URL");
+      if (!key) missing.push("SUPABASE_SERVICE_ROLE_KEY");
+      return json(500, { message: "Server misconfiguration", missing });
     }
     return json(500, { message: "Internal server error" });
   }

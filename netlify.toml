@@ -2,6 +2,9 @@
   publish = "Frontend"
   functions = "netlify/functions"
 
+[build.environment]
+  SUPABASE_URL = "https://nkxitcvsqnmcsvvkndyx.supabase.co"
+
 [dev]
   publish = "Frontend"
   functions = "netlify/functions"
@@ -15,6 +18,11 @@
 [[redirects]]
   from = "/api/picks/games/week/*"
   to = "/.netlify/functions/picks-games-by-week?weekId=:splat"
+  status = 200
+
+[[redirects]]
+  from = "/api/health/config"
+  to = "/.netlify/functions/config-status"
   status = 200
 
 [[redirects]]
