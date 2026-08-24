@@ -5,15 +5,16 @@
  *   history?: [{ role: 'user'|'model', text: string }],
  *   weekContext?: { weekNumber, seasonYear, games?: [...] }
  * }
- * Calls Mistral as Lee Corso with current week picks context.
+ * Mistral Conversations API + web_search for current-season facts.
+ * Prompt stays lean: persona + date + Game 1–N slate only.
  */
 const { json, parseJsonBody } = require("./_http");
 
 const MAX_MESSAGE_CHARS = 800;
-const MAX_HISTORY = 12;
-const MAX_HISTORY_CHARS = 600;
+const MAX_HISTORY = 8;
+const MAX_HISTORY_CHARS = 400;
 const MAX_CONTEXT_GAMES = 20;
-const MISTRAL_URL = "https://api.mistral.ai/v1/chat/completions";
+const MISTRAL_URL = "https://api.mistral.ai/v1/conversations";
 
 function corsHeaders() {
   return {
@@ -50,7 +51,7 @@ function formatTodayLabel() {
   }
 }
 
-function buildSystemPrompt(weekContext) {
+function buildInstructions(weekContext) {
   const today = formatTodayLabel();
   const year = new Date().getFullYear();
   const weekNumber = weekContext?.weekNumber ?? weekContext?.week_number ?? null;
@@ -58,31 +59,29 @@ function buildSystemPrompt(weekContext) {
     weekContext?.seasonYear ?? weekContext?.season_year ?? year;
 
   const lines = [
-    "You are Lee Corso, the legendary college football analyst from ESPN's College GameDay.",
-    "Respond as Lee Corso would: energetic, folksy, punchy, and opinionated about college football.",
-    'Use his signature flair — mascot energy, "not so fast my friend" when disagreeing, and bold picks when asked.',
-    "Stay in character. Do not claim to be an AI. You are Coach Corso.",
-    "Always finish your thought with complete sentences — never stop mid-sentence.",
-    "Keep answers tight (about 3–6 complete sentences) unless the fan asks for more detail.",
+    "You are Lee Corso from ESPN College GameDay: energetic, folksy, punchy, opinionated.",
+    'Use Corso flair ("not so fast my friend", bold picks). Stay in character. Never say you are an AI.',
+    "Finish complete sentences. Keep answers to about 3–6 sentences unless asked for more.",
     "",
-    `Today's date (Eastern): ${today}.`,
-    `Current calendar year: ${year}. College football season year in focus: ${seasonYear}.`,
+    `Today (Eastern): ${today}. Season in focus: ${seasonYear}.`,
     weekNumber
-      ? `This site's active picks slate is Week ${weekNumber} of the ${seasonYear} season.`
-      : `This site is running a ${seasonYear} college football picks slate.`,
+      ? `This site's picks slate is Week ${weekNumber}, ${seasonYear}.`
+      : `This site's picks slate is the ${seasonYear} season.`,
     "",
-    "When evaluating a matchup, briefly mention recent form (last week / this year) before making your pick.",
-    "Use the OFFICIAL PICKS SLATE for game numbers and matchups. Prefer slate facts over outdated assumptions.",
-    "Stick to college football; if asked about something else, steer it back with Corso charm.",
+    "CRITICAL — LOOK UP EACH TEAM BEFORE YOU TALK ABOUT IT:",
+    `You have web_search. Before you discuss ANY team, SEARCH that team's CURRENT ${seasonYear} state: head coach, record, and how they looked recently (last game / this season).`,
+    "For a matchup, search BOTH teams (or the Game N matchup) first, then give your take.",
+    "Never rely on training memory for coaches, staff, or records — that data goes stale. Use search results for the current season only.",
+    "In your answer, briefly reflect what you found (coach / form / recent result) before the pick.",
+    "If search comes up empty, say you're unsure on that detail and still pick from the slate matchup.",
+    "",
+    "Use the OFFICIAL PICKS SLATE below for Game 1 / Game 2 / etc. numbering.",
+    "Stick to college football.",
   ];
 
   const games = Array.isArray(weekContext?.games) ? weekContext.games : [];
   if (games.length) {
-    lines.push(
-      "",
-      `OFFICIAL PICKS SLATE — ${games.length} games. Fans will say "Game 1", "Game 2", etc.`,
-      "Those numbers map EXACTLY to this list (not TV order, not AP ranking order):"
-    );
+    lines.push("", `OFFICIAL PICKS SLATE (${games.length} games):`);
     const ordered = [...games].sort((a, b) => {
       const an = Number(a.gameNumber ?? a.game_number) || 0;
       const bn = Number(b.gameNumber ?? b.game_number) || 0;
@@ -90,38 +89,19 @@ function buildSystemPrompt(weekContext) {
     });
     ordered.slice(0, MAX_CONTEXT_GAMES).forEach((g, i) => {
       const n = Number(g.gameNumber ?? g.game_number) || i + 1;
-      const away = g.away || g.awayTeamName || "TBD";
-      const home = g.home || g.homeTeamName || "TBD";
-      const when = g.start || g.startDate || g.start_date || g.gameDate || g.game_date || "";
-      const line = g.line ?? g.bettingLine ?? g.betting_line;
-      const completed = !!(g.completed ?? g.isCompleted ?? g.is_completed);
-      const score =
-        completed &&
-        (g.awayScore != null || g.homeScore != null || g.away_score != null)
-          ? ` final ${g.awayScore ?? g.away_score ?? "?"}–${g.homeScore ?? g.home_score ?? "?"}`
-          : "";
-      const lineBit = line != null && line !== "" ? ` line ${line}` : "";
-      lines.push(
-        `Game ${n}: ${away} at ${home}${when ? ` | ${when}` : ""}${lineBit}${score}`
-      );
+      const away = g.away || "TBD";
+      const home = g.home || "TBD";
+      const line = g.line;
+      const lineBit = line != null && line !== "" ? ` (${line})` : "";
+      lines.push(`Game ${n}: ${away} at ${home}${lineBit}`);
     });
-    lines.push(
-      "",
-      'When a fan asks about "Game N", answer about that numbered matchup from this slate.',
-      "If they ask who you like this week without a game number, you can run through several of these games."
-    );
-  } else {
-    lines.push(
-      "",
-      "No picks-slate games were attached to this request. If the fan asks about Game 1/2/etc., say you need the week's slate and ask which matchup they mean."
-    );
   }
 
   return lines.join("\n");
 }
 
-function buildMessages(message, history, weekContext) {
-  const messages = [{ role: "system", content: buildSystemPrompt(weekContext) }];
+function buildInputs(message, history, weekContext) {
+  const inputs = [];
   const list = Array.isArray(history) ? history.slice(-MAX_HISTORY) : [];
 
   for (const turn of list) {
@@ -129,37 +109,48 @@ function buildMessages(message, history, weekContext) {
     const role = turn.role === "model" ? "assistant" : "user";
     const content = sanitizeText(turn.text ?? turn.content, MAX_HISTORY_CHARS);
     if (!content) continue;
-    messages.push({ role, content });
+    inputs.push({ role, content });
   }
 
   const seasonYear =
     weekContext?.seasonYear ?? weekContext?.season_year ?? new Date().getFullYear();
-  const weekNumber = weekContext?.weekNumber ?? weekContext?.week_number;
-  const weekBit = weekNumber
-    ? `Week ${weekNumber} of the ${seasonYear} college football season`
-    : `the ${seasonYear} college football season`;
 
   const userPrompt = [
     message,
     "",
-    `(Respond as if you were Lee Corso. Today is ${formatTodayLabel()}.`,
-    `Ground your take in ${weekBit} using the OFFICIAL PICKS SLATE.`,
-    'If they mention Game 1, Game 2, etc., use the OFFICIAL PICKS SLATE numbering from your instructions.',
-    "Give a complete answer with a clear pick when asked who wins.)",
+    `(Lee Corso voice. Today is ${formatTodayLabel()}.`,
+    `Before talking about a team, web-search that team's current ${seasonYear} coach, record, and recent form.`,
+    "Use OFFICIAL PICKS SLATE for Game N. Clear pick when asked who wins.)",
   ].join(" ");
 
-  messages.push({ role: "user", content: userPrompt });
-  return messages;
+  inputs.push({ role: "user", content: userPrompt });
+  return inputs;
 }
 
-function extractReply(data) {
-  const choice = data?.choices?.[0];
-  const reply = choice?.message?.content;
-  const finishReason = choice?.finish_reason || null;
-  return {
-    reply: typeof reply === "string" ? reply.trim() : "",
-    finishReason,
-  };
+function extractConversationReply(data) {
+  const outputs = Array.isArray(data?.outputs) ? data.outputs : [];
+  const texts = [];
+  for (const output of outputs) {
+    if (!output || output.type !== "message.output") continue;
+    const content = output.content;
+    if (typeof content === "string") {
+      texts.push(content);
+      continue;
+    }
+    if (Array.isArray(content)) {
+      texts.push(
+        content
+          .map((chunk) => {
+            if (!chunk || typeof chunk !== "object") return "";
+            if (chunk.type === "text" && typeof chunk.text === "string") return chunk.text;
+            if (typeof chunk.text === "string") return chunk.text;
+            return "";
+          })
+          .join("")
+      );
+    }
+  }
+  return texts.join("\n").trim();
 }
 
 function mistralErrorForClient(status, details) {
@@ -195,11 +186,7 @@ function sanitizeWeekContext(raw) {
       gameNumber: g.gameNumber ?? g.game_number ?? null,
       away: sanitizeText(g.away ?? g.awayTeamName, 80),
       home: sanitizeText(g.home ?? g.homeTeamName, 80),
-      start: sanitizeText(g.start ?? g.startDate ?? g.start_date, 80),
       line: g.line ?? g.bettingLine ?? g.betting_line ?? null,
-      completed: !!(g.completed ?? g.isCompleted ?? g.is_completed),
-      awayScore: g.awayScore ?? g.away_score ?? null,
-      homeScore: g.homeScore ?? g.home_score ?? null,
     })),
   };
 }
@@ -241,8 +228,6 @@ exports.handler = async (event) => {
     (process.env.MISTRAL_MODEL && String(process.env.MISTRAL_MODEL).trim()) ||
     "mistral-small-latest";
 
-  const messages = buildMessages(message, body.history, weekContext);
-
   try {
     const resp = await fetch(MISTRAL_URL, {
       method: "POST",
@@ -252,9 +237,13 @@ exports.handler = async (event) => {
       },
       body: JSON.stringify({
         model,
-        messages,
-        temperature: 0.85,
-        max_tokens: 1024,
+        instructions: buildInstructions(weekContext),
+        inputs: buildInputs(message, body.history, weekContext),
+        tools: [{ type: "web_search" }],
+        completion_args: {
+          temperature: 0.85,
+          max_tokens: 1024,
+        },
       }),
     });
 
@@ -262,6 +251,7 @@ exports.handler = async (event) => {
     if (!resp.ok) {
       const details =
         data?.message ||
+        data?.detail ||
         data?.error?.message ||
         (typeof data?.error === "string" ? data.error : null) ||
         `Mistral request failed (${resp.status})`;
@@ -274,30 +264,19 @@ exports.handler = async (event) => {
       );
     }
 
-    const { reply, finishReason } = extractReply(data);
+    const reply = extractConversationReply(data);
     if (!reply) {
       return json(
         502,
         {
           error: "Coach Corso came up empty",
-          details: finishReason
-            ? `No text in Mistral response (${finishReason}).`
-            : "No text in Mistral response.",
+          details: "No text in Mistral conversation response.",
         },
         corsHeaders()
       );
     }
 
-    return json(
-      200,
-      {
-        reply,
-        model,
-        finishReason,
-        truncated: finishReason === "length",
-      },
-      corsHeaders()
-    );
+    return json(200, { reply, model, provider: "mistral-conversations" }, corsHeaders());
   } catch (err) {
     console.error("corso-chat:", err);
     return json(
