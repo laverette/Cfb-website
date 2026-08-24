@@ -118,6 +118,11 @@ exports.handler = async (event) => {
     if (err.code === "NO_DATABASE_URL") {
       return json(500, { error: "Server misconfiguration" });
     }
-    return json(500, { error: "Internal server error" });
+    return json(500, {
+      error: "Internal server error",
+      detail: err.message || String(err),
+      code: err.code || null,
+      hint: err.hint || null,
+    });
   }
 };

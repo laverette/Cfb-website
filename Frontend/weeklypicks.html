@@ -607,17 +607,22 @@
 
     function formatStatusBadge(isCompleted) {
       const text = isCompleted ? 'Final' : 'Scheduled';
-      // Reuse existing "betting-line" styling so we don't introduce new CSS
-      return `<span class="betting-line" style="margin-left: 6px;">${text}</span>`;
+      return `<span class="status-pill" style="margin-left: 6px;">${text}</span>`;
     }
 
-    function formatBettingLineLabel(line, homeName, awayName) {
-      if (line == null || line === '') return '';
+    /** Home-oriented CFBD spread → show "-X" only on the favorite's team chip. */
+    function spreadsForMatchup(line) {
+      if (line == null || line === '') return { away: '', home: '', pickem: false };
       const n = Number(line);
-      if (!Number.isFinite(n)) return '';
-      if (n === 0) return "Pick'em";
-      if (n < 0) return `${homeName || 'Home'} ${n}`;
-      return `${awayName || 'Away'} -${n}`;
+      if (!Number.isFinite(n)) return { away: '', home: '', pickem: false };
+      if (n === 0) return { away: '', home: '', pickem: true };
+      if (n < 0) return { away: '', home: String(n), pickem: false };
+      return { away: `-${n}`, home: '', pickem: false };
+    }
+
+    function spreadChipHtml(spreadText) {
+      if (!spreadText) return '';
+      return `<span class="betting-line team-spread">${safeText(spreadText)}</span>`;
     }
 
     function safeText(v) {
@@ -666,15 +671,17 @@
       return qs ? `team.html?${qs}` : 'teams.html';
     }
 
-    function teamLinkHtml(espnId, teamName, logoUrl) {
+    function teamLinkHtml(espnId, teamName, logoUrl, spreadText) {
       const name = String(teamName || 'TBD');
       const logo = logoUrl
         ? `<img src="${safeText(logoUrl)}" alt="${safeText(name)}" class="team-logo">`
         : '';
+      const spread = spreadChipHtml(spreadText);
+      const inner = `${logo}${safeText(name)}${spread}`;
       if (!name || name === 'TBD') {
-        return `<span class="team-link-inline">${logo}${safeText(name)}</span>`;
+        return `<span class="team-link-inline">${inner}</span>`;
       }
-      return `<a href="${teamPageHref(espnId, name)}" class="team-link-inline">${logo}${safeText(name)}</a>`;
+      return `<a href="${teamPageHref(espnId, name)}" class="team-link-inline">${inner}</a>`;
     }
 
     function renderDbGamesIntoForm(games, liveScores = null) {
@@ -700,7 +707,7 @@
         const homeEspnId = g?.homeTeamEspnId;
         const isCompleted = !!g?.isCompleted;
         const bettingLine = g?.bettingLine ?? g?.betting_line ?? null;
-        const lineLabel = formatBettingLineLabel(bettingLine, homeName, awayName);
+        const spreads = spreadsForMatchup(bettingLine);
 
         // Find live score data for this game
         let liveScoreHtml = '';
@@ -753,10 +760,10 @@
           <p>
             <span class="games">Game ${gameNumber}:</span>
             <span class="team-row">
-              ${teamLinkHtml(awayEspnId, awayName, awayLogo)}
+              ${teamLinkHtml(awayEspnId, awayName, awayLogo, spreads.away)}
               <span style="opacity:0.9;">@</span>
-              ${teamLinkHtml(homeEspnId, homeName, homeLogo)}
-              ${lineLabel ? `<span class="betting-line" style="margin-left: 6px;">${safeText(lineLabel)}</span>` : ''}
+              ${teamLinkHtml(homeEspnId, homeName, homeLogo, spreads.home)}
+              ${spreads.pickem ? '<span class="betting-line team-spread" style="margin-left:6px;">PK</span>' : ''}
               ${formatStatusBadge(isCompleted)}
             </span>
             ${liveScoreHtml}

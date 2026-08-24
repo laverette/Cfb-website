@@ -7,204 +7,300 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
   <link rel="stylesheet" href="styles/site-theme.css">
   <style>
+    :root {
+      --admin-bg: #141210;
+      --admin-surface: #1c1916;
+      --admin-surface-2: #252119;
+      --admin-border: rgba(232, 197, 71, 0.28);
+      --admin-border-soft: rgba(255, 255, 255, 0.08);
+      --admin-text: #f3efe6;
+      --admin-muted: #b9a990;
+      --admin-accent: #e8c547;
+      --admin-accent-hot: #f0a020;
+      --admin-danger: #c62828;
+      --admin-ok: #2e7d32;
+      --admin-radius: 10px;
+    }
     body {
-      background-color: #1E1E1E;
-      color: #F5F5F5;
-      font-family: Arial, sans-serif;
-      padding: 20px;
+      background:
+        radial-gradient(ellipse 80% 50% at 50% -10%, rgba(232, 197, 71, 0.08), transparent 55%),
+        var(--admin-bg);
+      color: var(--admin-text);
+      font-family: "Segoe UI", system-ui, sans-serif;
+      padding: 16px;
+      line-height: 1.45;
     }
     .admin-container {
-      max-width: 1200px;
+      max-width: 1080px;
       margin: 0 auto;
     }
+    .admin-page-title {
+      color: var(--admin-accent);
+      text-align: center;
+      margin: 0.5rem 0 1.25rem;
+      font-size: 1.65rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+    .admin-jump {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    .admin-jump a {
+      color: var(--admin-muted);
+      text-decoration: none;
+      font-size: 0.85rem;
+      padding: 0.35rem 0.7rem;
+      border: 1px solid var(--admin-border-soft);
+      border-radius: 999px;
+      background: rgba(255,255,255,0.03);
+    }
+    .admin-jump a:hover {
+      color: var(--admin-accent);
+      border-color: var(--admin-border);
+    }
     .admin-section {
-      background: #2D2D2D;
-      border-radius: 12px;
-      padding: 20px;
-      margin-bottom: 20px;
-      border: 2px solid #FFD700;
+      background: var(--admin-surface);
+      border-radius: var(--admin-radius);
+      padding: 1.15rem 1.25rem 1.35rem;
+      margin-bottom: 1rem;
+      border: 1px solid var(--admin-border);
     }
     .admin-section h2 {
-      color: #FFD700;
-      margin-bottom: 20px;
+      color: var(--admin-accent);
+      margin: 0 0 0.35rem;
+      font-size: 1.2rem;
+      font-weight: 700;
+    }
+    .admin-section .section-lead {
+      color: var(--admin-muted);
+      margin: 0 0 1rem;
+      font-size: 0.9rem;
+    }
+    .admin-section h3 {
+      color: var(--admin-accent);
+      font-size: 0.95rem;
+      margin: 1.1rem 0 0.65rem;
+      font-weight: 600;
+      letter-spacing: 0.01em;
     }
     .form-group {
-      margin-bottom: 15px;
+      margin-bottom: 0.75rem;
     }
     .form-group label {
       display: block;
-      margin-bottom: 5px;
-      color: #F5F5F5;
+      margin-bottom: 0.3rem;
+      color: var(--admin-muted);
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
     }
-    .form-group input, .form-group select {
+    .form-group input, .form-group select,
+    .search-box, .admin-input {
       width: 100%;
-      padding: 10px;
-      border-radius: 6px;
-      border: 1px solid #8D6E63;
-      background: #1E1E1E;
-      color: #F5F5F5;
-    }
-    .btn {
-      padding: 10px 20px;
-      border-radius: 6px;
-      border: none;
-      cursor: pointer;
-      font-weight: bold;
-      margin-right: 10px;
-      margin-top: 10px;
-    }
-    .btn-primary {
-      background: #FFD700;
-      color: #1E1E1E;
-    }
-    .btn-primary:hover {
-      background: #FFA000;
-    }
-    .btn-secondary {
-      background: #8D6E63;
-      color: #F5F5F5;
-    }
-    .games-list {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-      gap: 15px;
-      margin-top: 20px;
-    }
-    .game-card {
-      background: #1E1E1E;
-      border: 2px solid #8D6E63;
+      padding: 0.55rem 0.7rem;
       border-radius: 8px;
-      padding: 15px;
-      cursor: pointer;
-      transition: all 0.3s;
-    }
-    .game-card:hover {
-      border-color: #FFD700;
-      transform: translateY(-2px);
-    }
-    .game-card.selected {
-      border-color: #FFD700;
-      background: #3E2723;
-    }
-    .modal {
-      display: none;
-      position: fixed;
-      z-index: 1000;
-      left: 0;
-      top: 0;
-      width: 100%;
-      height: 100%;
-      background-color: rgba(0,0,0,0.8);
-    }
-    .modal-content {
-      background-color: #2D2D2D;
-      margin: 5% auto;
-      padding: 20px;
-      border: 2px solid #FFD700;
-      border-radius: 12px;
-      width: 90%;
-      max-width: 800px;
-      max-height: 80vh;
-      overflow-y: auto;
-    }
-    .close {
-      color: #FFD700;
-      float: right;
-      font-size: 28px;
-      font-weight: bold;
-      cursor: pointer;
-    }
-    .close:hover {
-      color: #FFA000;
-    }
-    .search-box {
-      width: 100%;
-      padding: 10px;
-      margin-bottom: 15px;
-      border-radius: 6px;
-      border: 1px solid #8D6E63;
-      background: #1E1E1E;
-      color: #F5F5F5;
-    }
-    .game-item {
-      padding: 10px;
-      margin: 5px 0;
-      background: #1E1E1E;
-      border: 1px solid #8D6E63;
-      border-radius: 6px;
-      cursor: pointer;
-    }
-    .game-item:hover {
-      background: #3E2723;
-      border-color: #FFD700;
-    }
-    .status-message {
-      padding: 10px;
-      border-radius: 6px;
-      margin-top: 10px;
-    }
-    .status-success {
-      background: #4CAF50;
-      color: white;
-    }
-    .status-error {
-      background: #f44336;
-      color: white;
-    }
-    .loading {
-      text-align: center;
-      padding: 20px;
-      color: #FFD700;
-    }
-    .admin-todo-banner {
-      background: #3E2723;
-      border: 1px solid #FFD700;
-      border-radius: 8px;
-      padding: 12px 16px;
-      margin-bottom: 20px;
-      color: #f5deb3;
+      border: 1px solid var(--admin-border-soft);
+      background: #0f0e0c;
+      color: var(--admin-text);
       font-size: 0.95rem;
     }
-    .cfbd-game-row {
-      display: flex;
-      align-items: flex-start;
-      gap: 12px;
-      padding: 10px;
-      margin: 6px 0;
-      background: #1E1E1E;
-      border: 1px solid #8D6E63;
-      border-radius: 6px;
+    .form-group input:focus, .form-group select:focus,
+    .search-box:focus, .admin-input:focus {
+      outline: none;
+      border-color: var(--admin-accent);
     }
+    .btn {
+      padding: 0.55rem 0.95rem;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.88rem;
+      margin: 0;
+      transition: background 0.15s ease, transform 0.1s ease;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn-primary {
+      background: linear-gradient(180deg, var(--admin-accent), var(--admin-accent-hot));
+      color: #1a1508;
+    }
+    .btn-primary:hover { filter: brightness(1.05); }
+    .btn-secondary {
+      background: var(--admin-surface-2);
+      color: var(--admin-text);
+      border: 1px solid var(--admin-border-soft);
+    }
+    .btn-secondary:hover {
+      border-color: var(--admin-border);
+      color: var(--admin-accent);
+    }
+    .btn-ghost {
+      background: transparent;
+      color: var(--admin-muted);
+      border: 1px solid transparent;
+    }
+    .btn-ghost:hover { color: var(--admin-accent); }
+    .btn-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+      margin-top: 0.75rem;
+    }
+    .search-box { margin-bottom: 0; }
+    .status-message {
+      padding: 0.65rem 0.85rem;
+      border-radius: 8px;
+      margin-top: 0.65rem;
+      font-size: 0.9rem;
+    }
+    .status-success { background: var(--admin-ok); color: #fff; }
+    .status-error { background: var(--admin-danger); color: #fff; }
+    .loading {
+      text-align: center;
+      padding: 1rem;
+      color: var(--admin-accent);
+    }
+    .admin-todo-banner {
+      background: rgba(232, 197, 71, 0.06);
+      border: 1px solid var(--admin-border);
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      margin-bottom: 1rem;
+      color: var(--admin-muted);
+      font-size: 0.88rem;
+    }
+    .admin-details {
+      border: 1px solid var(--admin-border-soft);
+      border-radius: 8px;
+      padding: 0.35rem 0.85rem 0.85rem;
+      background: rgba(0,0,0,0.2);
+      margin-top: 0.75rem;
+    }
+    .admin-details > summary {
+      cursor: pointer;
+      color: var(--admin-accent);
+      font-weight: 600;
+      padding: 0.55rem 0;
+      list-style: none;
+    }
+    .admin-details > summary::-webkit-details-marker { display: none; }
+    .admin-details > summary::before {
+      content: "▸ ";
+      color: var(--admin-muted);
+    }
+    .admin-details[open] > summary::before { content: "▾ "; }
+
+    .cfbd-toolbar {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr 1fr auto;
+      gap: 0.55rem;
+      align-items: end;
+      margin: 0.85rem 0 0.55rem;
+      padding: 0.75rem;
+      background: var(--admin-surface-2);
+      border-radius: 8px;
+      border: 1px solid var(--admin-border-soft);
+    }
+    .cfbd-toolbar .form-group { margin: 0; }
+    .cfbd-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.65rem 1rem;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.5rem;
+      color: var(--admin-muted);
+      font-size: 0.85rem;
+    }
+    .cfbd-meta strong { color: var(--admin-accent); }
+    .cfbd-list {
+      max-height: min(58vh, 560px);
+      overflow: auto;
+      border: 1px solid var(--admin-border-soft);
+      border-radius: 8px;
+      background: #0f0e0c;
+    }
+    .cfbd-game-row {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 0.65rem;
+      align-items: center;
+      padding: 0.55rem 0.75rem;
+      border-bottom: 1px solid var(--admin-border-soft);
+      cursor: pointer;
+    }
+    .cfbd-game-row:last-child { border-bottom: none; }
+    .cfbd-game-row:hover { background: rgba(232, 197, 71, 0.05); }
+    .cfbd-game-row.is-selected { background: rgba(232, 197, 71, 0.1); }
     .cfbd-game-row input[type="checkbox"] {
-      margin-top: 4px;
+      width: 1.05rem;
+      height: 1.05rem;
+      accent-color: var(--admin-accent);
+      margin: 0;
       flex-shrink: 0;
+    }
+    .cfbd-matchup {
+      font-weight: 600;
+      color: var(--admin-text);
+      font-size: 0.92rem;
+    }
+    .cfbd-sub {
+      color: var(--admin-muted);
+      font-size: 0.78rem;
+      margin-top: 0.1rem;
+    }
+    .cfbd-chip {
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--admin-muted);
+      border: 1px solid var(--admin-border-soft);
+      border-radius: 999px;
+      padding: 0.15rem 0.5rem;
+      white-space: nowrap;
+    }
+    .cfbd-empty {
+      color: var(--admin-muted);
+      padding: 1.25rem;
+      text-align: center;
+      margin: 0;
     }
     .saved-game-row {
       display: grid;
       grid-template-columns: 1fr auto auto;
-      gap: 10px;
+      gap: 0.65rem;
       align-items: center;
-      padding: 10px;
-      margin: 6px 0;
-      background: #1E1E1E;
-      border: 1px solid #8D6E63;
-      border-radius: 6px;
+      padding: 0.65rem 0.75rem;
+      margin: 0.4rem 0;
+      background: #0f0e0c;
+      border: 1px solid var(--admin-border-soft);
+      border-radius: 8px;
     }
     .saved-game-row input[type="number"] {
-      width: 72px;
-      padding: 8px;
+      width: 64px;
+      padding: 0.45rem;
       border-radius: 6px;
-      border: 1px solid #8D6E63;
-      background: #1E1E1E;
-      color: #F5F5F5;
+      border: 1px solid var(--admin-border-soft);
+      background: var(--admin-surface);
+      color: var(--admin-text);
     }
     .form-row-3 {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 12px;
+      gap: 0.75rem;
     }
-    @media (max-width: 768px) {
-      .form-row-3 { grid-template-columns: 1fr; }
+    .form-row-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+    }
+    @media (max-width: 800px) {
+      .cfbd-toolbar { grid-template-columns: 1fr 1fr; }
+      .form-row-3, .form-row-2 { grid-template-columns: 1fr; }
       .saved-game-row { grid-template-columns: 1fr; }
     }
   </style>
@@ -228,23 +324,30 @@
   <div class="menu-overlay" id="menuOverlay" onclick="closeMenu()"></div>
 
   <div class="admin-container page-shell">
-    <h1 style="color: #FFD700; text-align: center; margin-bottom: 30px;">🏈 Admin Panel</h1>
+    <h1 class="admin-page-title">Admin Panel</h1>
 
     <div id="adminAuthMessage" class="admin-section" style="display: none;" role="status">
-      <p id="adminAuthMessageText" style="color:#f5deb3; margin-bottom:12px;"></p>
-      <p style="margin:0;"><a href="login.html?redirect=admin.html" style="color:#FFD700; font-weight:bold;">Go to login</a></p>
+      <p id="adminAuthMessageText" style="color:var(--admin-muted); margin-bottom:12px;"></p>
+      <p style="margin:0;"><a href="login.html?redirect=admin.html" style="color:var(--admin-accent); font-weight:bold;">Go to login</a></p>
     </div>
 
     <div id="adminApp" style="display: none;">
+    <nav class="admin-jump" aria-label="Admin sections">
+      <a href="#section-week">Active week</a>
+      <a href="#section-picks">Weekly picks</a>
+      <a href="#recruitMapAdminSection">Recruit map</a>
+    </nav>
+
     <div class="admin-todo-banner">
-      <strong>Admin access:</strong> You must be signed in with a JWT; actions require <code style="color:#FFD700;">role = admin</code> in the database.
+      Signed in as admin — JWT required; actions need <code style="color:var(--admin-accent);">role = admin</code>.
     </div>
 
-    <!-- Active week (quick view) -->
-    <div class="admin-section">
+    <!-- Active week -->
+    <div class="admin-section" id="section-week">
       <h2>Active week</h2>
+      <p class="section-lead">Controls what Weekly Picks shows by default.</p>
       <div id="currentWeekInfo" class="loading">Loading...</div>
-      <div class="form-row-3">
+      <div class="form-row-3" style="margin-top:0.75rem;">
         <div class="form-group">
           <label>Season year</label>
           <input type="number" id="seasonYear" value="2026" min="2020" max="2035">
@@ -260,100 +363,39 @@
       <div id="weekStatus"></div>
     </div>
 
-    <div id="recruitMapAdminSection" class="admin-section" style="display: none;">
-      <h2>Recruit Map</h2>
-      <p style="color:#f5deb3; margin-bottom:0.75rem;">
-        The public <a href="recruitmap.html" style="color:#FFD700; font-weight:bold;">Recruit Map</a> reads static JSON only. Update map data locally:
-      </p>
-      <p style="color:#bfa88a; font-size:0.88rem; margin-bottom:1rem; padding:0.65rem 0.85rem; border:1px solid var(--border-brown); border-radius:var(--radius-sm);">
-        <strong>Current workflow:</strong> from the <code style="color:#FFD700;">Client</code> folder run
-        <code style="color:#FFD700;">npm run export:recruits -- --year=2025 --classification=HighSchool</code>
-        (requires <code style="color:#FFD700;">CFBD_API_KEY</code> in <code style="color:#FFD700;">Client/.env</code>),
-        then commit <code style="color:#FFD700;">Frontend/data/recruits/</code> and deploy.
-      </p>
-      <h3 style="color:#FFD700; font-size:1rem; margin:0 0 0.5rem 0;">Legacy — database sync (not used by public map)</h3>
-      <p style="color:#bfa88a; font-size:0.88rem; margin-bottom:0.75rem;">
-        The buttons below write to <code style="color:#FFD700;">player_hometowns</code> in Supabase. They are optional and not required for recruitmap.html.
-      </p>
-      <div class="form-row-3" style="display:flex; flex-wrap:wrap; gap:1rem; align-items:end;">
-        <div class="form-group" style="max-width: 200px;">
-          <label for="recruitMapSeasonYear">Year</label>
-          <input type="number" id="recruitMapSeasonYear" value="2025" min="2009" max="2100">
-        </div>
-        <div class="form-group" style="max-width: 220px;">
-          <label for="recruitMapClassification">Classification</label>
-          <select id="recruitMapClassification" class="search-box" style="width:100%; padding:8px;">
-            <option value="HighSchool" selected>HighSchool</option>
-            <option value="JUCO">JUCO</option>
-            <option value="PrepSchool">PrepSchool</option>
-          </select>
-        </div>
-      </div>
-      <div class="form-row-3" style="display:flex; flex-wrap:wrap; gap:1rem; align-items:end; margin-top:0.75rem;">
-        <div class="form-group" style="min-width: 160px;">
-          <label for="recruitMapTeam">Optional team</label>
-          <input type="text" id="recruitMapTeam" class="search-box" placeholder="Filter by team / commitment">
-        </div>
-        <div class="form-group" style="max-width: 120px;">
-          <label for="recruitMapState">Optional state</label>
-          <input type="text" id="recruitMapState" class="search-box" placeholder="e.g. TX">
-        </div>
-        <div class="form-group" style="max-width: 120px;">
-          <label for="recruitMapPosition">Optional position</label>
-          <input type="text" id="recruitMapPosition" class="search-box" placeholder="e.g. QB">
-        </div>
-      </div>
-      <p style="color:#bfa88a; font-size:0.88rem; margin-top:0.75rem; margin-bottom:0.75rem;">
-        Uses <strong>GET /recruiting/players</strong> with your year and classification. Sync runs in <strong>row batches</strong> (default 250 rows, max 500) so each request stays under the gateway time limit. Default year <strong>2025</strong> is best for testing; future classes may be incomplete.
-      </p>
-      <div style="display:flex; flex-wrap:wrap; gap:0.5rem; align-items:center;">
-        <button type="button" class="btn btn-primary" id="btnRecruitAutoSync" onclick="recruitMapAutoSync()">Auto Sync</button>
-        <button type="button" class="btn btn-secondary" id="btnRecruitLoad" onclick="recruitMapLoadData()">Load Recruiting Players</button>
-        <button type="button" class="btn btn-secondary" id="btnRecruitNextBatch" onclick="recruitMapLoadNextBatch()">Load Next Recruit Batch</button>
-        <button type="button" class="btn btn-secondary" id="btnRecruitAutoBatches" onclick="recruitMapAutoLoadAllBatches()">Auto Load All Recruit Batches</button>
-        <button type="button" class="btn btn-secondary" id="btnRecruitResume" onclick="recruitMapResumeSync()">Resume Recruit Sync</button>
-        <button type="button" class="btn btn-secondary" id="btnRecruitUpdate" onclick="recruitMapLoadNextBatch()">Update Recruiting Map Data</button>
-        <button type="button" class="btn btn-secondary" id="btnRecruitGeocode" onclick="recruitMapGeocode()">Geocode Missing Hometowns</button>
-        <button type="button" class="btn btn-secondary" id="btnRecruitCheckMap" onclick="recruitMapCheckMapData()">Check Map Data</button>
-        <button type="button" class="btn btn-secondary" id="btnRecruitDebug" onclick="recruitMapDebugRecruits()">Debug sample (CFBD)</button>
-      </div>
-      <p style="color:#bfa88a; font-size:0.88rem; margin-top:0.75rem; margin-bottom:0;">
-        <strong>Load Recruiting Players</strong> starts at row 0 and clears saved batch progress for this filter set.
-        <strong>Resume</strong> continues from the last successful next row offset (stored in this browser).
-        <strong>Auto Sync</strong> loads all batches (with pauses), then runs geocode passes for rows still missing coordinates — it does not geocode between recruit batches.
-      </p>
-      <div id="recruitMapSyncStatus" style="margin-top:12px;"></div>
-    </div>
-
     <!-- Weekly Picks Games -->
-    <div class="admin-section">
+    <div class="admin-section" id="section-picks">
       <h2>Weekly Picks Games</h2>
-      <p style="color:#f5deb3; margin-bottom:1rem;">Choose a week, fetch CFBD schedule server-side, pick games, save to Supabase. Weekly Picks reads from the same <code style="color:#FFD700;">games</code> rows.</p>
+      <p class="section-lead">Fetch a week’s schedule, filter down to the slate you want, then save. Lines are stored for the picks page but not shown here.</p>
 
       <div class="form-group">
         <label>Week to edit</label>
         <select id="weekSelect"></select>
-        <button type="button" class="btn btn-secondary" onclick="refreshWeeks()">Refresh week list</button>
-        <button type="button" class="btn btn-primary" onclick="setActiveFromSelection()">Set selected week as active</button>
+      </div>
+      <div class="btn-row">
+        <button type="button" class="btn btn-secondary" onclick="refreshWeeks()">Refresh weeks</button>
+        <button type="button" class="btn btn-primary" onclick="setActiveFromSelection()">Set as active week</button>
       </div>
 
-      <h3 style="color:#FFD700; font-size:1.1rem; margin-top:1.25rem;">Create week</h3>
-      <div class="form-row-3">
-        <div class="form-group">
-          <label>Season year</label>
-          <input type="number" id="createSeasonYear" value="2026" min="2020" max="2035">
+      <details class="admin-details">
+        <summary>Create a new week</summary>
+        <div class="form-row-3" style="margin-top:0.5rem;">
+          <div class="form-group">
+            <label>Season year</label>
+            <input type="number" id="createSeasonYear" value="2026" min="2020" max="2035">
+          </div>
+          <div class="form-group">
+            <label>Week number</label>
+            <input type="number" id="createWeekNumber" value="1" min="1" max="20">
+          </div>
+          <div class="form-group" style="align-self: end;">
+            <button type="button" class="btn btn-secondary" onclick="createWeek()">Create week</button>
+          </div>
         </div>
-        <div class="form-group">
-          <label>Week number</label>
-          <input type="number" id="createWeekNumber" value="1" min="1" max="20">
-        </div>
-        <div class="form-group" style="align-self: end;">
-          <button type="button" class="btn btn-secondary" onclick="createWeek()">Create week</button>
-        </div>
-      </div>
-      <div id="createWeekStatus"></div>
+        <div id="createWeekStatus"></div>
+      </details>
 
-      <h3 style="color:#FFD700; font-size:1.1rem; margin-top:1.25rem;">Fetch CFBD games</h3>
+      <h3>1. Fetch schedule</h3>
       <div class="form-row-3">
         <div class="form-group">
           <label>Season year</label>
@@ -371,20 +413,120 @@
           </select>
         </div>
       </div>
-      <button type="button" class="btn btn-primary" onclick="fetchCfbdGames()">Fetch CFBD games</button>
+      <div class="form-row-2">
+        <div class="form-group">
+          <label>Division</label>
+          <select id="cfbdClassification">
+            <option value="fbs" selected>FBS only (recommended)</option>
+            <option value="fcs">FCS only</option>
+            <option value="all">All divisions</option>
+          </select>
+        </div>
+        <div class="form-group" style="align-self: end;">
+          <button type="button" class="btn btn-primary" onclick="fetchCfbdGames()">Fetch CFBD games</button>
+        </div>
+      </div>
       <div id="cfbdFetchStatus"></div>
 
-      <input type="text" id="cfbdSearch" class="search-box" placeholder="Filter CFBD list by team name..." oninput="renderCfbdList()">
+      <h3>2. Filter &amp; select</h3>
+      <div class="cfbd-toolbar">
+        <div class="form-group">
+          <label for="cfbdSearch">Team search</label>
+          <input type="text" id="cfbdSearch" class="search-box" placeholder="Ohio State, Alabama…" oninput="renderCfbdList()">
+        </div>
+        <div class="form-group">
+          <label for="cfbdConference">Conference</label>
+          <select id="cfbdConference" onchange="renderCfbdList()">
+            <option value="">All conferences</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="cfbdDayFilter">Kickoff day</label>
+          <select id="cfbdDayFilter" onchange="renderCfbdList()">
+            <option value="">Any day</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>&nbsp;</label>
+          <button type="button" class="btn btn-ghost" onclick="clearCfbdFilters()">Clear filters</button>
+        </div>
+      </div>
 
-      <div id="cfbdList"></div>
-      <button type="button" class="btn btn-primary" onclick="saveSelectedGames()">Save selected games to this week</button>
+      <div class="cfbd-meta">
+        <span id="cfbdListMeta">Fetch a schedule to begin.</span>
+        <span>
+          <button type="button" class="btn btn-ghost" onclick="selectAllVisibleCfbd()">Select visible</button>
+          <button type="button" class="btn btn-ghost" onclick="clearCfbdSelection()">Clear selection</button>
+        </span>
+      </div>
+      <div id="cfbdList" class="cfbd-list"><p class="cfbd-empty">No games loaded yet.</p></div>
+      <div class="btn-row">
+        <button type="button" class="btn btn-primary" onclick="saveSelectedGames()">Save selected to this week</button>
+        <span id="cfbdSelectedCount" style="color:var(--admin-muted); font-size:0.85rem;"></span>
+      </div>
       <div id="saveGamesStatus"></div>
 
-      <h3 style="color:#FFD700; font-size:1.1rem; margin-top:1.5rem;">Saved games for selected week</h3>
-      <p style="color:#f5deb3; font-size:0.9rem;">Edit slot numbers, then apply reorder. Delete removes one row from <code style="color:#FFD700;">Games</code>.</p>
+      <h3>3. Saved slate</h3>
+      <p class="section-lead">Reorder slots or delete games already on this week.</p>
       <div id="savedGamesContainer" class="loading">Select a week to load saved games.</div>
-      <button type="button" class="btn btn-secondary" onclick="applyReorder()">Apply reorder</button>
+      <div class="btn-row">
+        <button type="button" class="btn btn-secondary" onclick="applyReorder()">Apply reorder</button>
+      </div>
       <div id="reorderStatus"></div>
+    </div>
+
+    <div id="recruitMapAdminSection" class="admin-section" style="display: none;">
+      <h2>Recruit Map</h2>
+      <p class="section-lead">
+        Public map reads static JSON. Preferred update:
+        <code style="color:var(--admin-accent);">npm run export:recruits -- --year=2025 --classification=HighSchool</code>
+        from <code style="color:var(--admin-accent);">Client</code>, then deploy.
+      </p>
+
+      <details class="admin-details">
+        <summary>Legacy database sync (optional)</summary>
+        <p class="section-lead" style="margin-top:0.5rem;">Writes to <code style="color:var(--admin-accent);">player_hometowns</code> — not used by the public map.</p>
+        <div class="form-row-3">
+          <div class="form-group">
+            <label for="recruitMapSeasonYear">Year</label>
+            <input type="number" id="recruitMapSeasonYear" value="2025" min="2009" max="2100">
+          </div>
+          <div class="form-group">
+            <label for="recruitMapClassification">Classification</label>
+            <select id="recruitMapClassification" class="search-box">
+              <option value="HighSchool" selected>HighSchool</option>
+              <option value="JUCO">JUCO</option>
+              <option value="PrepSchool">PrepSchool</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row-3">
+          <div class="form-group">
+            <label for="recruitMapTeam">Optional team</label>
+            <input type="text" id="recruitMapTeam" class="search-box" placeholder="Filter by team / commitment">
+          </div>
+          <div class="form-group">
+            <label for="recruitMapState">Optional state</label>
+            <input type="text" id="recruitMapState" class="search-box" placeholder="e.g. TX">
+          </div>
+          <div class="form-group">
+            <label for="recruitMapPosition">Optional position</label>
+            <input type="text" id="recruitMapPosition" class="search-box" placeholder="e.g. QB">
+          </div>
+        </div>
+        <div class="btn-row">
+          <button type="button" class="btn btn-primary" id="btnRecruitAutoSync" onclick="recruitMapAutoSync()">Auto Sync</button>
+          <button type="button" class="btn btn-secondary" id="btnRecruitLoad" onclick="recruitMapLoadData()">Load players</button>
+          <button type="button" class="btn btn-secondary" id="btnRecruitNextBatch" onclick="recruitMapLoadNextBatch()">Next batch</button>
+          <button type="button" class="btn btn-secondary" id="btnRecruitAutoBatches" onclick="recruitMapAutoLoadAllBatches()">All batches</button>
+          <button type="button" class="btn btn-secondary" id="btnRecruitResume" onclick="recruitMapResumeSync()">Resume</button>
+          <button type="button" class="btn btn-secondary" id="btnRecruitUpdate" onclick="recruitMapLoadNextBatch()">Update map data</button>
+          <button type="button" class="btn btn-secondary" id="btnRecruitGeocode" onclick="recruitMapGeocode()">Geocode missing</button>
+          <button type="button" class="btn btn-secondary" id="btnRecruitCheckMap" onclick="recruitMapCheckMapData()">Check map data</button>
+          <button type="button" class="btn btn-secondary" id="btnRecruitDebug" onclick="recruitMapDebugRecruits()">Debug sample</button>
+        </div>
+        <div id="recruitMapSyncStatus" style="margin-top:12px;"></div>
+      </details>
     </div>
     </div>
   </div>
@@ -396,6 +538,8 @@
 
     let activeWeekNorm = null;
     let cfbdGamesCache = [];
+    let cfbdSelectedIds = new Set();
+    let cfbdConferencesCache = [];
 
     function adminAuthHeaders(includeJsonContentType) {
       const h = {};
@@ -1206,13 +1350,125 @@
       await setCurrentWeekFromInputs();
     }
 
+    function formatKickoff(iso) {
+      if (!iso) return 'TBD';
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return String(iso);
+      return d.toLocaleString(undefined, {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+      });
+    }
+
+    function kickoffDayKey(iso) {
+      if (!iso) return '';
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return '';
+      return d.toLocaleDateString(undefined, {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+      });
+    }
+
+    function escapeHtml(s) {
+      return String(s ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function populateConferenceFilter(conferences) {
+      const sel = document.getElementById('cfbdConference');
+      const prev = sel.value;
+      cfbdConferencesCache = Array.isArray(conferences) ? conferences : [];
+      sel.innerHTML =
+        '<option value="">All conferences</option>' +
+        cfbdConferencesCache
+          .map((c) => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`)
+          .join('');
+      if (prev && cfbdConferencesCache.includes(prev)) sel.value = prev;
+    }
+
+    function populateDayFilter() {
+      const sel = document.getElementById('cfbdDayFilter');
+      const prev = sel.value;
+      const days = [
+        ...new Set(cfbdGamesCache.map((g) => kickoffDayKey(g.game_date)).filter(Boolean)),
+      ];
+      sel.innerHTML =
+        '<option value="">Any day</option>' +
+        days.map((d) => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join('');
+      if (prev && days.includes(prev)) sel.value = prev;
+    }
+
+    function getFilteredCfbdGames() {
+      const q = (document.getElementById('cfbdSearch').value || '').trim().toLowerCase();
+      const conf = (document.getElementById('cfbdConference').value || '').trim();
+      const day = (document.getElementById('cfbdDayFilter').value || '').trim();
+      return cfbdGamesCache.filter((g) => {
+        if (q) {
+          const t = `${g.away_team_name} ${g.home_team_name}`.toLowerCase();
+          if (!t.includes(q)) return false;
+        }
+        if (conf) {
+          const hc = String(g.home_conference || '');
+          const ac = String(g.away_conference || '');
+          if (hc !== conf && ac !== conf) return false;
+        }
+        if (day && kickoffDayKey(g.game_date) !== day) return false;
+        return true;
+      });
+    }
+
+    function updateCfbdSelectionUi() {
+      const el = document.getElementById('cfbdSelectedCount');
+      if (el) {
+        el.textContent = cfbdSelectedIds.size
+          ? `${cfbdSelectedIds.size} selected`
+          : '';
+      }
+    }
+
+    function toggleCfbdSelection(cfbdId, checked) {
+      const id = Number(cfbdId);
+      if (!Number.isFinite(id)) return;
+      if (checked) cfbdSelectedIds.add(id);
+      else cfbdSelectedIds.delete(id);
+      updateCfbdSelectionUi();
+    }
+
+    function selectAllVisibleCfbd() {
+      for (const g of getFilteredCfbdGames()) {
+        cfbdSelectedIds.add(Number(g.cfbd_game_id));
+      }
+      renderCfbdList();
+    }
+
+    function clearCfbdSelection() {
+      cfbdSelectedIds.clear();
+      renderCfbdList();
+    }
+
+    function clearCfbdFilters() {
+      document.getElementById('cfbdSearch').value = '';
+      document.getElementById('cfbdConference').value = '';
+      document.getElementById('cfbdDayFilter').value = '';
+      renderCfbdList();
+    }
+
     async function fetchCfbdGames() {
       const season_year = parseInt(document.getElementById('cfbdSeasonYear').value, 10);
       const week_number = parseInt(document.getElementById('cfbdWeekNumber').value, 10);
       const season_type = document.getElementById('cfbdSeasonType').value;
+      const classification = document.getElementById('cfbdClassification').value || 'fbs';
       document.getElementById('cfbdFetchStatus').innerHTML = '<div class="loading">Loading CFBD…</div>';
       try {
-        const q = new URLSearchParams({ season_year, week_number, season_type });
+        const q = new URLSearchParams({ season_year, week_number, season_type, classification });
         const res = await fetch(`${API_BASE}/api/admin/cfbd-games?${q}`, {
           headers: adminAuthHeaders(false),
         });
@@ -1220,82 +1476,90 @@
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error || data.detail || res.statusText);
         cfbdGamesCache = data.games || [];
+        cfbdSelectedIds.clear();
+        populateConferenceFilter(data.conferences || []);
+        populateDayFilter();
+        const divLabel = data.classification || classification;
         document.getElementById('cfbdFetchStatus').innerHTML =
-          `<div class="status-message status-success">${cfbdGamesCache.length} games loaded${
-            typeof data.linesAttached === 'number'
-              ? ` · ${data.linesAttached} with betting lines`
-              : ''
-          }</div>`;
+          `<div class="status-message status-success">${cfbdGamesCache.length} games loaded (${escapeHtml(divLabel)})</div>`;
         renderCfbdList();
       } catch (e) {
         document.getElementById('cfbdFetchStatus').innerHTML =
           `<div class="status-message status-error">${e.message}</div>`;
         cfbdGamesCache = [];
-        document.getElementById('cfbdList').innerHTML = '';
+        cfbdSelectedIds.clear();
+        document.getElementById('cfbdList').innerHTML = '<p class="cfbd-empty">No games loaded.</p>';
+        const meta = document.getElementById('cfbdListMeta');
+        if (meta) meta.textContent = 'Fetch a schedule to begin.';
+        updateCfbdSelectionUi();
       }
     }
 
     function renderCfbdList() {
       const box = document.getElementById('cfbdList');
-      const q = (document.getElementById('cfbdSearch').value || '').trim().toLowerCase();
-      const list = cfbdGamesCache.filter(g => {
-        if (!q) return true;
-        const t = `${g.away_team_name} ${g.home_team_name}`.toLowerCase();
-        return t.includes(q);
-      });
+      const meta = document.getElementById('cfbdListMeta');
+      const list = getFilteredCfbdGames();
+      if (!cfbdGamesCache.length) {
+        box.innerHTML = '<p class="cfbd-empty">No games loaded yet.</p>';
+        if (meta) meta.textContent = 'Fetch a schedule to begin.';
+        updateCfbdSelectionUi();
+        return;
+      }
+      if (meta) meta.innerHTML = `Showing <strong>${list.length}</strong> of <strong>${cfbdGamesCache.length}</strong>`;
       if (!list.length) {
-        box.innerHTML = '<p style="color:#f5deb3;">No games to show. Fetch CFBD first.</p>';
+        box.innerHTML = '<p class="cfbd-empty">No games match these filters.</p>';
+        updateCfbdSelectionUi();
         return;
       }
       box.innerHTML = list.map((g) => {
-        const line =
-          g.betting_line != null && g.betting_line !== ''
-            ? (Number(g.betting_line) < 0
-                ? `${g.home_team_name} ${g.betting_line}`
-                : Number(g.betting_line) > 0
-                  ? `${g.away_team_name} -${g.betting_line}`
-                  : "Pick'em")
-            : '';
+        const id = Number(g.cfbd_game_id);
+        const checked = cfbdSelectedIds.has(id);
+        const confBits = [g.away_conference, g.home_conference]
+          .filter(Boolean)
+          .filter((v, i, a) => a.indexOf(v) === i);
+        const confLabel = confBits.length ? confBits.join(' / ') : 'Ind.';
         return `
-        <div class="cfbd-game-row">
-          <input type="checkbox" class="cfbd-pick" data-cfbd-id="${g.cfbd_game_id}" id="cfbd-${g.cfbd_game_id}">
-          <label for="cfbd-${g.cfbd_game_id}" style="margin:0; cursor:pointer; flex:1;">
-            <strong>${g.away_team_name} @ ${g.home_team_name}</strong>
-            ${line ? `<span class="betting-line" style="margin-left:8px;">${line}</span>` : ''}
-            <span class="betting-line" style="margin-left:8px;">${g.is_completed ? 'Final' : 'Scheduled'}</span><br>
-            <small style="color:#f5deb3;">CFBD #${g.cfbd_game_id} · ${g.game_date || ''} ${g.venue ? '· ' + g.venue : ''}</small>
-          </label>
-        </div>
+        <label class="cfbd-game-row${checked ? ' is-selected' : ''}" for="cfbd-${id}">
+          <input type="checkbox" class="cfbd-pick" data-cfbd-id="${id}" id="cfbd-${id}" ${checked ? 'checked' : ''}
+            onchange="toggleCfbdSelection(${id}, this.checked); this.closest('.cfbd-game-row').classList.toggle('is-selected', this.checked)">
+          <div>
+            <div class="cfbd-matchup">${escapeHtml(g.away_team_name)} @ ${escapeHtml(g.home_team_name)}</div>
+            <div class="cfbd-sub">${escapeHtml(formatKickoff(g.game_date))}${g.venue ? ' · ' + escapeHtml(g.venue) : ''}${g.is_completed ? ' · Final' : ''}</div>
+          </div>
+          <span class="cfbd-chip">${escapeHtml(confLabel)}</span>
+        </label>
       `;
       }).join('');
+      updateCfbdSelectionUi();
     }
 
     async function saveSelectedGames() {
       const week_id = selectedWeekId();
       if (!week_id) return alert('Select a week in “Week to edit”.');
-      const checks = [...document.querySelectorAll('.cfbd-pick:checked')];
-      if (!checks.length) return alert('Select at least one CFBD game.');
-      const games = [];
-      let n = 1;
-      for (const c of checks) {
-        const cfbdId = parseInt(c.getAttribute('data-cfbd-id'), 10);
-        const g = cfbdGamesCache.find(x => x.cfbd_game_id === cfbdId);
-        if (!g) continue;
-        games.push({
-          cfbd_game_id: g.cfbd_game_id,
-          game_number: n++,
-          home_team_espn_id: g.home_team_espn_id,
-          away_team_espn_id: g.away_team_espn_id,
-          home_team_name: g.home_team_name,
-          away_team_name: g.away_team_name,
-          home_team_logo_url: g.home_team_logo_url || null,
-          away_team_logo_url: g.away_team_logo_url || null,
-          game_date: g.game_date,
-          venue: g.venue,
-          betting_line: g.betting_line != null ? g.betting_line : null,
-          is_completed: g.is_completed,
+      if (!cfbdSelectedIds.size) return alert('Select at least one game.');
+      const selected = cfbdGamesCache
+        .filter((g) => cfbdSelectedIds.has(Number(g.cfbd_game_id)))
+        .slice()
+        .sort((a, b) => {
+          const da = a.game_date ? Date.parse(a.game_date) : 0;
+          const db = b.game_date ? Date.parse(b.game_date) : 0;
+          return da - db;
         });
-      }
+      if (!selected.length) return alert('Select at least one game.');
+      const games = selected.map((g, i) => ({
+        cfbd_game_id: g.cfbd_game_id,
+        game_number: i + 1,
+        home_team_espn_id: g.home_team_espn_id,
+        away_team_espn_id: g.away_team_espn_id,
+        home_team_name: g.home_team_name,
+        away_team_name: g.away_team_name,
+        home_team_logo_url: g.home_team_logo_url || null,
+        away_team_logo_url: g.away_team_logo_url || null,
+        game_date: g.game_date,
+        venue: g.venue,
+        betting_line: g.betting_line != null ? g.betting_line : null,
+        is_completed: g.is_completed,
+      }));
       document.getElementById('saveGamesStatus').innerHTML = '';
       try {
         const res = await fetch(`${API_BASE}/api/admin/games/save-week-games`, {
@@ -1305,7 +1569,7 @@
         });
         if (checkAdminFetch(res)) return;
         const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.error || data.hint || res.statusText);
+        if (!res.ok) throw new Error(data.error || data.detail || data.hint || res.statusText);
         document.getElementById('saveGamesStatus').innerHTML =
           `<div class="status-message status-success">Saved ${data.games?.length || 0} games</div>`;
         loadSavedGamesForSelection();
@@ -1319,7 +1583,7 @@
       const weekId = selectedWeekId();
       const el = document.getElementById('savedGamesContainer');
       if (!weekId) {
-        el.innerHTML = '<p style="color:#f5deb3;">Select a week.</p>';
+        el.innerHTML = '<p style="color:var(--admin-muted);">Select a week.</p>';
         return;
       }
       el.innerHTML = '<div class="loading">Loading…</div>';
@@ -1332,25 +1596,16 @@
         if (!res.ok) throw new Error(data.error || data.hint || res.statusText);
         const games = data.games || [];
         if (!games.length) {
-          el.innerHTML = '<p style="color:#f5deb3;">No games saved for this week yet.</p>';
+          el.innerHTML = '<p style="color:var(--admin-muted);">No games saved for this week yet.</p>';
           return;
         }
         el.innerHTML = games.map(g => {
-          const line =
-            g.betting_line != null && g.betting_line !== ''
-              ? (Number(g.betting_line) < 0
-                  ? `${g.home_team_name} ${g.betting_line}`
-                  : Number(g.betting_line) > 0
-                    ? `${g.away_team_name} -${g.betting_line}`
-                    : "Pick'em")
-              : '';
           return `
           <div class="saved-game-row" data-game-id="${g.id}">
             <div>
-              <strong>Game <span class="gn">${g.game_number}</span>:</strong>
-              ${g.away_team_name} @ ${g.home_team_name}
-              ${line ? ` <span class="betting-line">${line}</span>` : ''}
-              <br><small style="color:#f5deb3;">DB id ${g.id}${g.cfbd_game_id != null ? ` · CFBD ${g.cfbd_game_id}` : ''}</small>
+              <strong>Slot <span class="gn">${g.game_number}</span>:</strong>
+              ${escapeHtml(g.away_team_name)} @ ${escapeHtml(g.home_team_name)}
+              <br><small style="color:var(--admin-muted);">${escapeHtml(formatKickoff(g.game_date))}</small>
             </div>
             <input type="number" min="1" class="gn-input" value="${g.game_number}" aria-label="Game number">
             <button type="button" class="btn btn-secondary" onclick="deleteSavedGame(${g.id})">Delete</button>
