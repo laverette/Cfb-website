@@ -30,13 +30,14 @@
       </div>
     </div>
   </nav>
-  <div class="weeklypicks-tabbar">
-    <div class="navbar-tabs weeklypicks-tabbar-inner">
-      <button type="button" class="tab-button active" id="tabPicksBtn" onclick="openTab(event, 'week11-picks')">Weekly Picks</button>
-      <button type="button" class="tab-button" id="tabResultsBtn" onclick="openTab(event, 'week10-results')">Weekly Results</button>
-    </div>
-  </div>
   <div class="menu-overlay" id="menuOverlay" onclick="closeMenu()"></div>
+
+  <header class="picks-page-header">
+    <div class="picks-mode-switch" role="tablist" aria-label="Weekly picks views">
+      <button type="button" class="tab-button picks-mode-btn active" id="tabPicksBtn" role="tab" aria-selected="true" onclick="openTab(event, 'week11-picks')">Picks</button>
+      <button type="button" class="tab-button picks-mode-btn" id="tabResultsBtn" role="tab" aria-selected="false" onclick="openTab(event, 'week10-results')">Results</button>
+    </div>
+  </header>
 
   <!-- Week 11 Picks Tab -->
   <div id="week11-picks" class="tab-content active">
@@ -319,7 +320,9 @@
 
   <!-- Week 10 Results Tab -->
   <div id="week10-results" class="tab-content">
-    <h1 class="title" id="resultsTabTitle">Weekly Results</h1>
+    <div class="title-section">
+      <h1 class="title" id="resultsTabTitle">Weekly Results</h1>
+    </div>
     
     <div class="leaderboards-container">
       <div class="Leaderboard last-week">
@@ -530,10 +533,10 @@
       if (resultsTitle) resultsTitle.textContent = `${weekPart} Results${yearPart}`;
 
       const picksTab = document.getElementById('tabPicksBtn');
-      if (picksTab) picksTab.textContent = `${weekPart} Picks`;
+      if (picksTab) picksTab.textContent = 'Picks';
 
       const resultsTab = document.getElementById('tabResultsBtn');
-      if (resultsTab) resultsTab.textContent = `${weekPart} Results`;
+      if (resultsTab) resultsTab.textContent = 'Results';
 
       const analysisTitle = document.getElementById('analysisTitle');
       if (analysisTitle) analysisTitle.textContent = `📊 ${weekPart} Analysis`;
@@ -1851,11 +1854,13 @@
       tablinks = document.getElementsByClassName("tab-button");
       for (i = 0; i < tablinks.length; i++) {
         tablinks[i].classList.remove("active");
+        tablinks[i].setAttribute("aria-selected", "false");
       }
       
       // Show the selected tab content and mark the button as active
       document.getElementById(tabName).classList.add("active");
       evt.currentTarget.classList.add("active");
+      evt.currentTarget.setAttribute("aria-selected", "true");
     }
 
     // Coach Corso scroll functionality

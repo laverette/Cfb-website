@@ -888,6 +888,19 @@ input:focus, select:focus {
     opacity: 0.65;
 }
 
+.pick-game-row {
+    margin: 0;
+    padding: 0.9rem 1rem;
+    background: rgba(62, 39, 35, 0.42);
+    border: 1px solid rgba(255, 215, 0, 0.18);
+    border-radius: 12px;
+}
+
+.pick-game-row.has-pick {
+    border-color: rgba(255, 215, 0, 0.4);
+    background: rgba(62, 39, 35, 0.58);
+}
+
 .pick-game-row.has-pick .pick-hint {
     display: none;
 }
@@ -898,6 +911,22 @@ input:focus, select:focus {
     align-items: center;
     gap: 6px;
     vertical-align: middle;
+}
+
+#dbWeekPicksContainer {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+}
+
+#dbWeekPicksContainer > .picks-loading-message {
+    grid-column: 1 / -1;
+}
+
+@media (min-width: 900px) {
+    #dbWeekPicksContainer {
+        grid-template-columns: 1fr 1fr;
+    }
 }
 
 .team-link-inline .team-logo {
@@ -2024,6 +2053,38 @@ body.picks-results-open #cfbdWeek1PicksContainer {
     transform: translateY(-2px);
 }
 
+/* Compact page mode switch (overrides generic .tab-button look) */
+.picks-mode-btn.tab-button {
+    margin: 0;
+    border: none;
+    border-radius: 999px;
+    padding: 0.45rem 1.15rem;
+    font-size: 0.88rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    background: transparent;
+    color: #f5deb3;
+    box-shadow: none;
+    text-transform: none;
+    transform: none;
+}
+
+.picks-mode-btn.tab-button:hover {
+    background: rgba(255, 215, 0, 0.12);
+    color: #FFD700;
+    border: none;
+    transform: none;
+    box-shadow: none;
+}
+
+.picks-mode-btn.tab-button.active {
+    background: linear-gradient(135deg, #FFD700, #FFA000);
+    color: #1E1E1E;
+    border: none;
+    box-shadow: 0 2px 8px rgba(255, 215, 0, 0.28);
+    transform: none;
+}
+
 .tab-content {
     display: none;
     background-color: transparent;
@@ -2033,20 +2094,14 @@ body.picks-results-open #cfbdWeek1PicksContainer {
     overflow: visible;
 }
 
-.tab-content.active {
-    display: block;
-    margin-top: 1rem;
-    padding-top: 0.5rem;
-}
-
-/* Week picks — full-width slate (no GameDay sidebar) */
+/* Week picks — wider slate, two-up game cards on desktop */
 .week7-layout,
 .week11-layout,
 .picks-layout-solo {
     display: block;
-    max-width: 920px;
+    max-width: 1240px;
     margin: 0 auto;
-    padding: 0 1.25rem;
+    padding: 0 1.5rem 1.5rem;
 }
 
 .form-section {
@@ -2081,9 +2136,15 @@ body.picks-results-open #cfbdWeek1PicksContainer {
     flex-direction: column;
     align-items: center;
     gap: 0.35rem;
-    margin: 0.75rem auto 1rem;
-    max-width: 920px;
-    padding: 0 1.25rem;
+    margin: 0.35rem auto 1.15rem;
+    max-width: 1240px;
+    padding: 0 1.5rem;
+}
+
+.tab-content.active {
+    display: block;
+    margin-top: 0.35rem;
+    padding-top: 0;
 }
 
 .corso-jump-link {
@@ -2187,7 +2248,7 @@ body.picks-results-open #cfbdWeek1PicksContainer {
     border-radius: 15px;
     padding: 2rem;
     margin: 3rem auto;
-    max-width: 1000px;
+    max-width: 1240px;
     box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
     position: relative;
     overflow: hidden;
@@ -2586,7 +2647,7 @@ body.picks-results-open #cfbdWeek1PicksContainer {
     border-radius: 12px;
     padding: 20px;
     margin: 30px auto;
-    max-width: 600px;
+    max-width: 1240px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 

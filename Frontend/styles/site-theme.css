@@ -514,19 +514,50 @@ button.dropdown-item.auth-dropdown-logout:hover {
   color: var(--gold);
 }
 
-/* Weekly Picks: bowl tabs sit below the unified site nav */
+/* Weekly Picks mode switch — compact control under nav, not a second navbar */
 .weeklypicks-tabbar {
-  position: relative;
-  z-index: 998;
-  background: linear-gradient(135deg, var(--bg-panel-2), var(--bg-panel));
-  border-bottom: 2px solid var(--border-brown);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.22);
+  display: none !important;
 }
 
-.weeklypicks-tabbar-inner {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0.45rem 1rem;
+.picks-page-header {
+  display: flex;
+  justify-content: center;
+  padding: 0.85rem 1rem 0;
+}
+
+.picks-mode-switch {
+  display: inline-flex;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border-radius: 999px;
+  background: rgba(62, 39, 35, 0.72);
+  border: 1px solid rgba(255, 215, 0, 0.28);
+}
+
+.picks-mode-btn.tab-button {
+  margin: 0;
+  border: none;
+  border-radius: 999px;
+  padding: 0.45rem 1.15rem;
+  font-size: 0.88rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  background: transparent;
+  color: #f5deb3;
+  box-shadow: none;
+  text-transform: none;
+}
+
+.picks-mode-btn.tab-button:hover {
+  background: rgba(255, 215, 0, 0.12);
+  color: #FFD700;
+  transform: none;
+}
+
+.picks-mode-btn.tab-button.active {
+  background: linear-gradient(135deg, #FFD700, #FFA000);
+  color: #1E1E1E;
+  box-shadow: 0 2px 8px rgba(255, 215, 0, 0.28);
 }
 
 .picks-auth-notice {
