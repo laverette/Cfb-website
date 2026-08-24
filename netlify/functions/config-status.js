@@ -28,5 +28,8 @@ exports.handler = async (event) => {
     supabaseUrl: Boolean(url),
     supabaseServiceRoleKey: Boolean(key),
     supabaseUrlHost: host,
+    geminiApiKey: Boolean(
+      process.env.GEMINI_API_KEY && String(process.env.GEMINI_API_KEY).trim()
+    ),
   });
 };

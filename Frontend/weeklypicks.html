@@ -272,58 +272,25 @@
       </div>
     </div>
     
-    <!-- Coach Corso Says Section -->
+    <!-- Coach Corso Chat -->
     <div id="coach-corso-section" class="coach-corso-container">
-      <h2 class="coach-corso-title">🏈 Coach Corso Says...</h2>
-      <div class="coach-corso-content">
-          <div class="corso-tip">
-            <span class="tip-icon">🦈</span>
-            <span class="tip-text">#6 Ole Miss vs #3 Georgia! The Bulldogs' defense is elite, but the Rebels' offense can score on anyone! This is a championship-caliber matchup!</span>
-          </div>
-          <div class="corso-tip">
-            <span class="tip-icon">🐘</span>
-            <span class="tip-text">#9 Alabama vs #1 Indiana! The Hoosiers are the top-ranked team, but you can never count out the Crimson Tide! This is going to be a battle!</span>
-          </div>
-          <div class="corso-tip">
-            <span class="tip-icon">🦆</span>
-            <span class="tip-text">#5 Oregon vs #4 Texas Tech! Two high-powered offenses going head-to-head! The Ducks' speed vs the Red Raiders' passing attack - give me Oregon!</span>
-          </div>
-          <div class="corso-tip">
-            <span class="tip-icon">🌊</span>
-            <span class="tip-text">#10 Miami vs #2 Ohio State! The Buckeyes are loaded with talent, but the Hurricanes have that swagger! This is a classic matchup!</span>
-          </div>
-          <div class="corso-tip">
-            <span class="tip-icon">🌽</span>
-            <span class="tip-text">Nebraska vs #15 Utah! The Cornhuskers are looking to finish strong, but the Utes are battle-tested! Utah's defense will be the difference!</span>
-          </div>
-          <div class="corso-tip">
-            <span class="tip-icon">🤘</span>
-            <span class="tip-text">#18 Michigan vs #13 Texas! The Wolverines vs the Longhorns - two storied programs! Texas has the better quarterback, and that's the key!</span>
-          </div>
-          <div class="corso-tip">
-            <span class="tip-icon">😈</span>
-            <span class="tip-text">Arizona State vs Duke! The Sun Devils' offense vs the Blue Devils' defense! I'm taking Arizona State - they have more playmakers!</span>
-          </div>
-          <div class="corso-tip">
-            <span class="tip-icon">🐯</span>
-            <span class="tip-text">#23 Iowa vs #14 Vanderbilt! The Hawkeyes' defense is tough, but the Commodores have been surprising everyone! Give me Vandy in an upset!</span>
-          </div>
-          <div class="corso-tip">
-            <span class="tip-icon">✌️</span>
-            <span class="tip-text">#16 USC vs TCU! The Trojans' high-flying offense vs the Horned Frogs! USC has too much talent - give me the Trojans!</span>
-          </div>
-          <div class="corso-tip">
-            <span class="tip-icon">🍊</span>
-            <span class="tip-text">Tennessee vs Illinois! The Volunteers' offense is explosive, but the Fighting Illini's defense is solid! Tennessee's speed will win out!</span>
-          </div>
-          <div class="corso-tip">
-            <span class="tip-icon">🐓</span>
-            <span class="tip-text">Coastal Carolina vs Louisiana Tech! The Chanticleers' offense is fun to watch, but the Bulldogs are tough! Coastal Carolina's tempo will be too much!</span>
-          </div>
-          <div class="corso-tip">
-            <span class="tip-icon">⛰️</span>
-            <span class="tip-text">Georgia Southern vs App State! A Sun Belt rivalry game! The Mountaineers have the home-field advantage and the better defense - App State wins!</span>
-          </div>
+      <h2 class="coach-corso-title">Ask Coach Corso</h2>
+      <p class="coach-corso-subtitle">College football hot takes, straight from the GameDay desk.</p>
+      <div class="corso-chat" id="corsoChat">
+        <div class="corso-chat-log" id="corsoChatLog" role="log" aria-live="polite" aria-relevant="additions"></div>
+        <form class="corso-chat-form" id="corsoChatForm">
+          <label class="visually-hidden" for="corsoChatInput">Ask Coach Corso</label>
+          <textarea
+            id="corsoChatInput"
+            class="corso-chat-input"
+            rows="2"
+            maxlength="800"
+            placeholder="Ask Corso who he likes this week…"
+            required
+          ></textarea>
+          <button type="submit" class="corso-chat-send" id="corsoChatSend">Ask Corso</button>
+        </form>
+        <p class="corso-chat-status" id="corsoChatStatus" aria-live="polite"></p>
       </div>
     </div>
   </div>
@@ -1075,6 +1042,7 @@
     document.addEventListener('DOMContentLoaded', function() {
       syncPicksAuthState();
       initFootballToggle();
+      initCorsoChat();
 
       // Phase 1: Load active week + games from backend DB.
       // Live scores will be loaded automatically after games are loaded
@@ -1949,16 +1917,132 @@
       evt.currentTarget.setAttribute("aria-selected", "true");
     }
 
+    // Coach Corso chat
+    const corsoChatHistory = [];
+
+    function escapeHtml(text) {
+      return String(text ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function appendCorsoBubble(role, text) {
+      const log = document.getElementById('corsoChatLog');
+      if (!log) return;
+      const bubble = document.createElement('div');
+      bubble.className = `corso-chat-bubble ${role}`;
+      if (role === 'corso') {
+        bubble.innerHTML = `<span class="corso-chat-label">Coach Corso</span>${escapeHtml(text)}`;
+      } else {
+        bubble.textContent = text;
+      }
+      log.appendChild(bubble);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    function setCorsoStatus(msg) {
+      const el = document.getElementById('corsoChatStatus');
+      if (el) el.textContent = msg || '';
+    }
+
+    function setCorsoBusy(busy) {
+      const send = document.getElementById('corsoChatSend');
+      const input = document.getElementById('corsoChatInput');
+      if (send) {
+        send.disabled = busy;
+        send.textContent = busy ? 'Thinking…' : 'Ask Corso';
+      }
+      if (input) input.disabled = busy;
+    }
+
+    async function askCoachCorso(message) {
+      const resp = await fetch('/api/corso/chat', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', accept: 'application/json' },
+        body: JSON.stringify({
+          message,
+          history: corsoChatHistory.slice(-12),
+        }),
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        const details = data.details ? ` ${data.details}` : '';
+        throw new Error((data.error || 'Request failed') + details);
+      }
+      return String(data.reply || '').trim();
+    }
+
+    function initCorsoChat() {
+      const form = document.getElementById('corsoChatForm');
+      const input = document.getElementById('corsoChatInput');
+      const log = document.getElementById('corsoChatLog');
+      if (!form || !input || !log) return;
+
+      if (!log.childElementCount) {
+        appendCorsoBubble(
+          'corso',
+          "Not so fast, my friend — ask me about this week's games, upsets, or who puts on the headgear!"
+        );
+      }
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const message = String(input.value || '').trim();
+        if (!message) return;
+
+        appendCorsoBubble('user', message);
+        input.value = '';
+        setCorsoBusy(true);
+        setCorsoStatus('Corso is warming up the headgear…');
+
+        try {
+          const reply = await askCoachCorso(message);
+          corsoChatHistory.push({ role: 'user', text: message });
+          corsoChatHistory.push({ role: 'model', text: reply });
+          appendCorsoBubble('corso', reply);
+          setCorsoStatus('');
+        } catch (err) {
+          appendCorsoBubble(
+            'error',
+            err && err.message
+              ? err.message
+              : 'Coach Corso is unavailable right now. Try again in a bit.'
+          );
+          setCorsoStatus('');
+        } finally {
+          setCorsoBusy(false);
+          input.focus();
+        }
+      });
+
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          form.requestSubmit();
+        }
+      });
+    }
+
     // Coach Corso scroll functionality
     function scrollToCoachCorso(event) {
       if (event) {
         event.preventDefault();
         event.stopPropagation();
       }
-      document.getElementById('coach-corso-section').scrollIntoView({ 
-        behavior: 'smooth',
-        block: 'start'
-      });
+      const section = document.getElementById('coach-corso-section');
+      if (section) {
+        section.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start'
+        });
+      }
+      setTimeout(() => {
+        const input = document.getElementById('corsoChatInput');
+        if (input) input.focus();
+      }, 400);
     }
 
     // Rivalry History Modal
