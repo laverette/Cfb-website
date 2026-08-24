@@ -1221,7 +1221,11 @@
         if (!res.ok) throw new Error(data.error || data.detail || res.statusText);
         cfbdGamesCache = data.games || [];
         document.getElementById('cfbdFetchStatus').innerHTML =
-          `<div class="status-message status-success">${cfbdGamesCache.length} games loaded</div>`;
+          `<div class="status-message status-success">${cfbdGamesCache.length} games loaded${
+            typeof data.linesAttached === 'number'
+              ? ` · ${data.linesAttached} with betting lines`
+              : ''
+          }</div>`;
         renderCfbdList();
       } catch (e) {
         document.getElementById('cfbdFetchStatus').innerHTML =
@@ -1243,16 +1247,27 @@
         box.innerHTML = '<p style="color:#f5deb3;">No games to show. Fetch CFBD first.</p>';
         return;
       }
-      box.innerHTML = list.map((g) => `
+      box.innerHTML = list.map((g) => {
+        const line =
+          g.betting_line != null && g.betting_line !== ''
+            ? (Number(g.betting_line) < 0
+                ? `${g.home_team_name} ${g.betting_line}`
+                : Number(g.betting_line) > 0
+                  ? `${g.away_team_name} -${g.betting_line}`
+                  : "Pick'em")
+            : '';
+        return `
         <div class="cfbd-game-row">
           <input type="checkbox" class="cfbd-pick" data-cfbd-id="${g.cfbd_game_id}" id="cfbd-${g.cfbd_game_id}">
           <label for="cfbd-${g.cfbd_game_id}" style="margin:0; cursor:pointer; flex:1;">
             <strong>${g.away_team_name} @ ${g.home_team_name}</strong>
+            ${line ? `<span class="betting-line" style="margin-left:8px;">${line}</span>` : ''}
             <span class="betting-line" style="margin-left:8px;">${g.is_completed ? 'Final' : 'Scheduled'}</span><br>
             <small style="color:#f5deb3;">CFBD #${g.cfbd_game_id} · ${g.game_date || ''} ${g.venue ? '· ' + g.venue : ''}</small>
           </label>
         </div>
-      `).join('');
+      `;
+      }).join('');
     }
 
     async function saveSelectedGames() {
@@ -1277,7 +1292,7 @@
           away_team_logo_url: g.away_team_logo_url || null,
           game_date: g.game_date,
           venue: g.venue,
-          betting_line: null,
+          betting_line: g.betting_line != null ? g.betting_line : null,
           is_completed: g.is_completed,
         });
       }
@@ -1320,17 +1335,28 @@
           el.innerHTML = '<p style="color:#f5deb3;">No games saved for this week yet.</p>';
           return;
         }
-        el.innerHTML = games.map(g => `
+        el.innerHTML = games.map(g => {
+          const line =
+            g.betting_line != null && g.betting_line !== ''
+              ? (Number(g.betting_line) < 0
+                  ? `${g.home_team_name} ${g.betting_line}`
+                  : Number(g.betting_line) > 0
+                    ? `${g.away_team_name} -${g.betting_line}`
+                    : "Pick'em")
+              : '';
+          return `
           <div class="saved-game-row" data-game-id="${g.id}">
             <div>
               <strong>Game <span class="gn">${g.game_number}</span>:</strong>
               ${g.away_team_name} @ ${g.home_team_name}
+              ${line ? ` <span class="betting-line">${line}</span>` : ''}
               <br><small style="color:#f5deb3;">DB id ${g.id}${g.cfbd_game_id != null ? ` · CFBD ${g.cfbd_game_id}` : ''}</small>
             </div>
             <input type="number" min="1" class="gn-input" value="${g.game_number}" aria-label="Game number">
             <button type="button" class="btn btn-secondary" onclick="deleteSavedGame(${g.id})">Delete</button>
           </div>
-        `).join('');
+        `;
+        }).join('');
       } catch (e) {
         el.innerHTML = `<p style="color:#f44336;">${e.message}</p>`;
       }

@@ -611,6 +611,15 @@
       return `<span class="betting-line" style="margin-left: 6px;">${text}</span>`;
     }
 
+    function formatBettingLineLabel(line, homeName, awayName) {
+      if (line == null || line === '') return '';
+      const n = Number(line);
+      if (!Number.isFinite(n)) return '';
+      if (n === 0) return "Pick'em";
+      if (n < 0) return `${homeName || 'Home'} ${n}`;
+      return `${awayName || 'Away'} -${n}`;
+    }
+
     function safeText(v) {
       return String(v ?? '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
@@ -690,6 +699,8 @@
         const awayEspnId = g?.awayTeamEspnId;
         const homeEspnId = g?.homeTeamEspnId;
         const isCompleted = !!g?.isCompleted;
+        const bettingLine = g?.bettingLine ?? g?.betting_line ?? null;
+        const lineLabel = formatBettingLineLabel(bettingLine, homeName, awayName);
 
         // Find live score data for this game
         let liveScoreHtml = '';
@@ -745,6 +756,7 @@
               ${teamLinkHtml(awayEspnId, awayName, awayLogo)}
               <span style="opacity:0.9;">@</span>
               ${teamLinkHtml(homeEspnId, homeName, homeLogo)}
+              ${lineLabel ? `<span class="betting-line" style="margin-left: 6px;">${safeText(lineLabel)}</span>` : ''}
               ${formatStatusBadge(isCompleted)}
             </span>
             ${liveScoreHtml}
