@@ -542,17 +542,29 @@
       if (analysisTitle) analysisTitle.textContent = `📊 ${weekPart} Analysis`;
     }
 
+    function showDbPicksContainer() {
+      const container = document.getElementById('dbWeekPicksContainer');
+      if (!container) return;
+      // Clear inline display so CSS grid (2-up on desktop) can apply
+      container.style.display = '';
+    }
+
+    function hideDbPicksContainer() {
+      const container = document.getElementById('dbWeekPicksContainer');
+      if (container) container.style.display = 'none';
+    }
+
     function showGamesLoadingMessage() {
       const container = document.getElementById('dbWeekPicksContainer');
       if (!container) return;
-      container.style.display = 'block';
+      showDbPicksContainer();
       container.innerHTML = `<p class="picks-loading-message">Loading this week's games…</p>`;
     }
 
     function showGamesStatusMessage(title, bodyHtml) {
       const container = document.getElementById('dbWeekPicksContainer');
       if (!container) return;
-      container.style.display = 'block';
+      showDbPicksContainer();
       container.innerHTML = `
         <div class="prediction-results-container" style="margin: 1rem 0;">
           <div class="prediction-header">
@@ -756,7 +768,7 @@
       window.__DB_GAME_MATCHUPS__ = list.map(g => `${g?.awayTeamName || 'TBD'} @ ${g?.homeTeamName || 'TBD'}`);
       window.__DB_GAMES__ = list;
 
-      container.style.display = 'block';
+      showDbPicksContainer();
       container.innerHTML = list.map((g) => {
         const gameNumber = Number(g?.gameNumber);
         const gameId = g?.id;
@@ -806,7 +818,7 @@
         const gameDate = g?.gameDate || g?.game_date || null;
         const venue = g?.venue || null;
         const extraLine = (gameDate || venue)
-          ? `<div style="color:#f5deb3; opacity:0.9; margin: 6px 0 8px 0;">
+          ? `<div class="pick-meta">
               ${gameDate ? safeText(formatGameDate(gameDate)) : ''}
               ${gameDate && venue ? ' · ' : ''}
               ${venue ? safeText(venue) : ''}
@@ -817,9 +829,12 @@
         // - Hidden input keeps name="gameN" for FormData / collectPicksFromForm
         // - Team chips are the pick UI (tap to select / tap again to clear)
         return `
-          <p class="pick-game-row" data-game-number="${gameNumber}">
-            <span class="games">Game ${gameNumber}:</span>
-            <span class="team-row pick-matchup">
+          <div class="pick-game-row" data-game-number="${gameNumber}">
+            <div class="pick-game-top">
+              <span class="games">Game ${gameNumber}</span>
+              ${formatStatusBadge(isCompleted)}
+            </div>
+            <div class="team-row pick-matchup">
               ${teamPickButtonHtml({
                 espnId: awayEspnId,
                 teamName: awayName,
@@ -835,9 +850,8 @@
                 spreadText: spreads.home,
                 side: 'home',
               })}
-              ${spreads.pickem ? '<span class="betting-line team-spread" style="margin-left:6px;">PK</span>' : ''}
-              ${formatStatusBadge(isCompleted)}
-            </span>
+              ${spreads.pickem ? '<span class="betting-line team-spread">PK</span>' : ''}
+            </div>
             ${liveScoreHtml}
             ${extraLine}
             <span class="pick-hint">Tap a team to pick</span>
@@ -850,7 +864,7 @@
               data-away-team-espn-id="${safeText(awayEspnId)}"
               data-home-team-espn-id="${safeText(homeEspnId)}"
             >
-          </p>
+          </div>
         `;
       }).join('');
 
@@ -1172,8 +1186,7 @@
     }
 
     function hideLockedPicksForm() {
-      const db = document.getElementById('dbWeekPicksContainer');
-      if (db) db.style.display = 'none';
+      hideDbPicksContainer();
       const legacy = document.getElementById('legacyHardcodedGames');
       if (legacy) {
         legacy.hidden = true;
@@ -1190,8 +1203,7 @@
       document.querySelectorAll('.already-submitted-message').forEach((el) => el.remove());
       const results = document.getElementById('results');
       if (results) results.innerHTML = '';
-      const db = document.getElementById('dbWeekPicksContainer');
-      if (db) db.style.display = 'block';
+      showDbPicksContainer();
       const form = document.querySelector('form[name="predictions"]');
       if (form) {
         form.querySelectorAll('select, input, button, .team-pick-btn').forEach((el) => {

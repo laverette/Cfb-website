@@ -881,19 +881,41 @@ input:focus, select:focus {
 }
 
 .pick-hint {
-    display: block;
-    margin: 0.35rem 0 0;
-    font-size: 0.78rem;
+    display: none;
+    margin: 0.25rem 0 0;
+    font-size: 0.72rem;
     color: #f5deb3;
     opacity: 0.65;
 }
 
 .pick-game-row {
     margin: 0;
-    padding: 0.9rem 1rem;
+    padding: 0.55rem 0.7rem 0.6rem;
     background: rgba(62, 39, 35, 0.42);
     border: 1px solid rgba(255, 215, 0, 0.18);
-    border-radius: 12px;
+    border-radius: 10px;
+    min-width: 0;
+}
+
+.pick-game-top {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: 0.35rem;
+}
+
+.pick-game-top .games {
+    font-size: 0.78rem;
+    padding: 2px 8px;
+    margin-right: 0;
+}
+
+.pick-meta {
+    color: #f5deb3;
+    opacity: 0.78;
+    margin: 0.3rem 0 0;
+    font-size: 0.75rem;
+    line-height: 1.25;
 }
 
 .pick-game-row.has-pick {
@@ -905,27 +927,63 @@ input:focus, select:focus {
     display: none;
 }
 
-.pick-game-row .team-row {
-    display: inline-flex;
+.pick-game-row .team-row,
+.pick-matchup {
+    display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 6px;
-    vertical-align: middle;
+    gap: 5px;
+}
+
+.pick-matchup .team-pick-btn {
+    padding: 4px 8px;
+    font-size: 0.86rem;
+    gap: 4px;
+    border-radius: 8px;
+}
+
+.pick-matchup .team-logo {
+    width: 18px;
+    height: 18px;
+}
+
+.pick-matchup .team-spread {
+    font-size: 0.7em;
+    padding: 1px 4px;
 }
 
 #dbWeekPicksContainer {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 0.75rem;
+    gap: 0.55rem;
 }
 
-#dbWeekPicksContainer > .picks-loading-message {
+#dbWeekPicksContainer > .picks-loading-message,
+#dbWeekPicksContainer > .prediction-results-container {
     grid-column: 1 / -1;
 }
 
-@media (min-width: 900px) {
+/* Desktop: 2 columns so more games fit above the fold */
+@media (min-width: 860px) {
     #dbWeekPicksContainer {
         grid-template-columns: 1fr 1fr;
+        gap: 0.65rem;
+    }
+}
+
+/* Mobile: single column, keep tap hint */
+@media (max-width: 859px) {
+    .pick-hint {
+        display: block;
+    }
+
+    .pick-game-row {
+        padding: 0.7rem 0.8rem;
+    }
+
+    .pick-matchup .team-pick-btn {
+        padding: 6px 10px;
+        font-size: 0.92rem;
     }
 }
 
@@ -2058,9 +2116,9 @@ body.picks-results-open #cfbdWeek1PicksContainer {
     margin: 0;
     border: none;
     border-radius: 999px;
-    padding: 0.45rem 1.15rem;
-    font-size: 0.88rem;
-    font-weight: 700;
+    padding: 0.7rem 1.7rem;
+    font-size: 1.05rem;
+    font-weight: 800;
     letter-spacing: 0.02em;
     background: transparent;
     color: #f5deb3;

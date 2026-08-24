@@ -527,8 +527,8 @@ button.dropdown-item.auth-dropdown-logout:hover {
 
 .picks-mode-switch {
   display: inline-flex;
-  gap: 0.25rem;
-  padding: 0.25rem;
+  gap: 0.3rem;
+  padding: 0.3rem;
   border-radius: 999px;
   background: rgba(62, 39, 35, 0.72);
   border: 1px solid rgba(255, 215, 0, 0.28);
@@ -538,9 +538,9 @@ button.dropdown-item.auth-dropdown-logout:hover {
   margin: 0;
   border: none;
   border-radius: 999px;
-  padding: 0.45rem 1.15rem;
-  font-size: 0.88rem;
-  font-weight: 700;
+  padding: 0.7rem 1.7rem;
+  font-size: 1.05rem;
+  font-weight: 800;
   letter-spacing: 0.02em;
   background: transparent;
   color: #f5deb3;
