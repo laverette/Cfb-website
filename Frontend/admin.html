@@ -27,12 +27,14 @@
         var(--admin-bg);
       color: var(--admin-text);
       font-family: "Segoe UI", system-ui, sans-serif;
-      padding: 16px;
+      margin: 0;
+      padding: 0;
       line-height: 1.45;
     }
     .admin-container {
       max-width: 1080px;
       margin: 0 auto;
+      padding: 16px;
     }
     .admin-page-title {
       color: var(--admin-accent);
@@ -197,7 +199,7 @@
 
     .cfbd-toolbar {
       display: grid;
-      grid-template-columns: 1.4fr 1fr 1fr auto;
+      grid-template-columns: 1.4fr 1fr 1fr 1fr auto;
       gap: 0.55rem;
       align-items: end;
       margin: 0.85rem 0 0.55rem;
@@ -302,6 +304,9 @@
       .cfbd-toolbar { grid-template-columns: 1fr 1fr; }
       .form-row-3, .form-row-2 { grid-template-columns: 1fr; }
       .saved-game-row { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 1100px) and (min-width: 801px) {
+      .cfbd-toolbar { grid-template-columns: 1fr 1fr 1fr; }
     }
   </style>
 </head>
@@ -444,6 +449,14 @@
           <label for="cfbdDayFilter">Kickoff day</label>
           <select id="cfbdDayFilter" onchange="renderCfbdList()">
             <option value="">Any day</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="cfbdRankedFilter">Rankings</label>
+          <select id="cfbdRankedFilter" onchange="renderCfbdList()">
+            <option value="">All games</option>
+            <option value="any">Top 25 team involved</option>
+            <option value="both">Both teams ranked</option>
           </select>
         </div>
         <div class="form-group">
@@ -1410,6 +1423,7 @@
       const q = (document.getElementById('cfbdSearch').value || '').trim().toLowerCase();
       const conf = (document.getElementById('cfbdConference').value || '').trim();
       const day = (document.getElementById('cfbdDayFilter').value || '').trim();
+      const ranked = (document.getElementById('cfbdRankedFilter').value || '').trim();
       return cfbdGamesCache.filter((g) => {
         if (q) {
           const t = `${g.away_team_name} ${g.home_team_name}`.toLowerCase();
@@ -1421,6 +1435,11 @@
           if (hc !== conf && ac !== conf) return false;
         }
         if (day && kickoffDayKey(g.game_date) !== day) return false;
+        if (ranked === 'any') {
+          if (!(g.home_rank != null || g.away_rank != null || g.has_ranked_team)) return false;
+        } else if (ranked === 'both') {
+          if (!(g.home_rank != null && g.away_rank != null)) return false;
+        }
         return true;
       });
     }
@@ -1458,6 +1477,7 @@
       document.getElementById('cfbdSearch').value = '';
       document.getElementById('cfbdConference').value = '';
       document.getElementById('cfbdDayFilter').value = '';
+      document.getElementById('cfbdRankedFilter').value = '';
       renderCfbdList();
     }
 
@@ -1480,8 +1500,13 @@
         populateConferenceFilter(data.conferences || []);
         populateDayFilter();
         const divLabel = data.classification || classification;
+        const rankMeta = data.rankings || {};
+        const rankNote =
+          rankMeta.teamsRanked > 0
+            ? ` · ${rankMeta.gamesWithRankedTeam || 0} with Top 25 (${escapeHtml(rankMeta.poll || 'poll')})`
+            : ' · no rankings found for this week yet';
         document.getElementById('cfbdFetchStatus').innerHTML =
-          `<div class="status-message status-success">${cfbdGamesCache.length} games loaded (${escapeHtml(divLabel)})</div>`;
+          `<div class="status-message status-success">${cfbdGamesCache.length} games loaded (${escapeHtml(divLabel)})${rankNote}</div>`;
         renderCfbdList();
       } catch (e) {
         document.getElementById('cfbdFetchStatus').innerHTML =
@@ -1518,12 +1543,20 @@
           .filter(Boolean)
           .filter((v, i, a) => a.indexOf(v) === i);
         const confLabel = confBits.length ? confBits.join(' / ') : 'Ind.';
+        const awayLabel =
+          g.away_rank != null
+            ? `#${g.away_rank} ${g.away_team_name}`
+            : g.away_team_name;
+        const homeLabel =
+          g.home_rank != null
+            ? `#${g.home_rank} ${g.home_team_name}`
+            : g.home_team_name;
         return `
         <label class="cfbd-game-row${checked ? ' is-selected' : ''}" for="cfbd-${id}">
           <input type="checkbox" class="cfbd-pick" data-cfbd-id="${id}" id="cfbd-${id}" ${checked ? 'checked' : ''}
             onchange="toggleCfbdSelection(${id}, this.checked); this.closest('.cfbd-game-row').classList.toggle('is-selected', this.checked)">
           <div>
-            <div class="cfbd-matchup">${escapeHtml(g.away_team_name)} @ ${escapeHtml(g.home_team_name)}</div>
+            <div class="cfbd-matchup">${escapeHtml(awayLabel)} @ ${escapeHtml(homeLabel)}</div>
             <div class="cfbd-sub">${escapeHtml(formatKickoff(g.game_date))}${g.venue ? ' · ' + escapeHtml(g.venue) : ''}${g.is_completed ? ' · Final' : ''}</div>
           </div>
           <span class="cfbd-chip">${escapeHtml(confLabel)}</span>
