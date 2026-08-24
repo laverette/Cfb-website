@@ -1959,12 +1959,35 @@
     }
 
     async function askCoachCorso(message) {
+      const week = activeWeekMeta || {};
+      const games = Array.isArray(window.__DB_GAMES__) ? window.__DB_GAMES__ : [];
+      const ordered = [...games].sort((a, b) => {
+        const an = Number(a.gameNumber ?? a.game_number) || 0;
+        const bn = Number(b.gameNumber ?? b.game_number) || 0;
+        return an - bn;
+      });
+      const weekContext = {
+        weekNumber: week.weekNumber ?? week.week_number ?? null,
+        seasonYear: week.seasonYear ?? week.season_year ?? null,
+        games: ordered.slice(0, 20).map((g, i) => ({
+          gameNumber: Number(g.gameNumber ?? g.game_number) || i + 1,
+          away: g.awayTeamName || 'TBD',
+          home: g.homeTeamName || 'TBD',
+          start: g.gameDate || g.game_date || g.startDate || g.start_date || '',
+          line: g.bettingLine ?? g.betting_line ?? null,
+          completed: !!(g.isCompleted ?? g.is_completed),
+          awayScore: g.awayScore ?? g.away_score ?? null,
+          homeScore: g.homeScore ?? g.home_score ?? null,
+        })),
+      };
+
       const resp = await fetch('/api/corso/chat', {
         method: 'POST',
         headers: { 'content-type': 'application/json', accept: 'application/json' },
         body: JSON.stringify({
           message,
           history: corsoChatHistory.slice(-12),
+          weekContext,
         }),
       });
       const data = await resp.json().catch(() => ({}));
@@ -1984,7 +2007,7 @@
       if (!log.childElementCount) {
         appendCorsoBubble(
           'corso',
-          "Not so fast, my friend — ask me about this week's games, upsets, or who puts on the headgear!"
+          "Not so fast, my friend — ask me about Game 1 through Game 12 on this week's picks, who wins, or who puts on the headgear!"
         );
       }
 
