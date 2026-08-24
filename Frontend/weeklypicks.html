@@ -2028,12 +2028,11 @@
           appendCorsoBubble('corso', reply);
           setCorsoStatus('');
         } catch (err) {
-          appendCorsoBubble(
-            'error',
-            err && err.message
-              ? err.message
-              : 'Coach Corso is unavailable right now. Try again in a bit.'
-          );
+          const msg = err && err.message ? err.message : '';
+          const friendly = /quota|rate limit|on the bench/i.test(msg)
+            ? 'Coach Corso is on the bench — the API quota or rate limit was hit. Try again later.'
+            : (msg || 'Coach Corso is unavailable right now. Try again in a bit.');
+          appendCorsoBubble('error', friendly);
           setCorsoStatus('');
         } finally {
           setCorsoBusy(false);

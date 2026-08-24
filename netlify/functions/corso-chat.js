@@ -5,7 +5,7 @@
  *   history?: [{ role: 'user'|'model', text: string }],
  *   weekContext?: { weekNumber, seasonYear, games?: [...] }
  * }
- * Calls Gemini as Lee Corso with Google Search grounding + current week context.
+ * Calls Mistral as Lee Corso with current week picks context.
  */
 const { json, parseJsonBody } = require("./_http");
 
@@ -13,6 +13,7 @@ const MAX_MESSAGE_CHARS = 800;
 const MAX_HISTORY = 12;
 const MAX_HISTORY_CHARS = 600;
 const MAX_CONTEXT_GAMES = 20;
+const MISTRAL_URL = "https://api.mistral.ai/v1/chat/completions";
 
 function corsHeaders() {
   return {
@@ -30,17 +31,9 @@ function sanitizeText(value, max) {
   return text.length > max ? text.slice(0, max) : text;
 }
 
-function readGeminiKey() {
-  const candidates = [
-    process.env.GEMINI_API_KEY,
-    process.env.GOOGLE_API_KEY,
-    process.env.Gemini_API_Key,
-  ];
-  for (const candidate of candidates) {
-    const raw = candidate && String(candidate).trim();
-    if (raw) return raw;
-  }
-  return "";
+function readMistralKey() {
+  const raw = process.env.MISTRAL_API_KEY && String(process.env.MISTRAL_API_KEY).trim();
+  return raw || "";
 }
 
 function formatTodayLabel() {
@@ -78,9 +71,8 @@ function buildSystemPrompt(weekContext) {
       ? `This site's active picks slate is Week ${weekNumber} of the ${seasonYear} season.`
       : `This site is running a ${seasonYear} college football picks slate.`,
     "",
-    "You have Google Search. USE it for recent results, injuries, rankings, and how teams looked last week / this season.",
     "When evaluating a matchup, briefly mention recent form (last week / this year) before making your pick.",
-    "Prefer current-season facts over outdated coaching/roster assumptions.",
+    "Use the OFFICIAL PICKS SLATE for game numbers and matchups. Prefer slate facts over outdated assumptions.",
     "Stick to college football; if asked about something else, steer it back with Corso charm.",
   ];
 
@@ -128,16 +120,16 @@ function buildSystemPrompt(weekContext) {
   return lines.join("\n");
 }
 
-function buildContents(message, history, weekContext) {
-  const contents = [];
+function buildMessages(message, history, weekContext) {
+  const messages = [{ role: "system", content: buildSystemPrompt(weekContext) }];
   const list = Array.isArray(history) ? history.slice(-MAX_HISTORY) : [];
 
   for (const turn of list) {
     if (!turn || typeof turn !== "object") continue;
-    const role = turn.role === "model" ? "model" : "user";
-    const text = sanitizeText(turn.text ?? turn.content, MAX_HISTORY_CHARS);
-    if (!text) continue;
-    contents.push({ role, parts: [{ text }] });
+    const role = turn.role === "model" ? "assistant" : "user";
+    const content = sanitizeText(turn.text ?? turn.content, MAX_HISTORY_CHARS);
+    if (!content) continue;
+    messages.push({ role, content });
   }
 
   const seasonYear =
@@ -151,29 +143,46 @@ function buildContents(message, history, weekContext) {
     message,
     "",
     `(Respond as if you were Lee Corso. Today is ${formatTodayLabel()}.`,
-    `Ground your take in ${weekBit} and recent results — search if needed.`,
+    `Ground your take in ${weekBit} using the OFFICIAL PICKS SLATE.`,
     'If they mention Game 1, Game 2, etc., use the OFFICIAL PICKS SLATE numbering from your instructions.',
     "Give a complete answer with a clear pick when asked who wins.)",
   ].join(" ");
 
-  contents.push({ role: "user", parts: [{ text: userPrompt }] });
-  return contents;
+  messages.push({ role: "user", content: userPrompt });
+  return messages;
 }
 
 function extractReply(data) {
-  const candidate = data?.candidates?.[0];
-  const parts = candidate?.content?.parts;
-  if (!Array.isArray(parts)) return { reply: "", finishReason: candidate?.finishReason || null };
-  const reply = parts
-    .map((p) => {
-      if (!p || typeof p !== "object") return "";
-      // Skip internal thinking/thought parts when present
-      if (p.thought) return "";
-      return typeof p.text === "string" ? p.text : "";
-    })
-    .join("")
-    .trim();
-  return { reply, finishReason: candidate?.finishReason || null };
+  const choice = data?.choices?.[0];
+  const reply = choice?.message?.content;
+  const finishReason = choice?.finish_reason || null;
+  return {
+    reply: typeof reply === "string" ? reply.trim() : "",
+    finishReason,
+  };
+}
+
+function mistralErrorForClient(status, details) {
+  const msg = String(details || "").toLowerCase();
+  if (
+    status === 429 ||
+    msg.includes("quota") ||
+    msg.includes("rate limit") ||
+    msg.includes("capacity") ||
+    msg.includes("too many requests")
+  ) {
+    return {
+      status: 429,
+      error: "Coach Corso is on the bench",
+      details:
+        "The Mistral API quota or rate limit was hit. Check usage in the Mistral console, or try again later.",
+    };
+  }
+  return {
+    status: status >= 400 && status < 600 ? status : 502,
+    error: "Coach Corso couldn't answer that",
+    details: String(details || "Unknown error").slice(0, 240),
+  };
 }
 
 function sanitizeWeekContext(raw) {
@@ -204,14 +213,14 @@ exports.handler = async (event) => {
     return json(405, { error: "Method not allowed" }, corsHeaders());
   }
 
-  const apiKey = readGeminiKey();
+  const apiKey = readMistralKey();
   if (!apiKey) {
     return json(
       503,
       {
         error: "Coach Corso is offline",
         details:
-          "GEMINI_API_KEY is not configured on the server. In Netlify, the key name must be exactly GEMINI_API_KEY (all caps), with Functions scope, then trigger a new deploy.",
+          "MISTRAL_API_KEY is not configured on the server. In Netlify, add MISTRAL_API_KEY with Functions scope, then trigger a new deploy.",
       },
       corsHeaders()
     );
@@ -229,47 +238,38 @@ exports.handler = async (event) => {
 
   const weekContext = sanitizeWeekContext(body.weekContext);
   const model =
-    (process.env.GEMINI_MODEL && String(process.env.GEMINI_MODEL).trim()) ||
-    "gemini-3.6-flash";
+    (process.env.MISTRAL_MODEL && String(process.env.MISTRAL_MODEL).trim()) ||
+    "mistral-small-latest";
 
-  const contents = buildContents(message, body.history, weekContext);
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
-    model
-  )}:generateContent`;
+  const messages = buildMessages(message, body.history, weekContext);
 
   try {
-    const resp = await fetch(url, {
+    const resp = await fetch(MISTRAL_URL, {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        "x-goog-api-key": apiKey,
+        authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        systemInstruction: {
-          parts: [{ text: buildSystemPrompt(weekContext) }],
-        },
-        contents,
-        tools: [{ google_search: {} }],
-        generationConfig: {
-          temperature: 1,
-          maxOutputTokens: 4096,
-          thinkingConfig: {
-            thinkingLevel: "low",
-          },
-        },
+        model,
+        messages,
+        temperature: 0.85,
+        max_tokens: 1024,
       }),
     });
 
     const data = await resp.json().catch(() => ({}));
     if (!resp.ok) {
       const details =
+        data?.message ||
         data?.error?.message ||
         (typeof data?.error === "string" ? data.error : null) ||
-        `Gemini request failed (${resp.status})`;
-      console.error("corso-chat gemini error:", resp.status, details);
+        `Mistral request failed (${resp.status})`;
+      console.error("corso-chat mistral error:", resp.status, details);
+      const clientErr = mistralErrorForClient(resp.status, details);
       return json(
-        resp.status >= 400 && resp.status < 600 ? resp.status : 502,
-        { error: "Coach Corso couldn't answer that", details: String(details).slice(0, 240) },
+        clientErr.status,
+        { error: clientErr.error, details: clientErr.details },
         corsHeaders()
       );
     }
@@ -281,8 +281,8 @@ exports.handler = async (event) => {
         {
           error: "Coach Corso came up empty",
           details: finishReason
-            ? `No text in Gemini response (${finishReason}).`
-            : "No text in Gemini response.",
+            ? `No text in Mistral response (${finishReason}).`
+            : "No text in Mistral response.",
         },
         corsHeaders()
       );
@@ -294,7 +294,7 @@ exports.handler = async (event) => {
         reply,
         model,
         finishReason,
-        truncated: finishReason === "MAX_TOKENS",
+        truncated: finishReason === "length",
       },
       corsHeaders()
     );

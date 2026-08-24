@@ -10,30 +10,9 @@ function jwtPresent() {
   return Boolean(s && String(s).trim());
 }
 
-function readGeminiKey() {
-  const candidates = [
-    process.env.GEMINI_API_KEY,
-    process.env.GOOGLE_API_KEY,
-    process.env.Gemini_API_Key,
-  ];
-  for (const candidate of candidates) {
-    const raw = candidate && String(candidate).trim();
-    if (raw) return raw;
-  }
-  return "";
-}
-
-function geminiKeySource() {
-  if (process.env.GEMINI_API_KEY && String(process.env.GEMINI_API_KEY).trim()) {
-    return "GEMINI_API_KEY";
-  }
-  if (process.env.GOOGLE_API_KEY && String(process.env.GOOGLE_API_KEY).trim()) {
-    return "GOOGLE_API_KEY";
-  }
-  if (process.env.Gemini_API_Key && String(process.env.Gemini_API_Key).trim()) {
-    return "Gemini_API_Key";
-  }
-  return null;
+function readMistralKey() {
+  const raw = process.env.MISTRAL_API_KEY && String(process.env.MISTRAL_API_KEY).trim();
+  return raw || "";
 }
 
 exports.handler = async (event) => {
@@ -49,18 +28,14 @@ exports.handler = async (event) => {
     host = "invalid-url";
   }
 
-  const geminiKey = readGeminiKey();
-  const geminiFrom = geminiKeySource();
+  const mistralKey = readMistralKey();
 
   return json(200, {
     jwtSecret: jwtPresent(),
     supabaseUrl: Boolean(url),
     supabaseServiceRoleKey: Boolean(key),
     supabaseUrlHost: host,
-    geminiApiKey: Boolean(geminiKey),
-    // Safe diagnostics only — never the secret itself
-    geminiKeySource: geminiFrom,
-    geminiKeyLength: geminiKey ? geminiKey.length : 0,
-    geminiKeyPrefix: geminiKey ? geminiKey.slice(0, 3) : null,
+    mistralApiKey: Boolean(mistralKey),
+    mistralKeyLength: mistralKey ? mistralKey.length : 0,
   });
 };
