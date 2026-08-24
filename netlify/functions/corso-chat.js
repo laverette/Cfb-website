@@ -67,13 +67,18 @@ exports.handler = async (event) => {
     return json(405, { error: "Method not allowed" }, corsHeaders());
   }
 
-  const apiKey = process.env.GEMINI_API_KEY && String(process.env.GEMINI_API_KEY).trim();
+  const apiKey =
+    (process.env.GEMINI_API_KEY && String(process.env.GEMINI_API_KEY).trim()) ||
+    (process.env.GOOGLE_API_KEY && String(process.env.GOOGLE_API_KEY).trim()) ||
+    (process.env.Gemini_API_Key && String(process.env.Gemini_API_Key).trim()) ||
+    "";
   if (!apiKey) {
     return json(
       503,
       {
         error: "Coach Corso is offline",
-        details: "GEMINI_API_KEY is not configured on the server.",
+        details:
+          "GEMINI_API_KEY is not configured on the server. In Netlify, the key name must be exactly GEMINI_API_KEY (all caps), with Functions scope, then trigger a new deploy.",
       },
       corsHeaders()
     );
@@ -91,7 +96,7 @@ exports.handler = async (event) => {
 
   const model =
     (process.env.GEMINI_MODEL && String(process.env.GEMINI_MODEL).trim()) ||
-    "gemini-2.5-flash";
+    "gemini-3.6-flash";
 
   const contents = buildContents(message, body.history);
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
