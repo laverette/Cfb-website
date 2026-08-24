@@ -42,13 +42,10 @@
   <div id="week11-picks" class="tab-content active">
     <div class="title-section">
       <h1 class="title" id="picksTabTitle">Weekly Picks</h1>
-      <!-- Mobile Coach Corso Image (appears next to title) -->
-      <div class="mobile-title-image">
-        <img width="100%" height="auto" src="https://images.seattletimes.com/wp-content/uploads/2017/05/2459f782f2c946859a21920650fc2c75.jpg?d=2040x1253" alt="Image" class="img-fluid rounded shadow big-img" style="max-height: 300px; object-fit: cover;">
-      </div>
+      <button type="button" class="corso-jump-link" onclick="scrollToCoachCorso(event)">Ask Coach Corso ↓</button>
     </div>
     
-    <div class="week11-layout">
+    <div class="week11-layout picks-layout-solo">
       <div class="form-section">
         <!-- Prediction Form -->
         <form name="predictions" method="POST" id="predictionsForm" netlify data-netlify="true">
@@ -57,14 +54,6 @@
           <p id="picksLoginGate" class="picks-auth-notice" style="display:none;">
             Please <a href="login.html?redirect=weeklypicks.html">log in</a> to submit your picks. Your account name will be sent with your entry.
           </p>
-
-          <!-- Mobile Coach Corso Button (before Game 1) -->
-          <div class="mobile-coach-corso">
-            <div class="image-section">
-              <img width="100%" height="auto" src="https://images.seattletimes.com/wp-content/uploads/2017/05/2459f782f2c946859a21920650fc2c75.jpg?d=2040x1253" alt="Image" class="img-fluid rounded shadow big-img" style="max-height: 300px; object-fit: cover;">
-              <button type="button" class="coach-corso-btn" onclick="scrollToCoachCorso(event)">Need Help? Ask Coach Corso!</button>
-            </div>
-          </div>
 
           <!-- Database Weekly Picks (dynamic). This is Phase 1: read-only from backend DB. -->
           <div id="dbWeekPicksContainer">
@@ -221,19 +210,14 @@
           </p>
           </div>
              
-          <p>
+          <p class="picks-form-actions">
             <button id="submit" type="submit">Submit Predictions</button>
             <a href="prediction-history.html" class="nav-button-link form-nav-link">View Individual History</a>
             <a href="index.html" class="nav-button-link form-nav-link">Back to Main Site</a>
-            
+            <button type="button" class="corso-jump-link corso-jump-inline" onclick="scrollToCoachCorso(event)">Ask Coach Corso ↓</button>
           </p>
         </form>
         <div id="results"></div>
-      </div>
-      
-      <div class="image-section">
-        <img width="100%" height="auto" src="https://images.seattletimes.com/wp-content/uploads/2017/05/2459f782f2c946859a21920650fc2c75.jpg?d=2040x1253" alt="Image" class="img-fluid rounded shadow big-img" style="max-height: 300px; object-fit: cover;">
-        <button type="button" class="coach-corso-btn" onclick="scrollToCoachCorso(event)">Need Help? Ask Coach Corso!</button>
       </div>
     </div>
     

@@ -3,75 +3,68 @@ body{
     overflow-x: hidden;
 }
 
-/* Bouncing Football Background Animation */
+/* Bouncing Football — keep visible, stay out of the way of taps */
 .bouncing-football {
     position: fixed;
     top: 0;
     left: 0;
-    width: 40px;
-    height: 40px;
-    z-index: 1100;
+    width: 36px;
+    height: 36px;
+    z-index: 40;
     pointer-events: none;
-    animation: bounceAround 15s linear infinite;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    opacity: 0.55;
+    animation: bounceAround 18s linear infinite;
+    filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.35));
 }
 
 @keyframes bounceAround {
     0% {
-        transform: translate(0, 0) rotate(0deg);
+        transform: translate(2vw, 12vh) rotate(0deg);
         animation-timing-function: ease-in;
     }
-    8% {
-        transform: translate(15vw, 25vh) rotate(29deg);
+    12% {
+        transform: translate(78vw, 18vh) rotate(45deg);
         animation-timing-function: ease-out;
     }
-    16% {
-        transform: translate(35vw, 5vh) rotate(58deg);
+    25% {
+        transform: translate(88vw, 48vh) rotate(90deg);
         animation-timing-function: ease-out;
     }
-    24% {
-        transform: translate(55vw, 35vh) rotate(87deg);
+    38% {
+        transform: translate(72vw, 78vh) rotate(140deg);
         animation-timing-function: ease-out;
     }
-    32% {
-        transform: translate(75vw, 10vh) rotate(116deg);
+    50% {
+        transform: translate(40vw, 88vh) rotate(180deg);
         animation-timing-function: ease-out;
     }
-    40% {
-        transform: translate(90vw, 40vh) rotate(144deg);
+    62% {
+        transform: translate(8vw, 72vh) rotate(230deg);
         animation-timing-function: ease-out;
     }
-    48% {
-        transform: translate(85vw, 70vh) rotate(173deg);
-        animation-timing-function: ease-out;
-    }
-    56% {
-        transform: translate(65vw, 85vh) rotate(202deg);
-        animation-timing-function: ease-out;
-    }
-    64% {
-        transform: translate(40vw, 80vh) rotate(231deg);
-        animation-timing-function: ease-out;
-    }
-    72% {
-        transform: translate(15vw, 70vh) rotate(260deg);
-        animation-timing-function: ease-out;
-    }
-    80% {
-        transform: translate(5vw, 50vh) rotate(289deg);
+    75% {
+        transform: translate(4vw, 42vh) rotate(280deg);
         animation-timing-function: ease-out;
     }
     88% {
-        transform: translate(10vw, 20vh) rotate(318deg);
-        animation-timing-function: ease-out;
-    }
-    96% {
-        transform: translate(5vw, 5vh) rotate(347deg);
+        transform: translate(18vw, 16vh) rotate(320deg);
         animation-timing-function: ease-out;
     }
     100% {
-        transform: translate(0, 0) rotate(360deg);
+        transform: translate(2vw, 12vh) rotate(360deg);
         animation-timing-function: ease-out;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .bouncing-football {
+        animation: none;
+        opacity: 0.35;
+        top: auto;
+        bottom: 1rem;
+        left: auto;
+        right: 1rem;
+        transform: none;
     }
 }
 
@@ -2046,21 +2039,21 @@ body.picks-results-open #cfbdWeek1PicksContainer {
     padding-top: 0.5rem;
 }
 
-/* Week 7 Side-by-Side Layout */
+/* Week picks — full-width slate (no GameDay sidebar) */
 .week7-layout,
-.week11-layout {
-    display: flex;
-    gap: 1rem;
-    align-items: flex-start;
-    max-width: 1400px;
+.week11-layout,
+.picks-layout-solo {
+    display: block;
+    max-width: 920px;
     margin: 0 auto;
-    padding: 0 2rem;
+    padding: 0 1.25rem;
 }
 
 .form-section {
-    flex: 1;
+    flex: none;
     min-width: 0;
-    max-width: 600px;
+    max-width: none;
+    width: 100%;
 }
 
 .legacy-hardcoded-games {
@@ -2083,31 +2076,56 @@ body.picks-results-open #cfbdWeek1PicksContainer {
     width: 100%;
 }
 
-.image-section {
-    flex: 0 0 400px;
-    position: static;
+.title-section {
     display: flex;
     flex-direction: column;
-    justify-content: flex-start;
     align-items: center;
-    z-index: 10;
+    gap: 0.35rem;
+    margin: 0.75rem auto 1rem;
+    max-width: 920px;
+    padding: 0 1.25rem;
 }
 
-.image-section img {
-    width: 100%;
-    max-width: 380px;
-    height: auto;
-    border-radius: 15px;
-    border: 2px solid #FFD700;
-    box-shadow: 0 6px 15px rgba(255, 215, 0, 0.4);
-    transition: all 0.3s ease;
-    filter: brightness(1.05) contrast(1.1);
+.corso-jump-link {
+    appearance: none;
+    background: transparent;
+    border: none;
+    color: #FFD700;
+    font-weight: 700;
+    font-size: 0.92rem;
+    cursor: pointer;
+    padding: 0.2rem 0.4rem;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    opacity: 0.92;
 }
 
-.image-section img:hover {
-    transform: translateY(-5px) scale(1.02);
-    box-shadow: 0 6px 15px rgba(255, 215, 0, 0.4);
-    filter: brightness(1.1) contrast(1.15);
+.corso-jump-link:hover {
+    color: #FFA000;
+    opacity: 1;
+}
+
+.corso-jump-inline {
+    margin-left: 0.35rem;
+    text-decoration: none;
+    border: 1px solid rgba(255, 215, 0, 0.35);
+    border-radius: 999px;
+    padding: 0.35rem 0.75rem;
+    background: rgba(62, 39, 35, 0.45);
+}
+
+.picks-form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+    align-items: center;
+}
+
+/* Legacy sidebar styles kept inert */
+.image-section,
+.mobile-coach-corso,
+.mobile-title-image {
+    display: none !important;
 }
 
 .coach-corso-btn {
@@ -2126,18 +2144,6 @@ body.picks-results-open #cfbdWeek1PicksContainer {
     margin-top: 20px;
     width: 100%;
     max-width: 380px;
-    -webkit-tap-highlight-color: transparent;
-    -webkit-touch-callout: none;
-    -webkit-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
-}
-
-.coach-corso-btn:hover {
-    background: linear-gradient(135deg, #FFA000, #FFD700);
-    transform: translateY(-2px);
-    box-shadow: 0 6px 12px rgba(255, 215, 0, 0.4);
 }
 
 /* Mobile responsiveness for side-by-side layout */
@@ -2314,14 +2320,10 @@ body.picks-results-open #cfbdWeek1PicksContainer {
         margin-top: 0.75rem;
     }
 
-/* Mobile Coach Corso Button - Hidden on desktop */
-.mobile-coach-corso {
-    display: none;
-}
-
-/* Mobile Title Image - Hidden on desktop */
+/* Mobile Coach Corso / title image removed — use .corso-jump-link instead */
+.mobile-coach-corso,
 .mobile-title-image {
-    display: none;
+    display: none !important;
 }
 
 /* Additional mobile optimizations for smaller screens */
@@ -2337,75 +2339,13 @@ body.picks-results-open #cfbdWeek1PicksContainer {
         font-size: 14px;
     }
     
-    /* Title section layout for mobile */
     .title-section {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 1rem;
-        margin-top: 1rem;
-    }
-    
-    /* Show the mobile title image */
-    .mobile-title-image {
-        display: block;
-        margin-top: -10px;
-    }
-    
-    .mobile-title-image img {
-        width: 60px !important;
-        height: 60px !important;
-        max-height: 60px !important;
-        max-width: 60px !important;
-        border-radius: 18px;
-        object-fit: cover;
-        border: 2px solid #FFD700;
-        box-shadow: 0 6px 15px rgba(255, 215, 0, 0.4);
-        transform: translateX(-35px) translateY(-5px) !important;
-        transition: all 0.3s ease;
-        filter: brightness(1.05) contrast(1.1);
-    }
-    
-    /* Hide the original image section on mobile */
-    .week7-layout .image-section,
-    .week11-layout .image-section {
-        display: none;
-    }
-    
-    /* Show the mobile coach corso button but hide the image */
-    .mobile-coach-corso {
-        display: block;
-        margin: 10px auto 20px auto;
-        text-align: center;
-        clear: both;
-        position: relative;
-        z-index: 5;
-    }
-    
-    /* Hide only the image in the mobile coach corso section */
-    .mobile-coach-corso .image-section img {
-        display: none;
-    }
-    
-    .mobile-coach-corso .image-section {
-        max-width: 300px;
-        margin: 0 auto;
         display: flex;
         flex-direction: column;
         align-items: center;
-    }
-    
-    .mobile-coach-corso .image-section img {
-        width: 80px;
-        height: 80px;
-        max-height: 80px;
-        max-width: 80px;
-        border-radius: 20px;
-        object-fit: cover;
-        margin-bottom: -10px;
-        z-index: 2;
-        position: relative;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        justify-content: center;
+        gap: 0.35rem;
+        margin-top: 0.75rem;
     }
     
     .mobile-coach-corso .coach-corso-btn {
