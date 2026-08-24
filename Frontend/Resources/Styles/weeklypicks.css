@@ -930,26 +930,46 @@ input:focus, select:focus {
 .pick-game-row .team-row,
 .pick-matchup {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    justify-content: center;
     align-items: center;
     gap: 5px;
+    width: 100%;
+    --pick-chip-fs: 0.86rem;
 }
 
 .pick-matchup .team-pick-btn {
     padding: 4px 8px;
-    font-size: 0.86rem;
+    font-size: var(--pick-chip-fs);
     gap: 4px;
     border-radius: 8px;
+    flex: 0 0 auto;
+    justify-content: center;
+    white-space: nowrap;
+}
+
+.pick-matchup .team-pick-name {
+    white-space: nowrap;
+    line-height: 1.15;
+}
+
+.pick-matchup .pick-at {
+    flex: 0 0 auto;
+    margin: 0;
 }
 
 .pick-matchup .team-logo {
     width: 18px;
     height: 18px;
+    flex-shrink: 0;
 }
 
 .pick-matchup .team-spread {
-    font-size: 0.7em;
+    font-size: 0.72em;
     padding: 1px 4px;
+    margin: 0 0 0 2px;
+    flex-shrink: 0;
+    white-space: nowrap;
 }
 
 #dbWeekPicksContainer {
@@ -981,9 +1001,19 @@ input:focus, select:focus {
         padding: 0.7rem 0.8rem;
     }
 
+    .pick-matchup {
+        --pick-chip-fs: 0.88rem;
+        gap: 4px;
+    }
+
     .pick-matchup .team-pick-btn {
-        padding: 6px 10px;
-        font-size: 0.92rem;
+        padding: 6px 8px;
+        gap: 3px;
+    }
+
+    .pick-matchup .team-logo {
+        width: 16px;
+        height: 16px;
     }
 }
 
@@ -3183,6 +3213,13 @@ select {
         align-items: flex-start;
         flex-wrap: wrap;
         row-gap: 0.4rem;
+    }
+
+    .team-row.pick-matchup {
+        flex-wrap: nowrap;
+        align-items: center;
+        justify-content: center;
+        row-gap: 0;
     }
 
     .team-logo {

@@ -731,6 +731,38 @@
       });
     }
 
+    /** Shrink team/spread text so "Away @ Home" stays on one centered line. */
+    function fitPickMatchupFonts(root) {
+      const scope = root || document;
+      const matchups = scope.querySelectorAll
+        ? scope.querySelectorAll('.pick-matchup')
+        : [];
+      const base =
+        window.matchMedia('(max-width: 859px)').matches ? 0.88 : 0.86;
+      const min = 0.58;
+      const step = 0.03;
+
+      matchups.forEach((matchup) => {
+        let size = base;
+        matchup.style.setProperty('--pick-chip-fs', `${size}rem`);
+        // Force layout before measuring overflow
+        void matchup.offsetWidth;
+        while (size > min && matchup.scrollWidth > matchup.clientWidth + 1) {
+          size = Math.round((size - step) * 100) / 100;
+          matchup.style.setProperty('--pick-chip-fs', `${size}rem`);
+        }
+      });
+    }
+
+    let pickMatchupFitTimer = null;
+    function scheduleFitPickMatchupFonts() {
+      if (pickMatchupFitTimer) clearTimeout(pickMatchupFitTimer);
+      pickMatchupFitTimer = setTimeout(() => {
+        pickMatchupFitTimer = null;
+        fitPickMatchupFonts(document.getElementById('dbWeekPicksContainer'));
+      }, 50);
+    }
+
     function snapshotCurrentPicks() {
       const map = new Map();
       document.querySelectorAll('.pick-game-row').forEach((row) => {
@@ -872,6 +904,7 @@
       hideHardcodedGameRows();
       wireTeamPickButtons();
       restorePicksSnapshot(priorPicks);
+      requestAnimationFrame(() => fitPickMatchupFonts(container));
 
       return true;
     }
@@ -1040,6 +1073,8 @@
       // Optional CFBD smoke test (kept for later; OFF in Phase 1)
       // if (USE_CFBD_GAMES_FOR_WEEKLY_PICKS) { ... }
     });
+
+    window.addEventListener('resize', scheduleFitPickMatchupFonts);
 
     document.addEventListener('auth:logout', function () {
       currentUser = null;
