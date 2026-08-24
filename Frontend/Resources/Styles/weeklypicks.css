@@ -2883,14 +2883,16 @@ body.menu-open {
 }
 
 /* Center and constrain the primary page content on laptop/desktop */
+.picks-page-header,
 .tab-content.active,
 .title-section,
 .week11-layout,
+.picks-layout-solo,
 .heisman-preview-container,
 .coach-corso-container,
 .leaderboards-container,
 .analysis-container {
-    width: min(1200px, calc(100% - 2rem));
+    width: min(1240px, calc(100% - 2rem));
     margin-left: auto;
     margin-right: auto;
 }
@@ -2906,10 +2908,10 @@ body.menu-open {
     margin: 0;
 }
 
-.week11-layout {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(260px, 360px);
-    gap: var(--space-8);
+/* Single full-width column — sidebar image column removed */
+.week11-layout,
+.picks-layout-solo {
+    display: block;
     padding: 0;
     max-width: none;
 }
@@ -3036,27 +3038,32 @@ select {
 
 /* Tablet and down */
 @media (max-width: 1024px) {
-    .week11-layout {
-        grid-template-columns: 1fr;
-        gap: var(--space-6);
+    .week11-layout,
+    .picks-layout-solo {
+        display: block;
+        grid-template-columns: none;
+        gap: 0;
     }
 
     .week11-layout .image-section {
-        order: 2;
-        margin: 0 auto;
+        display: none !important;
     }
 }
 
 /* Mobile polish */
 @media (max-width: 768px) {
+    .picks-page-header,
     .tab-content.active,
     .title-section,
     .week11-layout,
+    .picks-layout-solo,
     .heisman-preview-container,
     .coach-corso-container,
     .leaderboards-container,
     .analysis-container {
         width: calc(100% - 1rem);
+        margin-left: auto;
+        margin-right: auto;
     }
 
     .weeklypicks-navbar {
