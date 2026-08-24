@@ -251,47 +251,69 @@ body {
   font-size: 1.15rem;
 }
 
-/* Hamburger Menu Button */
+/* Menu button — football icon; spins while dropdown is open (.active) */
 .hamburger-menu-btn {
+  position: relative;
   background: transparent;
-  border: 2px solid var(--border-brown);
-  border-radius: 6px;
-  padding: 8px 10px;
+  border: 2px solid var(--gold);
+  border-radius: 10px;
+  width: 2.6rem;
+  height: 2.6rem;
+  padding: 0;
   cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
   z-index: 1001;
+  flex-shrink: 0;
 }
 
 .hamburger-menu-btn:hover {
-  background-color: rgba(255, 215, 0, 0.1);
+  background-color: rgba(255, 215, 0, 0.12);
+  border-color: var(--gold);
+  box-shadow: 0 0 0 1px rgba(255, 215, 0, 0.25);
+}
+
+/* Hide legacy hamburger bars (kept in HTML for compatibility) */
+.hamburger-menu-btn span {
+  display: none !important;
+}
+
+.hamburger-menu-btn::before {
+  content: "";
+  width: 1.45rem;
+  height: 0.95rem;
+  display: block;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 40'%3E%3Cellipse cx='32' cy='20' rx='30' ry='18' fill='%23E8C547' stroke='%23C9A227' stroke-width='2'/%3E%3Cpath d='M14 12c6 4 6 12 0 16M50 12c-6 4-6 12 0 16' fill='none' stroke='%233E2723' stroke-width='2.2' stroke-linecap='round'/%3E%3Cpath d='M32 4v32' fill='none' stroke='%233E2723' stroke-width='2.2' stroke-linecap='round'/%3E%3Cpath d='M26 11h12M24 20h16M26 29h12' fill='none' stroke='%233E2723' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  transform-origin: center center;
+}
+
+.hamburger-menu-btn.active {
+  background-color: rgba(255, 215, 0, 0.16);
   border-color: var(--gold);
 }
 
-.hamburger-menu-btn span {
-  width: 25px;
-  height: 3px;
-  background-color: var(--text-main);
-  border-radius: 2px;
-  transition: all 0.3s ease;
+.hamburger-menu-btn.active::before {
+  animation: menu-football-spin 0.85s linear infinite;
 }
 
-.hamburger-menu-btn:hover span {
-  background-color: var(--gold);
+@keyframes menu-football-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
-.hamburger-menu-btn.active span:nth-child(1) {
-  transform: rotate(45deg) translate(8px, 8px);
-}
-
-.hamburger-menu-btn.active span:nth-child(2) {
-  opacity: 0;
-}
-
-.hamburger-menu-btn.active span:nth-child(3) {
-  transform: rotate(-45deg) translate(7px, -7px);
+@media (prefers-reduced-motion: reduce) {
+  .hamburger-menu-btn.active::before {
+    animation: none;
+  }
 }
 
 /* Dropdown Menu */

@@ -2475,47 +2475,9 @@ body.picks-results-open #cfbdWeek1PicksContainer {
     gap: 1rem;
 }
 
-/* Hamburger Menu Button */
-.hamburger-menu-btn {
-    background: transparent;
-    border: 2px solid #8D6E63;
-    border-radius: 6px;
-    padding: 8px 10px;
-    cursor: pointer;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    transition: all 0.3s ease;
-    z-index: 1001;
-}
-
-.hamburger-menu-btn:hover {
-    background-color: rgba(255, 215, 0, 0.1);
-    border-color: #FFD700;
-}
-
+/* Menu button look lives in site-theme.css (football + spin). Keep spans hidden here. */
 .hamburger-menu-btn span {
-    width: 25px;
-    height: 3px;
-    background-color: #f5deb3;
-    border-radius: 2px;
-    transition: all 0.3s ease;
-}
-
-.hamburger-menu-btn:hover span {
-    background-color: #FFD700;
-}
-
-.hamburger-menu-btn.active span:nth-child(1) {
-    transform: rotate(45deg) translate(8px, 8px);
-}
-
-.hamburger-menu-btn.active span:nth-child(2) {
-    opacity: 0;
-}
-
-.hamburger-menu-btn.active span:nth-child(3) {
-    transform: rotate(-45deg) translate(7px, -7px);
+    display: none !important;
 }
 
 /* Dropdown Menu */
