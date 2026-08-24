@@ -828,6 +828,85 @@ input:focus, select:focus {
     vertical-align: middle;
 }
 
+.team-pick-btn {
+    appearance: none;
+    -webkit-appearance: none;
+    border: 1px solid rgba(222, 184, 135, 0.28);
+    background: rgba(222, 184, 135, 0.12);
+    color: #DEB887;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 10px;
+    vertical-align: middle;
+    transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+    max-width: 100%;
+    text-align: left;
+}
+
+.team-pick-btn .team-pick-name {
+    line-height: 1.2;
+}
+
+.team-pick-btn:hover:not(:disabled) {
+    color: #F5DEB3;
+    background: rgba(222, 184, 135, 0.22);
+    border-color: rgba(255, 215, 0, 0.45);
+}
+
+.team-pick-btn:focus-visible {
+    outline: 2px solid #FFD700;
+    outline-offset: 2px;
+}
+
+.team-pick-btn.is-picked {
+    color: #1E1E1E;
+    background: linear-gradient(135deg, #FFD700, #FFA000);
+    border-color: #FFD700;
+    box-shadow: 0 2px 10px rgba(255, 215, 0, 0.35);
+}
+
+.team-pick-btn.is-picked .team-spread {
+    background: rgba(30, 30, 30, 0.18);
+    color: #1E1E1E;
+    box-shadow: none;
+}
+
+.team-pick-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.pick-at {
+    opacity: 0.9;
+    margin: 0 2px;
+    font-weight: 600;
+}
+
+.pick-hint {
+    display: block;
+    margin: 0.35rem 0 0;
+    font-size: 0.78rem;
+    color: #f5deb3;
+    opacity: 0.65;
+}
+
+.pick-game-row.has-pick .pick-hint {
+    display: none;
+}
+
+.pick-game-row .team-row {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    vertical-align: middle;
+}
+
 .team-link-inline .team-logo {
     display: inline-block;
     vertical-align: middle;

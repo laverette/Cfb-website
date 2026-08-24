@@ -606,8 +606,9 @@
     }
 
     function formatStatusBadge(isCompleted) {
-      const text = isCompleted ? 'Final' : 'Scheduled';
-      return `<span class="status-pill" style="margin-left: 6px;">${text}</span>`;
+      // Only surface Final — "Scheduled" on every row is noise.
+      if (!isCompleted) return '';
+      return `<span class="status-pill" style="margin-left: 6px;">Final</span>`;
     }
 
     /** Home-oriented CFBD spread → show "-X" only on the favorite's team chip. */
@@ -626,7 +627,7 @@
     }
 
     function safeText(v) {
-      return String(v ?? '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      return String(v ?? '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
     function normalizeCurrentWeekApi(w) {
@@ -661,27 +662,98 @@
       }));
     }
 
-    function teamPageHref(espnId, teamName) {
-      const params = new URLSearchParams();
-      const id = espnId === undefined || espnId === null ? '' : String(espnId).trim();
-      const name = String(teamName || '').trim();
-      if (id && id !== 'undefined' && id !== 'null') params.set('teamKey', id);
-      if (name && name !== 'TBD') params.set('name', name);
-      const qs = params.toString();
-      return qs ? `team.html?${qs}` : 'teams.html';
-    }
-
-    function teamLinkHtml(espnId, teamName, logoUrl, spreadText) {
+    function teamPickButtonHtml({ espnId, teamName, logoUrl, spreadText, side }) {
       const name = String(teamName || 'TBD');
       const logo = logoUrl
-        ? `<img src="${safeText(logoUrl)}" alt="${safeText(name)}" class="team-logo">`
+        ? `<img src="${safeText(logoUrl)}" alt="" class="team-logo" draggable="false">`
         : '';
       const spread = spreadChipHtml(spreadText);
-      const inner = `${logo}${safeText(name)}${spread}`;
-      if (!name || name === 'TBD') {
-        return `<span class="team-link-inline">${inner}</span>`;
+      return `
+        <button
+          type="button"
+          class="team-pick-btn"
+          data-side="${safeText(side)}"
+          data-team-espn-id="${safeText(espnId)}"
+          data-team-name="${safeText(name)}"
+          aria-pressed="false"
+          aria-label="Pick ${safeText(name)}"
+        >
+          ${logo}<span class="team-pick-name">${safeText(name)}</span>${spread}
+        </button>
+      `;
+    }
+
+    function setGamePick(row, teamName, teamEspnId) {
+      if (!row) return;
+      const hidden = row.querySelector('.pick-value');
+      const buttons = row.querySelectorAll('.team-pick-btn');
+      const name = String(teamName || '');
+      const espnId = teamEspnId == null || teamEspnId === '' ? '' : String(teamEspnId);
+      buttons.forEach((btn) => {
+        const match =
+          (espnId && btn.getAttribute('data-team-espn-id') === espnId) ||
+          (name && btn.getAttribute('data-team-name') === name);
+        btn.classList.toggle('is-picked', Boolean(match));
+        btn.setAttribute('aria-pressed', match ? 'true' : 'false');
+      });
+      if (hidden) {
+        hidden.value = name;
+        if (espnId) hidden.setAttribute('data-team-espn-id', espnId);
+        else hidden.removeAttribute('data-team-espn-id');
       }
-      return `<a href="${teamPageHref(espnId, name)}" class="team-link-inline">${inner}</a>`;
+      row.classList.toggle('has-pick', Boolean(name));
+    }
+
+    function clearGamePick(row) {
+      setGamePick(row, '', '');
+    }
+
+    function wireTeamPickButtons() {
+      const container = document.getElementById('dbWeekPicksContainer');
+      if (!container || container.dataset.pickWired === '1') return;
+      container.dataset.pickWired = '1';
+      container.addEventListener('click', (e) => {
+        const btn = e.target.closest('.team-pick-btn');
+        if (!btn || !container.contains(btn)) return;
+        if (btn.disabled) return;
+        e.preventDefault();
+        const row = btn.closest('.pick-game-row');
+        if (!row) return;
+        const already = btn.classList.contains('is-picked');
+        if (already) {
+          clearGamePick(row);
+          return;
+        }
+        setGamePick(
+          row,
+          btn.getAttribute('data-team-name') || '',
+          btn.getAttribute('data-team-espn-id') || ''
+        );
+      });
+    }
+
+    function snapshotCurrentPicks() {
+      const map = new Map();
+      document.querySelectorAll('.pick-game-row').forEach((row) => {
+        const n = Number(row.getAttribute('data-game-number'));
+        const hidden = row.querySelector('.pick-value');
+        if (!Number.isFinite(n) || !hidden || !hidden.value) return;
+        map.set(n, {
+          name: hidden.value,
+          espnId: hidden.getAttribute('data-team-espn-id') || '',
+        });
+      });
+      return map;
+    }
+
+    function restorePicksSnapshot(snapshot) {
+      if (!snapshot || !snapshot.size) return;
+      document.querySelectorAll('.pick-game-row').forEach((row) => {
+        const n = Number(row.getAttribute('data-game-number'));
+        const pick = snapshot.get(n);
+        if (!pick) return;
+        setGamePick(row, pick.name, pick.espnId);
+      });
     }
 
     function renderDbGamesIntoForm(games, liveScores = null) {
@@ -690,6 +762,8 @@
 
       const list = Array.isArray(games) ? games : [];
       if (list.length === 0) return false;
+
+      const priorPicks = snapshotCurrentPicks();
 
       window.__DB_GAME_COUNT__ = list.length;
       window.__DB_GAME_MATCHUPS__ = list.map(g => `${g?.awayTeamName || 'TBD'} @ ${g?.homeTeamName || 'TBD'}`);
@@ -753,39 +827,50 @@
           : '';
 
         // IMPORTANT:
-        // - Keep select names stable: game1, game2, ...
-        // - Option values are team names so existing preview rendering remains readable.
-        // - Store ESPN IDs + gameId via data- attributes (Phase 2 will read these and call POST /api/picks/submit).
+        // - Hidden input keeps name="gameN" for FormData / collectPicksFromForm
+        // - Team chips are the pick UI (tap to select / tap again to clear)
         return `
-          <p>
+          <p class="pick-game-row" data-game-number="${gameNumber}">
             <span class="games">Game ${gameNumber}:</span>
-            <span class="team-row">
-              ${teamLinkHtml(awayEspnId, awayName, awayLogo, spreads.away)}
-              <span style="opacity:0.9;">@</span>
-              ${teamLinkHtml(homeEspnId, homeName, homeLogo, spreads.home)}
+            <span class="team-row pick-matchup">
+              ${teamPickButtonHtml({
+                espnId: awayEspnId,
+                teamName: awayName,
+                logoUrl: awayLogo,
+                spreadText: spreads.away,
+                side: 'away',
+              })}
+              <span class="pick-at" aria-hidden="true">@</span>
+              ${teamPickButtonHtml({
+                espnId: homeEspnId,
+                teamName: homeName,
+                logoUrl: homeLogo,
+                spreadText: spreads.home,
+                side: 'home',
+              })}
               ${spreads.pickem ? '<span class="betting-line team-spread" style="margin-left:6px;">PK</span>' : ''}
               ${formatStatusBadge(isCompleted)}
             </span>
             ${liveScoreHtml}
             ${extraLine}
-            <label>
-              <select
-                name="game${gameNumber}"
-                data-game-id="${safeText(gameId)}"
-                data-away-team-espn-id="${safeText(awayEspnId)}"
-                data-home-team-espn-id="${safeText(homeEspnId)}"
-              >
-                <option value="" selected disabled>Select winner…</option>
-                <option value="${safeText(awayName)}" data-team-espn-id="${safeText(awayEspnId)}">${safeText(awayName)}</option>
-                <option value="${safeText(homeName)}" data-team-espn-id="${safeText(homeEspnId)}">${safeText(homeName)}</option>
-              </select>
-            </label>
+            <span class="pick-hint">Tap a team to pick</span>
+            <input
+              type="hidden"
+              class="pick-value"
+              name="game${gameNumber}"
+              value=""
+              data-game-id="${safeText(gameId)}"
+              data-away-team-espn-id="${safeText(awayEspnId)}"
+              data-home-team-espn-id="${safeText(homeEspnId)}"
+            >
           </p>
         `;
       }).join('');
 
       // Hide the old hardcoded <p> blocks so styling remains the same
       hideHardcodedGameRows();
+      wireTeamPickButtons();
+      restorePicksSnapshot(priorPicks);
 
       return true;
     }
@@ -1024,8 +1109,8 @@
       const form = document.querySelector('form[name="predictions"]');
       if (!form) return;
 
-      // Disable all form inputs
-      const inputs = form.querySelectorAll('input, select, button[type="submit"]');
+      // Disable all form inputs + pick chips
+      const inputs = form.querySelectorAll('input, select, button[type="submit"], .team-pick-btn');
       inputs.forEach(input => {
         input.disabled = true;
         input.style.opacity = '0.6';
@@ -1122,7 +1207,7 @@
       if (db) db.style.display = 'block';
       const form = document.querySelector('form[name="predictions"]');
       if (form) {
-        form.querySelectorAll('select, input, button').forEach((el) => {
+        form.querySelectorAll('select, input, button, .team-pick-btn').forEach((el) => {
           if (el.id === 'cancelEditPicks') return;
           el.disabled = false;
           el.style.opacity = '';
@@ -1165,24 +1250,36 @@
     function applySavedPicksToForm(savedPicks) {
       (savedPicks || []).forEach((pick) => {
         const gameNumber = pick.gameNumber ?? pick.game_number;
-        const select = document.querySelector(`select[name="game${gameNumber}"]`);
-        if (!select) return;
-        const pickedEspnId = Number(pick.pickedTeamEspnId ?? pick.picked_team_espn_id);
-        const options = Array.from(select.querySelectorAll('option'));
-        for (const option of options) {
-          const optEspnId = option.getAttribute('data-team-espn-id');
-          if (optEspnId && Number(optEspnId) === pickedEspnId) {
-            option.selected = true;
-            return;
+        const row =
+          document.querySelector(`.pick-game-row[data-game-number="${gameNumber}"]`) ||
+          document.querySelector(`input.pick-value[name="game${gameNumber}"]`)?.closest('.pick-game-row');
+        if (!row) {
+          // Legacy select fallback
+          const select = document.querySelector(`select[name="game${gameNumber}"]`);
+          if (!select) return;
+          const pickedEspnId = Number(pick.pickedTeamEspnId ?? pick.picked_team_espn_id);
+          const options = Array.from(select.querySelectorAll('option'));
+          for (const option of options) {
+            const optEspnId = option.getAttribute('data-team-espn-id');
+            if (optEspnId && Number(optEspnId) === pickedEspnId) {
+              option.selected = true;
+              return;
+            }
           }
-        }
-        const pickedName = String(pick.pickedTeamName ?? pick.picked_team_name ?? '');
-        for (const option of options) {
-          if (pickedName && option.value === pickedName) {
-            option.selected = true;
-            return;
+          const pickedName = String(pick.pickedTeamName ?? pick.picked_team_name ?? '');
+          for (const option of options) {
+            if (pickedName && option.value === pickedName) {
+              option.selected = true;
+              return;
+            }
           }
+          return;
         }
+        setGamePick(
+          row,
+          pick.pickedTeamName ?? pick.picked_team_name ?? '',
+          pick.pickedTeamEspnId ?? pick.picked_team_espn_id ?? ''
+        );
       });
     }
 
@@ -1339,6 +1436,13 @@
           espnId: Number(saved.pickedTeamEspnId ?? saved.picked_team_espn_id),
         };
       }
+      const hidden = form && form.querySelector(`input.pick-value[name="game${gameNumber}"]`);
+      if (hidden) {
+        return {
+          name: String(hidden.value || ''),
+          espnId: parseInt(hidden.getAttribute('data-team-espn-id'), 10),
+        };
+      }
       const select = form && form.querySelector(`select[name="game${gameNumber}"]`);
       const option = select && select.selectedOptions[0];
       return {
@@ -1436,6 +1540,23 @@
       const picks = [];
       const missingPicks = [];
       for (let i = 1; i <= gameCount; i++) {
+        const hidden = form.querySelector(`input.pick-value[name="game${i}"]`);
+        if (hidden) {
+          const pickedName = String(hidden.value || '');
+          const gameId = parseInt(hidden.getAttribute('data-game-id'), 10);
+          const pickedTeamEspnId = parseInt(hidden.getAttribute('data-team-espn-id'), 10);
+          if (!pickedName || !Number.isFinite(pickedTeamEspnId)) {
+            missingPicks.push(`Game ${i}`);
+            continue;
+          }
+          picks.push({
+            gameNumber: i,
+            gameId: Number.isFinite(gameId) ? gameId : undefined,
+            pickedTeamEspnId,
+          });
+          continue;
+        }
+
         const select = form.querySelector(`select[name="game${i}"]`);
         const pickedName = select ? select.value : '';
         if (!select || !pickedName) {
