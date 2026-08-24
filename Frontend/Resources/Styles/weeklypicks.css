@@ -68,6 +68,10 @@ body{
     }
 }
 
+html.football-off .bouncing-football {
+    display: none !important;
+}
+
 .title{
     color: #f5deb3;
     font-weight: bold;
@@ -2252,6 +2256,39 @@ body.picks-results-open #cfbdWeek1PicksContainer {
 .corso-jump-link:hover {
     color: #FFA000;
     opacity: 1;
+}
+
+.title-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.55rem 0.85rem;
+}
+
+.football-toggle-btn {
+    appearance: none;
+    background: rgba(62, 39, 35, 0.55);
+    border: 1px solid rgba(222, 184, 135, 0.35);
+    color: #DEB887;
+    font: inherit;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0.28rem 0.7rem;
+    border-radius: 999px;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.football-toggle-btn:hover {
+    color: #F5DEB3;
+    border-color: rgba(255, 215, 0, 0.45);
+    background: rgba(62, 39, 35, 0.75);
+}
+
+.football-toggle-btn[aria-pressed="true"] {
+    color: #FFD700;
+    border-color: rgba(255, 215, 0, 0.55);
 }
 
 .corso-jump-inline {

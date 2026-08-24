@@ -9,9 +9,16 @@
   <link rel="stylesheet" href="Resources/Styles/weeklypicks.css">
 </head>
 <body>
+  <script>
+    try {
+      if (localStorage.getItem('weeklyPicksFootballOff') === '1') {
+        document.documentElement.classList.add('football-off');
+      }
+    } catch (_) {}
+  </script>
   <!-- Bouncing Football Background -->
-  <div class="bouncing-football">
-    <img src="https://cdn-icons-png.flaticon.com/512/1133/1133780.png" alt="American Football" style="width: 100%; height: 100%; object-fit: contain;">
+  <div class="bouncing-football" id="bouncingFootball" aria-hidden="true">
+    <img src="https://cdn-icons-png.flaticon.com/512/1133/1133780.png" alt="" style="width: 100%; height: 100%; object-fit: contain;">
   </div>
   
   <nav class="navbar weeklypicks-navbar site-nav">
@@ -43,7 +50,10 @@
   <div id="week11-picks" class="tab-content active">
     <div class="title-section">
       <h1 class="title" id="picksTabTitle">Weekly Picks</h1>
-      <button type="button" class="corso-jump-link" onclick="scrollToCoachCorso(event)">Ask Coach Corso ↓</button>
+      <div class="title-actions">
+        <button type="button" class="corso-jump-link" onclick="scrollToCoachCorso(event)">Ask Coach Corso ↓</button>
+        <button type="button" class="football-toggle-btn" id="footballToggleBtn" aria-pressed="false">Hide football</button>
+      </div>
     </div>
     
     <div class="week11-layout picks-layout-solo">
@@ -1064,6 +1074,7 @@
 
     document.addEventListener('DOMContentLoaded', function() {
       syncPicksAuthState();
+      initFootballToggle();
 
       // Phase 1: Load active week + games from backend DB.
       // Live scores will be loaded automatically after games are loaded
@@ -1073,6 +1084,34 @@
       // Optional CFBD smoke test (kept for later; OFF in Phase 1)
       // if (USE_CFBD_GAMES_FOR_WEEKLY_PICKS) { ... }
     });
+
+    const FOOTBALL_OFF_KEY = 'weeklyPicksFootballOff';
+
+    function isFootballOff() {
+      try {
+        return localStorage.getItem(FOOTBALL_OFF_KEY) === '1';
+      } catch (_) {
+        return document.documentElement.classList.contains('football-off');
+      }
+    }
+
+    function setFootballOff(off) {
+      document.documentElement.classList.toggle('football-off', off);
+      try {
+        localStorage.setItem(FOOTBALL_OFF_KEY, off ? '1' : '0');
+      } catch (_) {}
+      const btn = document.getElementById('footballToggleBtn');
+      if (!btn) return;
+      btn.setAttribute('aria-pressed', off ? 'true' : 'false');
+      btn.textContent = off ? 'Show football' : 'Hide football';
+    }
+
+    function initFootballToggle() {
+      const btn = document.getElementById('footballToggleBtn');
+      if (!btn) return;
+      setFootballOff(isFootballOff());
+      btn.addEventListener('click', () => setFootballOff(!isFootballOff()));
+    }
 
     window.addEventListener('resize', scheduleFitPickMatchupFonts);
 
