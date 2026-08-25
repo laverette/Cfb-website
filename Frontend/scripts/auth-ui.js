@@ -14,7 +14,8 @@
       items: [
         { href: "weeklypicks.html", label: "📅 Weekly Picks" },
         { href: "mypredictions.html", label: "📊 My Picks" },
-        { href: "prediction-history.html", label: "🧾 Pick History" },
+        { href: "prediction-history.html", label: "🏆 Leaderboards" },
+        { href: "user-profile.html", label: "👤 My Profile" },
         { href: "CFPPredictions.html", label: "🏆 CFP Picks" },
         { href: "predictor.html", label: "🤖 Predictor" },
       ]

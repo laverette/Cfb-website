@@ -3,13 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Prediction History</title>
+  <title>Leaderboards</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
   <link rel="stylesheet" href="styles/site-theme.css">
-  <link rel="stylesheet" href="Resources/Styles/weeklypicks.css">
+  <link rel="stylesheet" href="Resources/Styles/leaderboard.css">
 </head>
 <body>
-  <!-- Site Header -->
   <nav class="navbar weeklypicks-navbar site-nav">
     <div class="container-fluid">
       <div class="navbar-content-weekly site-nav-inner">
@@ -17,190 +16,236 @@
           <span></span><span></span><span></span>
         </button>
         <div class="dropdown-menu" id="dropdownMenu"></div>
-
-        <h1 class="site-title">My College Football Site</h1>
-
+        <h1 class="site-title">Leaderboards</h1>
         <div id="auth-nav" class="navbar-auth-cluster"></div>
       </div>
     </div>
   </nav>
   <div class="menu-overlay" id="menuOverlay" onclick="closeMenu()"></div>
 
-  <div class="container mt-4 page-shell">
-    <h1 class="page-title">📊 Your Prediction History</h1>
-    
-    <!-- User Selection -->
-    <div class="section-card" style="margin: 1.5rem 0;">
-      <h3 class="gold-heading" style="text-align:center; margin: 0 0 1rem 0;">Select User</h3>
-      <div style="text-align: center; margin: 1rem 0;">
-        <select id="userDropdown" class="site-select" style="margin: 0 10px; min-width: 220px;">
-          <option value="">Choose a person...</option>
-        </select>
-        <button id="loadUserHistory" class="btn btn-brown" style="margin: 0 5px; padding: 8px 15px;">View History</button>
+  <main class="container page-shell lb-page">
+    <header class="lb-header">
+      <h1 class="page-title">Leaderboards</h1>
+      <p class="lb-subtitle">Every picker on the board. Tap a name for their profile.</p>
+    </header>
+
+    <section id="myStatsCard" class="section-card lb-my-stats" hidden>
+      <div class="lb-my-stats-top">
+        <div>
+          <p class="lb-eyebrow">Your stats</p>
+          <h2 id="myStatsName" class="gold-heading" style="margin:0;">—</h2>
+        </div>
+        <a id="myProfileLink" class="btn btn-brown btn-sm" href="user-profile.html">View profile</a>
       </div>
+      <div class="lb-stat-grid" id="myStatsGrid"></div>
+    </section>
+
+    <div class="lb-tabs" role="tablist" aria-label="Leaderboard scopes">
+      <button type="button" class="lb-tab active" data-scope="all" role="tab" aria-selected="true">All Time</button>
+      <button type="button" class="lb-tab" data-scope="year" role="tab" aria-selected="false">Yearly</button>
+      <button type="button" class="lb-tab" data-scope="season" role="tab" aria-selected="false">This Season</button>
     </div>
 
-    <!-- History Display -->
-    <div id="historyDisplay" style="margin-top: 2rem;"></div>
-    
-    <!-- Back Button -->
-    <div style="text-align: center; margin: 2rem 0;">
-      <a href="weeklypicks.html" class="btn btn-brown" style="padding: 10px 20px;">← Back to Weekly Picks</a>
+    <div class="lb-year-row" id="yearRow" hidden>
+      <label for="yearSelect">Season year</label>
+      <select id="yearSelect" class="site-select"></select>
     </div>
-  </div>
+
+    <section class="section-card lb-board-card">
+      <div class="lb-board-head">
+        <h2 id="boardTitle" class="gold-heading" style="margin:0;">All Time</h2>
+        <p id="boardHint" class="lb-hint"></p>
+      </div>
+      <div id="boardBody" class="lb-board-body">
+        <p class="lb-loading">Loading leaderboard…</p>
+      </div>
+    </section>
+
+    <div class="lb-footer-links">
+      <a href="weeklypicks.html" class="btn btn-brown">← Weekly Picks</a>
+    </div>
+  </main>
 
   <script src="scripts/auth-ui.js"></script>
   <script>
-    let allPredictions = [];
+    let activeScope = 'all';
+    let availableYears = [];
+    let currentSeasonYear = null;
+    let boardCache = {};
 
-    document.addEventListener('DOMContentLoaded', function() {
-      loadUsersAndPredictions();
-    });
-
-    // Load users and predictions from the API
-    async function loadUsersAndPredictions() {
-      try {
-        // Load users
-        const usersResponse = await fetch('http://localhost:5000/api/User');
-        if (!usersResponse.ok) {
-          throw new Error('Could not load users');
-        }
-        const users = await usersResponse.json();
-        
-        // Load all predictions
-        const predictionsResponse = await fetch('http://localhost:5000/api/Prediction');
-        if (!predictionsResponse.ok) {
-          throw new Error('Could not load predictions');
-        }
-        const predictions = await predictionsResponse.json();
-        
-        allPredictions = predictions;
-        populateUserDropdown(users);
-      } catch (error) {
-        console.error('Error loading data:', error);
-        document.getElementById('historyDisplay').innerHTML = `
-          <div style="background-color: #2E2E2E; padding: 2rem; border-radius: 8px; text-align: center;">
-            <h3 style="color: #F5F5F5;">Could not load data</h3>
-            <p style="color: #F5F5F5;">Make sure the API is running and accessible.</p>
-          </div>
-        `;
-      }
-    }
-  
-
-    // Get user name by ID
-    function getUserNameById(userId, users) {
-      const user = users.find(u => u.id === userId);
-      return user ? user.name : `User ${userId}`;
+    function escapeHtml(text) {
+      return String(text ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
     }
 
-    // Populate the user dropdown
-    function populateUserDropdown(users) {
-      const dropdown = document.getElementById('userDropdown');
-      
-      // Clear existing options except the first one
-      dropdown.innerHTML = '<option value="">Choose a person...</option>';
-      
-      // Add users from API
-      users.forEach(user => {
-        const option = document.createElement('option');
-        option.value = user.id;
-        option.textContent = user.name;
-        dropdown.appendChild(option);
-      });
+    function recordLabel(entry) {
+      const w = entry.correctPicks || 0;
+      const l = entry.incorrectPicks || 0;
+      return `${w}-${l}`;
     }
 
-    // Load user's individual history
-    async function loadUserHistory() {
-      const selectedUserId = document.getElementById('userDropdown').value;
-      if (!selectedUserId) {
-        alert('Please select a person from the dropdown!');
+    function currentUser() {
+      return (window.AuthUI && AuthUI.getCurrentUser && AuthUI.getCurrentUser()) || null;
+    }
+
+    function profileHref(user) {
+      if (!user) return 'user-profile.html';
+      if (user.username) return `user-profile.html?username=${encodeURIComponent(user.username)}`;
+      return `user-profile.html?id=${encodeURIComponent(user.userId || user.id)}`;
+    }
+
+    async function fetchBoard(scope, year) {
+      const key = `${scope}:${year || ''}`;
+      if (boardCache[key]) return boardCache[key];
+      const params = new URLSearchParams({ scope });
+      if (scope === 'year' && year) params.set('year', String(year));
+      const resp = await fetch(`/api/leaderboard?${params}`, { headers: { accept: 'application/json' } });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(data.error || `Failed (${resp.status})`);
+      boardCache[key] = data;
+      return data;
+    }
+
+    function renderBoard(data) {
+      const body = document.getElementById('boardBody');
+      const title = document.getElementById('boardTitle');
+      const hint = document.getElementById('boardHint');
+      title.textContent = data.scopeLabel || 'Leaderboard';
+      hint.textContent = data.viewerHint || '';
+
+      const entries = Array.isArray(data.entries) ? data.entries : [];
+      const me = currentUser();
+      const myId = me && me.id != null ? Number(me.id) : null;
+
+      if (!entries.length) {
+        body.innerHTML = '<p class="lb-empty">No users yet.</p>';
         return;
       }
 
+      body.innerHTML = `
+        <div class="lb-table-wrap">
+          <table class="lb-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Player</th>
+                <th>Record</th>
+                <th>Pct</th>
+                <th>Pending</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${entries.map((e) => {
+                const isMe = myId != null && Number(e.userId) === myId;
+                return `
+                  <tr class="${isMe ? 'is-me' : ''}">
+                    <td class="lb-rank">${e.rank}</td>
+                    <td>
+                      <a class="lb-player-link" href="${profileHref(e)}">
+                        <span class="lb-player-name">${escapeHtml(e.displayName || e.username)}</span>
+                        <span class="lb-player-user">@${escapeHtml(e.username)}</span>
+                      </a>
+                      ${isMe ? '<span class="lb-you-pill">You</span>' : ''}
+                    </td>
+                    <td class="lb-record">${recordLabel(e)}</td>
+                    <td class="lb-pct">${Number(e.accuracy || 0).toFixed(1)}%</td>
+                    <td class="lb-pending">${e.pendingPicks || 0}</td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function renderMyStats(allTimeEntry, seasonEntry) {
+      const me = currentUser();
+      const card = document.getElementById('myStatsCard');
+      if (!me) {
+        card.hidden = true;
+        return;
+      }
+      card.hidden = false;
+      document.getElementById('myStatsName').textContent = me.displayName || me.display_name || me.username || 'You';
+      document.getElementById('myProfileLink').href = profileHref({
+        username: me.username,
+        id: me.id,
+      });
+
+      const a = allTimeEntry || { correctPicks: 0, incorrectPicks: 0, accuracy: 0, pendingPicks: 0 };
+      const s = seasonEntry || { correctPicks: 0, incorrectPicks: 0, accuracy: 0, pendingPicks: 0 };
+      document.getElementById('myStatsGrid').innerHTML = `
+        <div class="lb-stat"><span class="lb-stat-label">All-time</span><strong>${a.correctPicks || 0}-${a.incorrectPicks || 0}</strong><span>${Number(a.accuracy || 0).toFixed(1)}%</span></div>
+        <div class="lb-stat"><span class="lb-stat-label">This season</span><strong>${s.correctPicks || 0}-${s.incorrectPicks || 0}</strong><span>${Number(s.accuracy || 0).toFixed(1)}%</span></div>
+        <div class="lb-stat"><span class="lb-stat-label">Pending</span><strong>${(a.pendingPicks || 0)}</strong><span>ungraded picks</span></div>
+      `;
+    }
+
+    function fillYearSelect(years, selected) {
+      const sel = document.getElementById('yearSelect');
+      sel.innerHTML = (years || []).map((y) =>
+        `<option value="${y}" ${Number(y) === Number(selected) ? 'selected' : ''}>${y}</option>`
+      ).join('');
+    }
+
+    async function loadActiveBoard() {
+      const body = document.getElementById('boardBody');
+      body.innerHTML = '<p class="lb-loading">Loading leaderboard…</p>';
+      const yearRow = document.getElementById('yearRow');
+      yearRow.hidden = activeScope !== 'year';
+
       try {
-        // Get user details
-        const userResponse = await fetch(`http://localhost:5000/api/User/${selectedUserId}`);
-        if (!userResponse.ok) {
-          throw new Error('Could not load user details');
+        const year = activeScope === 'year'
+          ? Number(document.getElementById('yearSelect').value) || currentSeasonYear
+          : null;
+        const data = await fetchBoard(activeScope, year);
+        availableYears = data.availableYears || availableYears;
+        currentSeasonYear = data.currentSeasonYear || currentSeasonYear;
+        if (activeScope === 'year') {
+          fillYearSelect(availableYears, data.year || currentSeasonYear);
         }
-        const user = await userResponse.json();
+        renderBoard(data);
 
-        // Get user's predictions
-        const predictionsResponse = await fetch(`http://localhost:5000/api/Prediction/user/${selectedUserId}`);
-        if (!predictionsResponse.ok) {
-          throw new Error('Could not load user predictions');
+        const me = currentUser();
+        if (me) {
+          const [allData, seasonData] = await Promise.all([
+            fetchBoard('all'),
+            fetchBoard('season'),
+          ]);
+          const myId = Number(me.id);
+          renderMyStats(
+            (allData.entries || []).find((e) => Number(e.userId) === myId),
+            (seasonData.entries || []).find((e) => Number(e.userId) === myId)
+          );
+        } else {
+          renderMyStats(null, null);
         }
-        const userHistory = await predictionsResponse.json();
-        
-        if (userHistory.length === 0) {
-          document.getElementById('historyDisplay').innerHTML = `
-            <div style="background-color: #2E2E2E; padding: 2rem; border-radius: 8px; text-align: center;">
-              <h3 style="color: #F5F5F5;">No history found for "${user.name}"</h3>
-              <p style="color: #F5F5F5;">Make sure they've submitted picks before!</p>
-            </div>
-          `;
-          return;
-        }
-
-        // Sort by week (newest first)
-        userHistory.sort((a, b) => (b.week || 0) - (a.week || 0));
-
-        let html = `
-          <div style="background-color: #2E2E2E; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
-            <h2 style="color: #FFD700; text-align: center; margin: 0;">${user.name}'s Prediction History</h2>
-            <p style="color: #F5F5F5; text-align: center; margin: 5px 0;">${userHistory.length} week(s) of picks</p>
-          </div>
-          <div style="display: flex; flex-direction: column; gap: 20px;">
-        `;
-
-        userHistory.forEach(entry => {
-          html += `
-            <div style="background-color: #3E2723; padding: 20px; border-radius: 8px; border: 1px solid #8D6E63;">
-              <h3 style="color: #FFD700; margin: 0 0 15px 0; text-align: center;">Week ${entry.week || 'Unknown'}</h3>
-              <p style="color: #F5F5F5; margin: 0 0 15px 0; text-align: center; font-size: 0.9rem;">Submitted: ${new Date(entry.submittedAt).toLocaleDateString()}</p>
-              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
-          `;
-          
-          // Show all picks in a nice grid
-          const games = [
-            entry.game1, entry.game2, entry.game3, entry.game4, entry.game5, entry.game6,
-            entry.game7, entry.game8, entry.game9, entry.game10, entry.game11, entry.game12
-          ];
-          
-          games.forEach((game, index) => {
-            if (game && game.trim() !== '') {
-              html += `
-                <div style="background-color: #2E2E2E; padding: 8px; border-radius: 4px; border: 1px solid #8D6E63; text-align: center;">
-                  <span style="color: #FFD700; font-weight: bold;">Game ${index + 1}</span><br>
-                  <span style="color: #F5F5F5;">${game}</span>
-                </div>
-              `;
-            }
-          });
-          
-          html += `
-              </div>
-            </div>
-          `;
-        });
-
-        html += '</div>';
-        document.getElementById('historyDisplay').innerHTML = html;
-      } catch (error) {
-        console.error('Error loading user history:', error);
-        document.getElementById('historyDisplay').innerHTML = `
-          <div style="background-color: #2E2E2E; padding: 2rem; border-radius: 8px; text-align: center;">
-            <h3 style="color: #F5F5F5;">Error loading history</h3>
-            <p style="color: #F5F5F5;">Could not load user prediction history.</p>
-          </div>
-        `;
+      } catch (err) {
+        body.innerHTML = `<p class="lb-empty">${escapeHtml(err.message || 'Could not load leaderboard')}</p>`;
       }
     }
 
-    // Event Listeners
-    document.getElementById('loadUserHistory').addEventListener('click', loadUserHistory);
-    
+    document.querySelectorAll('.lb-tab').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.lb-tab').forEach((b) => {
+          b.classList.toggle('active', b === btn);
+          b.setAttribute('aria-selected', b === btn ? 'true' : 'false');
+        });
+        activeScope = btn.getAttribute('data-scope') || 'all';
+        loadActiveBoard();
+      });
+    });
+
+    document.getElementById('yearSelect').addEventListener('change', () => {
+      boardCache = {};
+      loadActiveBoard();
+    });
+
+    document.addEventListener('DOMContentLoaded', loadActiveBoard);
   </script>
   <script>
     function closeMenu() {
@@ -214,7 +259,6 @@
       overlay.classList.remove('show');
       document.body.classList.remove('menu-open');
     }
-
     function toggleMenu() {
       const menu = document.getElementById('dropdownMenu');
       const button = document.querySelector('.hamburger-menu-btn');
@@ -227,18 +271,15 @@
       overlay.classList.toggle('show', isOpening);
       document.body.classList.toggle('menu-open', isOpening);
     }
-
     document.addEventListener('click', function(event) {
       const menu = document.getElementById('dropdownMenu');
       const button = document.querySelector('.hamburger-menu-btn');
       if (!menu || !button) return;
       if (!menu.contains(event.target) && !button.contains(event.target)) closeMenu();
     });
-
     document.addEventListener('keydown', function(event) {
       if (event.key === 'Escape') closeMenu();
     });
   </script>
 </body>
 </html>
-

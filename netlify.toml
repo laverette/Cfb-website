@@ -56,6 +56,16 @@
   status = 200
 
 [[redirects]]
+  from = "/api/leaderboard"
+  to = "/.netlify/functions/leaderboard"
+  status = 200
+
+[[redirects]]
+  from = "/api/users/public"
+  to = "/.netlify/functions/user-public-profile"
+  status = 200
+
+[[redirects]]
   from = "/api/recruit-map/filters"
   to = "/.netlify/functions/recruit-map-filters"
   status = 200

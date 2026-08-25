@@ -1,0 +1,373 @@
+/* Leaderboards + public profiles */
+
+.lb-page {
+  max-width: 960px;
+  padding-bottom: 3rem;
+}
+
+.lb-header {
+  text-align: center;
+  margin: 1.25rem 0 1.5rem;
+}
+
+.lb-subtitle {
+  color: #deb887;
+  opacity: 0.9;
+  margin: 0.35rem 0 0;
+}
+
+.lb-eyebrow {
+  margin: 0 0 0.25rem;
+  color: #ffd700;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.lb-my-stats {
+  margin-bottom: 1.25rem;
+}
+
+.lb-my-stats-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.lb-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.lb-stat {
+  background: rgba(20, 16, 12, 0.45);
+  border: 1px solid rgba(222, 184, 135, 0.22);
+  border-radius: 12px;
+  padding: 0.85rem 0.75rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.lb-stat-label {
+  color: #deb887;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.lb-stat strong {
+  color: #ffd700;
+  font-size: 1.35rem;
+}
+
+.lb-stat span:last-child {
+  color: #f5deb3;
+  font-size: 0.85rem;
+  opacity: 0.85;
+}
+
+.lb-tabs {
+  display: flex;
+  gap: 0.45rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin: 0 auto 1rem;
+  padding: 0.35rem;
+  background: rgba(62, 39, 35, 0.55);
+  border: 1px solid rgba(255, 215, 0, 0.22);
+  border-radius: 999px;
+  width: fit-content;
+  max-width: 100%;
+}
+
+.lb-tab {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: #f5deb3;
+  font: inherit;
+  font-weight: 700;
+  padding: 0.55rem 1.1rem;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.lb-tab.active {
+  background: linear-gradient(135deg, #ffd700, #ffa000);
+  color: #1e1e1e;
+}
+
+.lb-year-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  margin-bottom: 1rem;
+  color: #deb887;
+}
+
+.lb-board-card {
+  margin-bottom: 1.5rem;
+}
+
+.lb-board-head {
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+.lb-hint {
+  margin: 0.4rem 0 0;
+  color: #deb887;
+  font-size: 0.85rem;
+  opacity: 0.85;
+}
+
+.lb-loading,
+.lb-empty {
+  text-align: center;
+  color: #f5deb3;
+  opacity: 0.85;
+  margin: 1.5rem 0;
+}
+
+.lb-table-wrap {
+  overflow-x: auto;
+}
+
+.lb-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.lb-table th,
+.lb-table td {
+  padding: 0.75rem 0.6rem;
+  border-bottom: 1px solid rgba(222, 184, 135, 0.18);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.lb-table th {
+  color: #ffd700;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.lb-table tr.is-me {
+  background: rgba(255, 215, 0, 0.08);
+}
+
+.lb-rank {
+  color: #ffd700;
+  font-weight: 800;
+  width: 2.5rem;
+}
+
+.lb-player-link {
+  display: inline-flex;
+  flex-direction: column;
+  text-decoration: none;
+  color: inherit;
+  gap: 0.1rem;
+}
+
+.lb-player-name {
+  color: #f5deb3;
+  font-weight: 700;
+}
+
+.lb-player-user {
+  color: #deb887;
+  font-size: 0.78rem;
+  opacity: 0.85;
+}
+
+.lb-player-link:hover .lb-player-name {
+  color: #ffd700;
+}
+
+.lb-you-pill {
+  display: inline-block;
+  margin-left: 0.45rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: rgba(255, 215, 0, 0.2);
+  color: #ffd700;
+  font-size: 0.7rem;
+  font-weight: 700;
+  vertical-align: middle;
+}
+
+.lb-record,
+.lb-pct {
+  color: #f5deb3;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.lb-pending {
+  color: #deb887;
+}
+
+.lb-footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: center;
+  margin-top: 1.5rem;
+}
+
+.lb-profile-hero {
+  text-align: center;
+  margin-bottom: 1.25rem;
+}
+
+.lb-bio {
+  margin: 0.75rem auto 0;
+  max-width: 36rem;
+  color: #f5deb3;
+  opacity: 0.9;
+}
+
+.lb-section-title {
+  color: #ffd700;
+  font-size: 1rem;
+  margin: 1.25rem 0 0.6rem;
+  text-align: center;
+}
+
+.lb-season-list ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.lb-season-list li {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 0.75rem;
+  padding: 0.55rem 0.75rem;
+  background: rgba(20, 16, 12, 0.4);
+  border-radius: 10px;
+  border: 1px solid rgba(222, 184, 135, 0.18);
+  color: #f5deb3;
+}
+
+.lb-week-card {
+  margin-top: 1rem;
+  padding: 1rem;
+  border-radius: 12px;
+  background: rgba(20, 16, 12, 0.4);
+  border: 1px solid rgba(222, 184, 135, 0.2);
+}
+
+.lb-week-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: baseline;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.lb-week-head h3 {
+  margin: 0;
+  color: #ffd700;
+  font-size: 1.05rem;
+}
+
+.lb-week-head span {
+  color: #deb887;
+  font-weight: 700;
+}
+
+.lb-pick-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.55rem;
+}
+
+.lb-pick-chip {
+  border-radius: 10px;
+  padding: 0.55rem 0.6rem;
+  text-align: center;
+  border: 1px solid rgba(222, 184, 135, 0.25);
+  background: rgba(62, 39, 35, 0.45);
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.lb-pick-game {
+  color: #deb887;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+}
+
+.lb-pick-chip strong {
+  color: #f5deb3;
+  font-size: 0.92rem;
+}
+
+.lb-pick-result {
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.lb-pick-chip.is-correct {
+  border-color: rgba(80, 200, 120, 0.55);
+}
+
+.lb-pick-chip.is-correct .lb-pick-result {
+  color: #7dffa0;
+}
+
+.lb-pick-chip.is-wrong {
+  border-color: rgba(255, 120, 100, 0.45);
+}
+
+.lb-pick-chip.is-wrong .lb-pick-result {
+  color: #ffb4a8;
+}
+
+.lb-pick-chip.is-pending .lb-pick-result {
+  color: #deb887;
+  opacity: 0.8;
+}
+
+@media (max-width: 700px) {
+  .lb-stat-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .lb-my-stats-top {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+  }
+
+  .lb-tabs {
+    width: 100%;
+  }
+
+  .lb-tab {
+    flex: 1 1 auto;
+    text-align: center;
+    padding: 0.55rem 0.7rem;
+  }
+
+  .lb-table th:nth-child(5),
+  .lb-table td:nth-child(5) {
+    display: none;
+  }
+}

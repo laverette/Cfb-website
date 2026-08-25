@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Player Profile</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <link rel="stylesheet" href="styles/site-theme.css">
+  <link rel="stylesheet" href="Resources/Styles/leaderboard.css">
+</head>
+<body>
+  <nav class="navbar weeklypicks-navbar site-nav">
+    <div class="container-fluid">
+      <div class="navbar-content-weekly site-nav-inner">
+        <button class="hamburger-menu-btn" onclick="toggleMenu()" aria-label="Menu" aria-expanded="false" aria-controls="dropdownMenu">
+          <span></span><span></span><span></span>
+        </button>
+        <div class="dropdown-menu" id="dropdownMenu"></div>
+        <h1 class="site-title">Player Profile</h1>
+        <div id="auth-nav" class="navbar-auth-cluster"></div>
+      </div>
+    </div>
+  </nav>
+  <div class="menu-overlay" id="menuOverlay" onclick="closeMenu()"></div>
+
+  <main class="container page-shell lb-page">
+    <div id="profileRoot">
+      <p class="lb-loading">Loading profile…</p>
+    </div>
+    <div class="lb-footer-links">
+      <a href="prediction-history.html" class="btn btn-brown">← Leaderboards</a>
+      <a href="weeklypicks.html" class="btn btn-brown">Weekly Picks</a>
+    </div>
+  </main>
+
+  <script src="scripts/auth-ui.js"></script>
+  <script>
+    function escapeHtml(text) {
+      return String(text ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function record(bucket) {
+      return `${bucket?.correctPicks || 0}-${bucket?.incorrectPicks || 0}`;
+    }
+
+    function pct(bucket) {
+      return `${Number(bucket?.accuracy || 0).toFixed(1)}%`;
+    }
+
+    function pickResultClass(pick) {
+      if (pick.isCorrect === true) return 'is-correct';
+      if (pick.isCorrect === false) return 'is-wrong';
+      return 'is-pending';
+    }
+
+    function pickResultLabel(pick) {
+      if (pick.isCorrect === true) return 'Correct';
+      if (pick.isCorrect === false) return 'Wrong';
+      return 'Pending';
+    }
+
+    async function loadProfile() {
+      const root = document.getElementById('profileRoot');
+      const params = new URLSearchParams(window.location.search);
+      const username = params.get('username');
+      const id = params.get('id');
+      const qs = username
+        ? `username=${encodeURIComponent(username)}`
+        : id
+          ? `id=${encodeURIComponent(id)}`
+          : '';
+
+      if (!qs) {
+        const me = window.AuthUI && AuthUI.getCurrentUser && AuthUI.getCurrentUser();
+        if (me && me.username) {
+          window.location.replace(`user-profile.html?username=${encodeURIComponent(me.username)}`);
+          return;
+        }
+        root.innerHTML = `
+          <div class="section-card" style="text-align:center;">
+            <h2 class="gold-heading">No player selected</h2>
+            <p>Open a profile from the <a href="prediction-history.html">leaderboards</a>, or log in to view yours.</p>
+          </div>`;
+        return;
+      }
+
+      try {
+        const resp = await fetch(`/api/users/public?${qs}`, { headers: { accept: 'application/json' } });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok) throw new Error(data.error || `Failed (${resp.status})`);
+
+        const user = data.user || {};
+        const stats = data.stats || {};
+        const weeks = Array.isArray(data.weeks) ? data.weeks : [];
+        document.title = `${user.displayName || user.username || 'Player'} · Profile`;
+
+        root.innerHTML = `
+          <header class="section-card lb-profile-hero">
+            <p class="lb-eyebrow">Player profile</p>
+            <h1 class="page-title" style="margin-bottom:0.2rem;">${escapeHtml(user.displayName || user.username)}</h1>
+            <p class="lb-subtitle">@${escapeHtml(user.username)}${user.memberSince ? ` · joined ${escapeHtml(new Date(user.memberSince).toLocaleDateString())}` : ''}</p>
+            ${user.bio ? `<p class="lb-bio">${escapeHtml(user.bio)}</p>` : ''}
+          </header>
+
+          <section class="section-card">
+            <h2 class="gold-heading" style="text-align:center;">Stats</h2>
+            <div class="lb-stat-grid">
+              <div class="lb-stat">
+                <span class="lb-stat-label">All time</span>
+                <strong>${record(stats.allTime)}</strong>
+                <span>${pct(stats.allTime)}</span>
+              </div>
+              <div class="lb-stat">
+                <span class="lb-stat-label">This season</span>
+                <strong>${record(stats.thisSeason)}</strong>
+                <span>${pct(stats.thisSeason)}</span>
+              </div>
+              <div class="lb-stat">
+                <span class="lb-stat-label">Pending</span>
+                <strong>${stats.allTime?.pendingPicks || 0}</strong>
+                <span>ungraded</span>
+              </div>
+            </div>
+            ${(stats.bySeason || []).length ? `
+              <div class="lb-season-list">
+                <h3 class="lb-section-title">By season</h3>
+                <ul>
+                  ${(stats.bySeason || []).map((s) => `
+                    <li><span>${s.seasonYear}</span><strong>${record(s)}</strong><span>${pct(s)}</span></li>
+                  `).join('')}
+                </ul>
+              </div>
+            ` : ''}
+          </section>
+
+          <section class="section-card">
+            <h2 class="gold-heading" style="text-align:center;">Pick history</h2>
+            ${weeks.length === 0
+              ? '<p class="lb-empty">No picks submitted yet.</p>'
+              : weeks.map((w) => `
+                <article class="lb-week-card">
+                  <div class="lb-week-head">
+                    <h3>Week ${escapeHtml(w.weekNumber)} · ${escapeHtml(w.seasonYear)}</h3>
+                    <span>${record(w)} · ${pct(w)}</span>
+                  </div>
+                  <div class="lb-pick-grid">
+                    ${(w.picks || []).map((p) => `
+                      <div class="lb-pick-chip ${pickResultClass(p)}">
+                        <span class="lb-pick-game">Game ${escapeHtml(p.gameNumber)}</span>
+                        <strong>${escapeHtml(p.pickedTeamName || '—')}</strong>
+                        <span class="lb-pick-result">${pickResultLabel(p)}</span>
+                      </div>
+                    `).join('')}
+                  </div>
+                </article>
+              `).join('')}
+          </section>
+        `;
+      } catch (err) {
+        root.innerHTML = `
+          <div class="section-card" style="text-align:center;">
+            <h2 class="gold-heading">Could not load profile</h2>
+            <p>${escapeHtml(err.message || 'Unknown error')}</p>
+          </div>`;
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', loadProfile);
+  </script>
+  <script>
+    function closeMenu() {
+      const menu = document.getElementById('dropdownMenu');
+      const button = document.querySelector('.hamburger-menu-btn');
+      const overlay = document.getElementById('menuOverlay');
+      if (!menu || !button || !overlay) return;
+      menu.classList.remove('show');
+      button.classList.remove('active');
+      button.setAttribute('aria-expanded', 'false');
+      overlay.classList.remove('show');
+      document.body.classList.remove('menu-open');
+    }
+    function toggleMenu() {
+      const menu = document.getElementById('dropdownMenu');
+      const button = document.querySelector('.hamburger-menu-btn');
+      const overlay = document.getElementById('menuOverlay');
+      if (!menu || !button || !overlay) return;
+      const isOpening = !menu.classList.contains('show');
+      menu.classList.toggle('show');
+      button.classList.toggle('active');
+      button.setAttribute('aria-expanded', isOpening ? 'true' : 'false');
+      overlay.classList.toggle('show', isOpening);
+      document.body.classList.toggle('menu-open', isOpening);
+    }
+    document.addEventListener('click', function(event) {
+      const menu = document.getElementById('dropdownMenu');
+      const button = document.querySelector('.hamburger-menu-btn');
+      if (!menu || !button) return;
+      if (!menu.contains(event.target) && !button.contains(event.target)) closeMenu();
+    });
+    document.addEventListener('keydown', function(event) {
+      if (event.key === 'Escape') closeMenu();
+    });
+  </script>
+</body>
+</html>

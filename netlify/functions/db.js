@@ -456,6 +456,300 @@ async function submitUserPicks({ userId, weekId, picks }) {
   return { saved: rows.length, updated: Boolean(existing.hasSubmitted), locksAt: lock.locksAt };
 }
 
+function emptyPickBucket() {
+  return {
+    totalPicks: 0,
+    gradedPicks: 0,
+    correctPicks: 0,
+    incorrectPicks: 0,
+    pendingPicks: 0,
+    accuracy: 0,
+  };
+}
+
+function finalizeBucket(bucket) {
+  const graded = Number(bucket.gradedPicks) || 0;
+  const correct = Number(bucket.correctPicks) || 0;
+  bucket.accuracy = graded > 0 ? Math.round((correct / graded) * 10000) / 100 : 0;
+  return bucket;
+}
+
+function addPickToBucket(bucket, isCorrect) {
+  bucket.totalPicks += 1;
+  if (isCorrect === true) {
+    bucket.gradedPicks += 1;
+    bucket.correctPicks += 1;
+  } else if (isCorrect === false) {
+    bucket.gradedPicks += 1;
+    bucket.incorrectPicks += 1;
+  } else {
+    bucket.pendingPicks += 1;
+  }
+}
+
+function rankRows(rows) {
+  const sorted = [...rows].sort((a, b) => {
+    if (b.correctPicks !== a.correctPicks) return b.correctPicks - a.correctPicks;
+    if (b.accuracy !== a.accuracy) return b.accuracy - a.accuracy;
+    if (b.gradedPicks !== a.gradedPicks) return b.gradedPicks - a.gradedPicks;
+    if (b.totalPicks !== a.totalPicks) return b.totalPicks - a.totalPicks;
+    const an = String(a.displayName || a.username || "").toLowerCase();
+    const bn = String(b.displayName || b.username || "").toLowerCase();
+    return an.localeCompare(bn);
+  });
+  return sorted.map((row, i) => ({ ...row, rank: i + 1 }));
+}
+
+async function listPublicUsers() {
+  const supabase = getSupabase();
+  const rows = await selectAllPages(() =>
+    supabase
+      .from("users")
+      .select("id, username, display_name, avatar_url, bio, created_at")
+      .order("id", { ascending: true })
+  );
+  return rows.map((u) => ({
+    id: u.id,
+    username: u.username,
+    displayName: u.display_name != null ? u.display_name : u.username,
+    avatarUrl: u.avatar_url ?? null,
+    bio: u.bio ?? null,
+    createdAt: u.created_at,
+  }));
+}
+
+async function listSeasonYears() {
+  const supabase = getSupabase();
+  const rows = await selectAllPages(() =>
+    supabase.from("weeks").select("season_year").order("season_year", { ascending: false })
+  );
+  const years = [...new Set(rows.map((r) => Number(r.season_year)).filter(Number.isFinite))];
+  years.sort((a, b) => b - a);
+  return years;
+}
+
+async function resolveLeaderboardSeasonYear(requestedYear) {
+  const years = await listSeasonYears();
+  if (requestedYear != null && Number.isFinite(Number(requestedYear))) {
+    const y = Number(requestedYear);
+    if (years.includes(y) || years.length === 0) return y;
+  }
+  const current = await loadCurrentWeek();
+  if (current && current.season_year != null) return Number(current.season_year);
+  return years[0] ?? new Date().getFullYear();
+}
+
+/**
+ * scope: 'all' | 'season' | 'year'
+ * year: used for season/year scopes
+ */
+async function getLeaderboard({ scope = "all", year = null } = {}) {
+  const supabase = getSupabase();
+  const users = await listPublicUsers();
+  const seasons = await listSeasonYears();
+  const currentWeek = await loadCurrentWeek();
+  const currentSeasonYear =
+    currentWeek && currentWeek.season_year != null
+      ? Number(currentWeek.season_year)
+      : seasons[0] ?? new Date().getFullYear();
+
+  let filterYear = null;
+  let scopeLabel = "All Time";
+  if (scope === "season") {
+    filterYear = currentSeasonYear;
+    scopeLabel = `This Season (${filterYear})`;
+  } else if (scope === "year") {
+    filterYear = await resolveLeaderboardSeasonYear(year);
+    scopeLabel = `${filterYear} Season`;
+  }
+
+  const picks = await selectAllPages(() =>
+    supabase
+      .from("user_picks")
+      .select("user_id, is_correct, week_id, weeks ( season_year, week_number )")
+  );
+
+  const byUser = new Map();
+  for (const u of users) {
+    byUser.set(Number(u.id), {
+      userId: Number(u.id),
+      username: u.username,
+      displayName: u.displayName,
+      avatarUrl: u.avatarUrl,
+      ...emptyPickBucket(),
+    });
+  }
+
+  for (const pick of picks) {
+    const uid = Number(pick.user_id);
+    if (!byUser.has(uid)) continue;
+    const seasonYear = pick.weeks?.season_year != null ? Number(pick.weeks.season_year) : null;
+    if (filterYear != null && seasonYear !== filterYear) continue;
+    addPickToBucket(byUser.get(uid), pick.is_correct);
+  }
+
+  const entries = rankRows(
+    [...byUser.values()].map((row) => finalizeBucket(row))
+  );
+
+  return {
+    scope,
+    scopeLabel,
+    year: filterYear,
+    currentSeasonYear,
+    availableYears: seasons.length ? seasons : [currentSeasonYear],
+    entries,
+    viewerHint:
+      "Ranked by correct picks, then accuracy. Graded games only count toward W-L; pending picks are shown separately.",
+  };
+}
+
+async function findUserByUsername(username) {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from("users")
+    .select("id, username, display_name, avatar_url, bio, created_at")
+    .eq("username", String(username || "").trim())
+    .maybeSingle();
+  dbError(error);
+  return data || null;
+}
+
+async function getPublicUserProfile({ userId = null, username = null } = {}) {
+  let user = null;
+  if (userId != null && String(userId).trim() !== "") {
+    const row = await findUserById(userId);
+    if (row) {
+      user = {
+        id: row.id,
+        username: row.username,
+        display_name: row.display_name,
+        avatar_url: row.avatar_url,
+        bio: row.bio,
+        created_at: row.created_at,
+      };
+    }
+  } else if (username) {
+    user = await findUserByUsername(username);
+  }
+  if (!user) return null;
+
+  const supabase = getSupabase();
+  const profile = await findProfileByUserId(user.id);
+  const picks = await selectAllPages(() =>
+    supabase
+      .from("user_picks")
+      .select(
+        "id, game_id, week_id, picked_team_espn_id, picked_team_name, is_correct, submitted_at, weeks ( id, week_number, season_year ), games ( game_number, home_team_name, away_team_name, home_team_espn_id, away_team_espn_id, is_completed )"
+      )
+      .eq("user_id", user.id)
+      .order("submitted_at", { ascending: false })
+  );
+
+  const allTime = emptyPickBucket();
+  const bySeason = new Map();
+  const byWeek = new Map();
+
+  for (const pick of picks) {
+    addPickToBucket(allTime, pick.is_correct);
+    const seasonYear = pick.weeks?.season_year != null ? Number(pick.weeks.season_year) : null;
+    const weekNumber = pick.weeks?.week_number != null ? Number(pick.weeks.week_number) : null;
+    const weekId = pick.week_id != null ? Number(pick.week_id) : null;
+
+    if (seasonYear != null) {
+      if (!bySeason.has(seasonYear)) bySeason.set(seasonYear, emptyPickBucket());
+      addPickToBucket(bySeason.get(seasonYear), pick.is_correct);
+    }
+
+    if (weekId != null) {
+      if (!byWeek.has(weekId)) {
+        byWeek.set(weekId, {
+          weekId,
+          weekNumber,
+          seasonYear,
+          submittedAt: pick.submitted_at,
+          picks: [],
+          ...emptyPickBucket(),
+        });
+      }
+      const weekBucket = byWeek.get(weekId);
+      addPickToBucket(weekBucket, pick.is_correct);
+      if (
+        pick.submitted_at &&
+        (!weekBucket.submittedAt ||
+          new Date(pick.submitted_at) > new Date(weekBucket.submittedAt))
+      ) {
+        weekBucket.submittedAt = pick.submitted_at;
+      }
+      weekBucket.picks.push({
+        gameNumber: pick.games?.game_number ?? null,
+        pickedTeamName: pick.picked_team_name,
+        pickedTeamEspnId: pick.picked_team_espn_id,
+        homeTeamName: pick.games?.home_team_name ?? null,
+        awayTeamName: pick.games?.away_team_name ?? null,
+        isCorrect: pick.is_correct,
+        isCompleted: Boolean(pick.games?.is_completed),
+      });
+    }
+  }
+
+  finalizeBucket(allTime);
+  const seasons = [...bySeason.entries()]
+    .map(([seasonYear, bucket]) => ({
+      seasonYear,
+      ...finalizeBucket(bucket),
+    }))
+    .sort((a, b) => b.seasonYear - a.seasonYear);
+
+  const weeks = [...byWeek.values()]
+    .map((w) => {
+      finalizeBucket(w);
+      w.picks.sort((a, b) => (a.gameNumber || 0) - (b.gameNumber || 0));
+      return w;
+    })
+    .sort((a, b) => {
+      if (b.seasonYear !== a.seasonYear) return (b.seasonYear || 0) - (a.seasonYear || 0);
+      return (b.weekNumber || 0) - (a.weekNumber || 0);
+    });
+
+  const currentWeek = await loadCurrentWeek();
+  const currentSeasonYear =
+    currentWeek && currentWeek.season_year != null
+      ? Number(currentWeek.season_year)
+      : seasons[0]?.seasonYear ?? new Date().getFullYear();
+  const thisSeason =
+    seasons.find((s) => s.seasonYear === currentSeasonYear) || {
+      seasonYear: currentSeasonYear,
+      ...emptyPickBucket(),
+    };
+
+  return {
+    user: {
+      id: user.id,
+      username: user.username,
+      displayName: user.display_name != null ? user.display_name : user.username,
+      avatarUrl: user.avatar_url ?? null,
+      bio: user.bio ?? null,
+      memberSince: user.created_at,
+    },
+    profile: profile
+      ? {
+          favoriteTeamEspnId: profile.favorite_team_espn_id,
+          favoriteConference: profile.favorite_conference,
+          location: profile.location,
+          currentStreak: profile.current_streak,
+          bestStreak: profile.best_streak,
+        }
+      : null,
+    stats: {
+      allTime,
+      thisSeason,
+      bySeason: seasons,
+    },
+    weeks,
+  };
+}
+
 module.exports = {
   getSupabase,
   getPool: getSupabase,
@@ -467,6 +761,7 @@ module.exports = {
   loadGamesByWeek,
   findUserByUsernameOrEmail,
   findUserById,
+  findUserByUsername,
   findProfileByUserId,
   logUserLogin,
   registerUser,
@@ -474,4 +769,7 @@ module.exports = {
   getUserPicksForWeek,
   getWeekPickLock,
   submitUserPicks,
+  getLeaderboard,
+  getPublicUserProfile,
+  listSeasonYears,
 };
