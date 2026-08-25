@@ -230,6 +230,7 @@ body {
   padding: 0.75rem 1rem;
   z-index: 1000;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  overflow: visible;
 }
 
 .site-nav-inner,
@@ -241,6 +242,8 @@ body {
   gap: 1rem;
   max-width: 1200px;
   margin: 0 auto;
+  overflow: visible;
+  position: relative;
 }
 
 .site-title {
@@ -327,13 +330,16 @@ body {
   min-width: 220px;
   max-width: min(320px, calc(100vw - 1.5rem));
   width: max-content;
+  max-height: min(85vh, calc(100vh - 4.5rem));
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
   display: none;
   z-index: 1002;
   margin-top: 0.5rem;
   padding: 0.5rem 0;
   overflow-x: hidden;
+  overflow-y: auto;
   box-sizing: border-box;
+  -webkit-overflow-scrolling: touch;
 }
 
 .dropdown-menu.show {
@@ -430,7 +436,9 @@ body {
 }
 
 .dropdown-category-content.active {
-  max-height: 500px;
+  /* Enough room for all current + future picks/teams links */
+  max-height: 80vh;
+  overflow: visible;
 }
 
 .dropdown-subitem {
@@ -643,6 +651,7 @@ button.dropdown-item.auth-dropdown-logout:hover {
     left: 0.75rem;
     width: min(82vw, 300px);
     max-height: calc(100vh - 1.5rem);
+    overflow-x: hidden;
     overflow-y: auto;
     margin-top: 0;
     border-radius: 10px;
