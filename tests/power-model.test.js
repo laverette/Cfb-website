@@ -353,21 +353,6 @@ describe("CFB Power Model V1", () => {
     assert.ok(Number.isFinite(p));
   });
 
-  it("preseason prior favors elite talent over last-year SP+ outlier", () => {
-    const bama = buildPreseasonPrior(
-      team(1, "Alabama", { prevSeasonPower: 9, talentScore: 99 }),
-      getModelParams()
-    );
-    const vandy = buildPreseasonPrior(
-      team(2, "Vanderbilt", { prevSeasonPower: 14, talentScore: 68 }),
-      getModelParams()
-    );
-    assert.ok(
-      bama > vandy,
-      `expected Alabama prior (${bama}) > Vanderbilt prior (${vandy})`
-    );
-  });
-
   it("preseason (no games) publishes OFF/DEF/ST/talent from unit priors", () => {
     const teams = [
       team(1, "Indiana", {

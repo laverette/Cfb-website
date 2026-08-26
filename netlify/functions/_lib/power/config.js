@@ -31,8 +31,8 @@ const MODEL_PARAMS = Object.freeze({
   /** Special teams contribution to raw power (points). Small by design. */
   specialTeamsWeight: 0.35,
 
-  /** Talent contribution scale inside the prior (also available mid-season). */
-  talentInfluence: 0.35,
+  /** Talent contribution remaining in mid-blend (also in prior). */
+  talentInfluence: 0.21,
 
   /** FCS handling */
   fcsPositiveWeight: 0.28,
@@ -62,13 +62,9 @@ const MODEL_PARAMS = Object.freeze({
   fumbleRecoveryMean: 0.5,
   turnoverComponentWeight: 0.12,
 
-  /**
-   * Preseason prior sub-weights (normalized internally).
-   * Early-season / week-0: lean on roster talent over last year's SP+ results
-   * so blue-chip programs aren't stuck behind one-year SP+ outliers.
-   */
-  priorPrevSeasonWeight: 0.21,
-  priorTalentWeight: 0.55,
+  /** Preseason prior sub-weights (normalized internally). */
+  priorPrevSeasonWeight: 0.45,
+  priorTalentWeight: 0.3,
   priorRecruitingWeight: 0.15,
   priorReturningWeight: 0.1,
 });
