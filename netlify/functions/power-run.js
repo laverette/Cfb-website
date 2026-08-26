@@ -9,11 +9,6 @@ const { requireAdmin } = require("./_auth");
 const { ingestSeasonFromCfbd, calculateRatings } = require("./_lib/power");
 const store = require("./_lib/power/store");
 
-/** Netlify: allow longer CFBD ingest on paid plans; free tier still caps ~10s. */
-exports.config = {
-  maxDuration: 26,
-};
-
 function readCfbdKey() {
   return (process.env.CFBD_API_KEY && String(process.env.CFBD_API_KEY).trim()) || "";
 }
@@ -26,8 +21,9 @@ exports.handler = async (event) => {
     return json(405, { error: "Method not allowed" });
   }
 
-  const auth = requireAdmin(event);
-  if (auth.error) return auth.error;
+  // requireAdmin returns a response object on failure, or null on success
+  const authErr = requireAdmin(event);
+  if (authErr) return authErr;
 
   if (!store.hasSupabase()) {
     return json(503, {

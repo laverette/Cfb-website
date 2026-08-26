@@ -1323,9 +1323,9 @@
         if (!res.ok) {
           const hint =
             res.status === 502 || res.status === 504
-              ? ' Gateway timeout/crash — redeploy so power-run is live, confirm CFBD_API_KEY is set for Functions, then retry week 0 (preseason is lighter now).'
+              ? ' Instant 502 usually means the power-run function is not live yet — push/redeploy, then hard-refresh Admin. Also confirm CFBD_API_KEY + SUPABASE_SERVICE_ROLE_KEY are set for Functions.'
               : '';
-          throw new Error((data.details || data.error || res.statusText) + hint);
+          throw new Error((data.details || data.error || ('HTTP ' + res.status)) + hint);
         }
 
         const top = Array.isArray(data.top5) ? data.top5 : [];
