@@ -67,7 +67,7 @@ const MODEL_PARAMS = Object.freeze({
    * Early-season / week-0: lean on roster talent over last year's SP+ results
    * so blue-chip programs aren't stuck behind one-year SP+ outliers.
    */
-  priorPrevSeasonWeight: 0.2,
+  priorPrevSeasonWeight: 0.21,
   priorTalentWeight: 0.55,
   priorRecruitingWeight: 0.15,
   priorReturningWeight: 0.1,
