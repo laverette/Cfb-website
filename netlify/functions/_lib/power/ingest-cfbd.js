@@ -64,15 +64,25 @@ function mapGame(g) {
 
 function attachTalent(teams, talentRaw) {
   const teamByName = new Map(teams.map((t) => [String(t.name).toLowerCase(), t]));
+  const values = [];
   for (const row of Array.isArray(talentRaw) ? talentRaw : []) {
     const name = String(row.school || row.team || "").toLowerCase();
     const t = teamByName.get(name);
     if (!t) continue;
     const talent = Number(row.talent);
-    if (Number.isFinite(talent)) {
-      // CFBD talent composites are often ~400–1000; map into ~0–100
-      t.talentScore = Math.max(0, Math.min(100, (talent / 1000) * 100));
-    }
+    if (!Number.isFinite(talent)) continue;
+    t._talentRaw = talent;
+    values.push(talent);
+  }
+  if (!values.length) return;
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const span = max - min || 1;
+  for (const t of teams) {
+    if (!Number.isFinite(t._talentRaw)) continue;
+    // Percentile-ish 0–100 across FBS for this composite
+    t.talentScore = Math.max(0, Math.min(100, ((t._talentRaw - min) / span) * 100));
+    delete t._talentRaw;
   }
 }
 
@@ -88,26 +98,68 @@ function attachReturning(teams, returningRaw) {
   }
 }
 
-/** Map last season SP+ (or similar) into prevSeasonPower-ish points. */
+/**
+ * Map SP+ into overall prior + unit ratings (offense / defense / ST).
+ * CFBD SP+ unit ratings: higher is better for both offense and defense.
+ */
 function attachPrevSp(teams, spRaw) {
   const teamByName = new Map(teams.map((t) => [String(t.name).toLowerCase(), t]));
-  const ratings = [];
+  const overall = [];
+  const offs = [];
+  const defs = [];
+  const sts = [];
+
   for (const row of Array.isArray(spRaw) ? spRaw : []) {
     const name = String(row.team || row.school || "").toLowerCase();
     const t = teamByName.get(name);
     if (!t) continue;
-    const rating = Number(row.rating ?? row.secondOrderWins ?? row.spOverall);
-    if (!Number.isFinite(rating)) continue;
-    ratings.push(rating);
-    t._spRaw = rating;
+
+    const rating = Number(row.rating);
+    const off = Number(row.offense?.rating);
+    const def = Number(row.defense?.rating);
+    const st = Number(row.specialTeams?.rating ?? row.special_teams?.rating);
+
+    if (Number.isFinite(rating)) {
+      t._spOverall = rating;
+      overall.push(rating);
+    }
+    if (Number.isFinite(off)) {
+      t._spOff = off;
+      offs.push(off);
+    }
+    if (Number.isFinite(def)) {
+      t._spDef = def;
+      defs.push(def);
+    }
+    if (Number.isFinite(st)) {
+      t._spSt = st;
+      sts.push(st);
+    }
   }
-  if (!ratings.length) return;
-  const mean = ratings.reduce((a, b) => a + b, 0) / ratings.length;
-  // SP+ is already roughly points-above-average-ish; center just in case
+
+  const oMean = overall.length ? overall.reduce((a, b) => a + b, 0) / overall.length : 0;
+  const offMean = offs.length ? offs.reduce((a, b) => a + b, 0) / offs.length : 0;
+  const defMean = defs.length ? defs.reduce((a, b) => a + b, 0) / defs.length : 0;
+  const stMean = sts.length ? sts.reduce((a, b) => a + b, 0) / sts.length : 0;
+
   for (const t of teams) {
-    if (Number.isFinite(t._spRaw)) {
-      t.prevSeasonPower = t._spRaw - mean;
-      delete t._spRaw;
+    if (Number.isFinite(t._spOverall)) {
+      t.prevSeasonPower = t._spOverall - oMean;
+      delete t._spOverall;
+    }
+    if (Number.isFinite(t._spOff)) {
+      t.preseasonOffense = t._spOff - offMean;
+      delete t._spOff;
+    }
+    if (Number.isFinite(t._spDef)) {
+      // Positive = good defense (points above average contribution)
+      t.preseasonDefense = t._spDef - defMean;
+      delete t._spDef;
+    }
+    if (Number.isFinite(t._spSt)) {
+      t.preseasonSpecialTeams = t._spSt - stMean;
+      t.specialTeamsRating = t.preseasonSpecialTeams;
+      delete t._spSt;
     }
   }
 }
@@ -133,14 +185,19 @@ async function ingestSeasonFromCfbd({
   const teams = (Array.isArray(teamsRaw) ? teamsRaw : []).map(mapTeam);
   const teamById = new Map(teams.map((t) => [t.id, t]));
 
-  // Priors — optional endpoints must not fail the whole run
-  const [talentRaw, returningRaw, spRaw] = await Promise.all([
+  // Priors — try current year then previous year for talent/returning (preseason gaps)
+  const [talentRaw, talentPrev, returningRaw, returningPrev, spRaw] = await Promise.all([
     cfbdGetOptional("/talent", { year: season }, apiKey, signal),
+    cfbdGetOptional("/talent", { year: prevSeason }, apiKey, signal),
     cfbdGetOptional("/player/returning", { year: season }, apiKey, signal),
+    cfbdGetOptional("/player/returning", { year: prevSeason }, apiKey, signal),
     cfbdGetOptional("/ratings/sp", { year: prevSeason }, apiKey, signal),
   ]);
-  attachTalent(teams, talentRaw);
-  attachReturning(teams, returningRaw);
+  attachTalent(teams, Array.isArray(talentRaw) && talentRaw.length ? talentRaw : talentPrev);
+  attachReturning(
+    teams,
+    Array.isArray(returningRaw) && returningRaw.length ? returningRaw : returningPrev
+  );
   attachPrevSp(teams, spRaw);
 
   if (preseasonOnly) {

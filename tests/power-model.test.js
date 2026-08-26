@@ -353,6 +353,52 @@ describe("CFB Power Model V1", () => {
     assert.ok(Number.isFinite(p));
   });
 
+  it("preseason (no games) publishes OFF/DEF/ST/talent from unit priors", () => {
+    const teams = [
+      team(1, "Indiana", {
+        prevSeasonPower: 12,
+        preseasonOffense: 8.5,
+        preseasonDefense: 6.2,
+        preseasonSpecialTeams: 1.1,
+        specialTeamsRating: 1.1,
+        talentScore: 78,
+      }),
+      team(2, "Ohio State", {
+        prevSeasonPower: 14,
+        preseasonOffense: 9.1,
+        preseasonDefense: 7.0,
+        preseasonSpecialTeams: 0.4,
+        specialTeamsRating: 0.4,
+        talentScore: 96,
+      }),
+      team(3, "Mid", {
+        prevSeasonPower: 0,
+        preseasonOffense: 0,
+        preseasonDefense: 0,
+        preseasonSpecialTeams: 0,
+        specialTeamsRating: 0,
+        talentScore: 50,
+      }),
+    ];
+    const result = calculateRatings({
+      teams,
+      games: [],
+      season: 2026,
+      asOfWeek: 0,
+    });
+    const indiana = result.teams.find((t) => t.teamId === 1);
+    const ohio = result.teams.find((t) => t.teamId === 2);
+    assert.ok(indiana);
+    assert.equal(indiana.offenseRating, 8.5);
+    assert.equal(indiana.defenseRating, 6.2);
+    assert.equal(indiana.specialTeamsRating, 1.1);
+    assert.equal(indiana.talentRating, 78);
+    assert.ok(ohio.defenseRating > 0);
+    assert.ok(ohio.talentRating > indiana.talentRating);
+    // SOS needs games
+    assert.equal(indiana.sosRating, 0);
+  });
+
   it("backtest refuses future leakage by construction (ratings asOf week-1)", () => {
     const teams = [team(1, "A"), team(2, "B")];
     const games = [

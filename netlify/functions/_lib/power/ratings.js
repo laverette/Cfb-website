@@ -216,13 +216,27 @@ function calculateRatings(input) {
     offenseExplosivenessWeight: params.offenseExplosivenessWeight,
   };
 
-  // Games played counts + priors
+  // Games played counts + priors (unit-seeded, not all dumped into offense)
   const gamesPlayed = new Map(teamIds.map((id) => [id, 0]));
   const wins = new Map(teamIds.map((id) => [id, 0]));
   const losses = new Map(teamIds.map((id) => [id, 0]));
   const priors = new Map();
+  const priorOff = new Map();
+  const priorDef = new Map();
   for (const t of teams) {
-    priors.set(teamKey(t.id), buildPreseasonPrior(t, params));
+    const id = teamKey(t.id);
+    const overallPrior = buildPreseasonPrior(t, params);
+    priors.set(id, overallPrior);
+    const hasUnit =
+      Number.isFinite(t.preseasonOffense) || Number.isFinite(t.preseasonDefense);
+    if (hasUnit) {
+      priorOff.set(id, Number(t.preseasonOffense) || 0);
+      priorDef.set(id, Number(t.preseasonDefense) || 0);
+    } else {
+      // Fallback: split overall prior across units
+      priorOff.set(id, overallPrior * 0.55);
+      priorDef.set(id, overallPrior * 0.45);
+    }
   }
 
   const weightedGames = [];
@@ -262,13 +276,30 @@ function calculateRatings(input) {
     });
   }
 
-  const { offense, defense, iterations, maxDelta } = solveOpponentAdjusted({
-    games: weightedGames,
-    teamIds,
-    priorOff: priors,
-    priorDef: new Map(teamIds.map((id) => [id, 0])),
-    params,
-  });
+  const preseasonOnly = weightedGames.length === 0;
+
+  let offense;
+  let defense;
+  let iterations = 0;
+  let maxDelta = 0;
+
+  if (preseasonOnly) {
+    // No games yet — publish SP+/prior unit ratings directly
+    offense = new Map(priorOff);
+    defense = new Map(priorDef);
+  } else {
+    const solved = solveOpponentAdjusted({
+      games: weightedGames,
+      teamIds,
+      priorOff,
+      priorDef,
+      params,
+    });
+    offense = solved.offense;
+    defense = solved.defense;
+    iterations = solved.iterations;
+    maxDelta = solved.maxDelta;
+  }
 
   // Result / margin power (soft) with opponent adjustment via expected margin from OA ratings
   const resultAcc = new Map(teamIds.map((id) => [id, { sum: 0, w: 0 }]));
@@ -305,12 +336,16 @@ function calculateRatings(input) {
     resultPower.set(id, r && r.w > 0 ? r.sum / r.w : 0);
   }
 
-  // Special teams (small)
+  // Special teams (raw SP+/unit value for display; weight applied once in blend)
   const special = new Map();
   for (const t of teams) {
     const id = teamKey(t.id);
-    const st = Number.isFinite(t.specialTeamsRating) ? t.specialTeamsRating : 0;
-    special.set(id, st * params.specialTeamsWeight);
+    const st = Number.isFinite(t.specialTeamsRating)
+      ? t.specialTeamsRating
+      : Number.isFinite(t.preseasonSpecialTeams)
+        ? t.preseasonSpecialTeams
+        : 0;
+    special.set(id, st);
   }
 
   // Personnel adjustments
@@ -335,12 +370,19 @@ function calculateRatings(input) {
     const gp = gamesPlayed.get(id) || 0;
     const priorW = Math.exp(-(params.priorDecay || 0) * gp);
     const prior = (priors.get(id) || 0) * priorW;
-    const blended =
-      params.efficiencyWeight * (efficiencyPower.get(id) || 0) +
-      params.resultWeight * (resultPower.get(id) || 0) +
-      (special.get(id) || 0) +
-      prior +
-      (personnel.get(id) || 0);
+    const stContrib = (special.get(id) || 0) * params.specialTeamsWeight;
+    let blended;
+    if (preseasonOnly) {
+      // Preseason: overall prior already encodes SP+ + talent; add ST + personnel once
+      blended = (priors.get(id) || 0) + stContrib + (personnel.get(id) || 0);
+    } else {
+      blended =
+        params.efficiencyWeight * (efficiencyPower.get(id) || 0) +
+        params.resultWeight * (resultPower.get(id) || 0) +
+        stContrib +
+        prior +
+        (personnel.get(id) || 0);
+    }
     rawPower.set(id, blended);
   }
 
