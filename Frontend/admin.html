@@ -339,6 +339,7 @@
     <div id="adminApp" style="display: none;">
     <nav class="admin-jump" aria-label="Admin sections">
       <a href="#section-week">Active week</a>
+      <a href="#section-power">Power rankings</a>
       <a href="#section-picks">Weekly picks</a>
       <a href="#recruitMapAdminSection">Recruit map</a>
     </nav>
@@ -366,6 +367,33 @@
         </div>
       </div>
       <div id="weekStatus"></div>
+    </div>
+
+    <!-- Power Rankings -->
+    <div class="admin-section" id="section-power">
+      <h2>Power Rankings</h2>
+      <p class="section-lead">
+        Pull CFBD results through the week you choose, compute raw power ratings, and save a snapshot to Supabase.
+        Run this again after each week’s games are final so rankings stay current.
+      </p>
+      <div class="form-row-3">
+        <div class="form-group">
+          <label>Season year</label>
+          <input type="number" id="powerSeasonYear" value="2026" min="2015" max="2035">
+        </div>
+        <div class="form-group">
+          <label>Through week</label>
+          <input type="number" id="powerWeekNumber" value="1" min="0" max="20" title="0 = preseason priors only">
+        </div>
+        <div class="form-group" style="align-self: end;">
+          <button type="button" class="btn btn-primary" id="btnPowerRun" onclick="runPowerRankings()">Compute &amp; save rankings</button>
+        </div>
+      </div>
+      <div class="btn-row" style="margin-top:0.5rem;">
+        <a class="btn btn-secondary" href="power-rankings.html" target="_blank" rel="noopener">Open Power Rankings</a>
+        <a class="btn btn-secondary" href="predictor.html" target="_blank" rel="noopener">Open Matchup Predictor</a>
+      </div>
+      <div id="powerRunStatus" style="margin-top:0.75rem;"></div>
     </div>
 
     <!-- Weekly Picks Games -->
@@ -1248,6 +1276,99 @@
       return Number.isFinite(n) ? n : null;
     }
 
+    function syncPowerInputsFromActiveWeek() {
+      const seasonEl = document.getElementById('powerSeasonYear');
+      const weekEl = document.getElementById('powerWeekNumber');
+      if (!seasonEl || !weekEl) return;
+      const seasonSrc = document.getElementById('seasonYear');
+      const weekSrc = document.getElementById('weekNumber');
+      if (seasonSrc && seasonSrc.value) seasonEl.value = seasonSrc.value;
+      if (weekSrc && weekSrc.value) weekEl.value = weekSrc.value;
+      if (activeWeekNorm) {
+        if (activeWeekNorm.seasonYear != null) seasonEl.value = activeWeekNorm.seasonYear;
+        if (activeWeekNorm.weekNumber != null) weekEl.value = activeWeekNorm.weekNumber;
+      }
+    }
+
+    async function runPowerRankings() {
+      const status = document.getElementById('powerRunStatus');
+      const btn = document.getElementById('btnPowerRun');
+      const season = parseInt(document.getElementById('powerSeasonYear').value, 10);
+      const week = parseInt(document.getElementById('powerWeekNumber').value, 10);
+      if (!Number.isFinite(season)) {
+        status.innerHTML = '<div class="status-message status-error">Enter a valid season year.</div>';
+        return;
+      }
+      if (!Number.isFinite(week) || week < 0) {
+        status.innerHTML = '<div class="status-message status-error">Enter a valid through-week (0+).</div>';
+        return;
+      }
+
+      btn.disabled = true;
+      status.innerHTML =
+        '<div class="status-message">Computing power rankings through week ' +
+        week +
+        ' (' +
+        season +
+        ')… This can take a bit while CFBD data loads.</div>';
+
+      try {
+        const res = await fetch(API_BASE + '/api/power/run', {
+          method: 'POST',
+          headers: adminAuthHeaders(true),
+          body: JSON.stringify({ season, week }),
+        });
+        if (checkAdminFetch(res)) return;
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(data.details || data.error || res.statusText);
+        }
+
+        const top = Array.isArray(data.top5) ? data.top5 : [];
+        const topHtml = top.length
+          ? '<ol style="margin:0.5rem 0 0;padding-left:1.25rem;">' +
+            top
+              .map(function (t) {
+                const raw = Number(t.rawPower);
+                const sign = raw >= 0 ? '+' : '';
+                return (
+                  '<li><strong>' +
+                  (t.name || '') +
+                  '</strong> — raw ' +
+                  sign +
+                  raw.toFixed(1) +
+                  ', score ' +
+                  Number(t.powerScore).toFixed(1) +
+                  '</li>'
+                );
+              })
+              .join('') +
+            '</ol>'
+          : '';
+
+        status.innerHTML =
+          '<div class="status-message status-success">' +
+          'Saved snapshot for season <strong>' +
+          data.season +
+          '</strong>, through week <strong>' +
+          data.week +
+          '</strong> (' +
+          (data.teamCount || 0) +
+          ' teams).' +
+          topHtml +
+          '<div style="margin-top:0.65rem;"><a href="power-rankings.html" style="color:var(--admin-accent);font-weight:700;">View Power Rankings →</a></div>' +
+          '</div>';
+      } catch (e) {
+        console.error(e);
+        status.innerHTML =
+          '<div class="status-message status-error">Failed: ' +
+          String(e.message || e) +
+          '</div>';
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
     async function refreshWeeks() {
       try {
         const res = await fetch(`${API_BASE}/api/admin/weeks`, {
@@ -1293,6 +1414,7 @@
         document.getElementById('weekNumber').value = activeWeekNorm.weekNumber;
         document.getElementById('cfbdSeasonYear').value = activeWeekNorm.seasonYear;
         document.getElementById('cfbdWeekNumber').value = activeWeekNorm.weekNumber;
+        syncPowerInputsFromActiveWeek();
       } catch (e) {
         console.error(e);
         el.innerHTML = `<p style="color:#f44336;">${e.message}</p>`;
