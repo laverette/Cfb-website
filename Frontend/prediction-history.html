@@ -25,8 +25,9 @@
 
   <main class="container page-shell lb-page">
     <header class="lb-header">
-      <h1 class="page-title">Leaderboards</h1>
-      <p class="lb-subtitle">Every picker on the board. Tap a name for their profile.</p>
+      <p class="lb-eyebrow lb-eyebrow-pulse">Season standings</p>
+      <h1 class="page-title">🏆 Leaderboards</h1>
+      <p class="lb-subtitle">Chase the crown, ride the 🔥 streaks, and tap a name for their full profile.</p>
     </header>
 
     <section id="myStatsCard" class="section-card lb-my-stats" hidden>
@@ -34,6 +35,7 @@
         <div>
           <p class="lb-eyebrow">Your stats</p>
           <h2 id="myStatsName" class="gold-heading" style="margin:0;">—</h2>
+          <p id="myStatsStreak" class="lb-my-streak"></p>
         </div>
         <a id="myProfileLink" class="btn btn-brown btn-sm" href="user-profile.html">View profile</a>
       </div>
@@ -51,11 +53,52 @@
       <select id="yearSelect" class="site-select"></select>
     </div>
 
+    <section id="podiumSection" class="lb-podium" hidden></section>
+
+    <section id="highlightsSection" class="lb-highlights" hidden>
+      <div class="lb-highlight-card lb-highlight-hot">
+        <h3>🔥 On Fire</h3>
+        <ul id="hotList" class="lb-highlight-list"></ul>
+      </div>
+      <div class="lb-highlight-card lb-highlight-cold">
+        <h3>❄️ Ice Cold</h3>
+        <ul id="coldList" class="lb-highlight-list"></ul>
+      </div>
+    </section>
+
     <section class="section-card lb-board-card">
       <div class="lb-board-head">
-        <h2 id="boardTitle" class="gold-heading" style="margin:0;">All Time</h2>
-        <p id="boardHint" class="lb-hint"></p>
+        <div>
+          <h2 id="boardTitle" class="gold-heading" style="margin:0;">All Time</h2>
+          <p id="boardHint" class="lb-hint"></p>
+        </div>
+        <div class="lb-board-tools">
+          <label class="lb-search-wrap">
+            <span class="visually-hidden">Search players</span>
+            <input id="playerSearch" type="search" class="lb-search" placeholder="Search players…" autocomplete="off">
+          </label>
+          <label class="lb-sort-wrap">
+            <span class="visually-hidden">Sort by</span>
+            <select id="sortSelect" class="site-select lb-sort">
+              <option value="rank">Sort: Rank</option>
+              <option value="accuracy">Sort: Accuracy</option>
+              <option value="streak">Sort: Streak</option>
+              <option value="best">Sort: Best streak</option>
+              <option value="name">Sort: Name</option>
+            </select>
+          </label>
+        </div>
       </div>
+
+      <div class="lb-legend" aria-label="Streak legend">
+        <span><span class="lb-temp lb-temp-blazing">🔥🔥🔥</span> 5+ hot</span>
+        <span><span class="lb-temp lb-temp-hot">🔥</span> 3–4 hot</span>
+        <span><span class="lb-temp lb-temp-warm">🌡️</span> 1–2 warm</span>
+        <span><span class="lb-temp lb-temp-cool">😐</span> even</span>
+        <span><span class="lb-temp lb-temp-cold">❄️</span> 3–4 cold</span>
+        <span><span class="lb-temp lb-temp-frozen">🧊</span> 5+ cold</span>
+      </div>
+
       <div id="boardBody" class="lb-board-body">
         <p class="lb-loading">Loading leaderboard…</p>
       </div>
@@ -72,6 +115,8 @@
     let availableYears = [];
     let currentSeasonYear = null;
     let boardCache = {};
+    let latestEntries = [];
+    let latestHighlights = { hottest: [], coldest: [] };
 
     function escapeHtml(text) {
       return String(text ?? '')
@@ -97,6 +142,47 @@
       return `user-profile.html?id=${encodeURIComponent(user.userId || user.id)}`;
     }
 
+    function streakMeta(streak) {
+      const n = Number(streak) || 0;
+      if (n >= 5) return { emoji: '🔥🔥🔥', label: `${n} hot`, className: 'lb-temp-blazing', abs: n };
+      if (n >= 3) return { emoji: '🔥', label: `${n} hot`, className: 'lb-temp-hot', abs: n };
+      if (n >= 1) return { emoji: '🌡️', label: `${n} warm`, className: 'lb-temp-warm', abs: n };
+      if (n <= -5) return { emoji: '🧊', label: `${Math.abs(n)} cold`, className: 'lb-temp-frozen', abs: Math.abs(n) };
+      if (n <= -3) return { emoji: '❄️', label: `${Math.abs(n)} cold`, className: 'lb-temp-cold', abs: Math.abs(n) };
+      if (n <= -1) return { emoji: '💨', label: `${Math.abs(n)} chill`, className: 'lb-temp-chill', abs: Math.abs(n) };
+      return { emoji: '😐', label: 'Even', className: 'lb-temp-cool', abs: 0 };
+    }
+
+    function streakBadge(streak) {
+      const meta = streakMeta(streak);
+      return `<span class="lb-streak ${meta.className}" title="${escapeHtml(meta.label)}">${meta.emoji} <strong>${meta.abs || '—'}</strong></span>`;
+    }
+
+    function formDots(form) {
+      const items = Array.isArray(form) ? form : [];
+      if (!items.length) return '<span class="lb-form-empty">—</span>';
+      return `<span class="lb-form" title="Last ${items.length} graded picks">${items.map((r) =>
+        `<span class="lb-form-dot ${r === 'W' ? 'is-win' : 'is-loss'}" aria-label="${r === 'W' ? 'Win' : 'Loss'}">${r}</span>`
+      ).join('')}</span>`;
+    }
+
+    function accuracyBar(pct) {
+      const value = Math.max(0, Math.min(100, Number(pct) || 0));
+      return `
+        <div class="lb-acc">
+          <span class="lb-acc-num">${value.toFixed(1)}%</span>
+          <span class="lb-acc-track" aria-hidden="true"><span class="lb-acc-fill" style="width:${value}%"></span></span>
+        </div>
+      `;
+    }
+
+    function rankMedal(rank) {
+      if (rank === 1) return '🥇';
+      if (rank === 2) return '🥈';
+      if (rank === 3) return '🥉';
+      return String(rank);
+    }
+
     async function fetchBoard(scope, year) {
       const key = `${scope}:${year || ''}`;
       if (boardCache[key]) return boardCache[key];
@@ -109,19 +195,93 @@
       return data;
     }
 
-    function renderBoard(data) {
-      const body = document.getElementById('boardBody');
-      const title = document.getElementById('boardTitle');
-      const hint = document.getElementById('boardHint');
-      title.textContent = data.scopeLabel || 'Leaderboard';
-      hint.textContent = data.viewerHint || '';
+    function renderPodium(entries) {
+      const section = document.getElementById('podiumSection');
+      const top = (entries || []).filter((e) => e.gradedPicks > 0).slice(0, 3);
+      if (top.length < 1) {
+        section.hidden = true;
+        section.innerHTML = '';
+        return;
+      }
+      section.hidden = false;
+      section.className = `lb-podium lb-podium-${Math.min(top.length, 3)}`;
+      const order = top.length >= 3 ? [top[1], top[0], top[2]] : top;
+      const places = top.length >= 3 ? [2, 1, 3] : top.map((_, i) => i + 1);
+      section.innerHTML = order.map((e, i) => {
+        const place = places[i];
+        const meta = streakMeta(e.currentStreak);
+        return `
+          <article class="lb-podium-card place-${place}">
+            <div class="lb-podium-medal">${rankMedal(place)}</div>
+            <a class="lb-podium-name" href="${profileHref(e)}">${escapeHtml(e.displayName || e.username)}</a>
+            <p class="lb-podium-record">${recordLabel(e)} · ${Number(e.accuracy || 0).toFixed(1)}%</p>
+            <p class="lb-podium-streak ${meta.className}">${meta.emoji} ${meta.label}</p>
+            <div class="lb-podium-stand" aria-hidden="true"></div>
+          </article>
+        `;
+      }).join('');
+    }
 
-      const entries = Array.isArray(data.entries) ? data.entries : [];
+    function renderHighlights(highlights) {
+      const section = document.getElementById('highlightsSection');
+      const hot = (highlights && highlights.hottest) || [];
+      const cold = (highlights && highlights.coldest) || [];
+      if (!hot.length && !cold.length) {
+        section.hidden = true;
+        return;
+      }
+      section.hidden = false;
+      document.getElementById('hotList').innerHTML = hot.length
+        ? hot.map((e) => `
+            <li>
+              <a href="${profileHref(e)}">${escapeHtml(e.displayName || e.username)}</a>
+              <span class="lb-temp lb-temp-hot">🔥 ${e.currentStreak}</span>
+            </li>`).join('')
+        : '<li class="lb-highlight-empty">No 3+ hot streaks yet</li>';
+      document.getElementById('coldList').innerHTML = cold.length
+        ? cold.map((e) => `
+            <li>
+              <a href="${profileHref(e)}">${escapeHtml(e.displayName || e.username)}</a>
+              <span class="lb-temp lb-temp-cold">❄️ ${Math.abs(e.currentStreak)}</span>
+            </li>`).join('')
+        : '<li class="lb-highlight-empty">Nobody iced… yet</li>';
+    }
+
+    function sortedFilteredEntries() {
+      const q = (document.getElementById('playerSearch').value || '').trim().toLowerCase();
+      const sort = document.getElementById('sortSelect').value || 'rank';
+      let rows = [...latestEntries];
+      if (q) {
+        rows = rows.filter((e) => {
+          const name = String(e.displayName || '').toLowerCase();
+          const user = String(e.username || '').toLowerCase();
+          return name.includes(q) || user.includes(q);
+        });
+      }
+      rows.sort((a, b) => {
+        if (sort === 'accuracy') return (b.accuracy || 0) - (a.accuracy || 0) || a.rank - b.rank;
+        if (sort === 'streak') return (b.currentStreak || 0) - (a.currentStreak || 0) || a.rank - b.rank;
+        if (sort === 'best') return (b.bestStreak || 0) - (a.bestStreak || 0) || a.rank - b.rank;
+        if (sort === 'name') {
+          return String(a.displayName || a.username || '').localeCompare(String(b.displayName || b.username || ''));
+        }
+        return a.rank - b.rank;
+      });
+      return rows;
+    }
+
+    function renderTable() {
+      const body = document.getElementById('boardBody');
       const me = currentUser();
       const myId = me && me.id != null ? Number(me.id) : null;
+      const entries = sortedFilteredEntries();
 
-      if (!entries.length) {
+      if (!latestEntries.length) {
         body.innerHTML = '<p class="lb-empty">No users yet.</p>';
+        return;
+      }
+      if (!entries.length) {
+        body.innerHTML = '<p class="lb-empty">No players match that search.</p>';
         return;
       }
 
@@ -134,25 +294,32 @@
                 <th>Player</th>
                 <th>Record</th>
                 <th>Pct</th>
+                <th>Streak</th>
+                <th>Form</th>
+                <th>Best</th>
                 <th>Pending</th>
               </tr>
             </thead>
             <tbody>
               ${entries.map((e) => {
                 const isMe = myId != null && Number(e.userId) === myId;
+                const temp = streakMeta(e.currentStreak);
                 return `
-                  <tr class="${isMe ? 'is-me' : ''}">
-                    <td class="lb-rank">${e.rank}</td>
-                    <td>
+                  <tr class="${isMe ? 'is-me' : ''} ${temp.className}-row">
+                    <td class="lb-rank" data-label="#">${rankMedal(e.rank)}</td>
+                    <td data-label="Player">
                       <a class="lb-player-link" href="${profileHref(e)}">
                         <span class="lb-player-name">${escapeHtml(e.displayName || e.username)}</span>
                         <span class="lb-player-user">@${escapeHtml(e.username)}</span>
                       </a>
                       ${isMe ? '<span class="lb-you-pill">You</span>' : ''}
                     </td>
-                    <td class="lb-record">${recordLabel(e)}</td>
-                    <td class="lb-pct">${Number(e.accuracy || 0).toFixed(1)}%</td>
-                    <td class="lb-pending">${e.pendingPicks || 0}</td>
+                    <td class="lb-record" data-label="Record">${recordLabel(e)}</td>
+                    <td class="lb-pct" data-label="Pct">${accuracyBar(e.accuracy)}</td>
+                    <td class="lb-streak-cell" data-label="Streak">${streakBadge(e.currentStreak)}</td>
+                    <td class="lb-form-cell" data-label="Form">${formDots(e.recentForm)}</td>
+                    <td class="lb-best" data-label="Best">${e.bestStreak ? `🔥 ${e.bestStreak}` : '—'}</td>
+                    <td class="lb-pending" data-label="Pending">${e.pendingPicks || 0}</td>
                   </tr>
                 `;
               }).join('')}
@@ -160,6 +327,18 @@
           </table>
         </div>
       `;
+    }
+
+    function renderBoard(data) {
+      const title = document.getElementById('boardTitle');
+      const hint = document.getElementById('boardHint');
+      title.textContent = data.scopeLabel || 'Leaderboard';
+      hint.textContent = data.viewerHint || '';
+      latestEntries = Array.isArray(data.entries) ? data.entries : [];
+      latestHighlights = data.highlights || { hottest: [], coldest: [] };
+      renderPodium(latestEntries);
+      renderHighlights(latestHighlights);
+      renderTable();
     }
 
     function renderMyStats(allTimeEntry, seasonEntry) {
@@ -176,12 +355,28 @@
         id: me.id,
       });
 
-      const a = allTimeEntry || { correctPicks: 0, incorrectPicks: 0, accuracy: 0, pendingPicks: 0 };
-      const s = seasonEntry || { correctPicks: 0, incorrectPicks: 0, accuracy: 0, pendingPicks: 0 };
+      const a = allTimeEntry || { correctPicks: 0, incorrectPicks: 0, accuracy: 0, pendingPicks: 0, currentStreak: 0, bestStreak: 0 };
+      const s = seasonEntry || { correctPicks: 0, incorrectPicks: 0, accuracy: 0, pendingPicks: 0, currentStreak: 0, bestStreak: 0 };
+      const streak = streakMeta(s.currentStreak || a.currentStreak);
+      document.getElementById('myStatsStreak').innerHTML =
+        `<span class="lb-streak ${streak.className}">${streak.emoji} Season streak: <strong>${streak.label}</strong></span>`;
+
       document.getElementById('myStatsGrid').innerHTML = `
-        <div class="lb-stat"><span class="lb-stat-label">All-time</span><strong>${a.correctPicks || 0}-${a.incorrectPicks || 0}</strong><span>${Number(a.accuracy || 0).toFixed(1)}%</span></div>
-        <div class="lb-stat"><span class="lb-stat-label">This season</span><strong>${s.correctPicks || 0}-${s.incorrectPicks || 0}</strong><span>${Number(s.accuracy || 0).toFixed(1)}%</span></div>
-        <div class="lb-stat"><span class="lb-stat-label">Pending</span><strong>${(a.pendingPicks || 0)}</strong><span>ungraded picks</span></div>
+        <div class="lb-stat">
+          <span class="lb-stat-label">All-time</span>
+          <strong>${a.correctPicks || 0}-${a.incorrectPicks || 0}</strong>
+          <span>${Number(a.accuracy || 0).toFixed(1)}%</span>
+        </div>
+        <div class="lb-stat">
+          <span class="lb-stat-label">This season</span>
+          <strong>${s.correctPicks || 0}-${s.incorrectPicks || 0}</strong>
+          <span>${Number(s.accuracy || 0).toFixed(1)}%</span>
+        </div>
+        <div class="lb-stat lb-stat-streak">
+          <span class="lb-stat-label">Best streak</span>
+          <strong>🔥 ${Math.max(a.bestStreak || 0, s.bestStreak || 0)}</strong>
+          <span>${a.pendingPicks || 0} pending</span>
+        </div>
       `;
     }
 
@@ -195,6 +390,8 @@
     async function loadActiveBoard() {
       const body = document.getElementById('boardBody');
       body.innerHTML = '<p class="lb-loading">Loading leaderboard…</p>';
+      document.getElementById('podiumSection').hidden = true;
+      document.getElementById('highlightsSection').hidden = true;
       const yearRow = document.getElementById('yearRow');
       yearRow.hidden = activeScope !== 'year';
 
@@ -244,6 +441,9 @@
       boardCache = {};
       loadActiveBoard();
     });
+
+    document.getElementById('playerSearch').addEventListener('input', renderTable);
+    document.getElementById('sortSelect').addEventListener('change', renderTable);
 
     document.addEventListener('DOMContentLoaded', loadActiveBoard);
   </script>

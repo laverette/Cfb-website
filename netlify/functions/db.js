@@ -464,6 +464,11 @@ function emptyPickBucket() {
     incorrectPicks: 0,
     pendingPicks: 0,
     accuracy: 0,
+    currentStreak: 0,
+    bestStreak: 0,
+    worstStreak: 0,
+    recentForm: [],
+    _gradedChrono: [],
   };
 }
 
@@ -471,17 +476,60 @@ function finalizeBucket(bucket) {
   const graded = Number(bucket.gradedPicks) || 0;
   const correct = Number(bucket.correctPicks) || 0;
   bucket.accuracy = graded > 0 ? Math.round((correct / graded) * 10000) / 100 : 0;
+
+  const chrono = Array.isArray(bucket._gradedChrono) ? bucket._gradedChrono : [];
+  chrono.sort((a, b) => {
+    if (a.seasonYear !== b.seasonYear) return (a.seasonYear || 0) - (b.seasonYear || 0);
+    if (a.weekNumber !== b.weekNumber) return (a.weekNumber || 0) - (b.weekNumber || 0);
+    if (a.gameNumber !== b.gameNumber) return (a.gameNumber || 0) - (b.gameNumber || 0);
+    return (a.submittedAt || 0) - (b.submittedAt || 0);
+  });
+
+  let best = 0;
+  let worst = 0;
+  let run = 0;
+  for (const pick of chrono) {
+    if (pick.correct) {
+      run = run > 0 ? run + 1 : 1;
+      if (run > best) best = run;
+    } else {
+      run = run < 0 ? run - 1 : -1;
+      if (run < worst) worst = run;
+    }
+  }
+
+  let current = 0;
+  if (chrono.length) {
+    const last = chrono[chrono.length - 1].correct;
+    current = last ? 1 : -1;
+    for (let i = chrono.length - 2; i >= 0; i -= 1) {
+      if (chrono[i].correct !== last) break;
+      current += last ? 1 : -1;
+    }
+  }
+
+  bucket.currentStreak = current;
+  bucket.bestStreak = best;
+  bucket.worstStreak = Math.abs(worst);
+  bucket.recentForm = chrono.slice(-5).map((p) => (p.correct ? "W" : "L"));
+  delete bucket._gradedChrono;
   return bucket;
 }
 
-function addPickToBucket(bucket, isCorrect) {
+function addPickToBucket(bucket, isCorrect, meta = null) {
   bucket.totalPicks += 1;
   if (isCorrect === true) {
     bucket.gradedPicks += 1;
     bucket.correctPicks += 1;
+    if (meta) {
+      bucket._gradedChrono.push({ ...meta, correct: true });
+    }
   } else if (isCorrect === false) {
     bucket.gradedPicks += 1;
     bucket.incorrectPicks += 1;
+    if (meta) {
+      bucket._gradedChrono.push({ ...meta, correct: false });
+    }
   } else {
     bucket.pendingPicks += 1;
   }
@@ -566,7 +614,9 @@ async function getLeaderboard({ scope = "all", year = null } = {}) {
   const picks = await selectAllPages(() =>
     supabase
       .from("user_picks")
-      .select("user_id, is_correct, week_id, weeks ( season_year, week_number )")
+      .select(
+        "user_id, is_correct, week_id, submitted_at, weeks ( season_year, week_number ), games ( game_number )"
+      )
   );
 
   const byUser = new Map();
@@ -585,12 +635,43 @@ async function getLeaderboard({ scope = "all", year = null } = {}) {
     if (!byUser.has(uid)) continue;
     const seasonYear = pick.weeks?.season_year != null ? Number(pick.weeks.season_year) : null;
     if (filterYear != null && seasonYear !== filterYear) continue;
-    addPickToBucket(byUser.get(uid), pick.is_correct);
+    addPickToBucket(byUser.get(uid), pick.is_correct, {
+      seasonYear,
+      weekNumber: pick.weeks?.week_number != null ? Number(pick.weeks.week_number) : 0,
+      gameNumber: pick.games?.game_number != null ? Number(pick.games.game_number) : 0,
+      submittedAt: pick.submitted_at ? new Date(pick.submitted_at).getTime() : 0,
+    });
   }
 
   const entries = rankRows(
     [...byUser.values()].map((row) => finalizeBucket(row))
   );
+
+  const withStreaks = entries.filter((e) => e.gradedPicks > 0);
+  const hottest = [...withStreaks]
+    .filter((e) => e.currentStreak >= 3)
+    .sort((a, b) => b.currentStreak - a.currentStreak || b.accuracy - a.accuracy)
+    .slice(0, 5)
+    .map((e) => ({
+      userId: e.userId,
+      username: e.username,
+      displayName: e.displayName,
+      rank: e.rank,
+      currentStreak: e.currentStreak,
+      accuracy: e.accuracy,
+    }));
+  const coldest = [...withStreaks]
+    .filter((e) => e.currentStreak <= -3)
+    .sort((a, b) => a.currentStreak - b.currentStreak || a.accuracy - b.accuracy)
+    .slice(0, 5)
+    .map((e) => ({
+      userId: e.userId,
+      username: e.username,
+      displayName: e.displayName,
+      rank: e.rank,
+      currentStreak: e.currentStreak,
+      accuracy: e.accuracy,
+    }));
 
   return {
     scope,
@@ -599,8 +680,9 @@ async function getLeaderboard({ scope = "all", year = null } = {}) {
     currentSeasonYear,
     availableYears: seasons.length ? seasons : [currentSeasonYear],
     entries,
+    highlights: { hottest, coldest },
     viewerHint:
-      "Ranked by correct picks, then accuracy. Graded games only count toward W-L; pending picks are shown separately.",
+      "Ranked by correct picks, then accuracy. 🔥 Hot and ❄️ cold streaks are consecutive graded picks.",
   };
 }
 
@@ -651,14 +733,21 @@ async function getPublicUserProfile({ userId = null, username = null } = {}) {
   const byWeek = new Map();
 
   for (const pick of picks) {
-    addPickToBucket(allTime, pick.is_correct);
     const seasonYear = pick.weeks?.season_year != null ? Number(pick.weeks.season_year) : null;
     const weekNumber = pick.weeks?.week_number != null ? Number(pick.weeks.week_number) : null;
     const weekId = pick.week_id != null ? Number(pick.week_id) : null;
+    const pickMeta = {
+      seasonYear,
+      weekNumber: weekNumber || 0,
+      gameNumber: pick.games?.game_number != null ? Number(pick.games.game_number) : 0,
+      submittedAt: pick.submitted_at ? new Date(pick.submitted_at).getTime() : 0,
+    };
+
+    addPickToBucket(allTime, pick.is_correct, pickMeta);
 
     if (seasonYear != null) {
       if (!bySeason.has(seasonYear)) bySeason.set(seasonYear, emptyPickBucket());
-      addPickToBucket(bySeason.get(seasonYear), pick.is_correct);
+      addPickToBucket(bySeason.get(seasonYear), pick.is_correct, pickMeta);
     }
 
     if (weekId != null) {
@@ -673,7 +762,7 @@ async function getPublicUserProfile({ userId = null, username = null } = {}) {
         });
       }
       const weekBucket = byWeek.get(weekId);
-      addPickToBucket(weekBucket, pick.is_correct);
+      addPickToBucket(weekBucket, pick.is_correct, pickMeta);
       if (
         pick.submitted_at &&
         (!weekBucket.submittedAt ||
