@@ -3,8 +3,8 @@
  * Team list for matchup dropdowns (from latest snapshot or live CFBD FBS list).
  */
 const { json } = require("./_http");
-const store = require("./lib/power/store");
-const { ingestSeasonFromCfbd } = require("./lib/power");
+const store = require("./_lib/power/store");
+const { ingestSeasonFromCfbd } = require("./_lib/power");
 
 function readCfbdKey() {
   return (process.env.CFBD_API_KEY && String(process.env.CFBD_API_KEY).trim()) || "";

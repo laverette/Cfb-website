@@ -3,8 +3,8 @@
  * Body: { teamAId, teamBId, venue: 'a_home'|'b_home'|'neutral', personnelA?, personnelB?, season?, week? }
  */
 const { json, parseJsonBody } = require("./_http");
-const { predictMatchup, ingestSeasonFromCfbd, calculateRatings } = require("./lib/power");
-const store = require("./lib/power/store");
+const { predictMatchup, ingestSeasonFromCfbd, calculateRatings } = require("./_lib/power");
+const store = require("./_lib/power/store");
 
 function readCfbdKey() {
   return (process.env.CFBD_API_KEY && String(process.env.CFBD_API_KEY).trim()) || "";

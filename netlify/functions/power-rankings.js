@@ -4,8 +4,8 @@
  * If no snapshot exists and CFBD_API_KEY is set, computes live (does not persist unless ?persist=1 & admin).
  */
 const { json } = require("./_http");
-const { calculateRatings, ingestSeasonFromCfbd } = require("./lib/power");
-const store = require("./lib/power/store");
+const { calculateRatings, ingestSeasonFromCfbd } = require("./_lib/power");
+const store = require("./_lib/power/store");
 
 function readCfbdKey() {
   return (process.env.CFBD_API_KEY && String(process.env.CFBD_API_KEY).trim()) || "";

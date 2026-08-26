@@ -5,6 +5,12 @@
 [build.environment]
   SUPABASE_URL = "https://nkxitcvsqnmcsvvkndyx.supabase.co"
 
+[functions]
+  node_bundler = "esbuild"
+
+[functions."power-run"]
+  timeout = 26
+
 [dev]
   publish = "Frontend"
   functions = "netlify/functions"

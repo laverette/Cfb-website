@@ -11,7 +11,7 @@ const power = require(path.join(
   "..",
   "netlify",
   "functions",
-  "lib",
+  "_lib",
   "power"
 ));
 

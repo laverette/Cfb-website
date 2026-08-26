@@ -2,11 +2,17 @@
  * POST /api/power/run
  * Admin: ingest CFBD through week, calculate ratings, persist weekly snapshot.
  * Body: { season, week, seasonType? }
+ * week 0 = preseason priors only (fast path).
  */
 const { json, parseJsonBody } = require("./_http");
 const { requireAdmin } = require("./_auth");
-const { ingestSeasonFromCfbd, calculateRatings } = require("./lib/power");
-const store = require("./lib/power/store");
+const { ingestSeasonFromCfbd, calculateRatings } = require("./_lib/power");
+const store = require("./_lib/power/store");
+
+/** Netlify: allow longer CFBD ingest on paid plans; free tier still caps ~10s. */
+exports.config = {
+  maxDuration: 26,
+};
 
 function readCfbdKey() {
   return (process.env.CFBD_API_KEY && String(process.env.CFBD_API_KEY).trim()) || "";
@@ -24,19 +30,27 @@ exports.handler = async (event) => {
   if (auth.error) return auth.error;
 
   if (!store.hasSupabase()) {
-    return json(503, { error: "Supabase is not configured" });
+    return json(503, {
+      error: "Supabase is not configured",
+      details: "Set SUPABASE_SERVICE_ROLE_KEY for Netlify Functions.",
+    });
   }
 
   const apiKey = readCfbdKey();
   if (!apiKey) {
-    return json(503, { error: "CFBD_API_KEY is not configured" });
+    return json(503, {
+      error: "CFBD_API_KEY is not configured",
+      details: "Add CFBD_API_KEY to Netlify env (Functions scope), then redeploy.",
+    });
   }
 
   const body = parseJsonBody(event) || {};
   const season = Number(body.season) || new Date().getFullYear();
   const week = Number(body.week);
   if (!Number.isFinite(week) || week < 0) {
-    return json(400, { error: "week is required (0+). Use 0 for preseason-only prior snapshot." });
+    return json(400, {
+      error: "week is required (0+). Use 0 for preseason-only prior snapshot.",
+    });
   }
 
   try {
@@ -85,6 +99,7 @@ exports.handler = async (event) => {
 
     return json(200, {
       ok: true,
+      mode: ingested.mode || (week <= 0 ? "preseason" : "inseason"),
       season: result.season,
       week: result.week,
       teamCount: result.teams.length,
@@ -98,9 +113,13 @@ exports.handler = async (event) => {
     });
   } catch (err) {
     console.error("power-run:", err);
-    return json(500, {
-      error: "Failed to run power ratings",
-      details: err && err.message ? String(err.message).slice(0, 300) : "unknown",
+    const msg = err && err.message ? String(err.message) : "unknown";
+    const looksTimeout = /abort|timeout|TIMEDOUT|deadline/i.test(msg);
+    return json(looksTimeout ? 504 : 500, {
+      error: looksTimeout
+        ? "Power ratings timed out"
+        : "Failed to run power ratings",
+      details: msg.slice(0, 400),
     });
   }
 };

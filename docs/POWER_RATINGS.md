@@ -35,7 +35,7 @@ CFBD API → ingest-cfbd.js → normalized teams/games
 
 Code lives under:
 
-- `netlify/functions/lib/power/` — pure engine (config, OA solver, ratings, predict, explain, backtest, ingest)
+- `netlify/functions/_lib/power/` — pure engine (config, OA solver, ratings, predict, explain, backtest, ingest)
 - `netlify/functions/power-*.js` — HTTP handlers
 - `sql/power_ratings_schema.sql` — persistence
 - `Frontend/power-rankings.html`, `Frontend/predictor.html` — UI
@@ -54,7 +54,7 @@ Code lives under:
 | Personnel adj | Manual point impacts (QB out, etc.) |
 | HFA | Configurable flat home advantage (default **2.5** — placeholder) |
 
-All weights live in `lib/power/config.js` via `getModelParams()`. **Defaults are not statistically proven** — calibrate with backtests.
+All weights live in `_lib/power/config.js` via `getModelParams()`. **Defaults are not statistically proven** — calibrate with backtests.
 
 ## APIs
 
@@ -108,7 +108,7 @@ P(A) = 1 / (1 + exp(-projected_margin / tau))
 ## Backtesting
 
 ```js
-const { runBacktest } = require("./netlify/functions/lib/power");
+const { runBacktest } = require("./netlify/functions/_lib/power");
 runBacktest({ teams, games, season, weeksToTest: [4,5,6,7] });
 ```
 

@@ -1321,7 +1321,11 @@
         if (checkAdminFetch(res)) return;
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
-          throw new Error(data.details || data.error || res.statusText);
+          const hint =
+            res.status === 502 || res.status === 504
+              ? ' Gateway timeout/crash — redeploy so power-run is live, confirm CFBD_API_KEY is set for Functions, then retry week 0 (preseason is lighter now).'
+              : '';
+          throw new Error((data.details || data.error || res.statusText) + hint);
         }
 
         const top = Array.isArray(data.top5) ? data.top5 : [];
