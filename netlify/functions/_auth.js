@@ -110,11 +110,22 @@ function requireAdmin(event) {
   return null;
 }
 
+function optionalAuth(event) {
+  const mis = jwtSecretOr500();
+  if (mis) return { payload: null };
+  const token = getBearerToken(event);
+  if (!token) return { payload: null };
+  const payload = verifyUserToken(token);
+  if (!payload || payload.userId == null) return { payload: null };
+  return { payload };
+}
+
 module.exports = {
   getBearerToken,
   signUserToken,
   verifyUserToken,
   requireAuth,
   requireAdmin,
+  optionalAuth,
   jwtSecretOr500,
 };

@@ -96,6 +96,9 @@
         const user = data.user || {};
         const stats = data.stats || {};
         const weeks = Array.isArray(data.weeks) ? data.weeks : [];
+        const bama = data.bamaSchedule || null;
+        const bamaStats = bama && bama.stats ? bama.stats : null;
+        const bamaPreds = bama && Array.isArray(bama.predictions) ? bama.predictions : [];
         const streak = Number(stats.allTime?.currentStreak || 0);
         const streakEmoji = streak >= 5 ? '🔥🔥🔥' : streak >= 3 ? '🔥' : streak >= 1 ? '🌡️' : streak <= -5 ? '🧊' : streak <= -3 ? '❄️' : streak <= -1 ? '💨' : '😐';
         const streakLabel = streak === 0 ? 'Even' : `${Math.abs(streak)} ${streak > 0 ? 'hot' : 'cold'}`;
@@ -140,6 +143,43 @@
               </div>
             ` : ''}
           </section>
+
+          ${bamaStats && bamaStats.totalPicks > 0 ? `
+          <section class="section-card">
+            <h2 class="gold-heading" style="text-align:center;">🐘 Bama Schedule (${escapeHtml(String(bama.season || ''))})</h2>
+            <div class="lb-stat-grid">
+              <div class="lb-stat">
+                <span class="lb-stat-label">Record</span>
+                <strong>${bamaStats.correctPicks}-${bamaStats.incorrectPicks}</strong>
+                <span>${bamaStats.gradedPicks ? bamaStats.accuracy + '% accuracy' : 'No graded games yet'}</span>
+              </div>
+              <div class="lb-stat">
+                <span class="lb-stat-label">Games picked</span>
+                <strong>${bamaStats.predictedGames}</strong>
+                <span>${bamaStats.pendingPicks} pending</span>
+              </div>
+              <div class="lb-stat">
+                <span class="lb-stat-label">Score accuracy</span>
+                <strong>${bamaStats.avgScoreError != null ? bamaStats.avgScoreError + ' avg off' : '—'}</strong>
+                <span><a href="bama.html#leaderboard">View leaderboard</a></span>
+              </div>
+            </div>
+            <div class="lb-pick-grid" style="margin-top:1rem;">
+              ${bamaPreds.map((p) => {
+                const g = p.game || {};
+                const graded = p.grades && p.grades.isWinnerCorrect != null;
+                const cls = !graded ? '' : p.grades.isWinnerCorrect ? 'lb-pick-win' : 'lb-pick-loss';
+                const result = !graded ? 'Pending' : p.grades.isWinnerCorrect ? '✓' : '✗';
+                const actual = g.completed && g.alabamaScore != null ? ` · Final ${g.alabamaScore}-${g.opponentScore}` : '';
+                return `
+                  <div class="lb-pick-chip ${cls}">
+                    <span class="lb-pick-game">Week ${escapeHtml(p.week)} vs ${escapeHtml(p.opponent || g.opponent || '—')}</span>
+                    <strong>${p.predictedAlabamaWin ? 'Bama W' : 'Bama L'} ${p.predictedAlabamaScore}-${p.predictedOpponentScore}</strong>
+                    <span class="lb-pick-result">${result}${actual}</span>
+                  </div>`;
+              }).join('')}
+            </div>
+          </section>` : ''}
 
           <section class="section-card">
             <h2 class="gold-heading" style="text-align:center;">Pick history</h2>

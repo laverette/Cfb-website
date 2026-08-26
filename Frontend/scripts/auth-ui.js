@@ -13,7 +13,7 @@
       label: "📅 Picks & Predictions",
       items: [
         { href: "weeklypicks.html", label: "📅 Weekly Picks" },
-        { href: "mypredictions.html", label: "📊 My Picks" },
+        { href: "bama.html", label: "🐘 Bama Schedule" },
         { href: "prediction-history.html", label: "🏆 Leaderboards" },
         { href: "user-profile.html", label: "👤 My Profile" },
         { href: "power-rankings.html", label: "📈 Power Rankings" },
@@ -26,7 +26,6 @@
       items: [
         { href: "teams.html", label: "🏈 Teams" },
         { href: "list.html", label: "👑 Heisman" },
-        { href: "bama.html", label: "🐘 Bama Schedule" },
         { href: "recruitmap.html", label: "🗺️ Recruit Map" },
       ]
     }

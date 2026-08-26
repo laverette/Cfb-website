@@ -861,4 +861,8 @@ module.exports = {
   getLeaderboard,
   getPublicUserProfile,
   listSeasonYears,
+  emptyPickBucket,
+  finalizeBucket,
+  addPickToBucket,
+  rankRows,
 };

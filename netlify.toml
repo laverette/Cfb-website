@@ -161,6 +161,21 @@
   status = 200
 
 [[redirects]]
+  from = "/api/bama/schedule"
+  to = "/.netlify/functions/bama-schedule"
+  status = 200
+
+[[redirects]]
+  from = "/api/bama/submit"
+  to = "/.netlify/functions/bama-schedule-submit"
+  status = 200
+
+[[redirects]]
+  from = "/api/bama/leaderboard"
+  to = "/.netlify/functions/bama-schedule-leaderboard"
+  status = 200
+
+[[redirects]]
   from = "/api/admin/games/*"
   to = "/.netlify/functions/admin-delete-game?gameId=:splat"
   status = 200

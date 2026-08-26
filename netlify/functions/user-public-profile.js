@@ -4,6 +4,7 @@
  */
 const { json } = require("./_http");
 const { getPublicUserProfile } = require("./db");
+const { getUserBamaStats, normalizeSeason } = require("./_lib/bama-schedule");
 
 exports.handler = async (event) => {
   if (event.httpMethod && event.httpMethod !== "GET") {
@@ -25,6 +26,17 @@ exports.handler = async (event) => {
       userId: Number.isFinite(userId) ? userId : null,
     });
     if (!profile) return json(404, { error: "User not found" });
+
+    const apiKey = process.env.CFBD_API_KEY;
+    if (apiKey && profile.user && profile.user.id != null) {
+      try {
+        const season = normalizeSeason(q.bamaSeason ?? q.season ?? new Date().getFullYear());
+        profile.bamaSchedule = await getUserBamaStats(profile.user.id, season, apiKey);
+      } catch (err) {
+        console.warn("user-public-profile bama stats:", err.message || err);
+      }
+    }
+
     return json(200, profile);
   } catch (err) {
     console.error("user-public-profile:", err);
