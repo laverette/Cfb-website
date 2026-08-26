@@ -3,6 +3,8 @@
 .lb-page {
   max-width: 1040px;
   padding-bottom: 3rem;
+  min-height: calc(100vh - 5.5rem);
+  min-height: calc(100dvh - 5.5rem);
 }
 
 .lb-header {

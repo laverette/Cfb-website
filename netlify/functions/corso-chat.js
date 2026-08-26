@@ -6,7 +6,8 @@
  *   weekContext?: { weekNumber, seasonYear, games?: [...] }
  * }
  * Mistral Conversations API + web_search for current-season facts.
- * Prompt stays lean: persona + date + Game 1–N slate only.
+ * Also injects a prior-week results brief for slate teams (CFBD) so Corso
+ * can factor injuries/storylines from earlier in the season.
  */
 const { json, parseJsonBody } = require("./_http");
 
@@ -14,6 +15,9 @@ const MAX_MESSAGE_CHARS = 800;
 const MAX_HISTORY = 8;
 const MAX_HISTORY_CHARS = 400;
 const MAX_CONTEXT_GAMES = 20;
+const MAX_STORYLINE_TEAMS = 24;
+const MAX_PRIOR_GAMES_PER_TEAM = 8;
+const CFBD_BASE = "https://api.collegefootballdata.com";
 const MISTRAL_URL = "https://api.mistral.ai/v1/conversations";
 
 function corsHeaders() {
@@ -37,6 +41,11 @@ function readMistralKey() {
   return raw || "";
 }
 
+function readCfbdKey() {
+  const raw = process.env.CFBD_API_KEY && String(process.env.CFBD_API_KEY).trim();
+  return raw || "";
+}
+
 function formatTodayLabel() {
   try {
     return new Intl.DateTimeFormat("en-US", {
@@ -51,7 +60,160 @@ function formatTodayLabel() {
   }
 }
 
-function buildInstructions(weekContext) {
+function teamKey(name) {
+  return String(name || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function collectSlateTeams(weekContext) {
+  const games = Array.isArray(weekContext?.games) ? weekContext.games : [];
+  const teams = [];
+  const seen = new Set();
+  for (const g of games) {
+    for (const name of [g.away, g.home]) {
+      const label = sanitizeText(name, 80);
+      const key = teamKey(label);
+      if (!label || !key || seen.has(key)) continue;
+      seen.add(key);
+      teams.push(label);
+      if (teams.length >= MAX_STORYLINE_TEAMS) return teams;
+    }
+  }
+  return teams;
+}
+
+function gameInvolvesTeam(game, key) {
+  return teamKey(game?.homeTeam) === key || teamKey(game?.awayTeam) === key;
+}
+
+function formatPriorGameLine(game, teamName) {
+  const key = teamKey(teamName);
+  const home = game.homeTeam || "TBD";
+  const away = game.awayTeam || "TBD";
+  const week = game.week != null ? `W${game.week}` : "W?";
+  const completed = Boolean(game.completed);
+  const homePts = game.homePoints;
+  const awayPts = game.awayPoints;
+
+  if (!completed || homePts == null || awayPts == null) {
+    const opp = teamKey(home) === key ? away : home;
+    const loc = teamKey(home) === key ? "vs" : "@";
+    return `${week}: ${loc} ${opp} (not final)`;
+  }
+
+  const isHome = teamKey(home) === key;
+  const teamPts = isHome ? homePts : awayPts;
+  const oppPts = isHome ? awayPts : homePts;
+  const opp = isHome ? away : home;
+  const loc = isHome ? "vs" : "@";
+  const result = teamPts > oppPts ? "W" : teamPts < oppPts ? "L" : "T";
+  return `${week}: ${result} ${loc} ${opp} ${teamPts}-${oppPts}`;
+}
+
+/**
+ * Pull season-to-date results for slate teams from CFBD (prior weeks only).
+ * Returns a compact brief Corso can use alongside web_search storylines.
+ */
+async function buildSeasonStorylineBrief(weekContext) {
+  const apiKey = readCfbdKey();
+  if (!apiKey) return null;
+
+  const seasonYear = Number(weekContext?.seasonYear);
+  const weekNumber = Number(weekContext?.weekNumber);
+  if (!Number.isFinite(seasonYear)) return null;
+
+  const teams = collectSlateTeams(weekContext);
+  if (!teams.length) return null;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10_000);
+  try {
+    const url = new URL(`${CFBD_BASE}/games`);
+    url.searchParams.set("year", String(seasonYear));
+    url.searchParams.set("seasonType", "regular");
+    if (Number.isFinite(weekNumber) && weekNumber > 1) {
+      // Prefer games before the current picks week when known.
+      // CFBD has no "maxWeek"; we filter client-side after fetch.
+    }
+
+    const resp = await fetch(url.toString(), {
+      method: "GET",
+      headers: {
+        authorization: `Bearer ${apiKey}`,
+        accept: "application/json",
+      },
+      signal: controller.signal,
+    });
+    if (!resp.ok) {
+      console.warn("corso-chat CFBD games:", resp.status);
+      return null;
+    }
+
+    const payload = await resp.json().catch(() => []);
+    const allGames = Array.isArray(payload) ? payload : [];
+
+    const prior = allGames.filter((g) => {
+      const w = Number(g.week);
+      if (!Number.isFinite(w)) return false;
+      if (Number.isFinite(weekNumber) && weekNumber > 0) return w < weekNumber;
+      return Boolean(g.completed);
+    });
+
+    const lines = [
+      `SEASON-TO-DATE RESULTS (through week before ${
+        Number.isFinite(weekNumber) ? `Week ${weekNumber}` : "this slate"
+      }, ${seasonYear}):`,
+      "Use these as hard facts for prior weeks. Pair with web_search for injuries, suspensions, QB changes, and other storylines that scores alone do not show.",
+    ];
+
+    let any = false;
+    for (const team of teams) {
+      const key = teamKey(team);
+      const teamGames = prior
+        .filter((g) => gameInvolvesTeam(g, key))
+        .sort((a, b) => Number(a.week) - Number(b.week) || Number(a.id) - Number(b.id))
+        .slice(-MAX_PRIOR_GAMES_PER_TEAM);
+
+      if (!teamGames.length) {
+        lines.push(`- ${team}: no completed prior games found yet`);
+        continue;
+      }
+
+      any = true;
+      const wins = teamGames.filter((g) => {
+        if (!g.completed || g.homePoints == null || g.awayPoints == null) return false;
+        const isHome = teamKey(g.homeTeam) === key;
+        const teamPts = isHome ? g.homePoints : g.awayPoints;
+        const oppPts = isHome ? g.awayPoints : g.homePoints;
+        return teamPts > oppPts;
+      }).length;
+      const losses = teamGames.filter((g) => {
+        if (!g.completed || g.homePoints == null || g.awayPoints == null) return false;
+        const isHome = teamKey(g.homeTeam) === key;
+        const teamPts = isHome ? g.homePoints : g.awayPoints;
+        const oppPts = isHome ? g.awayPoints : g.homePoints;
+        return teamPts < oppPts;
+      }).length;
+      const recap = teamGames.map((g) => formatPriorGameLine(g, team)).join("; ");
+      lines.push(`- ${team} (${wins}-${losses}): ${recap}`);
+    }
+
+    if (!any && teams.length) {
+      lines.push("(No prior completed games yet for this slate — lean on web_search for Week 0/1 context.)");
+    }
+
+    return lines.join("\n");
+  } catch (err) {
+    console.warn("corso-chat storyline brief:", err && err.message ? err.message : err);
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function buildInstructions(weekContext, storylineBrief) {
   const today = formatTodayLabel();
   const year = new Date().getFullYear();
   const weekNumber = weekContext?.weekNumber ?? weekContext?.week_number ?? null;
@@ -68,12 +230,17 @@ function buildInstructions(weekContext) {
       ? `This site's picks slate is Week ${weekNumber}, ${seasonYear}.`
       : `This site's picks slate is the ${seasonYear} season.`,
     "",
-    "CRITICAL — LOOK UP EACH TEAM BEFORE YOU TALK ABOUT IT:",
-    `You have web_search. Before you discuss ANY team, SEARCH that team's CURRENT ${seasonYear} state: head coach, record, and how they looked recently (last game / this season).`,
-    "For a matchup, search BOTH teams (or the Game N matchup) first, then give your take.",
-    "Never rely on training memory for coaches, staff, or records — that data goes stale. Use search results for the current season only.",
-    "In your answer, briefly reflect what you found (coach / form / recent result) before the pick.",
-    "If search comes up empty, say you're unsure on that detail and still pick from the slate matchup.",
+    "CRITICAL — LOOK UP STORYLINES BEFORE YOU TALK ABOUT A TEAM OR MATCHUP:",
+    `You have web_search. Before discussing ANY team on the slate, SEARCH that team's CURRENT ${seasonYear} situation:`,
+    "- record / last game result",
+    "- head coach",
+    "- injuries, QB status, suspensions, portal returns, coaching drama",
+    "- any week-by-week storyline that still matters THIS week (example: QB hurt in Week 1, questionable to return in Week 3)",
+    "For a matchup, search BOTH teams (or the Game N matchup) for injury reports + preview notes, then give your take.",
+    "Factor prior-week developments into the pick (availability, momentum, revenge games, trap spots).",
+    "Never rely on training memory for coaches, staff, injuries, or records — that data goes stale. Prefer search + the season brief below.",
+    "In your answer, briefly name the key storyline (injury / return / skid / hot streak) before the pick when it matters.",
+    "If search comes up empty, say you're unsure on that detail and still pick from the slate matchup + season brief.",
     "",
     "Use the OFFICIAL PICKS SLATE below for Game 1 / Game 2 / etc. numbering.",
     "Stick to college football.",
@@ -97,6 +264,10 @@ function buildInstructions(weekContext) {
     });
   }
 
+  if (storylineBrief) {
+    lines.push("", storylineBrief);
+  }
+
   return lines.join("\n");
 }
 
@@ -114,13 +285,15 @@ function buildInputs(message, history, weekContext) {
 
   const seasonYear =
     weekContext?.seasonYear ?? weekContext?.season_year ?? new Date().getFullYear();
+  const weekNumber = weekContext?.weekNumber ?? weekContext?.week_number ?? null;
+  const weekBit = weekNumber != null ? ` ahead of Week ${weekNumber}` : "";
 
   const userPrompt = [
     message,
     "",
     `(Lee Corso voice. Today is ${formatTodayLabel()}.`,
-    `Before talking about a team, web-search that team's current ${seasonYear} coach, record, and recent form.`,
-    "Use OFFICIAL PICKS SLATE for Game N. Clear pick when asked who wins.)",
+    `Before talking about a team, web-search that team's current ${seasonYear}${weekBit} storylines: injuries, QB availability, suspensions, and how prior weeks shape this matchup.`,
+    "Use SEASON-TO-DATE RESULTS for prior scores, and OFFICIAL PICKS SLATE for Game N. Clear pick when asked who wins.)",
   ].join(" ");
 
   inputs.push({ role: "user", content: userPrompt });
@@ -229,6 +402,10 @@ exports.handler = async (event) => {
     "mistral-small-latest";
 
   try {
+    const storylineBrief = weekContext
+      ? await buildSeasonStorylineBrief(weekContext)
+      : null;
+
     const resp = await fetch(MISTRAL_URL, {
       method: "POST",
       headers: {
@@ -237,7 +414,7 @@ exports.handler = async (event) => {
       },
       body: JSON.stringify({
         model,
-        instructions: buildInstructions(weekContext),
+        instructions: buildInstructions(weekContext, storylineBrief),
         inputs: buildInputs(message, body.history, weekContext),
         tools: [{ type: "web_search" }],
         completion_args: {
@@ -276,7 +453,16 @@ exports.handler = async (event) => {
       );
     }
 
-    return json(200, { reply, model, provider: "mistral-conversations" }, corsHeaders());
+    return json(
+      200,
+      {
+        reply,
+        model,
+        provider: "mistral-conversations",
+        storylinesAttached: Boolean(storylineBrief),
+      },
+      corsHeaders()
+    );
   } catch (err) {
     console.error("corso-chat:", err);
     return json(

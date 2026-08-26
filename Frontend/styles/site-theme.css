@@ -17,13 +17,28 @@
   --radius-lg: 15px;
 }
 
+html {
+  min-height: 100%;
+  background-color: var(--bg-main);
+}
+
 html,
 body {
   max-width: 100%;
-  overflow-x: hidden;
+  /* clip avoids the overflow-x:hidden quirk that also clips tall absolute menus on short pages */
+  overflow-x: clip;
+}
+
+@supports not (overflow-x: clip) {
+  html,
+  body {
+    overflow-x: hidden;
+  }
 }
 
 body {
+  min-height: 100vh;
+  min-height: 100dvh;
   background-color: var(--bg-main);
   color: var(--text-main);
   font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
@@ -319,27 +334,28 @@ body {
   }
 }
 
-/* Dropdown Menu */
+/* Dropdown Menu — fixed to the viewport so short pages can't clip it */
 .dropdown-menu {
-  position: absolute;
-  top: 100%;
-  left: 0;
+  position: fixed;
+  top: 4.25rem;
+  left: 0.75rem;
   background: linear-gradient(135deg, var(--bg-panel), var(--bg-panel-2));
   border: 2px solid var(--border-brown);
   border-radius: 8px;
   min-width: 220px;
   max-width: min(320px, calc(100vw - 1.5rem));
   width: max-content;
-  max-height: min(85vh, calc(100vh - 4.5rem));
+  max-height: min(85vh, calc(100dvh - 5rem), calc(100vh - 5rem));
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
   display: none;
   z-index: 1002;
-  margin-top: 0.5rem;
+  margin-top: 0;
   padding: 0.5rem 0;
   overflow-x: hidden;
   overflow-y: auto;
   box-sizing: border-box;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 .dropdown-menu.show {

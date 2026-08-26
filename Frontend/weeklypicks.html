@@ -275,7 +275,7 @@
     <!-- Coach Corso Chat -->
     <div id="coach-corso-section" class="coach-corso-container">
       <h2 class="coach-corso-title">Ask Coach Corso</h2>
-      <p class="coach-corso-subtitle">College football hot takes, straight from the GameDay desk.</p>
+      <p class="coach-corso-subtitle">Hot takes with season storylines baked in — injuries, form, and prior weeks.</p>
       <div class="corso-chat" id="corsoChat">
         <div class="corso-chat-log" id="corsoChatLog" role="log" aria-live="polite" aria-relevant="additions"></div>
         <form class="corso-chat-form" id="corsoChatForm">
@@ -2007,7 +2007,7 @@
       if (!log.childElementCount) {
         appendCorsoBubble(
           'corso',
-          "Not so fast, my friend — ask me about Game 1 through Game 12 on this week's picks, who wins, or who puts on the headgear!"
+          "Not so fast, my friend — ask me about Game 1 through Game 12, who wins, who puts on the headgear, or how injuries and prior weeks change this slate!"
         );
       }
 
@@ -2019,7 +2019,7 @@
         appendCorsoBubble('user', message);
         input.value = '';
         setCorsoBusy(true);
-        setCorsoStatus('Corso is warming up the headgear…');
+        setCorsoStatus('Corso is checking the tape and injury reports…');
 
         try {
           const reply = await askCoachCorso(message);
