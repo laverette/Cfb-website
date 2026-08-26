@@ -3,7 +3,9 @@
   "private": true,
   "description": "Netlify site + functions for CFB picks frontend",
   "scripts": {
-    "export:recruits": "node scripts/export-recruit-map-data.js"
+    "export:recruits": "node scripts/export-recruit-map-data.js",
+    "test": "node --test tests/power-model.test.js",
+    "test:power": "node --test tests/power-model.test.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",

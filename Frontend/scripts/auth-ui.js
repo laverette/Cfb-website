@@ -16,8 +16,9 @@
         { href: "mypredictions.html", label: "📊 My Picks" },
         { href: "prediction-history.html", label: "🏆 Leaderboards" },
         { href: "user-profile.html", label: "👤 My Profile" },
+        { href: "power-rankings.html", label: "📈 Power Rankings" },
+        { href: "predictor.html", label: "🎯 Matchup Predictor" },
         { href: "CFPPredictions.html", label: "🏆 CFP Picks" },
-        { href: "predictor.html", label: "🤖 Predictor" },
       ]
     },
     teams: {

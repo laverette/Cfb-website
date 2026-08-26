@@ -141,6 +141,26 @@
   status = 200
 
 [[redirects]]
+  from = "/api/power/rankings"
+  to = "/.netlify/functions/power-rankings"
+  status = 200
+
+[[redirects]]
+  from = "/api/power/matchup"
+  to = "/.netlify/functions/power-matchup"
+  status = 200
+
+[[redirects]]
+  from = "/api/power/teams"
+  to = "/.netlify/functions/power-teams"
+  status = 200
+
+[[redirects]]
+  from = "/api/power/run"
+  to = "/.netlify/functions/power-run"
+  status = 200
+
+[[redirects]]
   from = "/api/admin/games/*"
   to = "/.netlify/functions/admin-delete-game?gameId=:splat"
   status = 200

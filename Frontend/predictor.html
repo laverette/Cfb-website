@@ -1,212 +1,219 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CFB Prediction Model</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
-    <link rel="stylesheet" href="styles/site-theme.css">
-    <link rel="stylesheet" href="Resources/Styles/predictor.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CFB Matchup Predictor</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <link rel="stylesheet" href="styles/site-theme.css">
+  <link rel="stylesheet" href="Resources/Styles/power.css">
 </head>
 <body>
-    <!-- Site Header -->
-    <nav class="navbar weeklypicks-navbar site-nav">
-      <div class="container-fluid">
-        <div class="navbar-content-weekly site-nav-inner">
-          <button class="hamburger-menu-btn" onclick="toggleMenu()" aria-label="Menu" aria-expanded="false" aria-controls="dropdownMenu">
-            <span></span><span></span><span></span>
-          </button>
-          <div class="dropdown-menu" id="dropdownMenu"></div>
-
-          <h1 class="site-title">CFB Prediction Model</h1>
-
-          <div id="auth-nav" class="navbar-auth-cluster"></div>
-        </div>
+  <nav class="navbar weeklypicks-navbar site-nav">
+    <div class="container-fluid">
+      <div class="navbar-content-weekly site-nav-inner">
+        <button class="hamburger-menu-btn" onclick="toggleMenu()" aria-label="Menu" aria-expanded="false" aria-controls="dropdownMenu">
+          <span></span><span></span><span></span>
+        </button>
+        <div class="dropdown-menu" id="dropdownMenu"></div>
+        <h1 class="site-title">Matchup Predictor</h1>
+        <div id="auth-nav" class="navbar-auth-cluster"></div>
       </div>
-    </nav>
-    <div class="menu-overlay" id="menuOverlay" onclick="closeMenu()"></div>
+    </div>
+  </nav>
+  <div class="menu-overlay" id="menuOverlay" onclick="closeMenu()"></div>
 
-    <main class="container my-5 page-shell">
-        <div class="row">
-            <div class="col-lg-8 mx-auto">
-                <h2 class="page-title" style="margin-bottom: 1.25rem;">Game Prediction Calculator</h2>
-                
-                <div class="section-card">
-                    <div class="card-body">
-                        <form id="predictionForm">
-                            <div class="row mb-3">
-                                <div class="col-md-6">
-                                    <label for="homeTeam" class="form-label">Home Team</label>
-                                    <select class="form-select" id="homeTeam" required>
-                                        <option value="">Select Home Team</option>
-                                        <option value="alabama">Alabama Crimson Tide</option>
-                                        <option value="georgia">Georgia Bulldogs</option>
-                                        <option value="ohio-state">Ohio State Buckeyes</option>
-                                        <option value="texas">Texas Longhorns</option>
-                                        <option value="oregon">Oregon Ducks</option>
-                                        <option value="lsu">LSU Tigers</option>
-                                        <option value="penn-state">Penn State Nittany Lions</option>
-                                        <option value="miami">Miami Hurricanes</option>
-                                        <option value="notre-dame">Notre Dame Fighting Irish</option>
-                                        <option value="tennessee">Tennessee Volunteers</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="awayTeam" class="form-label">Away Team</label>
-                                    <select class="form-select" id="awayTeam" required>
-                                        <option value="">Select Away Team</option>
-                                        <option value="alabama">Alabama Crimson Tide</option>
-                                        <option value="georgia">Georgia Bulldogs</option>
-                                        <option value="ohio-state">Ohio State Buckeyes</option>
-                                        <option value="texas">Texas Longhorns</option>
-                                        <option value="oregon">Oregon Ducks</option>
-                                        <option value="lsu">LSU Tigers</option>
-                                        <option value="penn-state">Penn State Nittany Lions</option>
-                                        <option value="miami">Miami Hurricanes</option>
-                                        <option value="notre-dame">Notre Dame Fighting Irish</option>
-                                        <option value="tennessee">Tennessee Volunteers</option>
-                                    </select>
-                                </div>
-                            </div>
+  <main class="container page-shell power-page">
+    <h1 class="page-title">Matchup Predictor</h1>
+    <p class="power-subtitle">
+      Spreads come from raw power ratings (points above average), not the 0–100 Power Score.
+    </p>
 
-                            <div class="row mb-3">
-                                <div class="col-md-4">
-                                    <label for="homeRecord" class="form-label">Home Team Record (W-L)</label>
-                                    <input type="text" class="form-control" id="homeRecord" placeholder="e.g., 8-2" required>
-                                </div>
-                                <div class="col-md-4">
-                                    <label for="awayRecord" class="form-label">Away Team Record (W-L)</label>
-                                    <input type="text" class="form-control" id="awayRecord" placeholder="e.g., 7-3" required>
-                                </div>
-                                <div class="col-md-4">
-                                    <label for="homeFieldAdvantage" class="form-label">Home Field Advantage</label>
-                                    <select class="form-select" id="homeFieldAdvantage">
-                                        <option value="3">High (3 points)</option>
-                                        <option value="2" selected>Medium (2 points)</option>
-                                        <option value="1">Low (1 point)</option>
-                                        <option value="0">None (0 points)</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div class="row mb-3">
-                                <div class="col-md-6">
-                                    <label for="homeOffense" class="form-label">Home Team Offense Rating (1-10)</label>
-                                    <input type="number" class="form-control" id="homeOffense" min="1" max="10" value="7" required>
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="awayOffense" class="form-label">Away Team Offense Rating (1-10)</label>
-                                    <input type="number" class="form-control" id="awayOffense" min="1" max="10" value="7" required>
-                                </div>
-                            </div>
-
-                            <div class="row mb-3">
-                                <div class="col-md-6">
-                                    <label for="homeDefense" class="form-label">Home Team Defense Rating (1-10)</label>
-                                    <input type="number" class="form-control" id="homeDefense" min="1" max="10" value="7" required>
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="awayDefense" class="form-label">Away Team Defense Rating (1-10)</label>
-                                    <input type="number" class="form-control" id="awayDefense" min="1" max="10" value="7" required>
-                                </div>
-                            </div>
-
-                            <div class="text-center">
-                                <button type="submit" class="btn btn-gold btn-lg px-5">Calculate Prediction</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-
-                <div id="predictionResult" class="section-card mt-4" style="display: none;">
-                    <div class="text-center">
-                        <h3 class="gold-heading" style="margin:0 0 0.5rem 0;">Prediction Result</h3>
-                        <div id="predictionText"></div>
-                        <div id="confidenceText" class="mt-3"></div>
-                    </div>
-                </div>
-            </div>
+    <div class="matchup-grid">
+      <section class="section-card matchup-controls">
+        <div class="mb-3">
+          <label class="form-label" for="teamA">Team A</label>
+          <select id="teamA" class="form-select"></select>
         </div>
-    </main>
+        <div class="mb-3">
+          <label class="form-label" for="teamB">Team B</label>
+          <select id="teamB" class="form-select"></select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="venue">Venue</label>
+          <select id="venue" class="form-select">
+            <option value="neutral">Neutral site</option>
+            <option value="a_home">Team A home</option>
+            <option value="b_home">Team B home</option>
+          </select>
+        </div>
+        <div class="row mb-3">
+          <div class="col-6">
+            <label class="form-label" for="persA">Team A personnel adj</label>
+            <input id="persA" type="number" step="0.5" value="0" class="form-control" title="Points (e.g. -3 if QB out)">
+          </div>
+          <div class="col-6">
+            <label class="form-label" for="persB">Team B personnel adj</label>
+            <input id="persB" type="number" step="0.5" value="0" class="form-control">
+          </div>
+        </div>
+        <button type="button" class="btn btn-gold w-100" id="predictBtn">Predict matchup</button>
+        <p class="matchup-note">Optional personnel adjustments are manual point impacts (QB out ≈ negative).</p>
+        <a class="btn btn-brown w-100 mt-2" href="power-rankings.html">View Power Rankings</a>
+      </section>
 
-    <script src="scripts/auth-ui.js"></script>
-    <script>
-        document.getElementById('predictionForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            const homeTeam = document.getElementById('homeTeam').value;
-            const awayTeam = document.getElementById('awayTeam').value;
-            const homeRecord = document.getElementById('homeRecord').value;
-            const awayRecord = document.getElementById('awayRecord').value;
-            const homeFieldAdvantage = parseInt(document.getElementById('homeFieldAdvantage').value);
-            const homeOffense = parseInt(document.getElementById('homeOffense').value);
-            const awayOffense = parseInt(document.getElementById('awayOffense').value);
-            const homeDefense = parseInt(document.getElementById('homeDefense').value);
-            const awayDefense = parseInt(document.getElementById('awayDefense').value);
+      <section class="section-card" id="resultCard">
+        <p class="power-loading" id="resultPlaceholder">Pick two teams and hit predict.</p>
+        <div id="resultBody" hidden></div>
+      </section>
+    </div>
+  </main>
 
-            // Simple prediction algorithm
-            const homeRecordWins = parseInt(homeRecord.split('-')[0]);
-            const awayRecordWins = parseInt(awayRecord.split('-')[0]);
-            
-            const homeScore = (homeRecordWins * 2) + (homeOffense * 3) + (homeDefense * 2) + homeFieldAdvantage;
-            const awayScore = (awayRecordWins * 2) + (awayOffense * 3) + (awayDefense * 2);
-            
-            const scoreDiff = homeScore - awayScore;
-            const confidence = Math.min(95, Math.max(60, Math.abs(scoreDiff) * 3 + 60));
-            
-            const homeTeamName = document.getElementById('homeTeam').selectedOptions[0].text;
-            const awayTeamName = document.getElementById('awayTeam').selectedOptions[0].text;
-            
-            let prediction;
-            if (scoreDiff > 0) {
-                prediction = `${homeTeamName} wins by ${Math.round(scoreDiff / 2)} points`;
-            } else if (scoreDiff < 0) {
-                prediction = `${awayTeamName} wins by ${Math.round(Math.abs(scoreDiff) / 2)} points`;
-            } else {
-                prediction = "Tie game";
-            }
-            
-            document.getElementById('predictionText').innerHTML = `<h4 class="gold-heading" style="margin:0;">${prediction}</h4>`;
-            document.getElementById('confidenceText').innerHTML = `<p class="text-muted">Confidence: ${Math.round(confidence)}%</p>`;
-            document.getElementById('predictionResult').style.display = 'block';
+  <script src="scripts/auth-ui.js"></script>
+  <script>
+    let teams = [];
+
+    function escapeHtml(t) {
+      return String(t ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function fillSelects() {
+      const opts = teams.map((t) =>
+        `<option value="${t.teamId}">${escapeHtml(t.name)}${t.ranking ? ` (#${t.ranking})` : ''}</option>`
+      ).join('');
+      document.getElementById('teamA').innerHTML = '<option value="">Select team</option>' + opts;
+      document.getElementById('teamB').innerHTML = '<option value="">Select team</option>' + opts;
+    }
+
+    async function loadTeams() {
+      const resp = await fetch('/api/power/teams', { headers: { accept: 'application/json' } });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(data.details || data.error || 'Failed to load teams');
+      teams = Array.isArray(data.teams) ? data.teams : [];
+      fillSelects();
+    }
+
+    function renderPrediction(pred) {
+      const p = pred.prediction || pred;
+      const a = p.teamA;
+      const b = p.teamB;
+      const c = p.comparisons || {};
+      document.getElementById('resultPlaceholder').hidden = true;
+      const body = document.getElementById('resultBody');
+      body.hidden = false;
+      body.innerHTML = `
+        <div class="matchup-hero">
+          <p class="lb-eyebrow" style="color:#ffd700;font-weight:800;letter-spacing:0.06em;text-transform:uppercase;margin:0;">Predicted winner</p>
+          <h2 class="matchup-winner">${escapeHtml(p.predictedWinner.name)}</h2>
+          <p class="matchup-spread">${escapeHtml(p.projectedSpreadLabel)}</p>
+        </div>
+        <div class="matchup-probs">
+          <div class="matchup-prob-card">
+            <strong>${a.winProbability}%</strong>
+            <span>${escapeHtml(a.name)}</span>
+          </div>
+          <div class="matchup-prob-card">
+            <strong>${b.winProbability}%</strong>
+            <span>${escapeHtml(b.name)}</span>
+          </div>
+        </div>
+        <p class="matchup-explain">${escapeHtml(p.explanation)}</p>
+        <table class="matchup-compare">
+          <thead>
+            <tr><th></th><th>${escapeHtml(a.name)}</th><th>${escapeHtml(b.name)}</th><th>Edge</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Raw power</td><td>${a.rawPower}</td><td>${b.rawPower}</td><td>${c.power}</td></tr>
+            <tr><td>Offense</td><td>${a.offenseRating}</td><td>${b.offenseRating}</td><td>${c.offense}</td></tr>
+            <tr><td>Defense</td><td>${a.defenseRating}</td><td>${b.defenseRating}</td><td>${c.defense}</td></tr>
+            <tr><td>Special teams</td><td>${a.specialTeamsRating}</td><td>${b.specialTeamsRating}</td><td>${c.specialTeams}</td></tr>
+            <tr><td>Talent</td><td>${a.talentRating}</td><td>${b.talentRating}</td><td>${c.talent}</td></tr>
+            <tr><td>SOS</td><td>${a.sosRating}</td><td>${b.sosRating}</td><td>${c.sos}</td></tr>
+          </tbody>
+        </table>
+        <p class="matchup-note">
+          Neutral margin ${p.neutralMargin} · Venue adj ${p.venueAdjustment} ·
+          Projected margin (Team A perspective) ${p.projectedMargin}
+        </p>
+      `;
+    }
+
+    async function predict() {
+      const teamAId = document.getElementById('teamA').value;
+      const teamBId = document.getElementById('teamB').value;
+      if (!teamAId || !teamBId) return alert('Select both teams');
+      if (teamAId === teamBId) return alert('Pick two different teams');
+      const btn = document.getElementById('predictBtn');
+      btn.disabled = true;
+      btn.textContent = 'Calculating…';
+      try {
+        const resp = await fetch('/api/power/matchup', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', accept: 'application/json' },
+          body: JSON.stringify({
+            teamAId: Number(teamAId),
+            teamBId: Number(teamBId),
+            venue: document.getElementById('venue').value,
+            personnelA: Number(document.getElementById('persA').value) || 0,
+            personnelB: Number(document.getElementById('persB').value) || 0,
+          }),
         });
-    </script>
-    <script>
-      function closeMenu() {
-        const menu = document.getElementById('dropdownMenu');
-        const button = document.querySelector('.hamburger-menu-btn');
-        const overlay = document.getElementById('menuOverlay');
-        if (!menu || !button || !overlay) return;
-        menu.classList.remove('show');
-        button.classList.remove('active');
-        button.setAttribute('aria-expanded', 'false');
-        overlay.classList.remove('show');
-        document.body.classList.remove('menu-open');
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok) throw new Error(data.details || data.error || 'Predict failed');
+        renderPrediction(data);
+      } catch (err) {
+        document.getElementById('resultPlaceholder').hidden = false;
+        document.getElementById('resultPlaceholder').textContent = err.message || 'Failed';
+        document.getElementById('resultBody').hidden = true;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Predict matchup';
       }
+    }
 
-      function toggleMenu() {
-        const menu = document.getElementById('dropdownMenu');
-        const button = document.querySelector('.hamburger-menu-btn');
-        const overlay = document.getElementById('menuOverlay');
-        if (!menu || !button || !overlay) return;
-        const isOpening = !menu.classList.contains('show');
-        menu.classList.toggle('show');
-        button.classList.toggle('active');
-        button.setAttribute('aria-expanded', isOpening ? 'true' : 'false');
-        overlay.classList.toggle('show', isOpening);
-        document.body.classList.toggle('menu-open', isOpening);
-      }
-
-      document.addEventListener('click', function(event) {
-        const menu = document.getElementById('dropdownMenu');
-        const button = document.querySelector('.hamburger-menu-btn');
-        if (!menu || !button) return;
-        if (!menu.contains(event.target) && !button.contains(event.target)) closeMenu();
+    document.getElementById('predictBtn').addEventListener('click', predict);
+    document.addEventListener('DOMContentLoaded', () => {
+      loadTeams().catch((err) => {
+        document.getElementById('resultPlaceholder').textContent = err.message || 'Could not load teams';
       });
+    });
 
-      document.addEventListener('keydown', function(event) {
-        if (event.key === 'Escape') closeMenu();
-      });
-    </script>
+    function closeMenu() {
+      const menu = document.getElementById('dropdownMenu');
+      const button = document.querySelector('.hamburger-menu-btn');
+      const overlay = document.getElementById('menuOverlay');
+      if (!menu || !button || !overlay) return;
+      menu.classList.remove('show');
+      button.classList.remove('active');
+      button.setAttribute('aria-expanded', 'false');
+      overlay.classList.remove('show');
+      document.body.classList.remove('menu-open');
+    }
+    function toggleMenu() {
+      const menu = document.getElementById('dropdownMenu');
+      const button = document.querySelector('.hamburger-menu-btn');
+      const overlay = document.getElementById('menuOverlay');
+      if (!menu || !button || !overlay) return;
+      const isOpening = !menu.classList.contains('show');
+      menu.classList.toggle('show');
+      button.classList.toggle('active');
+      button.setAttribute('aria-expanded', isOpening ? 'true' : 'false');
+      overlay.classList.toggle('show', isOpening);
+      document.body.classList.toggle('menu-open', isOpening);
+    }
+    document.addEventListener('click', function(event) {
+      const menu = document.getElementById('dropdownMenu');
+      const button = document.querySelector('.hamburger-menu-btn');
+      if (!menu || !button) return;
+      if (!menu.contains(event.target) && !button.contains(event.target)) closeMenu();
+    });
+    document.addEventListener('keydown', function(event) {
+      if (event.key === 'Escape') closeMenu();
+    });
+  </script>
 </body>
 </html>
