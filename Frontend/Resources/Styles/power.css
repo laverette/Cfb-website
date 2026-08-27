@@ -2,14 +2,17 @@
 
 .power-rankings-body {
   --pr-ink: #f3e6d0;
-  --pr-muted: rgba(243, 230, 208, 0.72);
-  --pr-line: rgba(255, 215, 0, 0.16);
-  --pr-panel: #2a1c18;
+  --pr-muted: rgba(243, 230, 208, 0.78);
+  --pr-line: rgba(255, 215, 0, 0.22);
+  --pr-panel: #3e2723;
   font-family: "Source Sans 3", system-ui, sans-serif;
-  background:
-    radial-gradient(1100px 480px at 50% -12%, rgba(255, 215, 0, 0.08), transparent 58%),
-    radial-gradient(700px 360px at 0% 30%, rgba(158, 27, 50, 0.14), transparent 55%),
-    linear-gradient(180deg, #171311 0%, #1e1e1e 45%, #18120f 100%);
+  /* Site brown — not flat black. Gold + crimson washes stay visible. */
+  background-color: #2a1f1c;
+  background-image:
+    radial-gradient(1000px 480px at 50% -8%, rgba(255, 215, 0, 0.14), transparent 55%),
+    radial-gradient(700px 420px at 100% 30%, rgba(158, 27, 50, 0.22), transparent 50%),
+    radial-gradient(600px 380px at 0% 70%, rgba(78, 52, 46, 0.55), transparent 55%),
+    linear-gradient(180deg, #3e2723 0%, #2e2420 45%, #3e2723 100%);
   min-height: 100vh;
 }
 
@@ -139,7 +142,7 @@
   position: sticky;
   top: 0;
   z-index: 2;
-  background: rgba(23, 19, 17, 0.94);
+  background: rgba(62, 39, 35, 0.96);
   backdrop-filter: blur(6px);
   color: rgba(255, 229, 102, 0.9);
   font-family: "Barlow Condensed", Impact, sans-serif;

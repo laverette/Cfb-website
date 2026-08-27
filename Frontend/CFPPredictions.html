@@ -4,12 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CFP Bracket Picker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
   <link rel="stylesheet" href="styles/site-theme.css">
   <link rel="stylesheet" href="Resources/Styles/CFPPredictions.css">
 </head>
-<body>
-  <!-- Site Header -->
+<body class="cfp-body">
   <nav class="navbar weeklypicks-navbar site-nav">
     <div class="container-fluid">
       <div class="navbar-content-weekly site-nav-inner">
@@ -17,394 +19,110 @@
           <span></span><span></span><span></span>
         </button>
         <div class="dropdown-menu" id="dropdownMenu"></div>
-
         <h1 class="site-title">CFP Bracket Picker</h1>
-
         <div id="auth-nav" class="navbar-auth-cluster"></div>
       </div>
     </div>
   </nav>
   <div class="menu-overlay" id="menuOverlay" onclick="closeMenu()"></div>
 
-  <main class="cfp-container">
-    <div class="cfp-header">
-      <h1 class="page-title">🏆 College Football Playoff</h1>
-      <p class="page-subtitle">Pick your 12 teams, then predict the bracket all the way to the National Championship!</p>
+  <main class="cfp-shell">
+    <header class="cfp-hero">
+      <p class="cfp-kicker">College Football Playoff</p>
+      <h1 class="cfp-heading">Official Bracket</h1>
+      <p class="cfp-help">Search and pick all 12 seeds, then click winners through to the championship.</p>
+    </header>
+
+    <div class="cfp-toolbar">
+      <button type="button" class="btn btn-gold btn-sm" id="saveBtn">Save bracket</button>
+      <button type="button" class="btn btn-brown btn-sm" id="resetBtn">Reset</button>
+      <span class="cfp-status" id="statusLine" aria-live="polite"></span>
     </div>
 
-    <!-- Step 1: Team Selection -->
-    <div id="teamSelectionStep" class="bracket-step active">
-      <div class="step-header">
-        <h2 class="step-title">Step 1: Select Your 12 Teams</h2>
-        <p class="step-subtitle">Pick which teams you think will make the playoff</p>
-      </div>
-      
-      <div class="team-picker-grid">
-        <div class="seed-picker" data-seed="1">
-          <label class="seed-label">#1 Seed</label>
-          <input type="text" class="team-input" id="seed1" list="teams-list" placeholder="Type to search teams..." autocomplete="off">
+    <div class="cfp-bracket" id="cfpBracket" aria-label="12-team College Football Playoff bracket">
+      <!-- LEFT: First Round -->
+      <div class="cfp-col cfp-col-fr-l">
+        <div class="cfp-round-label">First Round</div>
+        <div class="cfp-pair" data-game="frL1">
+          <div class="cfp-slot" data-slot="seed9" data-seed="9"></div>
+          <div class="cfp-slot" data-slot="seed8" data-seed="8"></div>
         </div>
-        <div class="seed-picker" data-seed="2">
-          <label class="seed-label">#2 Seed</label>
-          <input type="text" class="team-input" id="seed2" list="teams-list" placeholder="Type to search teams..." autocomplete="off">
-        </div>
-        <div class="seed-picker" data-seed="3">
-          <label class="seed-label">#3 Seed</label>
-          <input type="text" class="team-input" id="seed3" list="teams-list" placeholder="Type to search teams..." autocomplete="off">
-        </div>
-        <div class="seed-picker" data-seed="4">
-          <label class="seed-label">#4 Seed</label>
-          <input type="text" class="team-input" id="seed4" list="teams-list" placeholder="Type to search teams..." autocomplete="off">
-        </div>
-        <div class="seed-picker" data-seed="5">
-          <label class="seed-label">#5 Seed</label>
-          <input type="text" class="team-input" id="seed5" list="teams-list" placeholder="Type to search teams..." autocomplete="off">
-        </div>
-        <div class="seed-picker" data-seed="6">
-          <label class="seed-label">#6 Seed</label>
-          <input type="text" class="team-input" id="seed6" list="teams-list" placeholder="Type to search teams..." autocomplete="off">
-        </div>
-        <div class="seed-picker" data-seed="7">
-          <label class="seed-label">#7 Seed</label>
-          <input type="text" class="team-input" id="seed7" list="teams-list" placeholder="Type to search teams..." autocomplete="off">
-        </div>
-        <div class="seed-picker" data-seed="8">
-          <label class="seed-label">#8 Seed</label>
-          <input type="text" class="team-input" id="seed8" list="teams-list" placeholder="Type to search teams..." autocomplete="off">
-        </div>
-        <div class="seed-picker" data-seed="9">
-          <label class="seed-label">#9 Seed</label>
-          <input type="text" class="team-input" id="seed9" list="teams-list" placeholder="Type to search teams..." autocomplete="off">
-        </div>
-        <div class="seed-picker" data-seed="10">
-          <label class="seed-label">#10 Seed</label>
-          <input type="text" class="team-input" id="seed10" list="teams-list" placeholder="Type to search teams..." autocomplete="off">
-        </div>
-        <div class="seed-picker" data-seed="11">
-          <label class="seed-label">#11 Seed</label>
-          <input type="text" class="team-input" id="seed11" list="teams-list" placeholder="Type to search teams..." autocomplete="off">
-        </div>
-        <div class="seed-picker" data-seed="12">
-          <label class="seed-label">#12 Seed</label>
-          <input type="text" class="team-input" id="seed12" list="teams-list" placeholder="Type to search teams..." autocomplete="off">
+        <div class="cfp-pair" data-game="frL2">
+          <div class="cfp-slot" data-slot="seed12" data-seed="12"></div>
+          <div class="cfp-slot" data-slot="seed5" data-seed="5"></div>
         </div>
       </div>
 
-      <!-- Datalist with all FBS teams -->
-      <datalist id="teams-list">
-        <option value="Alabama">
-        <option value="Arizona">
-        <option value="Arizona State">
-        <option value="Arkansas">
-        <option value="Army">
-        <option value="Auburn">
-        <option value="Baylor">
-        <option value="Boise State">
-        <option value="Boston College">
-        <option value="BYU">
-        <option value="Buffalo">
-        <option value="California">
-        <option value="UCF">
-        <option value="Charlotte">
-        <option value="Cincinnati">
-        <option value="Clemson">
-        <option value="Coastal Carolina">
-        <option value="Colorado">
-        <option value="Colorado State">
-        <option value="Duke">
-        <option value="East Carolina">
-        <option value="Eastern Michigan">
-        <option value="FIU">
-        <option value="Florida">
-        <option value="Florida Atlantic">
-        <option value="Florida State">
-        <option value="Fresno State">
-        <option value="Georgia">
-        <option value="Georgia Southern">
-        <option value="Georgia State">
-        <option value="Georgia Tech">
-        <option value="Hawaii">
-        <option value="Houston">
-        <option value="Illinois">
-        <option value="Indiana">
-        <option value="Iowa">
-        <option value="Iowa State">
-        <option value="Kansas">
-        <option value="Kansas State">
-        <option value="Kent State">
-        <option value="Kentucky">
-        <option value="Liberty">
-        <option value="Louisiana">
-        <option value="Louisiana Tech">
-        <option value="Louisville">
-        <option value="LSU">
-        <option value="Marshall">
-        <option value="Maryland">
-        <option value="Memphis">
-        <option value="Miami">
-        <option value="Miami (OH)">
-        <option value="Michigan">
-        <option value="Michigan State">
-        <option value="Middle Tennessee">
-        <option value="Minnesota">
-        <option value="Mississippi State">
-        <option value="Missouri">
-        <option value="Navy">
-        <option value="NC State">
-        <option value="Nebraska">
-        <option value="Nevada">
-        <option value="New Mexico">
-        <option value="New Mexico State">
-        <option value="North Carolina">
-        <option value="North Texas">
-        <option value="Northern Illinois">
-        <option value="Northwestern">
-        <option value="Notre Dame">
-        <option value="Ohio">
-        <option value="Ohio State">
-        <option value="Oklahoma">
-        <option value="Oklahoma State">
-        <option value="Old Dominion">
-        <option value="Ole Miss">
-        <option value="Oregon">
-        <option value="Oregon State">
-        <option value="Penn State">
-        <option value="Pittsburgh">
-        <option value="Purdue">
-        <option value="Rice">
-        <option value="Rutgers">
-        <option value="San Diego State">
-        <option value="San José State">
-        <option value="SMU">
-        <option value="South Alabama">
-        <option value="South Carolina">
-        <option value="South Florida">
-        <option value="Southern Mississippi">
-        <option value="Stanford">
-        <option value="Syracuse">
-        <option value="TCU">
-        <option value="Temple">
-        <option value="Tennessee">
-        <option value="Texas">
-        <option value="Texas A&M">
-        <option value="Texas State">
-        <option value="Texas Tech">
-        <option value="Toledo">
-        <option value="Troy">
-        <option value="Tulane">
-        <option value="Tulsa">
-        <option value="UAB">
-        <option value="UCLA">
-        <option value="UConn">
-        <option value="UMass">
-        <option value="UNLV">
-        <option value="USC">
-        <option value="Utah">
-        <option value="Utah State">
-        <option value="UTEP">
-        <option value="UTSA">
-        <option value="Vanderbilt">
-        <option value="Virginia">
-        <option value="Virginia Tech">
-        <option value="Wake Forest">
-        <option value="Washington">
-        <option value="Washington State">
-        <option value="West Virginia">
-        <option value="Western Kentucky">
-        <option value="Western Michigan">
-        <option value="Wisconsin">
-        <option value="Wyoming">
-      </datalist>
-
-      <button class="btn-next-step" onclick="goToBracket()">
-        Continue to Bracket →
-      </button>
-    </div>
-
-    <!-- Step 2: Bracket Predictions -->
-    <div id="bracketStep" class="bracket-step">
-      <div class="step-header">
-        <h2 class="step-title">Step 2: Make Your Predictions</h2>
-        <p class="step-subtitle">Pick the winners all the way to the National Championship</p>
-        <button class="btn-back" onclick="backToTeams()">← Back to Team Selection</button>
+      <!-- LEFT: Quarterfinals -->
+      <div class="cfp-col cfp-col-qf-l">
+        <div class="cfp-round-label">Quarterfinals</div>
+        <div class="cfp-pair" data-game="qfL1">
+          <div class="cfp-slot cfp-bye" data-slot="seed1" data-seed="1"></div>
+          <div class="cfp-slot cfp-advance" data-slot="wFrL1" data-from="frL1"></div>
+        </div>
+        <div class="cfp-pair" data-game="qfL2">
+          <div class="cfp-slot cfp-bye" data-slot="seed4" data-seed="4"></div>
+          <div class="cfp-slot cfp-advance" data-slot="wFrL2" data-from="frL2"></div>
+        </div>
       </div>
 
-      <div class="bracket-container">
-        <!-- Left Side of Bracket -->
-        <div class="bracket-side bracket-left">
-          <!-- First Round Left -->
-          <div class="bracket-round" id="firstRoundLeft">
-            <h3 class="round-title">First Round</h3>
-            <div class="matchup" data-game="fr1" onclick="pickWinner('fr1')">
-              <div class="team seed5" data-winner="false">
-                <span class="seed-num">5</span>
-                <span class="team-name" id="team5">TBD</span>
-              </div>
-              <div class="vs">vs</div>
-              <div class="team seed12" data-winner="false">
-                <span class="seed-num">12</span>
-                <span class="team-name" id="team12">TBD</span>
-              </div>
-            </div>
-            <div class="matchup" data-game="fr2" onclick="pickWinner('fr2')">
-              <div class="team seed8" data-winner="false">
-                <span class="seed-num">8</span>
-                <span class="team-name" id="team8">TBD</span>
-              </div>
-              <div class="vs">vs</div>
-              <div class="team seed9" data-winner="false">
-                <span class="seed-num">9</span>
-                <span class="team-name" id="team9">TBD</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Quarterfinals Left -->
-          <div class="bracket-round" id="quarterfinalsLeft">
-            <h3 class="round-title">Quarterfinals</h3>
-            <div class="matchup" data-game="qf1" onclick="pickWinner('qf1')">
-              <div class="team seed1" data-winner="false">
-                <span class="seed-num">1</span>
-                <span class="team-name" id="team1">TBD</span>
-              </div>
-              <div class="vs">vs</div>
-              <div class="team winner-fr2" data-winner="false">
-                <span class="seed-num">?</span>
-                <span class="team-name" id="winnerFR2">TBD</span>
-              </div>
-            </div>
-            <div class="matchup" data-game="qf2" onclick="pickWinner('qf2')">
-              <div class="team seed4" data-winner="false">
-                <span class="seed-num">4</span>
-                <span class="team-name" id="team4">TBD</span>
-              </div>
-              <div class="vs">vs</div>
-              <div class="team winner-fr1" data-winner="false">
-                <span class="seed-num">?</span>
-                <span class="team-name" id="winnerFR1">TBD</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Semifinals Left -->
-          <div class="bracket-round" id="semifinalsLeft">
-            <h3 class="round-title">Semifinals</h3>
-            <div class="matchup" data-game="sf1" onclick="pickWinner('sf1')">
-              <div class="team winner-qf1" data-winner="false">
-                <span class="seed-num">?</span>
-                <span class="team-name" id="winnerQF1">TBD</span>
-              </div>
-              <div class="vs">vs</div>
-              <div class="team winner-qf2" data-winner="false">
-                <span class="seed-num">?</span>
-                <span class="team-name" id="winnerQF2">TBD</span>
-              </div>
-            </div>
-          </div>
+      <!-- LEFT: Semifinal -->
+      <div class="cfp-col cfp-col-sf-l">
+        <div class="cfp-round-label">Semifinal</div>
+        <div class="cfp-pair cfp-pair-sf" data-game="sfL">
+          <div class="cfp-slot cfp-advance" data-slot="wQfL1" data-from="qfL1"></div>
+          <div class="cfp-slot cfp-advance" data-slot="wQfL2" data-from="qfL2"></div>
         </div>
+      </div>
 
-        <!-- Championship (Center) -->
-        <div class="bracket-center">
-          <div class="championship-container">
-            <h3 class="round-title">National Championship</h3>
-            <div class="matchup championship-matchup" data-game="championship" onclick="pickWinner('championship')">
-              <div class="team winner-sf1" data-winner="false">
-                <span class="team-name" id="winnerSF1">TBD</span>
-              </div>
-              <div class="vs">🏆</div>
-              <div class="team winner-sf2" data-winner="false">
-                <span class="team-name" id="winnerSF2">TBD</span>
-              </div>
-            </div>
-            <div class="champion-display" id="championDisplay" style="display: none;">
-              <div class="champion-trophy">🏆</div>
-              <div class="champion-name" id="championName">TBD</div>
-              <div class="champion-label">2026 National Champion</div>
-            </div>
+      <!-- CENTER: Championship -->
+      <div class="cfp-col cfp-col-final">
+        <div class="cfp-final-wrap">
+          <div class="cfp-round-label">National Championship</div>
+          <div class="cfp-pair cfp-pair-final" data-game="champ">
+            <div class="cfp-slot cfp-advance" data-slot="wSfL" data-from="sfL"></div>
+            <div class="cfp-slot cfp-advance" data-slot="wSfR" data-from="sfR"></div>
           </div>
-        </div>
-
-        <!-- Right Side of Bracket -->
-        <div class="bracket-side bracket-right">
-          <!-- First Round Right -->
-          <div class="bracket-round" id="firstRoundRight">
-            <h3 class="round-title">First Round</h3>
-            <div class="matchup" data-game="fr3" onclick="pickWinner('fr3')">
-              <div class="team seed7" data-winner="false">
-                <span class="seed-num">7</span>
-                <span class="team-name" id="team7">TBD</span>
-              </div>
-              <div class="vs">vs</div>
-              <div class="team seed10" data-winner="false">
-                <span class="seed-num">10</span>
-                <span class="team-name" id="team10">TBD</span>
-              </div>
-            </div>
-            <div class="matchup" data-game="fr4" onclick="pickWinner('fr4')">
-              <div class="team seed6" data-winner="false">
-                <span class="seed-num">6</span>
-                <span class="team-name" id="team6">TBD</span>
-              </div>
-              <div class="vs">vs</div>
-              <div class="team seed11" data-winner="false">
-                <span class="seed-num">11</span>
-                <span class="team-name" id="team11">TBD</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Quarterfinals Right -->
-          <div class="bracket-round" id="quarterfinalsRight">
-            <h3 class="round-title">Quarterfinals</h3>
-            <div class="matchup" data-game="qf3" onclick="pickWinner('qf3')">
-              <div class="team seed2" data-winner="false">
-                <span class="seed-num">2</span>
-                <span class="team-name" id="team2">TBD</span>
-              </div>
-              <div class="vs">vs</div>
-              <div class="team winner-fr3" data-winner="false">
-                <span class="seed-num">?</span>
-                <span class="team-name" id="winnerFR3">TBD</span>
-              </div>
-            </div>
-            <div class="matchup" data-game="qf4" onclick="pickWinner('qf4')">
-              <div class="team seed3" data-winner="false">
-                <span class="seed-num">3</span>
-                <span class="team-name" id="team3">TBD</span>
-              </div>
-              <div class="vs">vs</div>
-              <div class="team winner-fr4" data-winner="false">
-                <span class="seed-num">?</span>
-                <span class="team-name" id="winnerFR4">TBD</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Semifinals Right -->
-          <div class="bracket-round" id="semifinalsRight">
-            <h3 class="round-title">Semifinals</h3>
-            <div class="matchup" data-game="sf2" onclick="pickWinner('sf2')">
-              <div class="team winner-qf3" data-winner="false">
-                <span class="seed-num">?</span>
-                <span class="team-name" id="winnerQF3">TBD</span>
-              </div>
-              <div class="vs">vs</div>
-              <div class="team winner-qf4" data-winner="false">
-                <span class="seed-num">?</span>
-                <span class="team-name" id="winnerQF4">TBD</span>
-              </div>
-            </div>
+          <div class="cfp-champion" id="championBanner" hidden>
+            <span class="cfp-champion-label">Champion</span>
+            <strong id="championName">—</strong>
           </div>
         </div>
       </div>
 
-      <div class="bracket-actions">
-        <button class="btn-save-bracket" onclick="saveBracket()">
-          💾 Save My Bracket
-        </button>
-        <button class="btn-reset-bracket" onclick="resetBracket()">
-          🔄 Reset Bracket
-        </button>
+      <!-- RIGHT: Semifinal -->
+      <div class="cfp-col cfp-col-sf-r">
+        <div class="cfp-round-label">Semifinal</div>
+        <div class="cfp-pair cfp-pair-sf" data-game="sfR">
+          <div class="cfp-slot cfp-advance" data-slot="wQfR1" data-from="qfR1"></div>
+          <div class="cfp-slot cfp-advance" data-slot="wQfR2" data-from="qfR2"></div>
+        </div>
+      </div>
+
+      <!-- RIGHT: Quarterfinals -->
+      <div class="cfp-col cfp-col-qf-r">
+        <div class="cfp-round-label">Quarterfinals</div>
+        <div class="cfp-pair" data-game="qfR1">
+          <div class="cfp-slot cfp-bye" data-slot="seed2" data-seed="2"></div>
+          <div class="cfp-slot cfp-advance" data-slot="wFrR1" data-from="frR1"></div>
+        </div>
+        <div class="cfp-pair" data-game="qfR2">
+          <div class="cfp-slot cfp-bye" data-slot="seed3" data-seed="3"></div>
+          <div class="cfp-slot cfp-advance" data-slot="wFrR2" data-from="frR2"></div>
+        </div>
+      </div>
+
+      <!-- RIGHT: First Round -->
+      <div class="cfp-col cfp-col-fr-r">
+        <div class="cfp-round-label">First Round</div>
+        <div class="cfp-pair" data-game="frR1">
+          <div class="cfp-slot" data-slot="seed10" data-seed="10"></div>
+          <div class="cfp-slot" data-slot="seed7" data-seed="7"></div>
+        </div>
+        <div class="cfp-pair" data-game="frR2">
+          <div class="cfp-slot" data-slot="seed11" data-seed="11"></div>
+          <div class="cfp-slot" data-slot="seed6" data-seed="6"></div>
+        </div>
       </div>
     </div>
   </main>
@@ -423,7 +141,6 @@
       overlay.classList.remove('show');
       document.body.classList.remove('menu-open');
     }
-
     function toggleMenu() {
       const menu = document.getElementById('dropdownMenu');
       const button = document.querySelector('.hamburger-menu-btn');
@@ -436,16 +153,14 @@
       overlay.classList.toggle('show', isOpening);
       document.body.classList.toggle('menu-open', isOpening);
     }
-
-    document.addEventListener('click', function(event) {
+    document.addEventListener('click', function (e) {
       const menu = document.getElementById('dropdownMenu');
       const button = document.querySelector('.hamburger-menu-btn');
       if (!menu || !button) return;
-      if (!menu.contains(event.target) && !button.contains(event.target)) closeMenu();
+      if (!menu.contains(e.target) && !button.contains(e.target)) closeMenu();
     });
-
-    document.addEventListener('keydown', function(event) {
-      if (event.key === 'Escape') closeMenu();
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') closeMenu();
     });
   </script>
 </body>
