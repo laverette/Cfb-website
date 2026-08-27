@@ -182,34 +182,47 @@
     }
 
     form.innerHTML = state.games
-      .map(function (game) {
+      .map(function (game, idx) {
         var pred = game.prediction;
         var locked = game.locked;
-        var winVal = predWin(pred) === false ? "loss" : "win";
+        var winVal = predWin(pred) === false ? "loss" : predWin(pred) === true ? "win" : "";
         var aScore = predTeamScore(pred);
         var oScore = pred && pred.predictedOpponentScore != null ? pred.predictedOpponentScore : "";
+        var hasScores = aScore !== "" && oScore !== "";
+        var filled = Boolean(pred) || (winVal && hasScores);
+        var rowClass = "bama-game-card";
+        if (locked) rowClass += " bama-game-locked";
+        if (filled) rowClass += " is-filled";
+        if (winVal === "win") rowClass += " is-win-pick";
+        if (winVal === "loss") rowClass += " is-loss-pick";
         var disabled = locked ? "disabled" : "";
         var lockNote = locked ? (game.completed ? "Final" : "Locked") : "Open";
+        var lockClass = locked ? "" : " is-open";
         var loc = game.neutralSite ? "vs" : game.isHome ? "vs" : "at";
+        var delay = Math.min(idx, 8) * 0.03;
 
         return (
-          '<article class="section-card bama-game-card' +
-          (locked ? " bama-game-locked" : "") +
+          '<article class="' +
+          rowClass +
           '" data-game-id="' +
           game.cfbdGameId +
-          '">' +
+          '" style="animation-delay:' +
+          delay +
+          's">' +
           '<div class="bama-game-head">' +
           '<div class="bama-game-meta">' +
           '<span class="bama-week">Week ' +
           (game.week || "?") +
           "</span>" +
-          '<span class="bama-loc">' +
+          "<span>" +
           locationLabel(game) +
           "</span>" +
-          '<span class="bama-date">' +
+          "<span>" +
           formatDate(game.startDate) +
           "</span>" +
-          '<span class="bama-lock">' +
+          '<span class="bama-lock' +
+          lockClass +
+          '">' +
           lockNote +
           "</span>" +
           resultBadge(game) +
@@ -222,48 +235,107 @@
           "</h3>" +
           "</div>" +
           '<div class="bama-pick-row">' +
-          '<label class="bama-pick-label">Result' +
-          '<select class="site-select bama-win-select" name="win-' +
+          '<div class="bama-wl" role="group" aria-label="Result">' +
+          '<button type="button" class="bama-wl-btn' +
+          (winVal === "win" ? " is-active" : "") +
+          '" data-result="win" data-game="' +
           game.cfbdGameId +
           '" ' +
           disabled +
-          ">" +
-          '<option value="win"' +
-          (winVal === "win" ? " selected" : "") +
-          ">" +
-          escapeHtml(teamName()) +
-          " Win</option>" +
-          '<option value="loss"' +
-          (winVal === "loss" ? " selected" : "") +
-          ">" +
-          escapeHtml(teamName()) +
-          " Loss</option>" +
-          "</select></label>" +
-          '<label class="bama-pick-label">' +
-          escapeHtml(teamName()) +
-          " score" +
-          '<input type="number" min="0" max="99" class="site-input bama-score-a" name="ascore-' +
+          ">W</button>" +
+          '<button type="button" class="bama-wl-btn' +
+          (winVal === "loss" ? " is-active" : "") +
+          '" data-result="loss" data-game="' +
+          game.cfbdGameId +
+          '" ' +
+          disabled +
+          ">L</button>" +
+          "</div>" +
+          '<input type="hidden" name="win-' +
+          game.cfbdGameId +
+          '" value="' +
+          (winVal || "win") +
+          '">' +
+          '<div class="bama-score-pair">' +
+          '<input type="number" min="0" max="99" inputmode="numeric" class="bama-score-a" name="ascore-' +
           game.cfbdGameId +
           '" value="' +
           aScore +
-          '" placeholder="28" ' +
+          '" placeholder="—" aria-label="' +
+          escapeHtml(teamName()) +
+          ' score" ' +
           disabled +
-          "></label>" +
-          '<label class="bama-pick-label">Opp score' +
-          '<input type="number" min="0" max="99" class="site-input bama-score-o" name="oscore-' +
+          ">" +
+          '<span class="bama-score-sep">–</span>' +
+          '<input type="number" min="0" max="99" inputmode="numeric" class="bama-score-o" name="oscore-' +
           game.cfbdGameId +
           '" value="' +
           oScore +
-          '" placeholder="14" ' +
+          '" placeholder="—" aria-label="Opponent score" ' +
           disabled +
-          "></label>" +
+          ">" +
+          "</div>" +
           "</div></article>"
         );
       })
       .join("");
 
+    bindGameInteractions();
     updateProgress();
     $("saveBtn").disabled = !isLoggedIn();
+  }
+
+  function bindGameInteractions() {
+    document.querySelectorAll(".bama-wl-btn").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        if (btn.disabled) return;
+        var gameId = btn.getAttribute("data-game");
+        var result = btn.getAttribute("data-result");
+        var hidden = document.querySelector('[name="win-' + gameId + '"]');
+        if (hidden) hidden.value = result;
+        var group = btn.parentElement;
+        group.querySelectorAll(".bama-wl-btn").forEach(function (b) {
+          b.classList.toggle("is-active", b === btn);
+        });
+        var card = btn.closest(".bama-game-card");
+        if (card) {
+          card.classList.add("is-filled");
+          card.classList.toggle("is-win-pick", result === "win");
+          card.classList.toggle("is-loss-pick", result === "loss");
+        }
+        syncCardFromScores(gameId);
+      });
+    });
+
+    document.querySelectorAll(".bama-score-a, .bama-score-o").forEach(function (input) {
+      input.addEventListener("input", function () {
+        var name = input.getAttribute("name") || "";
+        var gameId = name.replace(/^ascore-|^oscore-/, "");
+        syncCardFromScores(gameId);
+      });
+    });
+  }
+
+  function syncCardFromScores(gameId) {
+    var aIn = document.querySelector('[name="ascore-' + gameId + '"]');
+    var oIn = document.querySelector('[name="oscore-' + gameId + '"]');
+    var winHidden = document.querySelector('[name="win-' + gameId + '"]');
+    var card = document.querySelector('.bama-game-card[data-game-id="' + gameId + '"]');
+    if (!aIn || !oIn || !card) return;
+    var a = aIn.value === "" ? null : Number(aIn.value);
+    var o = oIn.value === "" ? null : Number(oIn.value);
+    if (Number.isFinite(a) && Number.isFinite(o) && a !== o && winHidden) {
+      var auto = a > o ? "win" : "loss";
+      winHidden.value = auto;
+      card.querySelectorAll(".bama-wl-btn").forEach(function (b) {
+        b.classList.toggle("is-active", b.getAttribute("data-result") === auto);
+      });
+      card.classList.toggle("is-win-pick", auto === "win");
+      card.classList.toggle("is-loss-pick", auto === "loss");
+    }
+    var filled = aIn.value !== "" && oIn.value !== "";
+    card.classList.toggle("is-filled", filled || Boolean(winHidden && winHidden.value));
+    updateProgressLive();
   }
 
   function escapeHtml(s) {
@@ -277,29 +349,66 @@
   function updateProgress() {
     var card = $("progressCard");
     var text = $("progressText");
+    var teamEl = $("progressTeam");
+    var fill = $("progressFill");
     if (!card || !text) return;
-    var filled = 0;
-    state.games.forEach(function (g) {
-      if (g.prediction) filled += 1;
-    });
+
+    var filled = countFilledGames();
     state.submittedCount = filled;
+    if (teamEl) teamEl.textContent = teamName();
     text.textContent =
-      teamName() +
-      " · " +
       filled +
       " / " +
       state.games.length +
-      " games predicted · " +
+      " predicted · " +
       state.games.filter(function (g) {
         return g.locked;
       }).length +
       " locked";
+    if (fill) {
+      var pct = state.games.length ? Math.round((filled / state.games.length) * 100) : 0;
+      fill.style.width = pct + "%";
+    }
     card.hidden = !state.games.length;
 
     var user = parseUser();
     var link = $("myProfileQuickLink");
     if (link && user && user.username) {
       link.href = "user-profile.html?username=" + encodeURIComponent(user.username);
+    }
+  }
+
+  function countFilledGames() {
+    var n = 0;
+    state.games.forEach(function (g) {
+      if (g.locked && g.prediction) {
+        n += 1;
+        return;
+      }
+      var aIn = document.querySelector('[name="ascore-' + g.cfbdGameId + '"]');
+      var oIn = document.querySelector('[name="oscore-' + g.cfbdGameId + '"]');
+      if (aIn && oIn && aIn.value !== "" && oIn.value !== "") n += 1;
+      else if (g.prediction) n += 1;
+    });
+    return n;
+  }
+
+  function updateProgressLive() {
+    var text = $("progressText");
+    var fill = $("progressFill");
+    if (!text || !state.games.length) return;
+    var filled = countFilledGames();
+    text.textContent =
+      filled +
+      " / " +
+      state.games.length +
+      " predicted · " +
+      state.games.filter(function (g) {
+        return g.locked;
+      }).length +
+      " locked";
+    if (fill) {
+      fill.style.width = Math.round((filled / state.games.length) * 100) + "%";
     }
   }
 
@@ -559,6 +668,7 @@
     });
     $("predictPanel").hidden = tab !== "predict";
     $("leaderboardPanel").hidden = tab !== "leaderboard";
+    document.body.classList.toggle("sp-leaderboard-view", tab === "leaderboard");
     if (tab === "leaderboard") loadLeaderboard().catch(showError);
   }
 

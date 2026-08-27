@@ -4,12 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Schedule Predictions</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
   <link rel="stylesheet" href="styles/site-theme.css">
   <link rel="stylesheet" href="Resources/Styles/bama.css">
   <link rel="stylesheet" href="Resources/Styles/leaderboard.css">
 </head>
-<body>
+<body class="schedule-predict-body">
   <nav class="navbar weeklypicks-navbar site-nav">
     <div class="container-fluid">
       <div class="navbar-content-weekly site-nav-inner">
@@ -27,18 +30,18 @@
   <main class="container page-shell bama-page">
     <header class="bama-header">
       <p class="bama-eyebrow">Season-long picks</p>
-      <h1 class="page-title">Schedule Predictions</h1>
-      <p class="bama-subtitle">Pick your team, then predict every game — winner, score, and climb that team’s leaderboard after kickoff.</p>
+      <h1 class="bama-title">Schedule Predictions</h1>
+      <p class="bama-subtitle">Choose a team. Call every game. Climb the board after kickoff.</p>
     </header>
 
-    <div class="bama-toolbar section-card">
+    <div class="bama-control-bar">
       <div class="bama-filters">
-        <label class="bama-season-label">
-          Team
+        <label class="bama-field">
+          <span>Team</span>
           <select id="teamSelect" class="site-select"></select>
         </label>
-        <label class="bama-season-label">
-          Season
+        <label class="bama-field">
+          <span>Season</span>
           <select id="seasonSelect" class="site-select"></select>
         </label>
       </div>
@@ -49,29 +52,38 @@
     </div>
 
     <section id="predictPanel" class="bama-panel">
-      <div id="loginGate" class="bama-login-gate section-card" hidden>
-        <p><a href="login.html?redirect=bama.html">Log in</a> to save your schedule predictions to your profile.</p>
+      <div id="loginGate" class="bama-login-gate" hidden>
+        <p><a href="login.html?redirect=bama.html">Log in</a> to save picks to your profile and appear on the leaderboard.</p>
       </div>
 
-      <div id="progressCard" class="section-card bama-progress" hidden>
-        <div class="bama-progress-row">
-          <span id="progressText">0 / 0 games predicted</span>
-          <a id="myProfileQuickLink" class="btn btn-brown btn-sm" href="user-profile.html">My profile</a>
+      <div id="progressCard" class="bama-progress" hidden>
+        <div class="bama-progress-top">
+          <div>
+            <p class="bama-progress-team" id="progressTeam">—</p>
+            <p class="bama-progress-meta" id="progressText">0 / 0 games predicted</p>
+          </div>
+          <a id="myProfileQuickLink" class="bama-link-quiet" href="user-profile.html">Profile →</a>
+        </div>
+        <div class="bama-progress-track" aria-hidden="true">
+          <div class="bama-progress-fill" id="progressFill" style="width:0%"></div>
         </div>
       </div>
 
       <form id="predictForm" class="bama-games-list"></form>
 
+      <div class="bama-actions-spacer" aria-hidden="true"></div>
       <div class="bama-actions">
-        <button type="button" id="saveBtn" class="btn btn-gold" disabled>Save predictions</button>
-        <p id="saveStatus" class="bama-status" aria-live="polite"></p>
+        <div class="bama-actions-inner">
+          <p id="saveStatus" class="bama-status" aria-live="polite"></p>
+          <button type="button" id="saveBtn" class="btn btn-gold bama-save-btn" disabled>Save predictions</button>
+        </div>
       </div>
     </section>
 
     <section id="leaderboardPanel" class="bama-panel" hidden>
-      <div class="section-card bama-lb-controls">
-        <label>
-          View
+      <div class="bama-lb-controls">
+        <label class="bama-field">
+          <span>View</span>
           <select id="lbViewSelect" class="site-select">
             <option value="season">Season standings</option>
           </select>
