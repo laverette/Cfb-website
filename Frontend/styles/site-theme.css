@@ -635,6 +635,23 @@ button.dropdown-item.auth-dropdown-logout:hover {
   text-align: center;
 }
 
+a.navbar-user-name {
+  text-decoration: none;
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: color 0.2s ease, text-decoration-color 0.2s ease;
+}
+
+a.navbar-user-name:hover,
+a.navbar-user-name:focus-visible {
+  color: #ffe566;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 .navbar-logout-btn {
   background-color: var(--bg-panel);
   color: #F5F5F5;

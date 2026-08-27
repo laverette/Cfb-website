@@ -307,25 +307,100 @@
                 scheduleHtml = `<h3 style="color:#FFD700; margin-top:1.5rem;">Schedule (preview)</h3><ul style="color:#f5deb3;">${preview}</ul>`;
             }
 
-            // Roster preview list (first 12)
+            // Full roster (clickable → player profiles)
             let rosterHtml = '';
             const rosterArr = extractRosterArray(rosterData);
             if (Array.isArray(rosterArr) && rosterArr.length > 0) {
-                const preview = rosterArr
-                    .slice(0, 12)
-                    .map(p => `<li>${p.firstName || ''} ${p.lastName || ''} — ${p.position || ''} ${p.jersey ? `#${p.jersey}` : ''}</li>`)
-                    .join('');
-                rosterHtml = `<h3 style="color:#FFD700; margin-top:1.5rem;">Roster (preview)</h3><ul style="color:#f5deb3;">${preview}</ul>`;
+                const byPos = {};
+                rosterArr.forEach((p) => {
+                    const pos = (p.position || 'OTH').toUpperCase();
+                    if (!byPos[pos]) byPos[pos] = [];
+                    byPos[pos].push(p);
+                });
+                const posOrder = ['QB','RB','FB','WR','TE','OL','OT','OG','C','DL','DE','DT','LB','DB','CB','S','K','P','LS','ATH','OTH'];
+                const positions = Object.keys(byPos).sort((a, b) => {
+                    const ia = posOrder.indexOf(a);
+                    const ib = posOrder.indexOf(b);
+                    if (ia === -1 && ib === -1) return a.localeCompare(b);
+                    if (ia === -1) return 1;
+                    if (ib === -1) return -1;
+                    return ia - ib;
+                });
+
+                const escapeText = (s) => String(s ?? '')
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;');
+
+                const groups = positions.map((pos) => {
+                    const players = byPos[pos]
+                        .slice()
+                        .sort((a, b) => {
+                            const ja = Number(a.jersey);
+                            const jb = Number(b.jersey);
+                            if (Number.isFinite(ja) && Number.isFinite(jb) && ja !== jb) return ja - jb;
+                            const na = `${a.lastName || ''} ${a.firstName || ''}`;
+                            const nb = `${b.lastName || ''} ${b.firstName || ''}`;
+                            return na.localeCompare(nb);
+                        })
+                        .map((p) => {
+                            const fullName = `${p.firstName || ''} ${p.lastName || ''}`.trim() || 'Player';
+                            const id = p.id != null ? String(p.id) : '';
+                            const jersey = p.jersey != null && p.jersey !== '' ? `#${p.jersey}` : '';
+                            const yearLabel = p.year != null && p.year !== '' ? String(p.year) : '';
+                            const href = id
+                                ? `player.html?id=${encodeURIComponent(id)}&team=${encodeURIComponent(teamSchool)}&year=${encodeURIComponent(rosterRes.year)}&name=${encodeURIComponent(fullName)}`
+                                : '';
+                            const inner = `
+                                <span class="roster-jersey">${escapeText(jersey || '—')}</span>
+                                <span class="roster-name">${escapeText(fullName)}</span>
+                                <span class="roster-year">${escapeText(yearLabel)}</span>`;
+                            if (!href) {
+                                return `<li class="roster-item roster-item-disabled">${inner}</li>`;
+                            }
+                            return `<li class="roster-item"><a class="roster-link" href="${href}">${inner}</a></li>`;
+                        })
+                        .join('');
+                    return `
+                        <div class="roster-group">
+                            <h4 class="roster-pos">${escapeText(pos)} <span>(${byPos[pos].length})</span></h4>
+                            <ul class="roster-list">${players}</ul>
+                        </div>`;
+                }).join('');
+
+                rosterHtml = `
+                    <div class="roster-section">
+                        <div class="roster-head">
+                            <h3 class="roster-title">Roster</h3>
+                            <p class="roster-hint">${rosterArr.length} players · ${rosterRes.year} · tap a name for season &amp; career stats</p>
+                            <input type="search" id="rosterFilter" class="roster-filter" placeholder="Filter roster…" aria-label="Filter roster">
+                        </div>
+                        <div class="roster-grid" id="rosterGrid">${groups}</div>
+                    </div>`;
             }
 
             document.getElementById('writeupContent').innerHTML = `
                 <p class="writeup-text">
-                    This page is now powered by CollegeFootballData via the Netlify proxy. Next enhancements can plug in:
-                    full schedule tables, player detail pages, advanced stats, recruiting, lines, and more CFBD endpoints.
+                    Live data from CollegeFootballData. Open any player for season and career stats.
                 </p>
                 ${scheduleHtml}
                 ${rosterHtml}
             `;
+
+            const filterInput = document.getElementById('rosterFilter');
+            if (filterInput) {
+                filterInput.addEventListener('input', () => {
+                    const q = filterInput.value.trim().toLowerCase();
+                    document.querySelectorAll('.roster-item').forEach((li) => {
+                        const text = li.textContent.toLowerCase();
+                        li.hidden = Boolean(q) && !text.includes(q);
+                    });
+                    document.querySelectorAll('.roster-group').forEach((group) => {
+                        const visible = group.querySelectorAll('.roster-item:not([hidden])').length;
+                        group.hidden = visible === 0;
+                    });
+                });
+            }
         }
 
         document.addEventListener('DOMContentLoaded', () => {

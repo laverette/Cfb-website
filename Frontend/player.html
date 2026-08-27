@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Player Profile</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <link rel="stylesheet" href="styles/site-theme.css">
+  <link rel="stylesheet" href="Resources/Styles/teams.css">
+</head>
+<body>
+  <nav class="navbar weeklypicks-navbar site-nav">
+    <div class="container-fluid">
+      <div class="navbar-content-weekly site-nav-inner">
+        <button class="hamburger-menu-btn" onclick="toggleMenu()" aria-label="Menu" aria-expanded="false" aria-controls="dropdownMenu">
+          <span></span><span></span><span></span>
+        </button>
+        <div class="dropdown-menu" id="dropdownMenu"></div>
+        <h1 class="site-title">Player Profile</h1>
+        <div id="auth-nav" class="navbar-auth-cluster"></div>
+      </div>
+    </div>
+  </nav>
+  <div class="menu-overlay" id="menuOverlay" onclick="closeMenu()"></div>
+
+  <main class="container my-4 page-shell player-shell">
+    <div class="player-nav-row">
+      <a href="teams.html" class="nav-button btn-brown">← Teams</a>
+      <a id="backToTeam" class="nav-button btn-gold" hidden href="teams.html">← Team</a>
+    </div>
+
+    <header class="player-hero section-card">
+      <p class="player-kicker">College Football</p>
+      <h1 class="player-name" id="playerName">Loading…</h1>
+      <p class="player-meta" id="playerMeta"></p>
+      <div class="player-details" id="playerDetails"></div>
+      <p class="player-status" id="playerStatus" aria-live="polite"></p>
+    </header>
+
+    <section class="section-card player-season-block">
+      <div class="player-section-head">
+        <h2 class="gold-heading">Season stats</h2>
+        <label class="player-year-label">
+          Season
+          <select id="seasonSelect" class="player-year-select"></select>
+        </label>
+      </div>
+      <p class="player-season-sub" id="seasonTeamLine"></p>
+      <p class="player-season-sub" id="seasonGames"></p>
+      <div id="seasonStats" class="player-stat-grid"></div>
+    </section>
+
+    <section class="section-card player-career-block">
+      <h2 class="gold-heading">Career</h2>
+      <p class="player-hint">Seasons with available CFBD stats (tap a year to view details).</p>
+      <div class="table-responsive">
+        <table class="player-career-table">
+          <thead>
+            <tr>
+              <th>Year</th>
+              <th>Team</th>
+              <th>Games</th>
+              <th>Highlights</th>
+            </tr>
+          </thead>
+          <tbody id="careerBody"></tbody>
+        </table>
+      </div>
+      <p id="careerEmpty" class="player-empty" hidden>No prior seasons found in CFBD for this player yet.</p>
+    </section>
+  </main>
+
+  <script src="scripts/auth-ui.js"></script>
+  <script src="scripts/player-profile.js"></script>
+  <script>
+    function closeMenu() {
+      const menu = document.getElementById('dropdownMenu');
+      const button = document.querySelector('.hamburger-menu-btn');
+      const overlay = document.getElementById('menuOverlay');
+      if (!menu || !button || !overlay) return;
+      menu.classList.remove('show');
+      button.classList.remove('active');
+      button.setAttribute('aria-expanded', 'false');
+      overlay.classList.remove('show');
+      document.body.classList.remove('menu-open');
+    }
+    function toggleMenu() {
+      const menu = document.getElementById('dropdownMenu');
+      const button = document.querySelector('.hamburger-menu-btn');
+      const overlay = document.getElementById('menuOverlay');
+      if (!menu || !button || !overlay) return;
+      const isOpening = !menu.classList.contains('show');
+      menu.classList.toggle('show');
+      button.classList.toggle('active');
+      button.setAttribute('aria-expanded', isOpening ? 'true' : 'false');
+      overlay.classList.toggle('show', isOpening);
+      document.body.classList.toggle('menu-open', isOpening);
+    }
+    document.addEventListener('click', function (e) {
+      const menu = document.getElementById('dropdownMenu');
+      const button = document.querySelector('.hamburger-menu-btn');
+      if (!menu || !button) return;
+      if (!menu.contains(e.target) && !button.contains(e.target)) closeMenu();
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') closeMenu();
+    });
+  </script>
+</body>
+</html>

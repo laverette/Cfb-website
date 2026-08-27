@@ -15,7 +15,6 @@
         { href: "weeklypicks.html", label: "📅 Weekly Picks" },
         { href: "bama.html", label: "📅 Schedule Predictions" },
         { href: "prediction-history.html", label: "🏆 Leaderboards" },
-        { href: "user-profile.html", label: "👤 My Profile" },
         { href: "power-rankings.html", label: "📈 Power Rankings" },
         { href: "predictor.html", label: "🎯 Matchup Predictor" },
         { href: "CFPPredictions.html", label: "🏆 CFP Picks" },
@@ -69,6 +68,17 @@
     return String(user.role || "").toLowerCase() === "admin";
   }
 
+  function profileHrefForUser(user) {
+    if (!user) return "user-profile.html";
+    if (user.username) {
+      return "user-profile.html?username=" + encodeURIComponent(user.username);
+    }
+    if (user.id != null) {
+      return "user-profile.html?id=" + encodeURIComponent(String(user.id));
+    }
+    return "user-profile.html";
+  }
+
   function buildAuthClusterMarkup() {
     var loginHref = getLoginHref();
     return (
@@ -78,7 +88,7 @@
       '" class="navbar-login-btn">Login</a>' +
       "</div>" +
       '<div id="userSection" style="display:none;" class="navbar-auth-stack">' +
-      '<p id="userName" class="navbar-user-name"></p>' +
+      '<a id="userProfileLink" class="navbar-user-name" href="user-profile.html">Profile</a>' +
       '<button type="button" id="logoutBtn" class="navbar-logout-btn">Logout</button>' +
       "</div>"
     );
@@ -87,7 +97,7 @@
   function applyLoggedInState(user) {
     var loginSection = document.getElementById("loginButtonSection");
     var userSection = document.getElementById("userSection");
-    var userNameEl = document.getElementById("userName");
+    var profileLink = document.getElementById("userProfileLink");
     var display =
       (user &&
         (user.displayName ||
@@ -96,7 +106,11 @@
       "User";
     if (loginSection) loginSection.style.display = "none";
     if (userSection) userSection.style.display = "flex";
-    if (userNameEl) userNameEl.textContent = display;
+    if (profileLink) {
+      profileLink.textContent = display;
+      profileLink.href = profileHrefForUser(user);
+      profileLink.title = "View your profile";
+    }
   }
 
   function applyLoggedOutState() {

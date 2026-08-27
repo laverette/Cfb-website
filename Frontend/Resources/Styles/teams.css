@@ -622,6 +622,335 @@ body {
     margin-bottom: 0;
 }
 
+/* ===== Roster (team page) ===== */
+.roster-section {
+    margin-top: 1.5rem;
+}
+
+.roster-head {
+    margin-bottom: 0.85rem;
+}
+
+.roster-title {
+    color: #FFD700;
+    margin: 0;
+    font-size: 1.35rem;
+}
+
+.roster-hint {
+    color: rgba(245, 222, 179, 0.75);
+    margin: 0.2rem 0 0.65rem;
+    font-size: 0.9rem;
+}
+
+.roster-filter {
+    width: min(100%, 280px);
+    padding: 0.45rem 0.7rem;
+    border-radius: 8px;
+    border: 1px solid #8D6E63;
+    background: rgba(0, 0, 0, 0.25);
+    color: #f5deb3;
+}
+
+.roster-filter::placeholder {
+    color: rgba(245, 222, 179, 0.5);
+}
+
+.roster-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 0.85rem 1rem;
+}
+
+.roster-pos {
+    color: #FFD700;
+    font-size: 0.85rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin: 0 0 0.35rem;
+}
+
+.roster-pos span {
+    opacity: 0.65;
+    font-weight: 500;
+}
+
+.roster-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border: 1px solid rgba(141, 110, 99, 0.45);
+    border-radius: 10px;
+    overflow: hidden;
+    background: rgba(0, 0, 0, 0.18);
+}
+
+.roster-item {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.roster-item:last-child {
+    border-bottom: 0;
+}
+
+.roster-link {
+    display: grid;
+    grid-template-columns: 2.4rem 1fr auto;
+    gap: 0.4rem;
+    align-items: center;
+    padding: 0.45rem 0.6rem;
+    color: #f5deb3;
+    text-decoration: none;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.roster-link:hover,
+.roster-link:focus-visible {
+    background: rgba(255, 215, 0, 0.12);
+    color: #ffe566;
+}
+
+.roster-item-disabled {
+    display: grid;
+    grid-template-columns: 2.4rem 1fr auto;
+    gap: 0.4rem;
+    padding: 0.45rem 0.6rem;
+    opacity: 0.55;
+}
+
+.roster-jersey {
+    font-weight: 700;
+    color: #FFD700;
+    font-variant-numeric: tabular-nums;
+}
+
+.roster-name {
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.roster-year {
+    font-size: 0.8rem;
+    opacity: 0.7;
+}
+
+/* ===== Player profile ===== */
+.player-shell {
+    max-width: 960px;
+}
+
+.player-nav-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    margin-bottom: 1rem;
+}
+
+.player-hero {
+    padding: 1.25rem 1.35rem;
+    margin-bottom: 1rem;
+}
+
+.player-kicker {
+    margin: 0;
+    color: #FFD700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.player-name {
+    margin: 0.2rem 0 0;
+    color: #fff;
+    font-size: clamp(1.8rem, 4vw, 2.5rem);
+    font-weight: 800;
+}
+
+.player-meta {
+    margin: 0.35rem 0 0;
+    color: #f5deb3;
+    opacity: 0.9;
+}
+
+.player-details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem 1.1rem;
+    margin-top: 0.85rem;
+    color: rgba(245, 222, 179, 0.85);
+    font-size: 0.95rem;
+}
+
+.player-details strong {
+    color: #FFD700;
+    font-weight: 700;
+    margin-right: 0.25rem;
+}
+
+.player-status {
+    min-height: 1.2rem;
+    margin: 0.65rem 0 0;
+    color: rgba(245, 222, 179, 0.75);
+    font-size: 0.9rem;
+}
+
+.player-status.is-error {
+    color: #ffb4a8;
+}
+
+.player-season-block,
+.player-career-block {
+    padding: 1.15rem 1.25rem;
+    margin-bottom: 1rem;
+}
+
+.player-section-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
+}
+
+.player-section-head .gold-heading {
+    margin: 0;
+}
+
+.player-year-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    color: #f5deb3;
+    font-size: 0.9rem;
+}
+
+.player-year-select {
+    padding: 0.35rem 0.55rem;
+    border-radius: 8px;
+    border: 1px solid #8D6E63;
+    background: rgba(0, 0, 0, 0.28);
+    color: #f5deb3;
+}
+
+.player-season-sub {
+    margin: 0;
+    color: rgba(245, 222, 179, 0.75);
+    font-size: 0.9rem;
+}
+
+.player-hint {
+    color: rgba(245, 222, 179, 0.7);
+    font-size: 0.9rem;
+    margin: 0 0 0.75rem;
+}
+
+.player-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 0.85rem;
+    margin-top: 0.85rem;
+}
+
+.player-stat-card {
+    border: 1px solid rgba(141, 110, 99, 0.5);
+    border-radius: 12px;
+    padding: 0.75rem 0.85rem;
+    background: rgba(62, 39, 35, 0.45);
+}
+
+.player-stat-card h3 {
+    margin: 0 0 0.5rem;
+    color: #FFD700;
+    font-size: 0.95rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.player-stat-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.player-stat-table th,
+.player-stat-table td {
+    padding: 0.28rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    font-size: 0.9rem;
+}
+
+.player-stat-table th {
+    color: rgba(245, 222, 179, 0.75);
+    font-weight: 600;
+    text-align: left;
+}
+
+.player-stat-table td {
+    color: #fff;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+}
+
+.player-career-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.player-career-table th,
+.player-career-table td {
+    padding: 0.55rem 0.4rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    text-align: left;
+    vertical-align: middle;
+}
+
+.player-career-table th {
+    color: #FFD700;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.player-year-btn {
+    border: 0;
+    background: transparent;
+    color: #ffe566;
+    font-weight: 800;
+    cursor: pointer;
+    padding: 0;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.player-career-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
+.player-chip {
+    display: inline-block;
+    padding: 0.2rem 0.45rem;
+    border-radius: 999px;
+    background: rgba(255, 215, 0, 0.12);
+    border: 1px solid rgba(255, 215, 0, 0.25);
+    color: #f5deb3;
+    font-size: 0.8rem;
+}
+
+.player-chip.muted {
+    opacity: 0.7;
+}
+
+.player-empty {
+    color: rgba(245, 222, 179, 0.7);
+    margin: 0.75rem 0 0;
+}
+
 /* Mobile Responsiveness for Team Detail Page */
 @media (max-width: 768px) {
     .navigation-buttons {
