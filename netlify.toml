@@ -176,6 +176,26 @@
   status = 200
 
 [[redirects]]
+  from = "/api/cfp/bracket"
+  to = "/.netlify/functions/cfp-bracket"
+  status = 200
+
+[[redirects]]
+  from = "/api/cfp/bracket/save"
+  to = "/.netlify/functions/cfp-bracket-save"
+  status = 200
+
+[[redirects]]
+  from = "/api/cfp/leaderboard"
+  to = "/.netlify/functions/cfp-leaderboard"
+  status = 200
+
+[[redirects]]
+  from = "/api/cfp/results"
+  to = "/.netlify/functions/cfp-results"
+  status = 200
+
+[[redirects]]
   from = "/api/admin/games/*"
   to = "/.netlify/functions/admin-delete-game?gameId=:splat"
   status = 200

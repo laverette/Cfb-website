@@ -65,6 +65,106 @@
   margin: 0.55rem 0 0.65rem;
 }
 
+.cfp-tabs {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(232, 197, 106, 0.35);
+}
+
+.cfp-tab {
+  border: 0;
+  background: transparent;
+  color: var(--cfp-muted);
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.cfp-tab.active {
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.28), rgba(255, 160, 0, 0.16));
+  color: #ffe566;
+}
+
+.cfp-toolbar-actions {
+  display: inline-flex;
+  gap: 0.45rem;
+}
+
+.cfp-view-banner {
+  text-align: center;
+  color: var(--cfp-gold-bright);
+  font-weight: 700;
+  margin: 0 0 0.65rem;
+}
+
+.cfp-panel[hidden] {
+  display: none !important;
+}
+
+.cfp-lb-card {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 1rem;
+  border: 1px solid rgba(232, 197, 106, 0.28);
+  border-radius: 12px;
+  background: rgba(62, 39, 35, 0.45);
+}
+
+.cfp-lb-title {
+  font-family: "Barlow Condensed", Impact, sans-serif;
+  color: #ffe566;
+  margin: 0;
+  font-size: 1.6rem;
+}
+
+.cfp-lb-hint {
+  color: var(--cfp-muted);
+  margin: 0.25rem 0 0.85rem;
+  font-size: 0.9rem;
+}
+
+.cfp-lb-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.cfp-lb-table th,
+.cfp-lb-table td {
+  padding: 0.55rem 0.4rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  text-align: left;
+}
+
+.cfp-lb-table th {
+  color: var(--cfp-gold);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.cfp-lb-table a {
+  color: #ffe566;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.cfp-lb-empty {
+  text-align: center;
+  color: var(--cfp-muted);
+  margin: 1rem 0 0;
+}
+
+body.cfp-readonly .cfp-toolbar-actions {
+  display: none;
+}
+
+body.cfp-readonly .cfp-combo-input {
+  pointer-events: none;
+}
+
 .cfp-status {
   color: var(--cfp-muted);
   font-size: 0.85rem;

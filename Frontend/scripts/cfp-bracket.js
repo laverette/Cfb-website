@@ -1,12 +1,13 @@
 /**
  * CFP Bracket Picker — official 12-team layout with searchable seed comboboxes.
- * First Round: 8/9, 5/12 (left) · 7/10, 6/11 (right)
- * Quarters: 1 & 4 (left byes) · 2 & 3 (right byes)
+ * Persists to Supabase via /api/cfp/* (auth required to save).
  */
 (function () {
   "use strict";
 
-  var STORAGE_KEY = "cfpBracket2026";
+  var STORAGE_TOKEN = "authToken";
+  var STORAGE_USER = "currentUser";
+  var SEASON = new Date().getFullYear();
 
   var FALLBACK_TEAMS = [
     "Alabama", "Arizona", "Arizona State", "Arkansas", "Army", "Auburn", "Baylor",
@@ -56,9 +57,16 @@
     slots: {}, // slot id -> { name, seed }
     picks: {}, // gameId -> winning slot id
     teamList: FALLBACK_TEAMS.slice(),
+    readonly: false,
+    viewUsername: null,
+    activeTab: "bracket",
+    lbLoaded: false,
   };
 
   function $(sel, root) {
+    if (typeof sel === "string" && sel.indexOf("#") !== 0 && !/[.\[:> ]/.test(sel)) {
+      return document.getElementById(sel) || (root || document).querySelector("#" + sel);
+    }
     return (root || document).querySelector(sel);
   }
 
@@ -67,8 +75,62 @@
   }
 
   function setStatus(msg) {
-    var el = $("statusLine");
+    var el = document.getElementById("statusLine");
     if (el) el.textContent = msg || "";
+  }
+
+  function authHeaders() {
+    var token = localStorage.getItem(STORAGE_TOKEN);
+    if (!token) return {};
+    return { Authorization: "Bearer " + token };
+  }
+
+  function isLoggedIn() {
+    return !!(localStorage.getItem(STORAGE_TOKEN) && localStorage.getItem(STORAGE_USER));
+  }
+
+  function parseUser() {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_USER) || "null");
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function queryUsername() {
+    try {
+      return new URLSearchParams(window.location.search).get("username") || "";
+    } catch (_) {
+      return "";
+    }
+  }
+
+  function applyBracketData(data) {
+    state.teams = (data && data.teams) || {};
+    state.slots = (data && data.slots) || {};
+    state.picks = (data && data.picks) || {};
+    Object.keys(state.teams).forEach(function (k) {
+      state.slots["seed" + k] = { name: state.teams[k], seed: Number(k) };
+    });
+  }
+
+  function setReadonly(on, label) {
+    state.readonly = Boolean(on);
+    document.body.classList.toggle("cfp-readonly", state.readonly);
+    var banner = document.getElementById("viewBanner");
+    if (banner) {
+      if (state.readonly && label) {
+        banner.hidden = false;
+        banner.textContent = label;
+      } else {
+        banner.hidden = true;
+        banner.textContent = "";
+      }
+    }
+    var tabMine = document.querySelector('.cfp-tab[data-tab="bracket"]');
+    if (tabMine) {
+      tabMine.textContent = state.readonly ? "Bracket" : "My Bracket";
+    }
   }
 
   function escapeHtml(s) {
@@ -157,6 +219,7 @@
   }
 
   function setSeedTeam(seed, teamName, opts) {
+    if (state.readonly) return;
     opts = opts || {};
     var prev = state.teams[seed];
     if (teamName) state.teams[seed] = teamName;
@@ -257,6 +320,7 @@
   }
 
   function pickWinner(gameId, slotId) {
+    if (state.readonly) return;
     var g = GAMES[gameId];
     if (!g) return;
     var a = g.slots[0];
@@ -289,6 +353,11 @@
     var input = $(".cfp-combo-input", combo);
     var list = $(".cfp-combo-list", combo);
     if (!input || !list) return;
+    if (state.readonly) {
+      input.readOnly = true;
+      input.disabled = true;
+      return;
+    }
     var activeIndex = -1;
 
     function close() {
@@ -411,48 +480,287 @@
     });
   }
 
-  function save() {
-    var payload = {
-      teams: state.teams,
-      slots: state.slots,
-      picks: state.picks,
-    };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-    setStatus("Bracket saved.");
-  }
-
-  function load() {
+  async function save() {
+    if (!isLoggedIn()) {
+      window.location.href =
+        "login.html?redirect=" + encodeURIComponent("CFPPredictions.html");
+      return;
+    }
+    var missing = [];
+    for (var i = 1; i <= 12; i += 1) {
+      if (!state.teams[i] && !state.teams[String(i)]) missing.push(i);
+    }
+    if (missing.length) {
+      setStatus("Pick all 12 seeds before saving (missing " + missing.join(", ") + ").");
+      return;
+    }
+    setStatus("Saving…");
+    var saveBtn = document.getElementById("saveBtn");
+    if (saveBtn) saveBtn.disabled = true;
     try {
-      var raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return;
-      var data = JSON.parse(raw);
-      state.teams = data.teams || {};
-      state.slots = data.slots || {};
-      state.picks = data.picks || {};
-      // Ensure seed slots mirror teams
-      Object.keys(state.teams).forEach(function (k) {
-        state.slots["seed" + k] = { name: state.teams[k], seed: Number(k) };
+      var res = await fetch("/api/cfp/bracket/save", {
+        method: "POST",
+        headers: Object.assign(
+          { "Content-Type": "application/json", Accept: "application/json" },
+          authHeaders()
+        ),
+        body: JSON.stringify({
+          season: SEASON,
+          teams: state.teams,
+          slots: state.slots,
+          picks: state.picks,
+        }),
       });
-    } catch (_) {}
+      var data = await res.json().catch(function () {
+        return {};
+      });
+      if (!res.ok) {
+        setStatus(data.message || data.error || "Save failed.");
+        return;
+      }
+      if (data.bracket) applyBracketData(data.bracket);
+      refreshAllSlots();
+      setStatus("Bracket saved to your account.");
+      state.lbLoaded = false;
+    } catch (_) {
+      setStatus("Network error while saving.");
+    } finally {
+      if (saveBtn) saveBtn.disabled = !isLoggedIn() || state.readonly;
+    }
   }
 
-  function resetAll() {
+  async function loadMine() {
+    if (!isLoggedIn()) {
+      setStatus("Log in to save and load your bracket.");
+      return;
+    }
+    try {
+      var res = await fetch("/api/cfp/bracket?season=" + encodeURIComponent(SEASON), {
+        headers: Object.assign({ Accept: "application/json" }, authHeaders()),
+      });
+      var data = await res.json().catch(function () {
+        return {};
+      });
+      if (res.status === 401) {
+        setStatus("Log in to save and load your bracket.");
+        return;
+      }
+      if (!res.ok) {
+        setStatus(data.error || "Could not load bracket.");
+        return;
+      }
+      if (data.bracket) {
+        applyBracketData(data.bracket);
+        setStatus("Loaded your saved bracket.");
+      } else {
+        setStatus("No saved bracket yet — pick teams and save.");
+      }
+    } catch (_) {
+      setStatus("Network error loading bracket.");
+    }
+  }
+
+  async function loadPublic(username) {
+    setStatus("Loading…");
+    try {
+      var res = await fetch(
+        "/api/cfp/bracket?season=" +
+          encodeURIComponent(SEASON) +
+          "&username=" +
+          encodeURIComponent(username),
+        { headers: { Accept: "application/json" } }
+      );
+      var data = await res.json().catch(function () {
+        return {};
+      });
+      if (!res.ok) {
+        setStatus(data.error || "Bracket not found.");
+        return;
+      }
+      if (data.bracket) {
+        applyBracketData(data.bracket);
+        var label =
+          (data.bracket.displayName || data.bracket.username || username) +
+          "'s bracket";
+        setReadonly(true, label);
+        setStatus("");
+      }
+    } catch (_) {
+      setStatus("Network error loading bracket.");
+    }
+  }
+
+  async function resetAll() {
+    if (state.readonly) return;
     if (!confirm("Reset the entire bracket?")) return;
     state.teams = {};
     state.slots = {};
     state.picks = {};
-    localStorage.removeItem(STORAGE_KEY);
     refreshAllSlots();
-    setStatus("Bracket reset.");
+
+    if (!isLoggedIn()) {
+      setStatus("Bracket cleared. Log in to sync a save.");
+      return;
+    }
+    setStatus("Deleting saved bracket…");
+    try {
+      var res = await fetch(
+        "/api/cfp/bracket/save?season=" + encodeURIComponent(SEASON),
+        {
+          method: "DELETE",
+          headers: Object.assign({ Accept: "application/json" }, authHeaders()),
+        }
+      );
+      var data = await res.json().catch(function () {
+        return {};
+      });
+      if (!res.ok) {
+        setStatus(data.message || data.error || "Could not delete saved bracket.");
+        return;
+      }
+      setStatus("Bracket reset.");
+      state.lbLoaded = false;
+    } catch (_) {
+      setStatus("Cleared locally; network error deleting save.");
+    }
+  }
+
+  function switchTab(tab) {
+    state.activeTab = tab === "leaderboard" ? "leaderboard" : "bracket";
+    $$(".cfp-tab").forEach(function (btn) {
+      var on = btn.getAttribute("data-tab") === state.activeTab;
+      btn.classList.toggle("active", on);
+      btn.setAttribute("aria-selected", on ? "true" : "false");
+    });
+    var bracketPanel = document.getElementById("bracketPanel");
+    var lbPanel = document.getElementById("leaderboardPanel");
+    var actions = document.getElementById("bracketActions");
+    if (bracketPanel) bracketPanel.hidden = state.activeTab !== "bracket";
+    if (lbPanel) lbPanel.hidden = state.activeTab !== "leaderboard";
+    if (actions) actions.hidden = state.activeTab !== "bracket" || state.readonly;
+    if (state.activeTab === "leaderboard") loadLeaderboard();
+  }
+
+  async function loadLeaderboard() {
+    var body = document.getElementById("lbBody");
+    var empty = document.getElementById("lbEmpty");
+    var hint = document.getElementById("lbHint");
+    if (!body) return;
+    if (state.lbLoaded && body.children.length) return;
+    body.innerHTML = '<tr><td colspan="6">Loading…</td></tr>';
+    if (empty) empty.hidden = true;
+    try {
+      var res = await fetch(
+        "/api/cfp/leaderboard?season=" + encodeURIComponent(SEASON),
+        { headers: { Accept: "application/json" } }
+      );
+      var data = await res.json().catch(function () {
+        return {};
+      });
+      if (!res.ok) {
+        body.innerHTML =
+          '<tr><td colspan="6">' +
+          escapeHtml(data.error || "Failed to load") +
+          "</td></tr>";
+        return;
+      }
+      if (hint && data.viewerHint) hint.textContent = data.viewerHint;
+      var entries = data.entries || [];
+      if (!entries.length) {
+        body.innerHTML = "";
+        if (empty) empty.hidden = false;
+        state.lbLoaded = true;
+        return;
+      }
+      if (empty) empty.hidden = true;
+      body.innerHTML = entries
+        .map(function (e) {
+          var name = e.displayName || e.username || "Player";
+          var acc =
+            e.accuracy != null
+              ? e.accuracy + "%"
+              : e.gradedPicks
+                ? "—"
+                : "Ungraded";
+          var score =
+            e.gradedPicks > 0
+              ? e.correctPicks + "/" + e.gradedPicks
+              : e.isComplete
+                ? "Complete"
+                : "Saved";
+          return (
+            "<tr>" +
+            "<td>" +
+            escapeHtml(String(e.rank)) +
+            "</td>" +
+            "<td><a href=\"user-profile.html?username=" +
+            encodeURIComponent(e.username) +
+            '">' +
+            escapeHtml(name) +
+            "</a></td>" +
+            "<td>" +
+            escapeHtml(e.championName || "—") +
+            "</td>" +
+            "<td>" +
+            escapeHtml(String(score)) +
+            "</td>" +
+            "<td>" +
+            escapeHtml(String(acc)) +
+            "</td>" +
+            '<td><a href="CFPPredictions.html?username=' +
+            encodeURIComponent(e.username) +
+            '">View</a></td>' +
+            "</tr>"
+          );
+        })
+        .join("");
+      state.lbLoaded = true;
+    } catch (_) {
+      body.innerHTML = '<tr><td colspan="6">Network error</td></tr>';
+    }
+  }
+
+  function bindTabs() {
+    $$(".cfp-tab").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        switchTab(btn.getAttribute("data-tab"));
+      });
+    });
   }
 
   document.addEventListener("DOMContentLoaded", async function () {
     await loadTeamList();
-    load();
-    refreshAllSlots();
     bindAdvanceClicks();
-    $("saveBtn").addEventListener("click", save);
-    $("resetBtn").addEventListener("click", resetAll);
+    bindTabs();
+
+    var saveBtn = document.getElementById("saveBtn");
+    var resetBtn = document.getElementById("resetBtn");
+    if (saveBtn) {
+      saveBtn.addEventListener("click", save);
+      saveBtn.disabled = !isLoggedIn();
+    }
+    if (resetBtn) resetBtn.addEventListener("click", resetAll);
+
+    var viewUser = queryUsername();
+    if (viewUser) {
+      state.viewUsername = viewUser;
+      var me = parseUser();
+      if (me && String(me.username).toLowerCase() === String(viewUser).toLowerCase()) {
+        setReadonly(false);
+        await loadMine();
+      } else {
+        await loadPublic(viewUser);
+      }
+    } else {
+      setReadonly(false);
+      await loadMine();
+    }
+
+    refreshAllSlots();
+
+    if (window.location.hash === "#leaderboard") {
+      switchTab("leaderboard");
+    }
 
     document.addEventListener("click", function (e) {
       if (!e.target.closest(".cfp-combo")) {

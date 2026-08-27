@@ -5,6 +5,7 @@
 const { json } = require("./_http");
 const { getPublicUserProfile } = require("./db");
 const { getUserBamaStats, normalizeSeason } = require("./_lib/bama-schedule");
+const { getUserCfpSummary } = require("./_lib/cfp-brackets");
 
 exports.handler = async (event) => {
   if (event.httpMethod && event.httpMethod !== "GET") {
@@ -27,13 +28,21 @@ exports.handler = async (event) => {
     });
     if (!profile) return json(404, { error: "User not found" });
 
+    const season = normalizeSeason(q.bamaSeason ?? q.season ?? new Date().getFullYear());
     const apiKey = process.env.CFBD_API_KEY;
     if (apiKey && profile.user && profile.user.id != null) {
       try {
-        const season = normalizeSeason(q.bamaSeason ?? q.season ?? new Date().getFullYear());
         profile.bamaSchedule = await getUserBamaStats(profile.user.id, season, apiKey);
       } catch (err) {
         console.warn("user-public-profile bama stats:", err.message || err);
+      }
+    }
+
+    if (profile.user && profile.user.id != null) {
+      try {
+        profile.cfpBracket = await getUserCfpSummary(profile.user.id, season);
+      } catch (err) {
+        console.warn("user-public-profile cfp bracket:", err.message || err);
       }
     }
 

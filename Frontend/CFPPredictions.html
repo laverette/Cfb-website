@@ -30,15 +30,24 @@
     <header class="cfp-hero">
       <p class="cfp-kicker">College Football Playoff</p>
       <h1 class="cfp-heading">Official Bracket</h1>
-      <p class="cfp-help">Search and pick all 12 seeds, then click winners through to the championship.</p>
+      <p class="cfp-help">Search and pick all 12 seeds, then click winners through to the championship. Log in to save — brackets sync to your account and appear on the leaderboard.</p>
     </header>
 
     <div class="cfp-toolbar">
-      <button type="button" class="btn btn-gold btn-sm" id="saveBtn">Save bracket</button>
-      <button type="button" class="btn btn-brown btn-sm" id="resetBtn">Reset</button>
+      <div class="cfp-tabs" role="tablist">
+        <button type="button" class="cfp-tab active" data-tab="bracket" role="tab" aria-selected="true">My Bracket</button>
+        <button type="button" class="cfp-tab" data-tab="leaderboard" role="tab" aria-selected="false">Leaderboard</button>
+      </div>
+      <div class="cfp-toolbar-actions" id="bracketActions">
+        <button type="button" class="btn btn-gold btn-sm" id="saveBtn">Save bracket</button>
+        <button type="button" class="btn btn-brown btn-sm" id="resetBtn">Reset</button>
+      </div>
       <span class="cfp-status" id="statusLine" aria-live="polite"></span>
     </div>
 
+    <p id="viewBanner" class="cfp-view-banner" hidden></p>
+
+    <section id="bracketPanel" class="cfp-panel">
     <div class="cfp-bracket" id="cfpBracket" aria-label="12-team College Football Playoff bracket">
       <!-- LEFT: First Round -->
       <div class="cfp-col cfp-col-fr-l">
@@ -125,6 +134,32 @@
         </div>
       </div>
     </div>
+    </section>
+
+    <section id="leaderboardPanel" class="cfp-panel" hidden>
+      <div class="cfp-lb-card">
+        <div class="cfp-lb-head">
+          <h2 class="cfp-lb-title">CFP Bracket Leaderboard</h2>
+          <p class="cfp-lb-hint" id="lbHint">Saved brackets from all players.</p>
+        </div>
+        <div class="table-responsive">
+          <table class="cfp-lb-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Player</th>
+                <th>Champion pick</th>
+                <th>Correct</th>
+                <th>Accuracy</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="lbBody"></tbody>
+          </table>
+        </div>
+        <p id="lbEmpty" class="cfp-lb-empty" hidden>No brackets saved yet.</p>
+      </div>
+    </section>
   </main>
 
   <script src="scripts/auth-ui.js"></script>
