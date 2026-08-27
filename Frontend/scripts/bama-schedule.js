@@ -3,8 +3,12 @@
 
   var STORAGE_TOKEN = "authToken";
   var STORAGE_USER = "currentUser";
+  var STORAGE_TEAM = "schedulePredictTeam";
+  var DEFAULT_TEAM = "Alabama";
+
   var state = {
     season: new Date().getFullYear(),
+    team: DEFAULT_TEAM,
     games: [],
     submittedCount: 0,
     activeTab: "predict",
@@ -33,6 +37,34 @@
     }
   }
 
+  function teamName() {
+    return state.team || DEFAULT_TEAM;
+  }
+
+  function predWin(pred) {
+    if (!pred) return null;
+    if (pred.predictedTeamWin != null) return Boolean(pred.predictedTeamWin);
+    if (pred.predictedAlabamaWin != null) return Boolean(pred.predictedAlabamaWin);
+    return null;
+  }
+
+  function predTeamScore(pred) {
+    if (!pred) return "";
+    if (pred.predictedTeamScore != null) return pred.predictedTeamScore;
+    if (pred.predictedAlabamaScore != null) return pred.predictedAlabamaScore;
+    return "";
+  }
+
+  function gameWin(game) {
+    if (game.teamWin != null) return game.teamWin;
+    return game.alabamaWin;
+  }
+
+  function gameTeamScore(game) {
+    if (game.teamScore != null) return game.teamScore;
+    return game.alabamaScore;
+  }
+
   function formatDate(iso) {
     if (!iso) return "TBD";
     var d = new Date(iso);
@@ -46,13 +78,12 @@
   }
 
   function resultBadge(game) {
-    if (!game.completed || game.alabamaWin == null) return "";
-    var cls = game.alabamaWin ? "bama-badge-win" : "bama-badge-loss";
-    var txt = game.alabamaWin ? "W" : "L";
-    var score =
-      game.alabamaScore != null && game.opponentScore != null
-        ? game.alabamaScore + "-" + game.opponentScore
-        : "";
+    var won = gameWin(game);
+    if (!game.completed || won == null) return "";
+    var cls = won ? "bama-badge-win" : "bama-badge-loss";
+    var txt = won ? "W" : "L";
+    var ts = gameTeamScore(game);
+    var score = ts != null && game.opponentScore != null ? ts + "-" + game.opponentScore : "";
     return (
       '<span class="bama-result ' +
       cls +
@@ -66,8 +97,7 @@
   function gradeChip(grades) {
     if (!grades || grades.isWinnerCorrect == null) return "";
     if (grades.isWinnerCorrect) {
-      var err =
-        grades.scoreError != null ? " · " + grades.scoreError + " pt off" : "";
+      var err = grades.scoreError != null ? " · " + grades.scoreError + " pt off" : "";
       return '<span class="bama-grade bama-grade-correct">✓ Winner' + err + "</span>";
     }
     return '<span class="bama-grade bama-grade-wrong">✗ Wrong winner</span>';
@@ -88,11 +118,66 @@
     }
   }
 
+  function readTeamFromUrl() {
+    var params = new URLSearchParams(window.location.search);
+    var t = params.get("team");
+    return t && t.trim() ? t.trim() : null;
+  }
+
+  function persistTeam(name) {
+    try {
+      localStorage.setItem(STORAGE_TEAM, name);
+    } catch (_) {}
+    var url = new URL(window.location.href);
+    url.searchParams.set("team", name);
+    history.replaceState(null, "", url.pathname + url.search + url.hash);
+  }
+
+  async function loadTeams() {
+    var sel = $("teamSelect");
+    if (!sel) return;
+    var saved = readTeamFromUrl();
+    if (!saved) {
+      try {
+        saved = localStorage.getItem(STORAGE_TEAM);
+      } catch (_) {}
+    }
+    state.team = saved && saved.trim() ? saved.trim() : DEFAULT_TEAM;
+
+    var names = [DEFAULT_TEAM];
+    try {
+      var res = await fetch("/api/power/teams?season=" + encodeURIComponent(state.season));
+      if (res.ok) {
+        var data = await res.json();
+        names = (data.teams || [])
+          .map(function (t) {
+            return t.name;
+          })
+          .filter(Boolean);
+      }
+    } catch (_) {}
+
+    if (names.indexOf(state.team) === -1) names.unshift(state.team);
+    names.sort(function (a, b) {
+      return a.localeCompare(b);
+    });
+
+    sel.innerHTML = "";
+    names.forEach(function (name) {
+      var opt = document.createElement("option");
+      opt.value = name;
+      opt.textContent = name;
+      if (name === state.team) opt.selected = true;
+      sel.appendChild(opt);
+    });
+  }
+
   function renderGames() {
     var form = $("predictForm");
     if (!form) return;
     if (!state.games.length) {
-      form.innerHTML = '<p class="bama-loading">Loading Alabama schedule…</p>';
+      form.innerHTML =
+        '<p class="bama-loading">Loading ' + escapeHtml(teamName()) + " schedule…</p>";
       return;
     }
 
@@ -100,15 +185,12 @@
       .map(function (game) {
         var pred = game.prediction;
         var locked = game.locked;
-        var winVal = pred ? (pred.predictedAlabamaWin ? "win" : "loss") : "win";
-        var aScore = pred && pred.predictedAlabamaScore != null ? pred.predictedAlabamaScore : "";
+        var winVal = predWin(pred) === false ? "loss" : "win";
+        var aScore = predTeamScore(pred);
         var oScore = pred && pred.predictedOpponentScore != null ? pred.predictedOpponentScore : "";
         var disabled = locked ? "disabled" : "";
-        var lockNote = locked
-          ? game.completed
-            ? "Final"
-            : "Locked"
-          : "Open";
+        var lockNote = locked ? (game.completed ? "Final" : "Locked") : "Open";
+        var loc = game.neutralSite ? "vs" : game.isHome ? "vs" : "at";
 
         return (
           '<article class="section-card bama-game-card' +
@@ -133,7 +215,9 @@
           resultBadge(game) +
           gradeChip(game.grades) +
           "</div>" +
-          '<h3 class="bama-matchup">vs ' +
+          '<h3 class="bama-matchup">' +
+          loc +
+          " " +
           escapeHtml(game.opponent) +
           "</h3>" +
           "</div>" +
@@ -146,12 +230,18 @@
           ">" +
           '<option value="win"' +
           (winVal === "win" ? " selected" : "") +
-          ">Alabama Win</option>" +
+          ">" +
+          escapeHtml(teamName()) +
+          " Win</option>" +
           '<option value="loss"' +
           (winVal === "loss" ? " selected" : "") +
-          ">Alabama Loss</option>" +
+          ">" +
+          escapeHtml(teamName()) +
+          " Loss</option>" +
           "</select></label>" +
-          '<label class="bama-pick-label">Bama score' +
+          '<label class="bama-pick-label">' +
+          escapeHtml(teamName()) +
+          " score" +
           '<input type="number" min="0" max="99" class="site-input bama-score-a" name="ascore-' +
           game.cfbdGameId +
           '" value="' +
@@ -194,6 +284,8 @@
     });
     state.submittedCount = filled;
     text.textContent =
+      teamName() +
+      " · " +
       filled +
       " / " +
       state.games.length +
@@ -222,23 +314,36 @@
       if (aIn.value === "" || oIn.value === "") return;
       picks.push({
         cfbdGameId: game.cfbdGameId,
-        predictedAlabamaWin: winSel.value === "win",
-        predictedAlabamaScore: Number(aIn.value),
+        predictedTeamWin: winSel.value === "win",
+        predictedTeamScore: Number(aIn.value),
         predictedOpponentScore: Number(oIn.value),
       });
     });
     return picks;
   }
 
+  function teamQuery() {
+    return (
+      "season=" +
+      encodeURIComponent(state.season) +
+      "&team=" +
+      encodeURIComponent(teamName())
+    );
+  }
+
   async function loadSchedule() {
     var form = $("predictForm");
-    if (form) form.innerHTML = '<p class="bama-loading">Loading Alabama schedule…</p>';
+    if (form) {
+      form.innerHTML =
+        '<p class="bama-loading">Loading ' + escapeHtml(teamName()) + " schedule…</p>";
+    }
 
-    var res = await fetch("/api/bama/schedule?season=" + encodeURIComponent(state.season), {
+    var res = await fetch("/api/bama/schedule?" + teamQuery(), {
       headers: authHeaders(),
     });
     if (!res.ok) throw new Error("Failed to load schedule");
     var data = await res.json();
+    if (data.team) state.team = data.team;
     state.games = data.games || [];
     renderGames();
     populateLbGameOptions();
@@ -252,8 +357,9 @@
       var opt = document.createElement("option");
       opt.value = String(g.cfbdGameId);
       var label = "Week " + (g.week || "?") + " vs " + g.opponent;
-      if (g.completed && g.alabamaScore != null) {
-        label += " (" + g.alabamaScore + "-" + g.opponentScore + ")";
+      var ts = gameTeamScore(g);
+      if (g.completed && ts != null) {
+        label += " (" + ts + "-" + g.opponentScore + ")";
       }
       opt.textContent = label;
       sel.appendChild(opt);
@@ -262,7 +368,7 @@
 
   async function savePredictions() {
     if (!isLoggedIn()) {
-      window.location.href = "login.html?redirect=bama.html";
+      window.location.href = "login.html?redirect=" + encodeURIComponent("bama.html?team=" + teamName());
       return;
     }
     var picks = collectPicks();
@@ -276,14 +382,18 @@
       var res = await fetch("/api/bama/submit", {
         method: "POST",
         headers: Object.assign({ "Content-Type": "application/json" }, authHeaders()),
-        body: JSON.stringify({ season: state.season, picks: picks }),
+        body: JSON.stringify({ season: state.season, team: teamName(), picks: picks }),
       });
       var data = await res.json().catch(function () {
         return {};
       });
       if (!res.ok) throw new Error(data.message || data.error || "Save failed");
       $("saveStatus").textContent =
-        "Saved " + (data.saved || picks.length) + " game(s)." +
+        "Saved " +
+        (data.saved || picks.length) +
+        " " +
+        teamName() +
+        " game(s)." +
         (data.skippedLocked ? " (" + data.skippedLocked + " locked skipped)" : "");
       await loadSchedule();
       if (state.activeTab === "leaderboard") await loadLeaderboard();
@@ -305,7 +415,7 @@
   }
 
   function renderSeasonLeaderboard(board) {
-    $("lbTitle").textContent = state.season + " Bama Schedule Leaderboard";
+    $("lbTitle").textContent = teamName() + " · " + state.season + " Leaderboard";
     $("lbHint").textContent = board.viewerHint || "";
     var head = $("lbHead");
     head.innerHTML =
@@ -356,7 +466,7 @@
   function renderGameLeaderboard(board) {
     var game = board.game;
     $("lbTitle").textContent = game
-      ? "Week " + game.week + " vs " + game.opponent
+      ? teamName() + " · Week " + game.week + " vs " + game.opponent
       : "Game leaderboard";
     $("lbHint").textContent = board.viewerHint || "";
     $("lbHead").innerHTML =
@@ -366,8 +476,10 @@
     $("lbEmpty").hidden = entries.length > 0;
     $("lbBody").innerHTML = entries
       .map(function (e) {
-        var pick = e.predictedAlabamaWin ? "Bama W" : "Bama L";
-        var score = e.predictedAlabamaScore + "-" + e.predictedOpponentScore;
+        var won = e.predictedTeamWin != null ? e.predictedTeamWin : e.predictedAlabamaWin;
+        var tScore = e.predictedTeamScore != null ? e.predictedTeamScore : e.predictedAlabamaScore;
+        var pick = won ? teamName() + " W" : teamName() + " L";
+        var score = tScore + "-" + e.predictedOpponentScore;
         var result =
           e.isWinnerCorrect == null
             ? "Pending"
@@ -380,7 +492,7 @@
           "</td><td>" +
           profileLink(e.username) +
           "</td><td>" +
-          pick +
+          escapeHtml(pick) +
           "</td><td>" +
           score +
           "</td><td>" +
@@ -428,8 +540,8 @@
   async function loadLeaderboard() {
     var gameId = state.lbGameId;
     var url =
-      "/api/bama/leaderboard?season=" +
-      encodeURIComponent(state.season) +
+      "/api/bama/leaderboard?" +
+      teamQuery() +
       (gameId ? "&gameId=" + encodeURIComponent(gameId) : "");
     var res = await fetch(url);
     if (!res.ok) throw new Error("Failed to load leaderboard");
@@ -454,11 +566,21 @@
     $("saveStatus").textContent = (err && err.message) || "Something went wrong.";
   }
 
+  function onTeamOrSeasonChange() {
+    persistTeam(teamName());
+    loadSchedule().catch(showError);
+    if (state.activeTab === "leaderboard") loadLeaderboard().catch(showError);
+  }
+
   function bindEvents() {
     $("seasonSelect").addEventListener("change", function (e) {
       state.season = Number(e.target.value) || new Date().getFullYear();
-      loadSchedule().catch(showError);
-      if (state.activeTab === "leaderboard") loadLeaderboard().catch(showError);
+      onTeamOrSeasonChange();
+    });
+
+    $("teamSelect").addEventListener("change", function (e) {
+      state.team = e.target.value || DEFAULT_TEAM;
+      onTeamOrSeasonChange();
     });
 
     document.querySelectorAll(".bama-tab").forEach(function (btn) {
@@ -483,12 +605,13 @@
     $("saveBtn").disabled = !isLoggedIn();
   }
 
-  document.addEventListener("DOMContentLoaded", function () {
+  document.addEventListener("DOMContentLoaded", async function () {
     populateSeasonSelect();
     bindEvents();
     refreshAuthUi();
+    await loadTeams();
+    persistTeam(teamName());
     loadSchedule().catch(showError);
-
     document.addEventListener("auth:changed", refreshAuthUi);
   });
 })();

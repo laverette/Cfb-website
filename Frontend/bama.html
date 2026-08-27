@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Alabama Schedule Predictions</title>
+  <title>Schedule Predictions</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
   <link rel="stylesheet" href="styles/site-theme.css">
   <link rel="stylesheet" href="Resources/Styles/bama.css">
@@ -17,7 +17,7 @@
           <span></span><span></span><span></span>
         </button>
         <div class="dropdown-menu" id="dropdownMenu"></div>
-        <h1 class="site-title">Bama Schedule</h1>
+        <h1 class="site-title">Schedule Predictions</h1>
         <div id="auth-nav" class="navbar-auth-cluster"></div>
       </div>
     </div>
@@ -26,16 +26,22 @@
 
   <main class="container page-shell bama-page">
     <header class="bama-header">
-      <p class="bama-eyebrow">Roll Tide · Season-long picks</p>
-      <h1 class="page-title">🐘 Alabama Schedule Predictions</h1>
-      <p class="bama-subtitle">Predict every game — winner, score, and track your rank on the leaderboard after each kickoff.</p>
+      <p class="bama-eyebrow">Season-long picks</p>
+      <h1 class="page-title">Schedule Predictions</h1>
+      <p class="bama-subtitle">Pick your team, then predict every game — winner, score, and climb that team’s leaderboard after kickoff.</p>
     </header>
 
     <div class="bama-toolbar section-card">
-      <label class="bama-season-label">
-        Season
-        <select id="seasonSelect" class="site-select"></select>
-      </label>
+      <div class="bama-filters">
+        <label class="bama-season-label">
+          Team
+          <select id="teamSelect" class="site-select"></select>
+        </label>
+        <label class="bama-season-label">
+          Season
+          <select id="seasonSelect" class="site-select"></select>
+        </label>
+      </div>
       <div class="bama-tabs" role="tablist">
         <button type="button" class="bama-tab active" data-tab="predict" role="tab" aria-selected="true">My Predictions</button>
         <button type="button" class="bama-tab" data-tab="leaderboard" role="tab" aria-selected="false">Leaderboard</button>
@@ -44,7 +50,7 @@
 
     <section id="predictPanel" class="bama-panel">
       <div id="loginGate" class="bama-login-gate section-card" hidden>
-        <p><a href="login.html?redirect=bama.html">Log in</a> to save your Alabama schedule predictions to your profile.</p>
+        <p><a href="login.html?redirect=bama.html">Log in</a> to save your schedule predictions to your profile.</p>
       </div>
 
       <div id="progressCard" class="section-card bama-progress" hidden>

@@ -32,7 +32,7 @@ const MODEL_PARAMS = Object.freeze({
   specialTeamsWeight: 0.35,
 
   /** Talent contribution remaining in mid-blend (also in prior). */
-  talentInfluence: 0.28,
+  talentInfluence: 0.31,
 
   /** FCS handling */
   fcsPositiveWeight: 0.28,

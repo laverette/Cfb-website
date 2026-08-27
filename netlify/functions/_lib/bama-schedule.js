@@ -1,9 +1,10 @@
 /**
- * Alabama schedule predictions — CFBD ingest, grading, leaderboard.
+ * Team schedule predictions — CFBD ingest, grading, leaderboard.
+ * Any FBS team; leaderboard is scoped per team + season.
  */
 
 const CFBD_BASE = "https://api.collegefootballdata.com";
-const ALABAMA_SCHOOL = "Alabama";
+const DEFAULT_TEAM = "Alabama";
 
 const {
   getSupabase,
@@ -12,12 +13,20 @@ const {
   listPublicUsers,
   emptyPickBucket,
   finalizeBucket,
-  addPickToBucket,
 } = require("../db");
 
 function normalizeSeason(season) {
   const y = Number(season);
   return Number.isFinite(y) && y >= 2000 ? y : new Date().getFullYear();
+}
+
+function normalizeTeam(name) {
+  const t = String(name || "").trim();
+  return t || DEFAULT_TEAM;
+}
+
+function sameTeam(a, b) {
+  return String(a || "").trim().toLowerCase() === String(b || "").trim().toLowerCase();
 }
 
 async function cfbdGet(path, query, apiKey, signal) {
@@ -37,45 +46,44 @@ async function cfbdGet(path, query, apiKey, signal) {
   return resp.json();
 }
 
-function isAlabamaTeam(name) {
-  return String(name || "").trim().toLowerCase() === ALABAMA_SCHOOL.toLowerCase();
-}
+function mapScheduleGame(g, school) {
+  const homeIsTeam = sameTeam(g.homeTeam, school);
+  const awayIsTeam = sameTeam(g.awayTeam, school);
+  if (!homeIsTeam && !awayIsTeam) return null;
 
-function mapScheduleGame(g) {
-  const homeIsBama = isAlabamaTeam(g.homeTeam);
-  const awayIsBama = isAlabamaTeam(g.awayTeam);
-  if (!homeIsBama && !awayIsBama) return null;
-
-  const opponent = homeIsBama ? g.awayTeam : g.homeTeam;
+  const opponent = homeIsTeam ? g.awayTeam : g.homeTeam;
   const completed = Boolean(g.completed);
   const homeScore = Number.isFinite(Number(g.homePoints)) ? Number(g.homePoints) : null;
   const awayScore = Number.isFinite(Number(g.awayPoints)) ? Number(g.awayPoints) : null;
 
-  let alabamaScore = null;
+  let teamScore = null;
   let opponentScore = null;
-  let alabamaWin = null;
+  let teamWin = null;
   if (completed && homeScore != null && awayScore != null) {
-    alabamaScore = homeIsBama ? homeScore : awayScore;
-    opponentScore = homeIsBama ? awayScore : homeScore;
-    alabamaWin = alabamaScore > opponentScore;
+    teamScore = homeIsTeam ? homeScore : awayScore;
+    opponentScore = homeIsTeam ? awayScore : homeScore;
+    teamWin = teamScore > opponentScore;
   }
 
   const startDate = g.startDate || null;
-  const locked = isGameLocked(startDate, completed);
 
   return {
     cfbdGameId: Number(g.id),
     season: Number(g.season),
     week: Number(g.week),
+    team: school,
     opponent,
-    isHome: homeIsBama,
+    isHome: homeIsTeam,
     neutralSite: Boolean(g.neutralSite),
     startDate,
     completed,
-    locked,
-    alabamaScore,
+    locked: isGameLocked(startDate, completed),
+    teamScore,
     opponentScore,
-    alabamaWin,
+    teamWin,
+    // Back-compat aliases for existing UI/profile code
+    alabamaScore: teamScore,
+    alabamaWin: teamWin,
     homeTeam: g.homeTeam,
     awayTeam: g.awayTeam,
     homeScore,
@@ -92,15 +100,16 @@ function isGameLocked(startDate, completed) {
   return Date.now() >= kick.getTime();
 }
 
-async function fetchAlabamaSchedule(season, apiKey) {
+async function fetchTeamSchedule(season, team, apiKey) {
   if (!apiKey) throw new Error("CFBD_API_KEY required");
+  const school = normalizeTeam(team);
   const raw = await cfbdGet(
     "/games",
-    { year: normalizeSeason(season), team: ALABAMA_SCHOOL, seasonType: "regular" },
+    { year: normalizeSeason(season), team: school, seasonType: "regular" },
     apiKey
   );
-  const games = (Array.isArray(raw) ? raw : [])
-    .map(mapScheduleGame)
+  return (Array.isArray(raw) ? raw : [])
+    .map((g) => mapScheduleGame(g, school))
     .filter(Boolean)
     .sort((a, b) => {
       if (a.week !== b.week) return a.week - b.week;
@@ -108,21 +117,29 @@ async function fetchAlabamaSchedule(season, apiKey) {
       const tb = b.startDate ? new Date(b.startDate).getTime() : 0;
       return ta - tb;
     });
-  return games;
+}
+
+function fetchAlabamaSchedule(season, apiKey) {
+  return fetchTeamSchedule(season, DEFAULT_TEAM, apiKey);
 }
 
 function mapPredictionRow(row) {
   if (!row) return null;
+  const predictedTeamWin = Boolean(row.predicted_alabama_win);
+  const predictedTeamScore =
+    row.predicted_alabama_score != null ? Number(row.predicted_alabama_score) : null;
   return {
     cfbdGameId: Number(row.cfbd_game_id),
+    team: row.team_school || DEFAULT_TEAM,
     week: row.week != null ? Number(row.week) : null,
     opponent: row.opponent_name,
     isHome: Boolean(row.is_home),
-    predictedAlabamaWin: Boolean(row.predicted_alabama_win),
-    predictedAlabamaScore:
-      row.predicted_alabama_score != null ? Number(row.predicted_alabama_score) : null,
+    predictedTeamWin,
+    predictedTeamScore,
     predictedOpponentScore:
       row.predicted_opponent_score != null ? Number(row.predicted_opponent_score) : null,
+    predictedAlabamaWin: predictedTeamWin,
+    predictedAlabamaScore: predictedTeamScore,
     isWinnerCorrect: row.is_winner_correct,
     scoreError: row.score_error != null ? Number(row.score_error) : null,
     submittedAt: row.submitted_at,
@@ -130,13 +147,31 @@ function mapPredictionRow(row) {
   };
 }
 
-async function loadUserPredictions(userId, seasonYear) {
+async function loadUserPredictions(userId, seasonYear, team) {
+  const school = normalizeTeam(team);
   const supabase = getSupabase();
-  const { data, error } = await supabase
+  let query = supabase
     .from("bama_schedule_predictions")
     .select("*")
     .eq("user_id", userId)
     .eq("season_year", seasonYear);
+
+  let { data, error } = await query.eq("team_school", school);
+  if (error && /team_school/i.test(String(error.message || ""))) {
+    if (!sameTeam(school, DEFAULT_TEAM)) {
+      const err = new Error("Run sql/bama_schedule_team_school.sql in Supabase to enable other teams.");
+      err.code = "SCHEMA_NEEDS_TEAM";
+      throw err;
+    }
+    const fallback = await supabase
+      .from("bama_schedule_predictions")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("season_year", seasonYear);
+    dbError(fallback.error);
+    data = fallback.data;
+    error = null;
+  }
   dbError(error);
   const byGame = new Map();
   for (const row of data || []) {
@@ -146,37 +181,52 @@ async function loadUserPredictions(userId, seasonYear) {
 }
 
 function gradePrediction(pred, game) {
-  if (!game.completed || game.alabamaWin == null) {
+  if (!game.completed || game.teamWin == null) {
     return { isWinnerCorrect: null, scoreError: null };
   }
-  const isWinnerCorrect = Boolean(pred.predictedAlabamaWin) === Boolean(game.alabamaWin);
+  const isWinnerCorrect = Boolean(pred.predictedTeamWin) === Boolean(game.teamWin);
   let scoreError = null;
-  const a = pred.predictedAlabamaScore;
+  const a = pred.predictedTeamScore;
   const o = pred.predictedOpponentScore;
   if (
     Number.isFinite(a) &&
     Number.isFinite(o) &&
-    game.alabamaScore != null &&
+    game.teamScore != null &&
     game.opponentScore != null
   ) {
-    scoreError =
-      Math.abs(a - game.alabamaScore) + Math.abs(o - game.opponentScore);
+    scoreError = Math.abs(a - game.teamScore) + Math.abs(o - game.opponentScore);
   }
   return { isWinnerCorrect, scoreError };
 }
 
-async function syncGrades(seasonYear, games) {
+async function syncGrades(seasonYear, games, team) {
+  const school = normalizeTeam(team);
   const supabase = getSupabase();
   const completedIds = games.filter((g) => g.completed).map((g) => g.cfbdGameId);
   if (!completedIds.length) return 0;
 
-  const rows = await selectAllPages(() =>
-    supabase
-      .from("bama_schedule_predictions")
-      .select("*")
-      .eq("season_year", seasonYear)
-      .in("cfbd_game_id", completedIds)
-  );
+  let rows;
+  try {
+    rows = await selectAllPages(() =>
+      supabase
+        .from("bama_schedule_predictions")
+        .select("*")
+        .eq("season_year", seasonYear)
+        .eq("team_school", school)
+        .in("cfbd_game_id", completedIds)
+    );
+  } catch (err) {
+    if (!/team_school/i.test(String(err.message || "")) || !sameTeam(school, DEFAULT_TEAM)) {
+      throw err;
+    }
+    rows = await selectAllPages(() =>
+      supabase
+        .from("bama_schedule_predictions")
+        .select("*")
+        .eq("season_year", seasonYear)
+        .in("cfbd_game_id", completedIds)
+    );
+  }
 
   const gameById = new Map(games.map((g) => [g.cfbdGameId, g]));
   let updated = 0;
@@ -206,46 +256,60 @@ async function syncGrades(seasonYear, games) {
   return updated;
 }
 
-async function getScheduleBundle({ season, userId = null, apiKey }) {
+async function getScheduleBundle({ season, team, userId = null, apiKey }) {
   const seasonYear = normalizeSeason(season);
-  const games = await fetchAlabamaSchedule(seasonYear, apiKey);
-  await syncGrades(seasonYear, games);
+  const school = normalizeTeam(team);
+  const games = await fetchTeamSchedule(seasonYear, school, apiKey);
+  await syncGrades(seasonYear, games, school);
 
   let predictions = new Map();
   if (userId) {
-    predictions = await loadUserPredictions(userId, seasonYear);
+    predictions = await loadUserPredictions(userId, seasonYear, school);
   }
 
   const enriched = games.map((g) => {
     const pred = predictions.get(g.cfbdGameId) || null;
-    let grades = null;
-    if (pred) grades = gradePrediction(pred, g);
-    return { ...g, prediction: pred, grades };
+    return { ...g, prediction: pred, grades: pred ? gradePrediction(pred, g) : null };
   });
-
-  const submittedCount = [...predictions.keys()].length;
-  const lockedCount = games.filter((g) => g.locked).length;
 
   return {
     season: seasonYear,
-    team: ALABAMA_SCHOOL,
+    team: school,
     games: enriched,
-    submittedCount,
+    submittedCount: [...predictions.keys()].length,
     totalGames: games.length,
-    lockedCount,
+    lockedCount: games.filter((g) => g.locked).length,
   };
 }
 
 function parseScorePair(body) {
-  const a = Number(body.predictedAlabamaScore ?? body.predicted_alabama_score);
+  const a = Number(
+    body.predictedTeamScore ??
+      body.predicted_team_score ??
+      body.predictedAlabamaScore ??
+      body.predicted_alabama_score
+  );
   const o = Number(body.predictedOpponentScore ?? body.predicted_opponent_score);
   if (!Number.isFinite(a) || !Number.isFinite(o) || a < 0 || o < 0) return null;
-  return { alabama: Math.round(a), opponent: Math.round(o) };
+  return { team: Math.round(a), opponent: Math.round(o) };
 }
 
-async function submitPredictions({ userId, season, picks, apiKey }) {
+function parsePredictedWin(pick) {
+  const winRaw =
+    pick.predictedTeamWin ??
+    pick.predicted_team_win ??
+    pick.predictedAlabamaWin ??
+    pick.predicted_alabama_win;
+  if (typeof winRaw === "boolean") return winRaw;
+  if (winRaw === "win" || winRaw === "W") return true;
+  if (winRaw === "loss" || winRaw === "L") return false;
+  return null;
+}
+
+async function submitPredictions({ userId, season, team, picks, apiKey }) {
   const seasonYear = normalizeSeason(season);
-  const games = await fetchAlabamaSchedule(seasonYear, apiKey);
+  const school = normalizeTeam(team);
+  const games = await fetchTeamSchedule(seasonYear, school, apiKey);
   const gameById = new Map(games.map((g) => [g.cfbdGameId, g]));
 
   if (!Array.isArray(picks) || !picks.length) {
@@ -267,12 +331,8 @@ async function submitPredictions({ userId, season, picks, apiKey }) {
       continue;
     }
 
-    const winRaw = pick.predictedAlabamaWin ?? pick.predicted_alabama_win;
-    let predictedAlabamaWin;
-    if (typeof winRaw === "boolean") predictedAlabamaWin = winRaw;
-    else if (winRaw === "win" || winRaw === "W" || winRaw === true) predictedAlabamaWin = true;
-    else if (winRaw === "loss" || winRaw === "L" || winRaw === false) predictedAlabamaWin = false;
-    else continue;
+    const predictedTeamWin = parsePredictedWin(pick);
+    if (predictedTeamWin == null) continue;
 
     const scores = parseScorePair(pick);
     if (!scores) {
@@ -284,12 +344,13 @@ async function submitPredictions({ userId, season, picks, apiKey }) {
     rows.push({
       user_id: userId,
       season_year: seasonYear,
+      team_school: school,
       cfbd_game_id: cfbdGameId,
       week: game.week,
       opponent_name: game.opponent,
       is_home: game.isHome,
-      predicted_alabama_win: predictedAlabamaWin,
-      predicted_alabama_score: scores.alabama,
+      predicted_alabama_win: predictedTeamWin,
+      predicted_alabama_score: scores.team,
       predicted_opponent_score: scores.opponent,
       updated_at: new Date().toISOString(),
     });
@@ -308,17 +369,30 @@ async function submitPredictions({ userId, season, picks, apiKey }) {
 
   const supabase = getSupabase();
   const { error } = await supabase.from("bama_schedule_predictions").upsert(rows, {
-    onConflict: "user_id,cfbd_game_id,season_year",
+    onConflict: "user_id,team_school,cfbd_game_id,season_year",
   });
-  dbError(error);
+  if (error && /team_school|there is no unique/i.test(String(error.message || ""))) {
+    if (!sameTeam(school, DEFAULT_TEAM)) {
+      const err = new Error("Run sql/bama_schedule_team_school.sql in Supabase to enable other teams.");
+      err.code = "SCHEMA_NEEDS_TEAM";
+      throw err;
+    }
+    const stripped = rows.map(({ team_school, ...rest }) => rest);
+    const retry = await supabase.from("bama_schedule_predictions").upsert(stripped, {
+      onConflict: "user_id,cfbd_game_id,season_year",
+    });
+    dbError(retry.error);
+  } else {
+    dbError(error);
+  }
 
-  await syncGrades(seasonYear, games);
+  await syncGrades(seasonYear, games, school);
 
   try {
     await supabase.from("user_activity").insert({
       user_id: userId,
-      activity_type: "bama_schedule_submitted",
-      activity_data: { season_year: seasonYear, pick_count: rows.length },
+      activity_type: "schedule_predictions_submitted",
+      activity_data: { season_year: seasonYear, team: school, pick_count: rows.length },
     });
   } catch {
     /* optional */
@@ -328,17 +402,32 @@ async function submitPredictions({ userId, season, picks, apiKey }) {
     saved: rows.length,
     skippedLocked: lockedGames.length,
     season: seasonYear,
+    team: school,
   };
 }
 
-async function loadAllPredictions(seasonYear) {
+async function loadAllPredictions(seasonYear, team) {
+  const school = normalizeTeam(team);
   const supabase = getSupabase();
-  return selectAllPages(() =>
-    supabase
-      .from("bama_schedule_predictions")
-      .select("*")
-      .eq("season_year", seasonYear)
-  );
+  try {
+    return await selectAllPages(() =>
+      supabase
+        .from("bama_schedule_predictions")
+        .select("*")
+        .eq("season_year", seasonYear)
+        .eq("team_school", school)
+    );
+  } catch (err) {
+    if (/team_school/i.test(String(err.message || "")) && sameTeam(school, DEFAULT_TEAM)) {
+      return selectAllPages(() =>
+        supabase
+          .from("bama_schedule_predictions")
+          .select("*")
+          .eq("season_year", seasonYear)
+      );
+    }
+    throw err;
+  }
 }
 
 function buildUserLeaderboardEntry(user, preds, gamesById, seasonYear) {
@@ -349,10 +438,12 @@ function buildUserLeaderboardEntry(user, preds, gamesById, seasonYear) {
   for (const row of preds) {
     const game = gamesById.get(Number(row.cfbd_game_id));
     const pred = mapPredictionRow(row);
-    const grades = game ? gradePrediction(pred, game) : {
-      isWinnerCorrect: row.is_winner_correct,
-      scoreError: row.score_error,
-    };
+    const grades = game
+      ? gradePrediction(pred, game)
+      : {
+          isWinnerCorrect: row.is_winner_correct,
+          scoreError: row.score_error,
+        };
 
     bucket.totalPicks += 1;
     if (grades.isWinnerCorrect === true) {
@@ -397,7 +488,7 @@ function buildUserLeaderboardEntry(user, preds, gamesById, seasonYear) {
   };
 }
 
-function rankBamaRows(rows) {
+function rankScheduleRows(rows) {
   return [...rows]
     .sort((a, b) => {
       if (b.correctPicks !== a.correctPicks) return b.correctPicks - a.correctPicks;
@@ -413,14 +504,15 @@ function rankBamaRows(rows) {
     .map((row, i) => ({ ...row, rank: i + 1 }));
 }
 
-async function getLeaderboard({ season, cfbdGameId = null, apiKey }) {
+async function getLeaderboard({ season, team, cfbdGameId = null, apiKey }) {
   const seasonYear = normalizeSeason(season);
-  const games = await fetchAlabamaSchedule(seasonYear, apiKey);
-  await syncGrades(seasonYear, games);
+  const school = normalizeTeam(team);
+  const games = await fetchTeamSchedule(seasonYear, school, apiKey);
+  await syncGrades(seasonYear, games, school);
   const gamesById = new Map(games.map((g) => [g.cfbdGameId, g]));
 
   const users = await listPublicUsers();
-  const allPreds = await loadAllPredictions(seasonYear);
+  const allPreds = await loadAllPredictions(seasonYear, school);
 
   if (cfbdGameId != null && Number.isFinite(Number(cfbdGameId))) {
     const gid = Number(cfbdGameId);
@@ -433,17 +525,21 @@ async function getLeaderboard({ season, cfbdGameId = null, apiKey }) {
         const u = byUser.get(Number(row.user_id));
         if (!u) return null;
         const pred = mapPredictionRow(row);
-        const grades = game ? gradePrediction(pred, game) : {
-          isWinnerCorrect: row.is_winner_correct,
-          scoreError: row.score_error,
-        };
+        const grades = game
+          ? gradePrediction(pred, game)
+          : {
+              isWinnerCorrect: row.is_winner_correct,
+              scoreError: row.score_error,
+            };
         return {
           userId: u.id,
           username: u.username,
           displayName: u.displayName,
           avatarUrl: u.avatarUrl,
-          predictedAlabamaWin: pred.predictedAlabamaWin,
-          predictedAlabamaScore: pred.predictedAlabamaScore,
+          predictedTeamWin: pred.predictedTeamWin,
+          predictedTeamScore: pred.predictedTeamScore,
+          predictedAlabamaWin: pred.predictedTeamWin,
+          predictedAlabamaScore: pred.predictedTeamScore,
           predictedOpponentScore: pred.predictedOpponentScore,
           isWinnerCorrect: grades.isWinnerCorrect,
           scoreError: grades.scoreError,
@@ -461,13 +557,13 @@ async function getLeaderboard({ season, cfbdGameId = null, apiKey }) {
       if (ae !== be) return ae - be;
       return String(a.displayName || a.username).localeCompare(String(b.displayName || b.username));
     });
-
     entries.forEach((e, i) => {
       e.rank = i + 1;
     });
 
     return {
       season: seasonYear,
+      team: school,
       scope: "game",
       cfbdGameId: gid,
       game: game || null,
@@ -484,7 +580,7 @@ async function getLeaderboard({ season, cfbdGameId = null, apiKey }) {
     predsByUser.get(uid).push(row);
   }
 
-  const entries = rankBamaRows(
+  const entries = rankScheduleRows(
     users
       .map((u) =>
         buildUserLeaderboardEntry(
@@ -513,35 +609,19 @@ async function getLeaderboard({ season, cfbdGameId = null, apiKey }) {
 
   return {
     season: seasonYear,
+    team: school,
     scope: "season",
     totalGames: games.length,
     entries,
     highlights: { hottest },
     viewerHint:
-      "Season board: correct winners first, then accuracy, then average score margin error.",
+      "Season board for this team: correct winners first, then accuracy, then average score error.",
   };
 }
 
-async function getUserBamaStats(userId, season, apiKey) {
-  const seasonYear = normalizeSeason(season);
-  const games = await fetchAlabamaSchedule(seasonYear, apiKey);
-  await syncGrades(seasonYear, games);
-  const gamesById = new Map(games.map((g) => [g.cfbdGameId, g]));
-
-  const supabase = getSupabase();
-  const { data, error } = await supabase
-    .from("bama_schedule_predictions")
-    .select("*")
-    .eq("user_id", userId)
-    .eq("season_year", seasonYear);
-  dbError(error);
-
-  const users = await listPublicUsers();
-  const user = users.find((u) => Number(u.id) === Number(userId));
-  if (!user) return null;
-
-  const entry = buildUserLeaderboardEntry(user, data || [], gamesById, seasonYear);
-  const predictions = (data || []).map((row) => {
+async function buildSlate(user, rows, gamesById, seasonYear, school) {
+  const entry = buildUserLeaderboardEntry(user, rows, gamesById, seasonYear);
+  const predictions = rows.map((row) => {
     const game = gamesById.get(Number(row.cfbd_game_id));
     const pred = mapPredictionRow(row);
     return {
@@ -551,31 +631,83 @@ async function getUserBamaStats(userId, season, apiKey) {
             opponent: game.opponent,
             week: game.week,
             completed: game.completed,
-            alabamaScore: game.alabamaScore,
+            teamScore: game.teamScore,
             opponentScore: game.opponentScore,
-            alabamaWin: game.alabamaWin,
+            teamWin: game.teamWin,
+            alabamaScore: game.teamScore,
+            alabamaWin: game.teamWin,
           }
         : null,
       grades: game ? gradePrediction(pred, game) : null,
     };
   });
-
   predictions.sort((a, b) => (a.week || 0) - (b.week || 0));
+  return { team: school, season: seasonYear, stats: entry, predictions };
+}
+
+async function getUserScheduleStats(userId, season, apiKey, team = null) {
+  const seasonYear = normalizeSeason(season);
+  const supabase = getSupabase();
+  let query = supabase
+    .from("bama_schedule_predictions")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("season_year", seasonYear);
+  if (team) query = query.eq("team_school", normalizeTeam(team));
+  const { data, error } = await query;
+  dbError(error);
+
+  const users = await listPublicUsers();
+  const user = users.find((u) => Number(u.id) === Number(userId));
+  if (!user) return null;
+
+  const byTeam = new Map();
+  for (const row of data || []) {
+    const school = row.team_school || DEFAULT_TEAM;
+    if (!byTeam.has(school)) byTeam.set(school, []);
+    byTeam.get(school).push(row);
+  }
+
+  const slates = [];
+  for (const [school, rows] of byTeam.entries()) {
+    const games = await fetchTeamSchedule(seasonYear, school, apiKey);
+    await syncGrades(seasonYear, games, school);
+    const gamesById = new Map(games.map((g) => [g.cfbdGameId, g]));
+    slates.push(await buildSlate(user, rows, gamesById, seasonYear, school));
+  }
+  slates.sort((a, b) => a.team.localeCompare(b.team));
+
+  const primary = slates[0] || {
+    team: team ? normalizeTeam(team) : DEFAULT_TEAM,
+    season: seasonYear,
+    stats: buildUserLeaderboardEntry(user, [], new Map(), seasonYear),
+    predictions: [],
+  };
 
   return {
     season: seasonYear,
-    stats: entry,
-    predictions,
+    team: primary.team,
+    stats: primary.stats,
+    predictions: primary.predictions,
+    slates,
   };
 }
 
+function getUserBamaStats(userId, season, apiKey) {
+  return getUserScheduleStats(userId, season, apiKey, null);
+}
+
 module.exports = {
-  ALABAMA_SCHOOL,
+  DEFAULT_TEAM,
+  ALABAMA_SCHOOL: DEFAULT_TEAM,
   normalizeSeason,
+  normalizeTeam,
+  fetchTeamSchedule,
   fetchAlabamaSchedule,
   getScheduleBundle,
   submitPredictions,
   getLeaderboard,
+  getUserScheduleStats,
   getUserBamaStats,
   gradePrediction,
   isGameLocked,

@@ -1,10 +1,10 @@
 /**
  * POST /api/bama/submit
- * Body: { season, picks: [{ cfbdGameId, predictedAlabamaWin, predictedAlabamaScore, predictedOpponentScore }] }
+ * Body: { season, team, picks: [{ cfbdGameId, predictedTeamWin, predictedTeamScore, predictedOpponentScore }] }
  */
 const { json, parseJsonBody } = require("./_http");
 const { requireAuth } = require("./_auth");
-const { submitPredictions } = require("./_lib/bama-schedule");
+const { submitPredictions, DEFAULT_TEAM } = require("./_lib/bama-schedule");
 
 exports.handler = async (event) => {
   if (event.httpMethod !== "POST") {
@@ -30,10 +30,11 @@ exports.handler = async (event) => {
   }
 
   const season = body.season ?? body.seasonYear ?? new Date().getFullYear();
+  const team = body.team || body.school || DEFAULT_TEAM;
   const picks = Array.isArray(body.picks) ? body.picks : [];
 
   try {
-    const result = await submitPredictions({ userId, season, picks, apiKey });
+    const result = await submitPredictions({ userId, season, team, picks, apiKey });
     return json(200, {
       message: "Predictions saved",
       ...result,
@@ -43,7 +44,7 @@ exports.handler = async (event) => {
     if (err.code === "GAMES_LOCKED") {
       return json(400, { message: err.message, code: err.code });
     }
-    if (err.code === "INVALID_SCORES" || err.code === "NO_PICKS" || err.code === "NO_VALID_PICKS") {
+    if (err.code === "INVALID_SCORES" || err.code === "NO_PICKS" || err.code === "NO_VALID_PICKS" || err.code === "SCHEMA_NEEDS_TEAM") {
       return json(400, { message: err.message, code: err.code });
     }
     if (err.code === "NO_DATABASE_URL") {

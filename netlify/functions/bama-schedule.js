@@ -1,10 +1,10 @@
 /**
- * GET /api/bama/schedule?season=2026
- * Returns Alabama schedule + optional user predictions when authenticated.
+ * GET /api/bama/schedule?season=2026&team=Alabama
+ * Returns a team's schedule + optional user predictions when authenticated.
  */
 const { json } = require("./_http");
 const { optionalAuth } = require("./_auth");
-const { getScheduleBundle } = require("./_lib/bama-schedule");
+const { getScheduleBundle, DEFAULT_TEAM } = require("./_lib/bama-schedule");
 
 exports.handler = async (event) => {
   if (event.httpMethod && event.httpMethod !== "GET") {
@@ -18,6 +18,7 @@ exports.handler = async (event) => {
 
   const q = event.queryStringParameters || {};
   const season = q.season ?? q.year ?? new Date().getFullYear();
+  const team = q.team || q.school || DEFAULT_TEAM;
 
   const auth = optionalAuth(event);
   const userId =
@@ -28,6 +29,7 @@ exports.handler = async (event) => {
   try {
     const bundle = await getScheduleBundle({
       season,
+      team,
       userId: Number.isFinite(userId) ? userId : null,
       apiKey,
     });
@@ -35,7 +37,7 @@ exports.handler = async (event) => {
   } catch (err) {
     console.error("bama-schedule:", err);
     return json(500, {
-      error: "Failed to load Alabama schedule",
+      error: "Failed to load team schedule",
       details: err && err.message ? String(err.message).slice(0, 200) : "unknown",
     });
   }
