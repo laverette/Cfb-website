@@ -42,8 +42,9 @@ function parseDatesParam(q) {
 async function fetchJson(url, headers = {}) {
   const resp = await fetch(url, {
     headers: {
-      accept: "application/json",
-      "user-agent": "CFB-LiveScores/1.0",
+      accept: "application/json, text/plain, */*",
+      "user-agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
       ...headers,
     },
   });
@@ -102,8 +103,8 @@ function normalizeEspnEvent(evt) {
   return {
     id: evt.id != null ? Number(evt.id) : null,
     source: "espn",
-    awayTeam: away.team?.displayName || away.team?.shortDisplayName || away.team?.location || null,
-    homeTeam: home.team?.displayName || home.team?.shortDisplayName || home.team?.location || null,
+    awayTeam: away.team?.location || away.team?.displayName || away.team?.shortDisplayName || null,
+    homeTeam: home.team?.location || home.team?.displayName || home.team?.shortDisplayName || null,
     awayEspnId: toInt(away.team?.id ?? away.id),
     homeEspnId: toInt(home.team?.id ?? home.id),
     awayPoints: toInt(away.score),
@@ -118,9 +119,16 @@ function normalizeEspnEvent(evt) {
 
 async function fetchEspnScores(dates) {
   const byKey = new Map();
-  for (const date of dates) {
+  const urls = [
+    `${ESPN_SB}?groups=80&limit=300`,
+    ...dates.map(
+      (date) =>
+        `${ESPN_SB}?dates=${encodeURIComponent(date)}&groups=80&limit=300`
+    ),
+  ];
+
+  for (const url of urls) {
     try {
-      const url = `${ESPN_SB}?dates=${encodeURIComponent(date)}&groups=80&limit=300`;
       const data = await fetchJson(url);
       const events = Array.isArray(data?.events) ? data.events : [];
       events.forEach((evt) => {
@@ -133,7 +141,7 @@ async function fetchEspnScores(dates) {
         byKey.set(key, g);
       });
     } catch (err) {
-      console.warn("espn scoreboard", date, err.status || err.message);
+      console.warn("espn scoreboard", err.status || err.message, url);
     }
   }
   return Array.from(byKey.values());

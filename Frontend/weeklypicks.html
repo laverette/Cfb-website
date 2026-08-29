@@ -810,20 +810,20 @@
         if (liveGame) {
           const status = getGameStatus(liveGame);
           const hasScore = liveGame.awayPoints != null || liveGame.homePoints != null;
-          const realLive =
+          // Show whenever we have real score data, or a concrete in-game status.
+          const shouldShow =
             hasScore ||
+            status.kind === 'final' ||
             liveGame.period != null ||
             /^q\d/i.test(String(liveGame.statusRaw || '')) ||
             /halftime|in_progress|end of/i.test(String(liveGame.statusRaw || ''));
 
-          if (status.kind !== 'scheduled' && realLive) {
-            const awayScore = liveGame.awayPoints != null ? liveGame.awayPoints : '—';
-            const homeScore = liveGame.homePoints != null ? liveGame.homePoints : '—';
-            const statusClass = status.kind === 'live' ? 'live-status-badge' : 'final-status-badge';
-            const awayWinning =
-              Number(awayScore) > Number(homeScore) ? 'score-winning' : '';
-            const homeWinning =
-              Number(homeScore) > Number(awayScore) ? 'score-winning' : '';
+          if (shouldShow) {
+            const awayScore = liveGame.awayPoints != null ? liveGame.awayPoints : 0;
+            const homeScore = liveGame.homePoints != null ? liveGame.homePoints : 0;
+            const statusClass = status.kind === 'final' ? 'final-status-badge' : 'live-status-badge';
+            const awayWinning = awayScore > homeScore ? 'score-winning' : '';
+            const homeWinning = homeScore > awayScore ? 'score-winning' : '';
 
             liveScoreHtml = `
               <div class="inline-score-display">
@@ -2195,6 +2195,7 @@
     function normTeamKey(name) {
       return String(name || '')
         .toLowerCase()
+        .replace(/['']/g, '')
         .replace(/&/g, ' and ')
         .replace(/[^a-z0-9]+/g, ' ')
         .replace(/\s+/g, ' ')
@@ -2226,10 +2227,13 @@
       if (g.homeTeam && typeof g.homeTeam === 'object') {
         return {
           id: g.id != null ? Number(g.id) : null,
+          source: 'cfbd-scoreboard',
           awayTeam: g.awayTeam?.name || g.awayTeam?.school || null,
           homeTeam: g.homeTeam?.name || g.homeTeam?.school || null,
-          awayPoints: g.awayTeam?.points ?? null,
-          homePoints: g.homeTeam?.points ?? null,
+          awayEspnId: toScoreInt(g.awayTeam?.id),
+          homeEspnId: toScoreInt(g.homeTeam?.id),
+          awayPoints: toScoreInt(g.awayTeam?.points),
+          homePoints: toScoreInt(g.homeTeam?.points),
           completed: /final|completed/i.test(String(g.status || '')),
           statusRaw: g.status || null,
           period: g.period ?? null,
@@ -2241,10 +2245,13 @@
       // CFBD /games shape (snake_case or camelCase)
       return {
         id: g.id != null ? Number(g.id) : null,
+        source: 'cfbd-games',
         awayTeam: g.away_team ?? g.awayTeam ?? null,
         homeTeam: g.home_team ?? g.homeTeam ?? null,
-        awayPoints: g.away_points ?? g.awayPoints ?? null,
-        homePoints: g.home_points ?? g.homePoints ?? null,
+        awayEspnId: toScoreInt(g.away_id ?? g.awayId),
+        homeEspnId: toScoreInt(g.home_id ?? g.homeId),
+        awayPoints: toScoreInt(g.away_points ?? g.awayPoints),
+        homePoints: toScoreInt(g.home_points ?? g.homePoints),
         completed: Boolean(g.completed),
         statusRaw: g.status || null,
         period: g.period ?? null,
@@ -2258,7 +2265,7 @@
 
       const awayEspn = Number(pickGame.awayTeamEspnId ?? pickGame.away_team_espn_id);
       const homeEspn = Number(pickGame.homeTeamEspnId ?? pickGame.home_team_espn_id);
-      if (Number.isFinite(awayEspn) && Number.isFinite(homeEspn)) {
+      if (Number.isFinite(awayEspn) && Number.isFinite(homeEspn) && awayEspn > 0 && homeEspn > 0) {
         const byEspn = liveScores.find(
           (ls) =>
             Number(ls.awayEspnId) === awayEspn && Number(ls.homeEspnId) === homeEspn
@@ -2283,15 +2290,10 @@
 
     function datesForLiveScores() {
       const dates = new Set();
-      const add = (iso) => {
+      const addIso = (iso) => {
         if (!iso) return;
         const d = new Date(iso);
         if (!Number.isFinite(d.getTime())) return;
-        // ESPN wants YYYYMMDD in Eastern calendar for CFB boards
-        const et = new Date(
-          d.toLocaleString('en-US', { timeZone: 'America/New_York' })
-        );
-        // Fallback if locale parse is weird: use UTC date parts of ET string
         const parts = new Intl.DateTimeFormat('en-US', {
           timeZone: 'America/New_York',
           year: 'numeric',
@@ -2302,45 +2304,224 @@
         const m = parts.find((p) => p.type === 'month')?.value;
         const day = parts.find((p) => p.type === 'day')?.value;
         if (y && m && day) dates.add(`${y}${m}${day}`);
-        void et;
       };
 
-      (cachedDbGames || []).forEach((g) => add(g.gameDate || g.game_date));
-      if (!dates.size && activeWeekMeta) {
-        add(activeWeekMeta.startDate || activeWeekMeta.start_date);
-        add(new Date().toISOString());
+      (cachedDbGames || []).forEach((g) => addIso(g.gameDate || g.game_date));
+      addIso(new Date().toISOString());
+      if (activeWeekMeta) {
+        addIso(activeWeekMeta.startDate || activeWeekMeta.start_date);
       }
       return Array.from(dates);
     }
 
-    async function fetchLiveScores() {
-      if (!activeWeekMeta && !(cachedDbGames && cachedDbGames.length)) return null;
+    function toScoreInt(v) {
+      if (v == null || v === '') return null;
+      const n = Number(v);
+      return Number.isFinite(n) ? n : null;
+    }
 
+    function normalizeEspnEvent(evt) {
+      const comp = Array.isArray(evt?.competitions) ? evt.competitions[0] : null;
+      if (!comp) return null;
+      const competitors = Array.isArray(comp.competitors) ? comp.competitors : [];
+      const home = competitors.find((c) => c.homeAway === 'home');
+      const away = competitors.find((c) => c.homeAway === 'away');
+      if (!home || !away) return null;
+
+      const statusName = String(evt?.status?.type?.name || '');
+      const statusState = String(evt?.status?.type?.state || '').toLowerCase();
+      const detail = String(
+        evt?.status?.type?.detail || evt?.status?.type?.shortDetail || ''
+      );
+      const period = evt?.status?.period ?? null;
+      const clock = evt?.status?.displayClock || null;
+      const completed =
+        statusState === 'post' || /final/i.test(statusName) || /final/i.test(detail);
+
+      let statusRaw = statusName || detail || statusState;
+      if (!completed && (statusState === 'in' || /progress|halftime/i.test(detail))) {
+        if (period != null && clock) statusRaw = `Q${period} ${clock}`;
+        else if (/halftime/i.test(detail)) statusRaw = 'Halftime';
+        else if (period != null) statusRaw = `Q${period}`;
+        else statusRaw = detail || 'IN_PROGRESS';
+      }
+
+      const awayName =
+        away.team?.location ||
+        away.team?.displayName ||
+        away.team?.shortDisplayName ||
+        null;
+      const homeName =
+        home.team?.location ||
+        home.team?.displayName ||
+        home.team?.shortDisplayName ||
+        null;
+
+      return {
+        id: evt.id != null ? Number(evt.id) : null,
+        source: 'espn',
+        awayTeam: awayName,
+        homeTeam: homeName,
+        awayEspnId: toScoreInt(away.team?.id ?? away.id),
+        homeEspnId: toScoreInt(home.team?.id ?? home.id),
+        awayPoints: toScoreInt(away.score),
+        homePoints: toScoreInt(home.score),
+        completed,
+        statusRaw,
+        period,
+        clock,
+        startDate: evt.date || comp.date || null,
+      };
+    }
+
+    async function fetchEspnScoresBrowser(dates) {
+      const out = new Map();
+      const tryUrls = [];
+      // Current board (no date) often works best for live games
+      tryUrls.push(
+        'https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?groups=80&limit=300'
+      );
+      (dates || []).slice(0, 4).forEach((d) => {
+        tryUrls.push(
+          `https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=${encodeURIComponent(d)}&groups=80&limit=300`
+        );
+      });
+
+      for (const url of tryUrls) {
+        try {
+          const resp = await fetch(url, { method: 'GET', headers: { accept: 'application/json' } });
+          if (!resp.ok) continue;
+          const data = await resp.json().catch(() => null);
+          const events = Array.isArray(data?.events) ? data.events : [];
+          events.forEach((evt) => {
+            const g = normalizeEspnEvent(evt);
+            if (!g) return;
+            const key =
+              g.awayEspnId && g.homeEspnId
+                ? `e:${g.awayEspnId}:${g.homeEspnId}`
+                : `n:${normTeamKey(g.awayTeam)}@${normTeamKey(g.homeTeam)}`;
+            out.set(key, g);
+          });
+        } catch (_) {
+          /* try next */
+        }
+      }
+      return Array.from(out.values());
+    }
+
+    async function fetchCfbdScoresFallback() {
       const weekNumber = activeWeekMeta?.weekNumber ?? activeWeekMeta?.week_number;
       const seasonYear = activeWeekMeta?.seasonYear ?? activeWeekMeta?.season_year;
-      const dates = datesForLiveScores();
+      const byId = new Map();
 
+      if (weekNumber && seasonYear) {
+        try {
+          const games = await cfbdProxyRequest('/games', {
+            year: seasonYear,
+            week: weekNumber,
+            seasonType: 'regular',
+          });
+          (Array.isArray(games) ? games : []).forEach((raw) => {
+            const g = normalizeLiveGame(raw);
+            if (g && Number.isFinite(g.id)) byId.set(g.id, g);
+          });
+        } catch (_) {}
+      }
+
+      // Pull any missing slate games by CFBD id
+      const needed = (cachedDbGames || [])
+        .map((g) => Number(g.cfbdGameId ?? g.cfbd_game_id))
+        .filter((id) => Number.isFinite(id) && id > 0 && !byId.has(id))
+        .slice(0, 16);
+      if (needed.length && seasonYear) {
+        await Promise.all(
+          needed.map(async (id) => {
+            try {
+              const rows = await cfbdProxyRequest('/games', { year: seasonYear, id });
+              const raw = Array.isArray(rows) ? rows[0] : rows;
+              const g = normalizeLiveGame(raw);
+              if (g && Number.isFinite(g.id)) byId.set(g.id, g);
+            } catch (_) {}
+          })
+        );
+      }
+
+      try {
+        const board = await cfbdProxyRequest('/scoreboard', { classification: 'fbs' });
+        (Array.isArray(board) ? board : []).forEach((raw) => {
+          const g = normalizeLiveGame(raw);
+          if (!g || !Number.isFinite(g.id)) return;
+          const prev = byId.get(g.id) || {};
+          byId.set(g.id, { ...prev, ...g });
+        });
+      } catch (_) {}
+
+      return Array.from(byId.values());
+    }
+
+    async function fetchLiveScoresApi(dates) {
       try {
         const url = new URL('/api/live-scores', window.location.origin);
         if (dates.length) url.searchParams.set('dates', dates.join(','));
+        const weekNumber = activeWeekMeta?.weekNumber ?? activeWeekMeta?.week_number;
+        const seasonYear = activeWeekMeta?.seasonYear ?? activeWeekMeta?.season_year;
         if (seasonYear) url.searchParams.set('season', String(seasonYear));
         if (weekNumber) url.searchParams.set('week', String(weekNumber));
-
         const resp = await fetch(url.toString(), {
           method: 'GET',
           headers: { accept: 'application/json' },
         });
+        if (!resp.ok) return [];
         const body = await resp.json().catch(() => null);
-        if (!resp.ok) {
-          console.error('live-scores API error:', body);
-          return null;
-        }
-        const games = Array.isArray(body?.games) ? body.games : [];
-        return games.length ? games : null;
-      } catch (error) {
-        console.error('Failed to fetch live scores:', error);
-        return null;
+        return Array.isArray(body?.games) ? body.games : [];
+      } catch (_) {
+        return [];
       }
+    }
+
+    function mergeLiveScoreLists(...lists) {
+      const out = new Map();
+      const keyFor = (g) => {
+        if (g.awayEspnId && g.homeEspnId) return `e:${g.awayEspnId}:${g.homeEspnId}`;
+        if (g.id) return `c:${g.id}`;
+        return `n:${normTeamKey(g.awayTeam)}@${normTeamKey(g.homeTeam)}`;
+      };
+      const prefer = (a, b) => {
+        // Prefer rows that actually have scores / live period
+        const score = (g) =>
+          (g.awayPoints != null || g.homePoints != null ? 4 : 0) +
+          (g.period != null ? 2 : 0) +
+          (g.source === 'espn' ? 1 : 0);
+        return score(b) > score(a) ? b : a;
+      };
+      lists.flat().forEach((g) => {
+        if (!g) return;
+        const k = keyFor(g);
+        out.set(k, out.has(k) ? prefer(out.get(k), g) : g);
+      });
+      return Array.from(out.values());
+    }
+
+    async function fetchLiveScores() {
+      if (!activeWeekMeta && !(cachedDbGames && cachedDbGames.length)) return null;
+      const dates = datesForLiveScores();
+
+      const [espnBrowser, apiGames, cfbdGames] = await Promise.all([
+        fetchEspnScoresBrowser(dates),
+        fetchLiveScoresApi(dates),
+        fetchCfbdScoresFallback(),
+      ]);
+
+      const merged = mergeLiveScoreLists(espnBrowser, apiGames, cfbdGames);
+      if (merged.length) {
+        console.debug('live-scores loaded', {
+          espn: espnBrowser.length,
+          api: apiGames.length,
+          cfbd: cfbdGames.length,
+          merged: merged.length,
+        });
+      }
+      return merged.length ? merged : null;
     }
 
     function getGameStatus(game) {
@@ -2376,7 +2557,7 @@
         }
         const ageMs = now - start.getTime();
         if (hasScore || ageMs <= 5 * 60 * 60 * 1000) {
-          return { label: hasScore ? 'LIVE' : 'LIVE', kind: 'live' };
+          return { label: 'LIVE', kind: 'live' };
         }
         return { label: 'FINAL', kind: 'final' };
       }
@@ -2414,9 +2595,9 @@
 
     async function initializeLiveScores() {
       const liveScores = await fetchLiveScores();
-      if (liveScores && cachedDbGames) {
-        cachedLiveScores = liveScores;
-        renderDbGamesIntoForm(cachedDbGames, liveScores);
+      if (cachedDbGames) {
+        if (liveScores) cachedLiveScores = liveScores;
+        renderDbGamesIntoForm(cachedDbGames, liveScores || cachedLiveScores || []);
         startLiveScoresAutoRefresh();
       }
     }
