@@ -809,16 +809,8 @@
         const liveGame = findLiveGameForPick(liveScores, g);
         if (liveGame) {
           const status = getGameStatus(liveGame);
-          const hasScore = liveGame.awayPoints != null || liveGame.homePoints != null;
-          // Show whenever we have real score data, or a concrete in-game status.
-          const shouldShow =
-            hasScore ||
-            status.kind === 'final' ||
-            liveGame.period != null ||
-            /^q\d/i.test(String(liveGame.statusRaw || '')) ||
-            /halftime|in_progress|end of/i.test(String(liveGame.statusRaw || ''));
-
-          if (shouldShow) {
+          // Only show for games that are actually underway or finished — never pregame Q0/0-0.
+          if (status.kind === 'live' || status.kind === 'final') {
             const awayScore = liveGame.awayPoints != null ? liveGame.awayPoints : 0;
             const homeScore = liveGame.homePoints != null ? liveGame.homePoints : 0;
             const statusClass = status.kind === 'final' ? 'final-status-badge' : 'live-status-badge';
@@ -2333,17 +2325,25 @@
       const detail = String(
         evt?.status?.type?.detail || evt?.status?.type?.shortDetail || ''
       );
-      const period = evt?.status?.period ?? null;
+      const periodRaw = evt?.status?.period;
+      const period = periodRaw == null || periodRaw === '' ? null : Number(periodRaw);
       const clock = evt?.status?.displayClock || null;
       const completed =
         statusState === 'post' || /final/i.test(statusName) || /final/i.test(detail);
+      const scheduled =
+        statusState === 'pre' ||
+        /status_scheduled|scheduled|pregame|pre-game|pre game/i.test(statusName) ||
+        /status_scheduled|scheduled|pregame|pre-game/i.test(detail);
 
       let statusRaw = statusName || detail || statusState;
-      if (!completed && (statusState === 'in' || /progress|halftime/i.test(detail))) {
-        if (period != null && clock) statusRaw = `Q${period} ${clock}`;
+      // Never label pregame as Q0 — ESPN uses period 0 before kickoff.
+      if (!completed && !scheduled && (statusState === 'in' || /progress|halftime/i.test(detail))) {
+        if (period != null && period > 0 && clock) statusRaw = `Q${period} ${clock}`;
         else if (/halftime/i.test(detail)) statusRaw = 'Halftime';
-        else if (period != null) statusRaw = `Q${period}`;
+        else if (period != null && period > 0) statusRaw = `Q${period}`;
         else statusRaw = detail || 'IN_PROGRESS';
+      } else if (scheduled) {
+        statusRaw = 'SCHEDULED';
       }
 
       const awayName =
@@ -2367,45 +2367,70 @@
         awayPoints: toScoreInt(away.score),
         homePoints: toScoreInt(home.score),
         completed,
+        scheduled,
+        statusState,
         statusRaw,
-        period,
+        period: Number.isFinite(period) ? period : null,
         clock,
         startDate: evt.date || comp.date || null,
       };
     }
 
-    async function fetchEspnScoresBrowser(dates) {
+    async function fetchEspnScoresBrowser(dates, { currentOnly = false } = {}) {
       const out = new Map();
-      const tryUrls = [];
-      // Current board (no date) often works best for live games
-      tryUrls.push(
-        'https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?groups=80&limit=300'
-      );
-      (dates || []).slice(0, 4).forEach((d) => {
-        tryUrls.push(
-          `https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=${encodeURIComponent(d)}&groups=80&limit=300`
-        );
-      });
-
-      for (const url of tryUrls) {
-        try {
-          const resp = await fetch(url, { method: 'GET', headers: { accept: 'application/json' } });
-          if (!resp.ok) continue;
-          const data = await resp.json().catch(() => null);
-          const events = Array.isArray(data?.events) ? data.events : [];
-          events.forEach((evt) => {
-            const g = normalizeEspnEvent(evt);
-            if (!g) return;
-            const key =
-              g.awayEspnId && g.homeEspnId
-                ? `e:${g.awayEspnId}:${g.homeEspnId}`
-                : `n:${normTeamKey(g.awayTeam)}@${normTeamKey(g.homeTeam)}`;
-            out.set(key, g);
-          });
-        } catch (_) {
-          /* try next */
+      // Keep this fast: current board (+ today's ET date unless currentOnly).
+      const todayEt = (() => {
+        const parts = new Intl.DateTimeFormat('en-US', {
+          timeZone: 'America/New_York',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+        }).formatToParts(new Date());
+        const y = parts.find((p) => p.type === 'year')?.value;
+        const m = parts.find((p) => p.type === 'month')?.value;
+        const day = parts.find((p) => p.type === 'day')?.value;
+        return y && m && day ? `${y}${m}${day}` : null;
+      })();
+      const tryUrls = [
+        'https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?groups=80&limit=300',
+      ];
+      // First paint: one request. Enrichment can add today's date board.
+      if (!currentOnly) {
+        if (todayEt) {
+          tryUrls.push(
+            `https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=${todayEt}&groups=80&limit=300`
+          );
+        } else if (dates && dates[0]) {
+          tryUrls.push(
+            `https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=${encodeURIComponent(dates[0])}&groups=80&limit=300`
+          );
         }
       }
+
+      await Promise.all(
+        tryUrls.map(async (url) => {
+          try {
+            const resp = await fetch(url, {
+              method: 'GET',
+              headers: { accept: 'application/json' },
+            });
+            if (!resp.ok) return;
+            const data = await resp.json().catch(() => null);
+            const events = Array.isArray(data?.events) ? data.events : [];
+            events.forEach((evt) => {
+              const g = normalizeEspnEvent(evt);
+              if (!g) return;
+              const key =
+                g.awayEspnId && g.homeEspnId
+                  ? `e:${g.awayEspnId}:${g.homeEspnId}`
+                  : `n:${normTeamKey(g.awayTeam)}@${normTeamKey(g.homeTeam)}`;
+              out.set(key, g);
+            });
+          } catch (_) {
+            /* ignore */
+          }
+        })
+      );
       return Array.from(out.values());
     }
 
@@ -2414,55 +2439,44 @@
       const seasonYear = activeWeekMeta?.seasonYear ?? activeWeekMeta?.season_year;
       const byId = new Map();
 
+      // Fast path only: one week query + optional scoreboard. No per-game round trips.
+      const tasks = [];
       if (weekNumber && seasonYear) {
-        try {
-          const games = await cfbdProxyRequest('/games', {
+        tasks.push(
+          cfbdProxyRequest('/games', {
             year: seasonYear,
             week: weekNumber,
             seasonType: 'regular',
-          });
-          (Array.isArray(games) ? games : []).forEach((raw) => {
-            const g = normalizeLiveGame(raw);
-            if (g && Number.isFinite(g.id)) byId.set(g.id, g);
-          });
-        } catch (_) {}
-      }
-
-      // Pull any missing slate games by CFBD id
-      const needed = (cachedDbGames || [])
-        .map((g) => Number(g.cfbdGameId ?? g.cfbd_game_id))
-        .filter((id) => Number.isFinite(id) && id > 0 && !byId.has(id))
-        .slice(0, 16);
-      if (needed.length && seasonYear) {
-        await Promise.all(
-          needed.map(async (id) => {
-            try {
-              const rows = await cfbdProxyRequest('/games', { year: seasonYear, id });
-              const raw = Array.isArray(rows) ? rows[0] : rows;
-              const g = normalizeLiveGame(raw);
-              if (g && Number.isFinite(g.id)) byId.set(g.id, g);
-            } catch (_) {}
           })
+            .then((games) => {
+              (Array.isArray(games) ? games : []).forEach((raw) => {
+                const g = normalizeLiveGame(raw);
+                if (g && Number.isFinite(g.id)) byId.set(g.id, g);
+              });
+            })
+            .catch(() => {})
         );
       }
-
-      try {
-        const board = await cfbdProxyRequest('/scoreboard', { classification: 'fbs' });
-        (Array.isArray(board) ? board : []).forEach((raw) => {
-          const g = normalizeLiveGame(raw);
-          if (!g || !Number.isFinite(g.id)) return;
-          const prev = byId.get(g.id) || {};
-          byId.set(g.id, { ...prev, ...g });
-        });
-      } catch (_) {}
-
+      tasks.push(
+        cfbdProxyRequest('/scoreboard', { classification: 'fbs' })
+          .then((board) => {
+            (Array.isArray(board) ? board : []).forEach((raw) => {
+              const g = normalizeLiveGame(raw);
+              if (!g || !Number.isFinite(g.id)) return;
+              const prev = byId.get(g.id) || {};
+              byId.set(g.id, { ...prev, ...g });
+            });
+          })
+          .catch(() => {})
+      );
+      await Promise.all(tasks);
       return Array.from(byId.values());
     }
 
     async function fetchLiveScoresApi(dates) {
       try {
         const url = new URL('/api/live-scores', window.location.origin);
-        if (dates.length) url.searchParams.set('dates', dates.join(','));
+        if (dates.length) url.searchParams.set('dates', dates.slice(0, 2).join(','));
         const weekNumber = activeWeekMeta?.weekNumber ?? activeWeekMeta?.week_number;
         const seasonYear = activeWeekMeta?.seasonYear ?? activeWeekMeta?.season_year;
         if (seasonYear) url.searchParams.set('season', String(seasonYear));
@@ -2487,11 +2501,16 @@
         return `n:${normTeamKey(g.awayTeam)}@${normTeamKey(g.homeTeam)}`;
       };
       const prefer = (a, b) => {
-        // Prefer rows that actually have scores / live period
-        const score = (g) =>
-          (g.awayPoints != null || g.homePoints != null ? 4 : 0) +
-          (g.period != null ? 2 : 0) +
-          (g.source === 'espn' ? 1 : 0);
+        const score = (g) => {
+          const period = Number(g.period);
+          const inPlay = period > 0 || g.statusState === 'in' || g.completed;
+          return (
+            (inPlay && (g.awayPoints != null || g.homePoints != null) ? 8 : 0) +
+            (g.completed ? 4 : 0) +
+            (period > 0 ? 2 : 0) +
+            (g.source === 'espn' ? 1 : 0)
+          );
+        };
         return score(b) > score(a) ? b : a;
       };
       lists.flat().forEach((g) => {
@@ -2502,9 +2521,15 @@
       return Array.from(out.values());
     }
 
-    async function fetchLiveScores() {
+    async function fetchLiveScores({ fast = false } = {}) {
       if (!activeWeekMeta && !(cachedDbGames && cachedDbGames.length)) return null;
       const dates = datesForLiveScores();
+
+      if (fast) {
+        // First paint: single ESPN scoreboard request
+        const espnBrowser = await fetchEspnScoresBrowser(dates, { currentOnly: true });
+        return espnBrowser.length ? espnBrowser : null;
+      }
 
       const [espnBrowser, apiGames, cfbdGames] = await Promise.all([
         fetchEspnScoresBrowser(dates),
@@ -2513,14 +2538,6 @@
       ]);
 
       const merged = mergeLiveScoreLists(espnBrowser, apiGames, cfbdGames);
-      if (merged.length) {
-        console.debug('live-scores loaded', {
-          espn: espnBrowser.length,
-          api: apiGames.length,
-          cfbd: cfbdGames.length,
-          merged: merged.length,
-        });
-      }
       return merged.length ? merged : null;
     }
 
@@ -2530,46 +2547,64 @@
 
       const raw = String(game.statusRaw || '');
       const rawLower = raw.toLowerCase();
+      const state = String(game.statusState || '').toLowerCase();
+      const period = Number(game.period);
+
+      // Explicit pregame / scheduled (includes ESPN Q0 placeholders)
+      if (
+        game.scheduled ||
+        state === 'pre' ||
+        /^q0\b/i.test(raw) ||
+        /scheduled|status_scheduled|pregame|pre-game|pre game/.test(rawLower)
+      ) {
+        return { label: 'SCHEDULED', kind: 'scheduled' };
+      }
+      if ((!Number.isFinite(period) || period <= 0) && state !== 'in') {
+        const start = game.startDate ? new Date(game.startDate) : null;
+        const now = Date.now();
+        if (start && Number.isFinite(start.getTime()) && now < start.getTime()) {
+          return { label: 'SCHEDULED', kind: 'scheduled' };
+        }
+        // 0-0 with period 0 and no "in" state → still scheduled
+        if (
+          (game.awayPoints == null || game.awayPoints === 0) &&
+          (game.homePoints == null || game.homePoints === 0) &&
+          (!Number.isFinite(period) || period <= 0)
+        ) {
+          return { label: 'SCHEDULED', kind: 'scheduled' };
+        }
+      }
+
       if (rawLower.includes('final') || rawLower.includes('completed')) {
         return { label: 'FINAL', kind: 'final' };
       }
 
-      const hasScore = game.awayPoints != null || game.homePoints != null;
       const looksLive =
-        /^q\d/i.test(raw) ||
-        /in_progress|status_in_progress|halftime|end of|live/i.test(rawLower) ||
-        (game.period != null && !game.completed);
+        state === 'in' ||
+        (Number.isFinite(period) && period > 0) ||
+        /^q[1-4]/i.test(raw) ||
+        /in_progress|status_in_progress|halftime|end of|live/i.test(rawLower);
 
-      if (looksLive || (hasScore && !game.completed)) {
+      if (looksLive) {
         let label = 'LIVE';
-        if (/^q\d/i.test(raw) || /halftime/i.test(raw)) label = raw;
-        else if (game.period != null && game.clock) label = `Q${game.period} ${game.clock}`;
-        else if (game.period != null) label = `Q${game.period}`;
-        else if (game.clock) label = String(game.clock);
+        if (/^q[1-4]/i.test(raw) || /halftime/i.test(raw)) label = raw;
+        else if (Number.isFinite(period) && period > 0 && game.clock) {
+          label = `Q${period} ${game.clock}`;
+        } else if (Number.isFinite(period) && period > 0) {
+          label = `Q${period}`;
+        } else if (game.clock && game.clock !== '0:00') {
+          label = String(game.clock);
+        }
         return { label, kind: 'live' };
       }
 
-      const start = game.startDate ? new Date(game.startDate) : null;
-      const now = Date.now();
-      if (start && Number.isFinite(start.getTime())) {
-        if (now < start.getTime() - 2 * 60 * 1000) {
-          return { label: 'SCHEDULED', kind: 'scheduled' };
-        }
-        const ageMs = now - start.getTime();
-        if (hasScore || ageMs <= 5 * 60 * 60 * 1000) {
-          return { label: 'LIVE', kind: 'live' };
-        }
-        return { label: 'FINAL', kind: 'final' };
-      }
-
-      if (hasScore) return { label: 'LIVE', kind: 'live' };
       return { label: 'SCHEDULED', kind: 'scheduled' };
     }
 
     async function refreshInlineScores() {
       if (!cachedDbGames) return;
 
-      const liveScores = await fetchLiveScores();
+      const liveScores = await fetchLiveScores({ fast: true });
       if (liveScores) {
         cachedLiveScores = liveScores;
         renderDbGamesIntoForm(cachedDbGames, liveScores);
@@ -2594,12 +2629,23 @@
     }
 
     async function initializeLiveScores() {
-      const liveScores = await fetchLiveScores();
-      if (cachedDbGames) {
-        if (liveScores) cachedLiveScores = liveScores;
-        renderDbGamesIntoForm(cachedDbGames, liveScores || cachedLiveScores || []);
-        startLiveScoresAutoRefresh();
+      if (!cachedDbGames) return;
+
+      // Fast first paint from ESPN, then enrich in the background.
+      const fast = await fetchLiveScores({ fast: true });
+      if (fast) {
+        cachedLiveScores = fast;
+        renderDbGamesIntoForm(cachedDbGames, fast);
       }
+      startLiveScoresAutoRefresh();
+
+      fetchLiveScores({ fast: false })
+        .then((full) => {
+          if (!full || !cachedDbGames) return;
+          cachedLiveScores = full;
+          renderDbGamesIntoForm(cachedDbGames, full);
+        })
+        .catch(() => {});
     }
 
     window.addEventListener('beforeunload', () => {

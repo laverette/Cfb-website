@@ -88,16 +88,25 @@ function normalizeEspnEvent(evt) {
   const statusName = String(evt?.status?.type?.name || "");
   const statusState = String(evt?.status?.type?.state || "").toLowerCase();
   const detail = String(evt?.status?.type?.detail || evt?.status?.type?.shortDetail || "");
-  const period = evt?.status?.period ?? null;
+  const periodRaw = evt?.status?.period;
+  const period = periodRaw == null || periodRaw === "" ? null : Number(periodRaw);
   const clock = evt?.status?.displayClock || null;
   const completed =
     statusState === "post" || /final/i.test(statusName) || /final/i.test(detail);
+  const scheduled =
+    statusState === "pre" ||
+    /status_scheduled|scheduled|pregame|pre-game|pre game/i.test(statusName) ||
+    /status_scheduled|scheduled|pregame|pre-game/i.test(detail);
 
   let statusRaw = statusName || detail || statusState;
-  if (!completed && statusState === "in") {
-    if (period != null && clock) statusRaw = `Q${period} ${clock}`;
-    else if (period != null) statusRaw = `Q${period}`;
+  // Never label pregame as Q0 — ESPN uses period 0 before kickoff.
+  if (!completed && !scheduled && statusState === "in") {
+    if (Number.isFinite(period) && period > 0 && clock) statusRaw = `Q${period} ${clock}`;
+    else if (/halftime/i.test(detail)) statusRaw = "Halftime";
+    else if (Number.isFinite(period) && period > 0) statusRaw = `Q${period}`;
     else statusRaw = detail || "IN_PROGRESS";
+  } else if (scheduled) {
+    statusRaw = "SCHEDULED";
   }
 
   return {
@@ -110,8 +119,10 @@ function normalizeEspnEvent(evt) {
     awayPoints: toInt(away.score),
     homePoints: toInt(home.score),
     completed,
+    scheduled,
+    statusState,
     statusRaw,
-    period,
+    period: Number.isFinite(period) ? period : null,
     clock,
     startDate: evt.date || comp.date || null,
   };
@@ -119,31 +130,34 @@ function normalizeEspnEvent(evt) {
 
 async function fetchEspnScores(dates) {
   const byKey = new Map();
+  // Current board + at most 2 date boards, in parallel (avoid slow serial loops).
   const urls = [
     `${ESPN_SB}?groups=80&limit=300`,
-    ...dates.map(
+    ...(dates || []).slice(0, 2).map(
       (date) =>
         `${ESPN_SB}?dates=${encodeURIComponent(date)}&groups=80&limit=300`
     ),
   ];
 
-  for (const url of urls) {
-    try {
-      const data = await fetchJson(url);
-      const events = Array.isArray(data?.events) ? data.events : [];
-      events.forEach((evt) => {
-        const g = normalizeEspnEvent(evt);
-        if (!g) return;
-        const key =
-          g.awayEspnId && g.homeEspnId
-            ? `espn:${g.awayEspnId}:${g.homeEspnId}`
-            : `name:${String(g.awayTeam).toLowerCase()}@${String(g.homeTeam).toLowerCase()}`;
-        byKey.set(key, g);
-      });
-    } catch (err) {
-      console.warn("espn scoreboard", err.status || err.message, url);
-    }
-  }
+  await Promise.all(
+    urls.map(async (url) => {
+      try {
+        const data = await fetchJson(url);
+        const events = Array.isArray(data?.events) ? data.events : [];
+        events.forEach((evt) => {
+          const g = normalizeEspnEvent(evt);
+          if (!g) return;
+          const key =
+            g.awayEspnId && g.homeEspnId
+              ? `espn:${g.awayEspnId}:${g.homeEspnId}`
+              : `name:${String(g.awayTeam).toLowerCase()}@${String(g.homeTeam).toLowerCase()}`;
+          byKey.set(key, g);
+        });
+      } catch (err) {
+        console.warn("espn scoreboard", err.status || err.message, url);
+      }
+    })
+  );
   return Array.from(byKey.values());
 }
 
