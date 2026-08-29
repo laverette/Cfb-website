@@ -809,7 +809,14 @@
         const liveGame = findLiveGameForPick(liveScores, g);
         if (liveGame) {
           const status = getGameStatus(liveGame);
-          if (status.kind !== 'scheduled') {
+          const hasScore = liveGame.awayPoints != null || liveGame.homePoints != null;
+          const realLive =
+            hasScore ||
+            liveGame.period != null ||
+            /^q\d/i.test(String(liveGame.statusRaw || '')) ||
+            /halftime|in_progress|end of/i.test(String(liveGame.statusRaw || ''));
+
+          if (status.kind !== 'scheduled' && realLive) {
             const awayScore = liveGame.awayPoints != null ? liveGame.awayPoints : '—';
             const homeScore = liveGame.homePoints != null ? liveGame.homePoints : '—';
             const statusClass = status.kind === 'live' ? 'live-status-badge' : 'final-status-badge';
@@ -2248,11 +2255,23 @@
 
     function findLiveGameForPick(liveScores, pickGame) {
       if (!Array.isArray(liveScores) || !liveScores.length || !pickGame) return null;
+
+      const awayEspn = Number(pickGame.awayTeamEspnId ?? pickGame.away_team_espn_id);
+      const homeEspn = Number(pickGame.homeTeamEspnId ?? pickGame.home_team_espn_id);
+      if (Number.isFinite(awayEspn) && Number.isFinite(homeEspn)) {
+        const byEspn = liveScores.find(
+          (ls) =>
+            Number(ls.awayEspnId) === awayEspn && Number(ls.homeEspnId) === homeEspn
+        );
+        if (byEspn) return byEspn;
+      }
+
       const cfbdId = Number(pickGame.cfbdGameId ?? pickGame.cfbd_game_id);
       if (Number.isFinite(cfbdId) && cfbdId > 0) {
         const byId = liveScores.find((ls) => Number(ls.id) === cfbdId);
         if (byId) return byId;
       }
+
       const away = pickGame.awayTeamName || pickGame.away_team_name;
       const home = pickGame.homeTeamName || pickGame.home_team_name;
       return (
@@ -2262,82 +2281,88 @@
       );
     }
 
-    async function fetchLiveScores() {
-      if (!activeWeekMeta) return null;
-
-      const weekNumber = activeWeekMeta.weekNumber ?? activeWeekMeta.week_number;
-      const seasonYear = activeWeekMeta.seasonYear ?? activeWeekMeta.season_year;
-      if (!weekNumber || !seasonYear) return null;
-
-      const byId = new Map();
-
-      // Week slate from /games (always available on basic CFBD tiers)
-      try {
-        const games = await cfbdProxyRequest('/games', {
-          year: seasonYear,
-          week: weekNumber,
-          seasonType: 'regular',
-        });
-        (Array.isArray(games) ? games : []).forEach((raw) => {
-          const g = normalizeLiveGame(raw);
-          if (g && Number.isFinite(g.id)) byId.set(g.id, g);
-        });
-      } catch (error) {
-        console.error('Failed to fetch week games for scores:', error);
-      }
-
-      // If week query missed our slate (week# mismatch), pull by saved CFBD ids
-      const neededIds = (cachedDbGames || [])
-        .map((g) => Number(g.cfbdGameId ?? g.cfbd_game_id))
-        .filter((id) => Number.isFinite(id) && id > 0 && !byId.has(id));
-      if (neededIds.length) {
-        await Promise.all(
-          neededIds.slice(0, 16).map(async (id) => {
-            try {
-              const rows = await cfbdProxyRequest('/games', {
-                year: seasonYear,
-                id,
-              });
-              const raw = Array.isArray(rows) ? rows[0] : rows;
-              const g = normalizeLiveGame(raw);
-              if (g && Number.isFinite(g.id)) byId.set(g.id, g);
-            } catch (_) {
-              /* ignore single-id miss */
-            }
-          })
+    function datesForLiveScores() {
+      const dates = new Set();
+      const add = (iso) => {
+        if (!iso) return;
+        const d = new Date(iso);
+        if (!Number.isFinite(d.getTime())) return;
+        // ESPN wants YYYYMMDD in Eastern calendar for CFB boards
+        const et = new Date(
+          d.toLocaleString('en-US', { timeZone: 'America/New_York' })
         );
-      }
+        // Fallback if locale parse is weird: use UTC date parts of ET string
+        const parts = new Intl.DateTimeFormat('en-US', {
+          timeZone: 'America/New_York',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+        }).formatToParts(d);
+        const y = parts.find((p) => p.type === 'year')?.value;
+        const m = parts.find((p) => p.type === 'month')?.value;
+        const day = parts.find((p) => p.type === 'day')?.value;
+        if (y && m && day) dates.add(`${y}${m}${day}`);
+        void et;
+      };
 
-      // Overlay /scoreboard when available (live clock / period; may require higher CFBD tier)
+      (cachedDbGames || []).forEach((g) => add(g.gameDate || g.game_date));
+      if (!dates.size && activeWeekMeta) {
+        add(activeWeekMeta.startDate || activeWeekMeta.start_date);
+        add(new Date().toISOString());
+      }
+      return Array.from(dates);
+    }
+
+    async function fetchLiveScores() {
+      if (!activeWeekMeta && !(cachedDbGames && cachedDbGames.length)) return null;
+
+      const weekNumber = activeWeekMeta?.weekNumber ?? activeWeekMeta?.week_number;
+      const seasonYear = activeWeekMeta?.seasonYear ?? activeWeekMeta?.season_year;
+      const dates = datesForLiveScores();
+
       try {
-        const board = await cfbdProxyRequest('/scoreboard', { classification: 'fbs' });
-        (Array.isArray(board) ? board : []).forEach((raw) => {
-          const g = normalizeLiveGame(raw);
-          if (!g || !Number.isFinite(g.id)) return;
-          const prev = byId.get(g.id) || {};
-          byId.set(g.id, { ...prev, ...g });
-        });
-      } catch (error) {
-        console.warn('CFBD scoreboard unavailable (using /games scores):', error?.message || error);
-      }
+        const url = new URL('/api/live-scores', window.location.origin);
+        if (dates.length) url.searchParams.set('dates', dates.join(','));
+        if (seasonYear) url.searchParams.set('season', String(seasonYear));
+        if (weekNumber) url.searchParams.set('week', String(weekNumber));
 
-      const list = Array.from(byId.values());
-      return list.length ? list : null;
+        const resp = await fetch(url.toString(), {
+          method: 'GET',
+          headers: { accept: 'application/json' },
+        });
+        const body = await resp.json().catch(() => null);
+        if (!resp.ok) {
+          console.error('live-scores API error:', body);
+          return null;
+        }
+        const games = Array.isArray(body?.games) ? body.games : [];
+        return games.length ? games : null;
+      } catch (error) {
+        console.error('Failed to fetch live scores:', error);
+        return null;
+      }
     }
 
     function getGameStatus(game) {
       if (!game) return { label: 'SCHEDULED', kind: 'scheduled' };
       if (game.completed) return { label: 'FINAL', kind: 'final' };
 
-      const raw = String(game.statusRaw || '').toLowerCase();
-      if (raw.includes('final') || raw.includes('completed')) {
+      const raw = String(game.statusRaw || '');
+      const rawLower = raw.toLowerCase();
+      if (rawLower.includes('final') || rawLower.includes('completed')) {
         return { label: 'FINAL', kind: 'final' };
       }
 
       const hasScore = game.awayPoints != null || game.homePoints != null;
-      if (raw && !raw.includes('sched') && !raw.includes('pre') && !raw.includes('status_scheduled')) {
+      const looksLive =
+        /^q\d/i.test(raw) ||
+        /in_progress|status_in_progress|halftime|end of|live/i.test(rawLower) ||
+        (game.period != null && !game.completed);
+
+      if (looksLive || (hasScore && !game.completed)) {
         let label = 'LIVE';
-        if (game.period != null && game.clock) label = `Q${game.period} ${game.clock}`;
+        if (/^q\d/i.test(raw) || /halftime/i.test(raw)) label = raw;
+        else if (game.period != null && game.clock) label = `Q${game.period} ${game.clock}`;
         else if (game.period != null) label = `Q${game.period}`;
         else if (game.clock) label = String(game.clock);
         return { label, kind: 'live' };
@@ -2349,10 +2374,9 @@
         if (now < start.getTime() - 2 * 60 * 1000) {
           return { label: 'SCHEDULED', kind: 'scheduled' };
         }
-        // Kickoff passed: treat as live while scoring, else final after ~5h
         const ageMs = now - start.getTime();
-        if (ageMs <= 5 * 60 * 60 * 1000 || hasScore) {
-          return { label: hasScore || ageMs >= 0 ? 'LIVE' : 'LIVE', kind: 'live' };
+        if (hasScore || ageMs <= 5 * 60 * 60 * 1000) {
+          return { label: hasScore ? 'LIVE' : 'LIVE', kind: 'live' };
         }
         return { label: 'FINAL', kind: 'final' };
       }
