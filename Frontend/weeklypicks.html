@@ -51,7 +51,6 @@
     <div class="title-section">
       <h1 class="title" id="picksTabTitle">Weekly Picks</h1>
       <div class="title-actions">
-        <button type="button" class="corso-jump-link" onclick="scrollToCoachCorso(event)">Ask Coach Corso ↓</button>
         <button type="button" class="football-toggle-btn" id="footballToggleBtn" aria-pressed="false">Hide football</button>
       </div>
     </div>
@@ -222,10 +221,9 @@
           </div>
              
           <p class="picks-form-actions">
-            <button id="submit" type="submit">Submit Predictions</button>
-            <a href="prediction-history.html" class="nav-button-link form-nav-link">View Leaderboards</a>
-            <a href="index.html" class="nav-button-link form-nav-link">Back to Main Site</a>
-            <button type="button" class="corso-jump-link corso-jump-inline" onclick="scrollToCoachCorso(event)">Ask Coach Corso ↓</button>
+            <button id="submit" type="submit" class="form-nav-link picks-action-btn">Submit Predictions</button>
+            <a href="prediction-history.html" class="form-nav-link picks-action-btn">View Leaderboards</a>
+            <a href="index.html" class="form-nav-link picks-action-btn">Back to Main Site</a>
           </p>
         </form>
         <div id="results"></div>
@@ -269,28 +267,6 @@
             </span>
           </li>
         </ol>
-      </div>
-    </div>
-    
-    <!-- Coach Corso Chat -->
-    <div id="coach-corso-section" class="coach-corso-container">
-      <h2 class="coach-corso-title">Ask Coach Corso</h2>
-      <p class="coach-corso-subtitle">Hot takes with season storylines baked in — injuries, form, and prior weeks.</p>
-      <div class="corso-chat" id="corsoChat">
-        <div class="corso-chat-log" id="corsoChatLog" role="log" aria-live="polite" aria-relevant="additions"></div>
-        <form class="corso-chat-form" id="corsoChatForm">
-          <label class="visually-hidden" for="corsoChatInput">Ask Coach Corso</label>
-          <textarea
-            id="corsoChatInput"
-            class="corso-chat-input"
-            rows="2"
-            maxlength="800"
-            placeholder="Ask Corso who he likes this week…"
-            required
-          ></textarea>
-          <button type="submit" class="corso-chat-send" id="corsoChatSend">Ask Corso</button>
-        </form>
-        <p class="corso-chat-status" id="corsoChatStatus" aria-live="polite"></p>
       </div>
     </div>
   </div>
@@ -372,9 +348,45 @@
       </div>
     </div>
   </div>
-  
 
-
+  <!-- Coach Corso floating chat (available while making picks) -->
+  <div id="corsoWidget" class="corso-widget">
+    <div id="corsoPanel" class="corso-panel" hidden role="dialog" aria-labelledby="corsoPanelTitle" aria-modal="false">
+      <div class="corso-panel-head">
+        <div>
+          <h2 id="corsoPanelTitle" class="corso-panel-title">Ask Coach Corso</h2>
+          <p class="corso-panel-sub">Hot takes with season storylines baked in.</p>
+        </div>
+        <button type="button" class="corso-panel-close" id="corsoPanelClose" aria-label="Close Coach Corso">×</button>
+      </div>
+      <div class="corso-chat" id="corsoChat">
+        <div class="corso-chat-log" id="corsoChatLog" role="log" aria-live="polite" aria-relevant="additions"></div>
+        <form class="corso-chat-form" id="corsoChatForm">
+          <label class="visually-hidden" for="corsoChatInput">Ask Coach Corso</label>
+          <textarea
+            id="corsoChatInput"
+            class="corso-chat-input"
+            rows="2"
+            maxlength="800"
+            placeholder="Ask Corso who he likes this week…"
+            required
+          ></textarea>
+          <button type="submit" class="corso-chat-send" id="corsoChatSend">Ask</button>
+        </form>
+        <p class="corso-chat-status" id="corsoChatStatus" aria-live="polite"></p>
+      </div>
+    </div>
+    <button
+      type="button"
+      id="corsoFab"
+      class="corso-fab"
+      aria-expanded="false"
+      aria-controls="corsoPanel"
+    >
+      <span class="corso-fab-icon" aria-hidden="true">🎙️</span>
+      <span class="corso-fab-label">Ask Corso</span>
+    </button>
+  </div>
 
     <script src="scripts/auth-ui.js"></script>
     <script>
@@ -624,6 +636,7 @@
       return raw.map((r) => ({
         id: r.id,
         weekId: r.weekId ?? r.week_id,
+        cfbdGameId: r.cfbdGameId ?? r.cfbd_game_id ?? null,
         gameNumber: Number(r.gameNumber ?? r.game_number),
         homeTeamEspnId: r.homeTeamEspnId ?? r.home_team_espn_id,
         awayTeamEspnId: r.awayTeamEspnId ?? r.away_team_espn_id,
@@ -793,33 +806,28 @@
 
         // Find live score data for this game
         let liveScoreHtml = '';
-        if (liveScores && Array.isArray(liveScores)) {
-          const liveGame = liveScores.find(ls => 
-            (ls.away_team === awayName || ls.away_team?.includes(awayName.split(' ')[0])) &&
-            (ls.home_team === homeName || ls.home_team?.includes(homeName.split(' ')[0]))
-          );
-          
-          if (liveGame) {
-            const status = getGameStatus(liveGame);
-            const awayScore = liveGame.away_points ?? 0;
-            const homeScore = liveGame.home_points ?? 0;
-            
-            if (status !== 'SCHEDULED') {
-              const statusClass = status === 'LIVE' ? 'live-status-badge' : 'final-status-badge';
-              const awayWinning = awayScore > homeScore ? 'score-winning' : '';
-              const homeWinning = homeScore > awayScore ? 'score-winning' : '';
-              
-              liveScoreHtml = `
-                <div class="inline-score-display">
-                  <span class="${statusClass}">${status}</span>
-                  <span class="inline-score">
-                    <span class="score-team-display ${awayWinning}">${awayName} ${awayScore}</span>
-                    <span style="opacity:0.6;">-</span>
-                    <span class="score-team-display ${homeWinning}">${homeName} ${homeScore}</span>
-                  </span>
-                </div>
-              `;
-            }
+        const liveGame = findLiveGameForPick(liveScores, g);
+        if (liveGame) {
+          const status = getGameStatus(liveGame);
+          if (status.kind !== 'scheduled') {
+            const awayScore = liveGame.awayPoints != null ? liveGame.awayPoints : '—';
+            const homeScore = liveGame.homePoints != null ? liveGame.homePoints : '—';
+            const statusClass = status.kind === 'live' ? 'live-status-badge' : 'final-status-badge';
+            const awayWinning =
+              Number(awayScore) > Number(homeScore) ? 'score-winning' : '';
+            const homeWinning =
+              Number(homeScore) > Number(awayScore) ? 'score-winning' : '';
+
+            liveScoreHtml = `
+              <div class="inline-score-display">
+                <span class="${statusClass}">${safeText(status.label)}</span>
+                <span class="inline-score">
+                  <span class="score-team-display ${awayWinning}">${safeText(awayName)} ${safeText(awayScore)}</span>
+                  <span style="opacity:0.6;">-</span>
+                  <span class="score-team-display ${homeWinning}">${safeText(homeName)} ${safeText(homeScore)}</span>
+                </span>
+              </div>
+            `;
           }
         }
 
@@ -1272,7 +1280,7 @@
         cancelBtn = document.createElement('button');
         cancelBtn.type = 'button';
         cancelBtn.id = 'cancelEditPicks';
-        cancelBtn.className = 'nav-button-link form-nav-link';
+        cancelBtn.className = 'form-nav-link picks-action-btn';
         cancelBtn.style.marginLeft = '0.5rem';
         cancelBtn.textContent = 'Cancel';
         cancelBtn.addEventListener('click', async function () {
@@ -2048,24 +2056,42 @@
       });
     }
 
-    // Coach Corso scroll functionality
-    function scrollToCoachCorso(event) {
+    // Coach Corso floating widget
+    function setCorsoOpen(open) {
+      const panel = document.getElementById('corsoPanel');
+      const fab = document.getElementById('corsoFab');
+      const widget = document.getElementById('corsoWidget');
+      if (!panel || !fab) return;
+      const next = Boolean(open);
+      panel.hidden = !next;
+      fab.setAttribute('aria-expanded', next ? 'true' : 'false');
+      if (widget) widget.classList.toggle('is-open', next);
+      if (next) {
+        setTimeout(() => {
+          const input = document.getElementById('corsoChatInput');
+          if (input) input.focus();
+        }, 80);
+      }
+    }
+
+    function toggleCoachCorso(event) {
       if (event) {
         event.preventDefault();
         event.stopPropagation();
       }
-      const section = document.getElementById('coach-corso-section');
-      if (section) {
-        section.scrollIntoView({
-          behavior: 'smooth',
-          block: 'start'
-        });
-      }
-      setTimeout(() => {
-        const input = document.getElementById('corsoChatInput');
-        if (input) input.focus();
-      }, 400);
+      const panel = document.getElementById('corsoPanel');
+      setCorsoOpen(panel ? panel.hidden : true);
     }
+
+    function scrollToCoachCorso(event) {
+      toggleCoachCorso(event);
+    }
+
+    document.getElementById('corsoFab')?.addEventListener('click', toggleCoachCorso);
+    document.getElementById('corsoPanelClose')?.addEventListener('click', () => setCorsoOpen(false));
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') setCorsoOpen(false);
+    });
 
     // Rivalry History Modal
     function showRivalryHistory() {
@@ -2159,58 +2185,185 @@
     let cachedDbGames = null;
     let cachedLiveScores = null;
 
-    async function fetchLiveScores() {
-      if (!activeWeekMeta) {
-        return null;
+    function normTeamKey(name) {
+      return String(name || '')
+        .toLowerCase()
+        .replace(/&/g, ' and ')
+        .replace(/[^a-z0-9]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
+    function teamsMatchName(a, b) {
+      const x = normTeamKey(a);
+      const y = normTeamKey(b);
+      if (!x || !y) return false;
+      if (x === y) return true;
+      if (x.startsWith(y) || y.startsWith(x)) return true;
+      // Drop common mascot/last tokens and compare school cores
+      const strip = (s) =>
+        s
+          .replace(/\b(university|univ|state|st|tech|college|of|the)\b/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+      const xs = strip(x);
+      const ys = strip(y);
+      if (xs && ys && (xs === ys || xs.startsWith(ys) || ys.startsWith(xs))) return true;
+      return false;
+    }
+
+    function normalizeLiveGame(g) {
+      if (!g || typeof g !== 'object') return null;
+
+      // CFBD /scoreboard shape: nested homeTeam/awayTeam objects
+      if (g.homeTeam && typeof g.homeTeam === 'object') {
+        return {
+          id: g.id != null ? Number(g.id) : null,
+          awayTeam: g.awayTeam?.name || g.awayTeam?.school || null,
+          homeTeam: g.homeTeam?.name || g.homeTeam?.school || null,
+          awayPoints: g.awayTeam?.points ?? null,
+          homePoints: g.homeTeam?.points ?? null,
+          completed: /final|completed/i.test(String(g.status || '')),
+          statusRaw: g.status || null,
+          period: g.period ?? null,
+          clock: g.clock || null,
+          startDate: g.startDate || g.start_date || null,
+        };
       }
+
+      // CFBD /games shape (snake_case or camelCase)
+      return {
+        id: g.id != null ? Number(g.id) : null,
+        awayTeam: g.away_team ?? g.awayTeam ?? null,
+        homeTeam: g.home_team ?? g.homeTeam ?? null,
+        awayPoints: g.away_points ?? g.awayPoints ?? null,
+        homePoints: g.home_points ?? g.homePoints ?? null,
+        completed: Boolean(g.completed),
+        statusRaw: g.status || null,
+        period: g.period ?? null,
+        clock: g.clock || null,
+        startDate: g.start_date ?? g.startDate ?? null,
+      };
+    }
+
+    function findLiveGameForPick(liveScores, pickGame) {
+      if (!Array.isArray(liveScores) || !liveScores.length || !pickGame) return null;
+      const cfbdId = Number(pickGame.cfbdGameId ?? pickGame.cfbd_game_id);
+      if (Number.isFinite(cfbdId) && cfbdId > 0) {
+        const byId = liveScores.find((ls) => Number(ls.id) === cfbdId);
+        if (byId) return byId;
+      }
+      const away = pickGame.awayTeamName || pickGame.away_team_name;
+      const home = pickGame.homeTeamName || pickGame.home_team_name;
+      return (
+        liveScores.find(
+          (ls) => teamsMatchName(ls.awayTeam, away) && teamsMatchName(ls.homeTeam, home)
+        ) || null
+      );
+    }
+
+    async function fetchLiveScores() {
+      if (!activeWeekMeta) return null;
 
       const weekNumber = activeWeekMeta.weekNumber ?? activeWeekMeta.week_number;
       const seasonYear = activeWeekMeta.seasonYear ?? activeWeekMeta.season_year;
+      if (!weekNumber || !seasonYear) return null;
 
-      if (!weekNumber || !seasonYear) {
-        return null;
-      }
+      const byId = new Map();
 
+      // Week slate from /games (always available on basic CFBD tiers)
       try {
-        // Fetch games from CFBD API
         const games = await cfbdProxyRequest('/games', {
           year: seasonYear,
           week: weekNumber,
-          seasonType: 'regular'
+          seasonType: 'regular',
         });
-
-        return games;
+        (Array.isArray(games) ? games : []).forEach((raw) => {
+          const g = normalizeLiveGame(raw);
+          if (g && Number.isFinite(g.id)) byId.set(g.id, g);
+        });
       } catch (error) {
-        console.error('Failed to fetch live scores:', error);
-        return null;
+        console.error('Failed to fetch week games for scores:', error);
       }
+
+      // If week query missed our slate (week# mismatch), pull by saved CFBD ids
+      const neededIds = (cachedDbGames || [])
+        .map((g) => Number(g.cfbdGameId ?? g.cfbd_game_id))
+        .filter((id) => Number.isFinite(id) && id > 0 && !byId.has(id));
+      if (neededIds.length) {
+        await Promise.all(
+          neededIds.slice(0, 16).map(async (id) => {
+            try {
+              const rows = await cfbdProxyRequest('/games', {
+                year: seasonYear,
+                id,
+              });
+              const raw = Array.isArray(rows) ? rows[0] : rows;
+              const g = normalizeLiveGame(raw);
+              if (g && Number.isFinite(g.id)) byId.set(g.id, g);
+            } catch (_) {
+              /* ignore single-id miss */
+            }
+          })
+        );
+      }
+
+      // Overlay /scoreboard when available (live clock / period; may require higher CFBD tier)
+      try {
+        const board = await cfbdProxyRequest('/scoreboard', { classification: 'fbs' });
+        (Array.isArray(board) ? board : []).forEach((raw) => {
+          const g = normalizeLiveGame(raw);
+          if (!g || !Number.isFinite(g.id)) return;
+          const prev = byId.get(g.id) || {};
+          byId.set(g.id, { ...prev, ...g });
+        });
+      } catch (error) {
+        console.warn('CFBD scoreboard unavailable (using /games scores):', error?.message || error);
+      }
+
+      const list = Array.from(byId.values());
+      return list.length ? list : null;
     }
 
     function getGameStatus(game) {
-      if (game.completed) return 'FINAL';
-      
-      const startDate = new Date(game.start_date);
-      const now = new Date();
-      const diffMs = now - startDate;
-      const diffMins = Math.floor(diffMs / 60000);
-      
-      // Game started within last 4 hours = likely live
-      if (diffMins >= 0 && diffMins <= 240) {
-        return 'LIVE';
+      if (!game) return { label: 'SCHEDULED', kind: 'scheduled' };
+      if (game.completed) return { label: 'FINAL', kind: 'final' };
+
+      const raw = String(game.statusRaw || '').toLowerCase();
+      if (raw.includes('final') || raw.includes('completed')) {
+        return { label: 'FINAL', kind: 'final' };
       }
-      
-      // Future game
-      if (diffMs < 0) {
-        return 'SCHEDULED';
+
+      const hasScore = game.awayPoints != null || game.homePoints != null;
+      if (raw && !raw.includes('sched') && !raw.includes('pre') && !raw.includes('status_scheduled')) {
+        let label = 'LIVE';
+        if (game.period != null && game.clock) label = `Q${game.period} ${game.clock}`;
+        else if (game.period != null) label = `Q${game.period}`;
+        else if (game.clock) label = String(game.clock);
+        return { label, kind: 'live' };
       }
-      
-      // Game started more than 4 hours ago but not marked complete
-      return 'FINAL';
+
+      const start = game.startDate ? new Date(game.startDate) : null;
+      const now = Date.now();
+      if (start && Number.isFinite(start.getTime())) {
+        if (now < start.getTime() - 2 * 60 * 1000) {
+          return { label: 'SCHEDULED', kind: 'scheduled' };
+        }
+        // Kickoff passed: treat as live while scoring, else final after ~5h
+        const ageMs = now - start.getTime();
+        if (ageMs <= 5 * 60 * 60 * 1000 || hasScore) {
+          return { label: hasScore || ageMs >= 0 ? 'LIVE' : 'LIVE', kind: 'live' };
+        }
+        return { label: 'FINAL', kind: 'final' };
+      }
+
+      if (hasScore) return { label: 'LIVE', kind: 'live' };
+      return { label: 'SCHEDULED', kind: 'scheduled' };
     }
 
     async function refreshInlineScores() {
       if (!cachedDbGames) return;
-      
+
       const liveScores = await fetchLiveScores();
       if (liveScores) {
         cachedLiveScores = liveScores;
@@ -2219,15 +2372,13 @@
     }
 
     function startLiveScoresAutoRefresh() {
-      // Clear any existing interval
       if (liveScoresRefreshInterval) {
         clearInterval(liveScoresRefreshInterval);
       }
-      
-      // Refresh every 60 seconds
+
       liveScoresRefreshInterval = setInterval(async () => {
         await refreshInlineScores();
-      }, 60000); // 60 seconds
+      }, 45000);
     }
 
     function stopLiveScoresAutoRefresh() {
@@ -2237,7 +2388,6 @@
       }
     }
 
-    // Initialize live scores
     async function initializeLiveScores() {
       const liveScores = await fetchLiveScores();
       if (liveScores && cachedDbGames) {
@@ -2247,7 +2397,6 @@
       }
     }
 
-    // Clean up interval when page is unloaded
     window.addEventListener('beforeunload', () => {
       stopLiveScoresAutoRefresh();
     });
