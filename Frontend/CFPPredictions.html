@@ -30,13 +30,13 @@
     <header class="cfp-hero">
       <p class="cfp-kicker">College Football Playoff</p>
       <h1 class="cfp-heading">Official Bracket</h1>
-      <p class="cfp-help">Search and pick all 12 seeds. When both teams in a matchup are set, click one to advance them. Fill the whole bracket on this page — picking a national champion unlocks a celebration. Log in to save.</p>
+      <p class="cfp-help">Search and pick all 12 seeds. Click a team to advance them; click the other team to switch; click the current winner again to clear. Double-click a seed name to edit it. Log in to save.</p>
     </header>
 
     <div class="cfp-toolbar">
       <div class="cfp-tabs" role="tablist">
         <button type="button" class="cfp-tab active" data-tab="bracket" role="tab" aria-selected="true">My Bracket</button>
-        <button type="button" class="cfp-tab" data-tab="leaderboard" role="tab" aria-selected="false">Leaderboard</button>
+        <button type="button" class="cfp-tab" data-tab="leaderboard" role="tab" aria-selected="false">Browse brackets</button>
       </div>
       <div class="cfp-toolbar-actions" id="bracketActions">
         <button type="button" class="btn btn-gold btn-sm" id="saveBtn">Save bracket</button>
@@ -44,6 +44,11 @@
       </div>
       <span class="cfp-status" id="statusLine" aria-live="polite"></span>
     </div>
+
+    <p id="loginSaveBanner" class="cfp-login-banner" hidden>
+      <a id="loginSaveLink" href="login.html?redirect=CFPPredictions.html">Log in</a>
+      to save your bracket and share it in Browse brackets.
+    </p>
 
     <p id="viewBanner" class="cfp-view-banner" hidden></p>
 
@@ -87,14 +92,14 @@
       <!-- CENTER: Championship -->
       <div class="cfp-col cfp-col-final">
         <div class="cfp-final-wrap">
+          <div class="cfp-champion" id="championBanner" hidden>
+            <span class="cfp-champion-label">Champion</span>
+            <strong id="championName">—</strong>
+          </div>
           <div class="cfp-round-label">National Championship</div>
           <div class="cfp-pair cfp-pair-final" data-game="champ">
             <div class="cfp-slot cfp-advance" data-slot="wSfL" data-from="sfL"></div>
             <div class="cfp-slot cfp-advance" data-slot="wSfR" data-from="sfR"></div>
-          </div>
-          <div class="cfp-champion" id="championBanner" hidden>
-            <span class="cfp-champion-label">Champion</span>
-            <strong id="championName">—</strong>
           </div>
         </div>
       </div>
@@ -139,25 +144,11 @@
     <section id="leaderboardPanel" class="cfp-panel" hidden>
       <div class="cfp-lb-card">
         <div class="cfp-lb-head">
-          <h2 class="cfp-lb-title">CFP Bracket Leaderboard</h2>
-          <p class="cfp-lb-hint" id="lbHint">Saved brackets from all players.</p>
+          <h2 class="cfp-lb-title">Browse brackets</h2>
+          <p class="cfp-lb-hint" id="lbHint">See who others picked as champion — open a card for the full bracket.</p>
         </div>
-        <div class="table-responsive">
-          <table class="cfp-lb-table">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Player</th>
-                <th>Champion pick</th>
-                <th>Correct</th>
-                <th>Accuracy</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody id="lbBody"></tbody>
-          </table>
-        </div>
-        <p id="lbEmpty" class="cfp-lb-empty" hidden>No brackets saved yet.</p>
+        <div id="lbGallery" class="cfp-bracket-gallery" aria-live="polite"></div>
+        <p id="lbEmpty" class="cfp-lb-empty" hidden>No brackets saved yet. Be the first — log in and save yours.</p>
       </div>
     </section>
   </main>

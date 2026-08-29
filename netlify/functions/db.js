@@ -351,6 +351,9 @@ function picksLockedError(locksAt) {
   return err;
 }
 
+/** TEMP: turn first-kickoff lock off so weekly picks stay editable. Set false to restore. */
+const WEEKLY_PICKS_TIME_LOCK_DISABLED = true;
+
 function weekLockFromGames(games, now = new Date()) {
   const dates = (games || [])
     .map((g) => g.game_date)
@@ -359,6 +362,14 @@ function weekLockFromGames(games, now = new Date()) {
     .filter((d) => Number.isFinite(d.getTime()))
     .sort((a, b) => a.getTime() - b.getTime());
   const locksAt = dates.length ? dates[0].toISOString() : null;
+  if (WEEKLY_PICKS_TIME_LOCK_DISABLED) {
+    return {
+      picksLocked: false,
+      locksAt: null,
+      lockDisabled: true,
+      wouldLockAt: locksAt,
+    };
+  }
   return {
     picksLocked: Boolean(locksAt && now.getTime() >= new Date(locksAt).getTime()),
     locksAt,

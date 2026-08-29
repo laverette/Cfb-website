@@ -36,6 +36,15 @@ function championFromState(slots, picks) {
   return slots[winSlot].name || null;
 }
 
+function runnerUpFromState(slots, picks) {
+  const winSlot = picks && picks.champ;
+  if (!winSlot || !slots) return null;
+  const finalists = ["wSfL", "wSfR"];
+  const other = finalists.find((s) => s !== winSlot);
+  if (!other || !slots[other]) return null;
+  return slots[other].name || null;
+}
+
 function isBracketComplete(teams, picks) {
   if (!teams || !picks) return false;
   for (let i = 1; i <= 12; i += 1) {
@@ -90,14 +99,22 @@ function mapBracketRow(row, user = null) {
 }
 
 async function loadOfficialResults(seasonYear) {
-  const supabase = getSupabase();
-  const { data, error } = await supabase
-    .from("cfp_official_results")
-    .select("*")
-    .eq("season_year", seasonYear)
-    .maybeSingle();
-  dbError(error);
-  return data || null;
+  try {
+    const supabase = getSupabase();
+    const { data, error } = await supabase
+      .from("cfp_official_results")
+      .select("*")
+      .eq("season_year", seasonYear)
+      .maybeSingle();
+    if (error) {
+      console.warn("cfp official results:", error.message || error);
+      return null;
+    }
+    return data || null;
+  } catch (err) {
+    console.warn("cfp official results failed:", err.message || err);
+    return null;
+  }
 }
 
 async function getBracketForUser(userId, season) {
@@ -259,26 +276,49 @@ async function saveOfficialResults({ season, results, locked = false }) {
 async function getLeaderboard(season) {
   const seasonYear = normalizeSeason(season);
   const supabase = getSupabase();
-  const users = await listPublicUsers();
+
+  let users = [];
+  try {
+    users = await listPublicUsers();
+  } catch (err) {
+    console.warn("cfp gallery users:", err.message || err);
+  }
   const byId = new Map(users.map((u) => [Number(u.id), u]));
-  const rows = await selectAllPages(() =>
-    supabase
-      .from("cfp_brackets")
-      .select("*")
-      .eq("season_year", seasonYear)
-      .order("correct_picks", { ascending: false })
-  );
+
+  let rows = [];
+  try {
+    rows = await selectAllPages(() =>
+      supabase
+        .from("cfp_brackets")
+        .select(
+          "id, user_id, season_year, teams, slots, picks, champion_name, is_complete, correct_picks, graded_picks, updated_at, submitted_at"
+        )
+        .eq("season_year", seasonYear)
+        .order("updated_at", { ascending: false })
+    );
+  } catch (err) {
+    console.error("cfp gallery brackets:", err.message || err);
+    throw err;
+  }
 
   const entries = rows
     .map((row) => {
       const u = byId.get(Number(row.user_id));
-      if (!u) return null;
+      const slots = row.slots || {};
+      const picks = row.picks || {};
+      const championName =
+        row.champion_name || championFromState(slots, picks);
+      const runnerUpName = runnerUpFromState(slots, picks);
+      const username = u?.username || null;
+      if (!username) return null;
       return {
-        userId: u.id,
-        username: u.username,
-        displayName: u.displayName,
-        avatarUrl: u.avatarUrl,
-        championName: row.champion_name,
+        userId: Number(row.user_id),
+        username,
+        displayName:
+          u.displayName || u.display_name || u.username || username,
+        avatarUrl: u.avatarUrl || u.avatar_url || null,
+        championName: championName || null,
+        runnerUpName: runnerUpName || null,
         isComplete: Boolean(row.is_complete),
         correctPicks: Number(row.correct_picks) || 0,
         gradedPicks: Number(row.graded_picks) || 0,
@@ -293,14 +333,14 @@ async function getLeaderboard(season) {
     })
     .filter(Boolean)
     .sort((a, b) => {
-      if (b.correctPicks !== a.correctPicks) return b.correctPicks - a.correctPicks;
-      if ((b.accuracy || 0) !== (a.accuracy || 0)) return (b.accuracy || 0) - (a.accuracy || 0);
+      // Prefer complete brackets with a champ pick, then recency
       if (Number(b.isComplete) !== Number(a.isComplete)) {
         return Number(b.isComplete) - Number(a.isComplete);
       }
-      return String(a.displayName || a.username).localeCompare(
-        String(b.displayName || b.username)
-      );
+      if (Boolean(b.championName) !== Boolean(a.championName)) {
+        return Number(Boolean(b.championName)) - Number(Boolean(a.championName));
+      }
+      return String(b.updatedAt || "").localeCompare(String(a.updatedAt || ""));
     })
     .map((e, i) => ({ ...e, rank: i + 1 }));
 
@@ -312,9 +352,7 @@ async function getLeaderboard(season) {
     hasOfficialResults: Boolean(
       official && official.results && Object.keys(official.results).length
     ),
-    viewerHint: official?.results
-      ? "Ranked by correct playoff picks vs official results."
-      : "Brackets are saved. Leaderboard scoring starts once official results are posted.",
+    viewerHint: "Browse saved brackets — open one to see the full pick sheet.",
   };
 }
 

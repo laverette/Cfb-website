@@ -80,6 +80,25 @@
     if (el) el.textContent = msg || "";
   }
 
+  function updateAuthUi() {
+    var loggedIn = isLoggedIn();
+    var saveBtn = document.getElementById("saveBtn");
+    var banner = document.getElementById("loginSaveBanner");
+    var loginLink = document.getElementById("loginSaveLink");
+    if (saveBtn && !state.readonly) {
+      saveBtn.disabled = false;
+      saveBtn.textContent = loggedIn ? "Save bracket" : "Log in to save";
+      saveBtn.classList.toggle("is-login-cta", !loggedIn);
+    }
+    if (banner) {
+      banner.hidden = loggedIn || state.readonly;
+    }
+    if (loginLink) {
+      loginLink.href =
+        "login.html?redirect=" + encodeURIComponent("CFPPredictions.html");
+    }
+  }
+
   function authHeaders() {
     var token = localStorage.getItem(STORAGE_TOKEN);
     if (!token) return {};
@@ -132,6 +151,7 @@
     if (tabMine) {
       tabMine.textContent = state.readonly ? "Bracket" : "My Bracket";
     }
+    updateAuthUi();
   }
 
   function escapeHtml(s) {
@@ -351,13 +371,24 @@
       var g = GAMES[gameId];
       if (!g) return;
       var ready = slotFilled(g.slots[0]) && slotFilled(g.slots[1]);
-      pair.classList.toggle("is-ready", ready && !state.readonly);
+      var currentPick = state.picks[gameId] || null;
+      pair.classList.toggle("is-ready", ready && !state.readonly && !currentPick);
+      pair.classList.toggle("is-decided", ready && Boolean(currentPick));
       $$(".cfp-slot", pair).forEach(function (el) {
         var sid = el.getAttribute("data-slot");
         var canPick = ready && !state.readonly && sid && slotFilled(sid);
+        var isWin = currentPick && sid === currentPick;
         el.classList.toggle("is-pickable", canPick);
-        if (canPick) el.title = "Click to advance this team";
-        else el.removeAttribute("title");
+        el.classList.toggle("is-loser", Boolean(canPick && currentPick && !isWin));
+        if (canPick) {
+          el.title = isWin
+            ? "Click again to clear this pick"
+            : currentPick
+              ? "Click to switch winner"
+              : "Click to advance this team";
+        } else {
+          el.removeAttribute("title");
+        }
       });
     });
   }
@@ -473,6 +504,19 @@
     }
     if (slotId !== a && slotId !== b) return;
 
+    // Clicking the current winner again clears the pick so you can re-choose.
+    if (state.picks[gameId] === slotId) {
+      clearGameForward(gameId);
+      if (gameId === "champ") {
+        state.lastChampShown = null;
+        hideChampCelebration();
+      }
+      refreshAllSlots();
+      setStatus("Pick cleared — click a team to choose the winner.");
+      return;
+    }
+
+    var switching = Boolean(state.picks[gameId] && state.picks[gameId] !== slotId);
     state.picks[gameId] = slotId;
     var winner = state.slots[slotId];
 
@@ -489,10 +533,17 @@
 
     refreshAllSlots();
     if (gameId === "champ" && winner && winner.name) {
+      state.lastChampShown = null;
       showChampCelebration(winner.name);
-      setStatus("National champion picked — save when you're ready.");
+      setStatus(
+        switching
+          ? "Champion updated — save when you're ready."
+          : "National champion picked — save when you're ready."
+      );
+    } else if (switching) {
+      setStatus("Winner switched. Later rounds using the old pick were reset.");
     } else {
-      setStatus(g.advancesTo ? "Winner advanced. Keep picking through the bracket." : "");
+      setStatus(g.advancesTo ? "Winner advanced. Click the other team anytime to switch." : "");
     }
   }
 
@@ -642,6 +693,7 @@
 
   async function save() {
     if (!isLoggedIn()) {
+      setStatus("Log in to save your bracket to your account.");
       window.location.href =
         "login.html?redirect=" + encodeURIComponent("CFPPredictions.html");
       return;
@@ -685,7 +737,10 @@
     } catch (_) {
       setStatus("Network error while saving.");
     } finally {
-      if (saveBtn) saveBtn.disabled = !isLoggedIn() || state.readonly;
+      if (saveBtn) {
+        saveBtn.disabled = state.readonly;
+        updateAuthUi();
+      }
     }
   }
 
@@ -804,12 +859,12 @@
   }
 
   async function loadLeaderboard() {
-    var body = document.getElementById("lbBody");
+    var gallery = document.getElementById("lbGallery");
     var empty = document.getElementById("lbEmpty");
     var hint = document.getElementById("lbHint");
-    if (!body) return;
-    if (state.lbLoaded && body.children.length) return;
-    body.innerHTML = '<tr><td colspan="6">Loading…</td></tr>';
+    if (!gallery) return;
+    if (state.lbLoaded && gallery.children.length) return;
+    gallery.innerHTML = '<p class="cfp-lb-loading">Loading brackets…</p>';
     if (empty) empty.hidden = true;
     try {
       var res = await fetch(
@@ -820,65 +875,89 @@
         return {};
       });
       if (!res.ok) {
-        body.innerHTML =
-          '<tr><td colspan="6">' +
-          escapeHtml(data.error || "Failed to load") +
-          "</td></tr>";
+        gallery.innerHTML =
+          '<p class="cfp-lb-error">' +
+          escapeHtml(data.error || data.details || "Failed to load brackets") +
+          "</p>";
         return;
       }
       if (hint && data.viewerHint) hint.textContent = data.viewerHint;
       var entries = data.entries || [];
       if (!entries.length) {
-        body.innerHTML = "";
+        gallery.innerHTML = "";
         if (empty) empty.hidden = false;
         state.lbLoaded = true;
         return;
       }
       if (empty) empty.hidden = true;
-      body.innerHTML = entries
+      gallery.innerHTML = entries
         .map(function (e) {
           var name = e.displayName || e.username || "Player";
-          var acc =
-            e.accuracy != null
-              ? e.accuracy + "%"
-              : e.gradedPicks
-                ? "—"
-                : "Ungraded";
-          var score =
-            e.gradedPicks > 0
-              ? e.correctPicks + "/" + e.gradedPicks
-              : e.isComplete
-                ? "Complete"
-                : "Saved";
+          var champ = e.championName || "No champion yet";
+          var runner = e.runnerUpName || "—";
+          var champBrand = lookupBrand(e.championName);
+          var runnerBrand = lookupBrand(e.runnerUpName);
+          var champLogo =
+            champBrand && champBrand.logo
+              ? '<img class="cfp-gallery-logo" src="' +
+                escapeHtml(champBrand.logo) +
+                '" alt="" width="40" height="40" loading="lazy">'
+              : '<span class="cfp-gallery-logo-fallback">🏆</span>';
+          var runnerLogo =
+            runnerBrand && runnerBrand.logo
+              ? '<img class="cfp-gallery-logo is-sm" src="' +
+                escapeHtml(runnerBrand.logo) +
+                '" alt="" width="28" height="28" loading="lazy">'
+              : "";
+          var href =
+            "CFPPredictions.html?username=" + encodeURIComponent(e.username);
+          var style = "";
+          if (champBrand && champBrand.primary) {
+            style =
+              ' style="--gallery-champ:' +
+              escapeHtml(champBrand.primary) +
+              ";--gallery-accent:" +
+              escapeHtml(champBrand.secondary || champBrand.primary) +
+              ';"';
+          }
           return (
-            "<tr>" +
-            "<td>" +
-            escapeHtml(String(e.rank)) +
-            "</td>" +
-            "<td><a href=\"user-profile.html?username=" +
-            encodeURIComponent(e.username) +
-            '">' +
+            '<a class="cfp-gallery-card" href="' +
+            href +
+            '"' +
+            style +
+            ">" +
+            '<div class="cfp-gallery-top">' +
+            '<span class="cfp-gallery-name">' +
             escapeHtml(name) +
-            "</a></td>" +
-            "<td>" +
-            escapeHtml(e.championName || "—") +
-            "</td>" +
-            "<td>" +
-            escapeHtml(String(score)) +
-            "</td>" +
-            "<td>" +
-            escapeHtml(String(acc)) +
-            "</td>" +
-            '<td><a href="CFPPredictions.html?username=' +
-            encodeURIComponent(e.username) +
-            '">View</a></td>' +
-            "</tr>"
+            "</span>" +
+            (e.isComplete
+              ? '<span class="cfp-gallery-badge">Complete</span>'
+              : '<span class="cfp-gallery-badge is-partial">In progress</span>') +
+            "</div>" +
+            '<div class="cfp-gallery-champ">' +
+            champLogo +
+            '<div class="cfp-gallery-champ-copy">' +
+            '<span class="cfp-gallery-kicker">National champion</span>' +
+            "<strong>" +
+            escapeHtml(champ) +
+            "</strong>" +
+            "</div>" +
+            "</div>" +
+            '<div class="cfp-gallery-runner">' +
+            runnerLogo +
+            '<div><span class="cfp-gallery-kicker">Runner-up</span>' +
+            "<span>" +
+            escapeHtml(runner) +
+            "</span></div>" +
+            "</div>" +
+            '<span class="cfp-gallery-cta">View full bracket →</span>' +
+            "</a>"
           );
         })
         .join("");
       state.lbLoaded = true;
     } catch (_) {
-      body.innerHTML = '<tr><td colspan="6">Network error</td></tr>';
+      gallery.innerHTML = '<p class="cfp-lb-error">Network error loading brackets.</p>';
     }
   }
 
@@ -903,9 +982,9 @@
     var resetBtn = document.getElementById("resetBtn");
     if (saveBtn) {
       saveBtn.addEventListener("click", save);
-      saveBtn.disabled = !isLoggedIn();
     }
     if (resetBtn) resetBtn.addEventListener("click", resetAll);
+    updateAuthUi();
 
     var viewUser = queryUsername();
     if (viewUser) {
@@ -922,7 +1001,12 @@
       await loadMine();
     }
 
+    updateAuthUi();
     refreshAllSlots();
+
+    if (!isLoggedIn() && !state.readonly) {
+      setStatus("Build your bracket freely — log in when you're ready to save.");
+    }
 
     if (window.location.hash === "#leaderboard") {
       switchTab("leaderboard");

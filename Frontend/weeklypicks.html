@@ -1209,7 +1209,7 @@
         title = 'Picks saved';
         body = lockLabel
           ? `You can change these until the first kickoff (${lockLabel}).`
-          : 'You can still change these until the first game starts.';
+          : 'You can still change these picks anytime for now.';
       }
       messageDiv.innerHTML = `
         <h3 style="margin: 0 0 0.5rem 0; color: #1E1E1E;">${title}</h3>
@@ -1537,7 +1537,7 @@
       const editBlock = canEdit
         ? `
             <button id="editPicksBtn" class="screenshot-button edit-picks-button" type="button">Edit Picks</button>
-            <p class="screenshot-note">${lockLabel ? `You can edit until first kickoff (${safeText(lockLabel)}).` : 'You can edit until the first game starts.'}</p>
+            <p class="screenshot-note">${lockLabel ? `You can edit until first kickoff (${safeText(lockLabel)}).` : 'You can still edit these picks.'}</p>
           `
         : `
             <p class="screenshot-note">Picks are locked for this week.</p>
