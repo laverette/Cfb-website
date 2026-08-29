@@ -201,6 +201,26 @@
   status = 200
 
 [[redirects]]
+  from = "/api/heisman"
+  to = "/.netlify/functions/heisman"
+  status = 200
+
+[[redirects]]
+  from = "/api/heisman/pick"
+  to = "/.netlify/functions/heisman-pick"
+  status = 200
+
+[[redirects]]
+  from = "/api/heisman/lock"
+  to = "/.netlify/functions/heisman-lock"
+  status = 200
+
+[[redirects]]
+  from = "/api/heisman/results"
+  to = "/.netlify/functions/heisman-results"
+  status = 200
+
+[[redirects]]
   from = "/api/admin/games/*"
   to = "/.netlify/functions/admin-delete-game?gameId=:splat"
   status = 200

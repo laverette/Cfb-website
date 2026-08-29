@@ -1,3 +1,237 @@
-.body{
-    background-color: #000000;
+/* Heisman odds board + ballot */
+
+.heisman-body {
+  --hs-gold: #e8c56a;
+  --hs-gold-bright: #ffe566;
+  --hs-ink: #f3e6d0;
+  --hs-muted: rgba(243, 230, 208, 0.72);
+  background:
+    radial-gradient(800px 360px at 50% -10%, rgba(232, 197, 106, 0.14), transparent 55%),
+    linear-gradient(180deg, #171311 0%, #1a1512 55%, #120f0d 100%);
+  min-height: 100vh;
+  color: var(--hs-ink);
+}
+
+.heisman-shell {
+  max-width: 1100px;
+}
+
+.heisman-hero {
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+.heisman-kicker {
+  margin: 0;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--hs-gold-bright);
+}
+
+.heisman-status {
+  min-height: 1.25rem;
+  margin: 0.5rem 0 0;
+  color: var(--hs-muted);
+  font-size: 0.9rem;
+}
+
+.heisman-status.is-error {
+  color: #ffb4a8;
+}
+
+.heisman-layout {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+@media (max-width: 860px) {
+  .heisman-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.heisman-hint,
+.heisman-meta {
+  color: var(--hs-muted);
+  font-size: 0.9rem;
+  margin: 0.25rem 0 0.85rem;
+}
+
+.heisman-mypick {
+  padding: 0.85rem;
+  border-radius: 12px;
+  border: 1px solid rgba(232, 197, 106, 0.28);
+  background: rgba(0, 0, 0, 0.22);
+  margin-bottom: 0.75rem;
+  min-height: 4.5rem;
+}
+
+.heisman-mypick strong {
+  color: var(--hs-gold-bright);
+  font-size: 1.15rem;
+}
+
+.heisman-mypick .muted {
+  color: var(--hs-muted);
+  font-size: 0.88rem;
+}
+
+.heisman-locked-badge {
+  display: inline-block;
+  margin-left: 0.4rem;
+  padding: 0.12rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 215, 0, 0.4);
+  background: rgba(255, 215, 0, 0.12);
+  color: var(--hs-gold-bright);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.heisman-ballot-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.heisman-login-gate {
+  margin: 0.75rem 0 0;
+  color: var(--hs-muted);
+}
+
+.heisman-login-gate a {
+  color: var(--hs-gold-bright);
+  font-weight: 700;
+}
+
+.heisman-board-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.heisman-board-head .gold-heading {
+  margin: 0;
+}
+
+.heisman-filter {
+  width: min(100%, 240px);
+  padding: 0.4rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid rgba(141, 110, 99, 0.55);
+  background: rgba(0, 0, 0, 0.28);
+  color: var(--hs-ink);
+}
+
+.heisman-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.heisman-table th,
+.heisman-table td {
+  padding: 0.55rem 0.4rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.heisman-table th {
+  color: var(--hs-gold);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.heisman-table tr.is-selected {
+  background: rgba(255, 215, 0, 0.08);
+}
+
+.heisman-table tr.is-mypick {
+  outline: 1px solid rgba(255, 215, 0, 0.25);
+}
+
+.heisman-player-name {
+  font-weight: 700;
+  color: #fff;
+}
+
+.heisman-player-sub {
+  display: block;
+  color: var(--hs-muted);
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.heisman-odds {
+  font-weight: 800;
+  color: var(--hs-gold-bright);
+  font-variant-numeric: tabular-nums;
+}
+
+.heisman-pick-btn {
+  border: 1px solid rgba(232, 197, 106, 0.35);
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--hs-ink);
+  border-radius: 8px;
+  padding: 0.25rem 0.55rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.heisman-pick-btn:hover,
+.heisman-pick-btn.is-active {
+  background: rgba(255, 215, 0, 0.16);
+  border-color: var(--hs-gold);
+  color: var(--hs-gold-bright);
+}
+
+.heisman-crowd-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.35rem 0.75rem;
+  align-items: center;
+  margin-bottom: 0.55rem;
+}
+
+.heisman-bar-track {
+  grid-column: 1 / -1;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.heisman-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(232, 197, 106, 0.55), rgba(255, 215, 0, 0.9));
+}
+
+.heisman-empty {
+  color: var(--hs-muted);
+  margin: 0.75rem 0 0;
+}
+
+.heisman-prophet-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.85rem;
+  align-items: baseline;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.heisman-prophet-row strong {
+  color: var(--hs-gold-bright);
 }

@@ -340,6 +340,7 @@
     <nav class="admin-jump" aria-label="Admin sections">
       <a href="#section-week">Active week</a>
       <a href="#section-power">Power rankings</a>
+      <a href="#section-heisman">Heisman</a>
       <a href="#section-picks">Weekly picks</a>
       <a href="#recruitMapAdminSection">Recruit map</a>
     </nav>
@@ -394,6 +395,33 @@
         <a class="btn btn-secondary" href="predictor.html" target="_blank" rel="noopener">Open Matchup Predictor</a>
       </div>
       <div id="powerRunStatus" style="margin-top:0.75rem;"></div>
+    </div>
+
+    <!-- Heisman winner -->
+    <div class="admin-section" id="section-heisman">
+      <h2>Heisman winner</h2>
+      <p class="section-lead">
+        Set the official Heisman winner for the season. Locked user picks matching this player appear on the Prophet board
+        (sorted by longest odds at lock).
+      </p>
+      <div class="form-row-3">
+        <div class="form-group">
+          <label>Season year</label>
+          <input type="number" id="heismanSeasonYear" class="admin-input" value="2026" min="2015" max="2035">
+        </div>
+        <div class="form-group" style="grid-column: span 2;">
+          <label>Winner (from odds board)</label>
+          <select id="heismanWinnerSelect" class="admin-input">
+            <option value="">Load board…</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row" style="margin-top:0.75rem; display:flex; flex-wrap:wrap; gap:0.5rem;">
+        <button type="button" class="btn btn-secondary" id="btnHeismanLoadBoard" onclick="heismanLoadBoard()">Load odds board</button>
+        <button type="button" class="btn btn-primary" id="btnHeismanSetWinner" onclick="heismanSetWinner()">Set official winner</button>
+        <a class="btn btn-secondary" href="list.html" target="_blank" rel="noopener">Open Heisman page</a>
+      </div>
+      <div id="heismanAdminStatus" style="margin-top:0.75rem;"></div>
     </div>
 
     <!-- Weekly Picks Games -->
@@ -588,6 +616,69 @@
       if (t) h['Authorization'] = 'Bearer ' + t;
       if (includeJsonContentType) h['Content-Type'] = 'application/json';
       return h;
+    }
+
+    async function heismanLoadBoard() {
+      const status = document.getElementById('heismanAdminStatus');
+      const select = document.getElementById('heismanWinnerSelect');
+      const season = document.getElementById('heismanSeasonYear')?.value || 2026;
+      if (status) status.innerHTML = '<span class="loading">Loading odds board…</span>';
+      try {
+        const res = await fetch(`/api/heisman?season=${encodeURIComponent(season)}`, {
+          headers: { ...adminAuthHeaders(false), Accept: 'application/json' },
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || data.details || `Failed (${res.status})`);
+        const cands = data.board?.candidates || [];
+        if (!select) return;
+        select.innerHTML = cands.length
+          ? cands.map((c) =>
+              `<option value="${String(c.playerKey).replace(/"/g, '')}" data-name="${String(c.playerName || '').replace(/"/g, '&quot;')}">${c.rank}. ${c.playerName} (${c.americanDisplay})</option>`
+            ).join('')
+          : '<option value="">No candidates</option>';
+        const resultLine = data.result
+          ? `Current official winner: <strong>${data.result.winnerName}</strong>.`
+          : 'No official winner set yet.';
+        if (status) {
+          status.innerHTML = `<span style="color:var(--admin-ok);">${cands.length} players loaded from ${data.board?.provider || 'ESPN'}. ${resultLine}</span>`;
+        }
+      } catch (err) {
+        if (status) status.innerHTML = `<span style="color:var(--admin-danger);">${err.message || err}</span>`;
+      }
+    }
+
+    async function heismanSetWinner() {
+      const status = document.getElementById('heismanAdminStatus');
+      const select = document.getElementById('heismanWinnerSelect');
+      const season = document.getElementById('heismanSeasonYear')?.value || 2026;
+      const playerKey = select?.value;
+      if (!playerKey) {
+        if (status) status.innerHTML = '<span style="color:var(--admin-danger);">Load the board and choose a winner.</span>';
+        return;
+      }
+      const opt = select.options[select.selectedIndex];
+      const winnerName = opt?.getAttribute('data-name') || opt?.textContent || '';
+      if (!confirm(`Set official Heisman winner to ${winnerName}?`)) return;
+      if (status) status.innerHTML = '<span class="loading">Saving…</span>';
+      try {
+        const res = await fetch('/api/heisman/results', {
+          method: 'POST',
+          headers: adminAuthHeaders(true),
+          body: JSON.stringify({
+            season: Number(season),
+            winnerPlayerKey: playerKey,
+            winnerName,
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || `Failed (${res.status})`);
+        const prophets = Array.isArray(data.prophets) ? data.prophets.length : 0;
+        if (status) {
+          status.innerHTML = `<span style="color:var(--admin-ok);">Winner set: <strong>${data.result?.winnerName || winnerName}</strong>. Prophet board: ${prophets} locked hit(s).</span>`;
+        }
+      } catch (err) {
+        if (status) status.innerHTML = `<span style="color:var(--admin-danger);">${err.message || err}</span>`;
+      }
     }
 
     function showAdminAuthWall(message) {

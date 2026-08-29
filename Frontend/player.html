@@ -40,15 +40,17 @@
     <section class="section-card player-season-block">
       <div class="player-section-head">
         <h2 class="gold-heading">Season stats <span class="player-year-fixed" id="seasonYearLabel">2026</span></h2>
+        <button type="button" class="player-scope-toggle" id="statsScopeToggle" hidden>Show all stat categories</button>
       </div>
       <p class="player-season-sub" id="seasonTeamLine"></p>
       <p class="player-season-sub" id="seasonGames"></p>
+      <p id="seasonEmpty" class="player-empty-banner" hidden></p>
       <div id="seasonStats" class="player-stat-grid"></div>
     </section>
 
     <section class="section-card player-career-block">
       <h2 class="gold-heading">Career</h2>
-      <p class="player-hint">Every season with available CFBD stats for this player.</p>
+      <p class="player-hint">Seasons with stats for this player’s position. Expand a year for the full breakdown.</p>
       <div class="table-responsive">
         <table class="player-career-table">
           <thead>
