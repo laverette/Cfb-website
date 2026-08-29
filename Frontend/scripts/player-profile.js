@@ -355,14 +355,17 @@
     return cats
       .map(function (cat) {
         var stats = Array.isArray(cat.stats) ? cat.stats : [];
-        var rows = stats
+        var items = stats
           .map(function (s) {
             return (
-              "<tr><th>" +
+              '<div class="player-stat-item">' +
+              '<span class="player-stat-label">' +
               escapeHtml(s.name || "Stat") +
-              "</th><td>" +
+              "</span>" +
+              '<span class="player-stat-value">' +
               escapeHtml(s.value != null ? s.value : "—") +
-              "</td></tr>"
+              "</span>" +
+              "</div>"
             );
           })
           .join("");
@@ -371,9 +374,9 @@
           "<h3>" +
           escapeHtml(cat.name || "Stats") +
           "</h3>" +
-          '<table class="player-stat-table"><tbody>' +
-          rows +
-          "</tbody></table>" +
+          '<div class="player-stat-row">' +
+          items +
+          "</div>" +
           "</article>"
         );
       })

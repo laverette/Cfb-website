@@ -121,6 +121,30 @@ async function resolveAthlete(athleteId, seasonYear, signal) {
   };
 }
 
+async function resolveAthleteWithRetry(athleteId, seasonYear, signal, attempts = 3) {
+  let lastErr = null;
+  for (let n = 0; n < attempts; n += 1) {
+    try {
+      return await resolveAthlete(athleteId, seasonYear, signal);
+    } catch (err) {
+      lastErr = err;
+      if (err && err.name === "AbortError") throw err;
+      if (n < attempts - 1) {
+        await new Promise((r) => setTimeout(r, 150 * (n + 1)));
+      }
+    }
+  }
+  throw lastErr || new Error(`Failed to resolve athlete ${athleteId}`);
+}
+
+function isUnresolvedAthleteName(name, playerKey) {
+  const n = String(name || "").trim();
+  if (!n) return true;
+  if (/^athlete\s+\d+$/i.test(n)) return true;
+  if (playerKey && n === String(playerKey)) return true;
+  return false;
+}
+
 async function fetchEspnHeismanBoard(seasonYear, signal) {
   const index = await fetchJson(
     `${ESPN_BASE}/seasons/${seasonYear}/futures?limit=100&lang=en&region=us`,
@@ -168,8 +192,7 @@ async function fetchEspnHeismanBoard(seasonYear, signal) {
     return (a.americanOdds || 0) - (b.americanOdds || 0);
   });
 
-  const MAX_HYDRATE = 40;
-  const hydrated = await mapPool(raw, ATHLETE_CONCURRENCY, async (row, idx) => {
+  const hydrated = await mapPool(raw, ATHLETE_CONCURRENCY, async (row) => {
     let meta = {
       playerName: `Athlete ${row.playerKey}`,
       team: null,
@@ -177,12 +200,10 @@ async function fetchEspnHeismanBoard(seasonYear, signal) {
       jersey: null,
       headshot: null,
     };
-    if (idx < MAX_HYDRATE) {
-      try {
-        meta = await resolveAthlete(row.playerKey, seasonYear, signal);
-      } catch {
-        /* keep fallback */
-      }
+    try {
+      meta = await resolveAthleteWithRetry(row.playerKey, seasonYear, signal);
+    } catch {
+      /* keep fallback */
     }
     return {
       ...meta,
@@ -206,6 +227,39 @@ async function fetchEspnHeismanBoard(seasonYear, signal) {
     source: "espn",
     fetchedAt: new Date().toISOString(),
     candidates,
+  };
+}
+
+async function backfillUnresolvedNames(board, signal) {
+  if (!board || !Array.isArray(board.candidates) || !board.candidates.length) {
+    return { board, changed: false };
+  }
+  const seasonYear = board.seasonYear || SEASON_YEAR;
+  const need = board.candidates
+    .map((c, i) => ({ c, i }))
+    .filter(({ c }) => isUnresolvedAthleteName(c.playerName, c.playerKey));
+  if (!need.length) return { board, changed: false };
+
+  const next = board.candidates.slice();
+  await mapPool(need, ATHLETE_CONCURRENCY, async ({ c, i }) => {
+    try {
+      const meta = await resolveAthleteWithRetry(c.playerKey, seasonYear, signal);
+      next[i] = {
+        ...c,
+        playerName: meta.playerName,
+        team: meta.team,
+        position: meta.position,
+        jersey: meta.jersey,
+        headshot: meta.headshot,
+      };
+    } catch {
+      /* keep placeholder */
+    }
+  });
+
+  return {
+    board: { ...board, candidates: next, fetchedAt: new Date().toISOString() },
+    changed: true,
   };
 }
 
@@ -266,11 +320,15 @@ async function getOddsBoard(season, { forceRefresh = false } = {}) {
   const seasonYear = normalizeSeason(season);
   if (!forceRefresh) {
     const mem = readMemoryOdds(seasonYear);
-    if (mem) return { ...mem, cache: { hit: true, source: "memory" } };
+    if (mem) {
+      const patched = await maybePatchCachedBoard(seasonYear, mem, "memory");
+      if (patched) return patched;
+    }
     const db = await readDbOdds(seasonYear);
     if (db) {
       writeMemoryOdds(seasonYear, db, Date.now() + ttlMs());
-      return { ...db, cache: { hit: true, source: "database" } };
+      const patched = await maybePatchCachedBoard(seasonYear, db, "database");
+      if (patched) return patched;
     }
   }
 
@@ -292,6 +350,44 @@ async function getOddsBoard(season, { forceRefresh = false } = {}) {
   } finally {
     clearTimeout(timeout);
   }
+}
+
+async function maybePatchCachedBoard(seasonYear, board, source) {
+  const needs =
+    Array.isArray(board.candidates) &&
+    board.candidates.some((c) =>
+      isUnresolvedAthleteName(c.playerName, c.playerKey)
+    );
+  if (!needs) {
+    return { ...board, cache: { hit: true, source } };
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 55_000);
+  try {
+    const { board: filled, changed } = await backfillUnresolvedNames(
+      board,
+      controller.signal
+    );
+    if (changed) {
+      const expiresAtMs = Date.now() + ttlMs();
+      writeMemoryOdds(seasonYear, filled, expiresAtMs);
+      await writeDbOdds(seasonYear, filled, new Date(expiresAtMs).toISOString());
+      return {
+        ...filled,
+        cache: {
+          hit: true,
+          source: `${source}+backfill`,
+          expiresAt: new Date(expiresAtMs).toISOString(),
+        },
+      };
+    }
+  } catch (err) {
+    console.warn("heisman name backfill failed:", err.message || err);
+  } finally {
+    clearTimeout(timeout);
+  }
+  return { ...board, cache: { hit: true, source } };
 }
 
 function mapPickRow(row, user = null) {

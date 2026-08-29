@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 140" role="img" aria-label="Championship trophy">
+  <defs>
+    <linearGradient id="gold" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffe566"/>
+      <stop offset="45%" stop-color="#e8c56a"/>
+      <stop offset="100%" stop-color="#b8860b"/>
+    </linearGradient>
+    <linearGradient id="cup" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fff1a8"/>
+      <stop offset="100%" stop-color="#d4a017"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="60" cy="128" rx="28" ry="6" fill="#1a1410" opacity="0.35"/>
+  <path fill="url(#gold)" d="M38 118h44v6H38zm6 6h32l4 10H40z"/>
+  <rect x="54" y="78" width="12" height="40" rx="2" fill="url(#gold)"/>
+  <path fill="url(#cup)" d="M30 18h60c2 22 2 42-8 54-6 7-16 10-22 10s-16-3-22-10c-10-12-10-32-8-54z"/>
+  <path fill="none" stroke="#8b6914" stroke-width="2.5" d="M30 22c-14 4-20 18-14 32 4 10 14 14 20 12"/>
+  <path fill="none" stroke="#8b6914" stroke-width="2.5" d="M90 22c14 4 20 18 14 32-4 10-14 14-20 12"/>
+  <rect x="28" y="14" width="64" height="8" rx="2" fill="url(#gold)"/>
+  <circle cx="60" cy="42" r="10" fill="#8b6914" opacity="0.25"/>
+  <path fill="#fff8dc" d="M60 32l2.4 5.2 5.6.6-4.2 3.8 1.2 5.4L60 44l-4.8 2.8 1.2-5.4-4.2-3.8 5.6-.6z"/>
+</svg>

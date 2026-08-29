@@ -30,7 +30,7 @@
     <header class="cfp-hero">
       <p class="cfp-kicker">College Football Playoff</p>
       <h1 class="cfp-heading">Official Bracket</h1>
-      <p class="cfp-help">Search and pick all 12 seeds, then click winners through to the championship. Log in to save — brackets sync to your account and appear on the leaderboard.</p>
+      <p class="cfp-help">Search and pick all 12 seeds. When both teams in a matchup are set, click one to advance them. Fill the whole bracket on this page — picking a national champion unlocks a celebration. Log in to save.</p>
     </header>
 
     <div class="cfp-toolbar">
@@ -162,7 +162,27 @@
     </section>
   </main>
 
+  <div id="champModal" class="cfp-champ-modal" hidden>
+    <div class="cfp-champ-modal-backdrop" data-close-champ></div>
+    <div class="cfp-champ-modal-card" role="dialog" aria-modal="true" aria-labelledby="champModalTitle">
+      <button type="button" class="cfp-champ-modal-close" data-close-champ aria-label="Close">×</button>
+      <img
+        class="cfp-champ-trophy"
+        src="Resources/Images/cfp-trophy.svg"
+        alt="Championship trophy"
+        width="120"
+        height="140"
+      />
+      <img id="champModalLogo" class="cfp-champ-logo" src="" alt="" hidden width="96" height="96" />
+      <p class="cfp-champ-modal-kicker">National Champions</p>
+      <h2 id="champModalTitle" class="cfp-champ-modal-title">—</h2>
+      <p class="cfp-champ-modal-sub">Your bracket picks them to win it all.</p>
+      <button type="button" class="btn btn-gold btn-sm" data-close-champ>Continue</button>
+    </div>
+  </div>
+
   <script src="scripts/auth-ui.js"></script>
+  <script src="scripts/recruit-team-branding.js"></script>
   <script src="scripts/cfp-bracket.js"></script>
   <script>
     function closeMenu() {

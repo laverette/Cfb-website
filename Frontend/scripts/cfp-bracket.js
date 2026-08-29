@@ -61,6 +61,7 @@
     viewUsername: null,
     activeTab: "bracket",
     lbLoaded: false,
+    lastChampShown: null,
   };
 
   function $(sel, root) {
@@ -181,13 +182,64 @@
       .slice(0, 40);
   }
 
+  function lookupBrand(teamName) {
+    if (!teamName) return null;
+    if (window.RecruitTeamBranding && typeof window.RecruitTeamBranding.lookup === "function") {
+      return window.RecruitTeamBranding.lookup(teamName);
+    }
+    return null;
+  }
+
+  function contrastText(hex) {
+    if (window.RecruitTeamBranding && window.RecruitTeamBranding.contrastTextColor) {
+      return window.RecruitTeamBranding.contrastTextColor(hex);
+    }
+    return "#ffffff";
+  }
+
+  function applySlotBrand(el, teamName) {
+    if (!el) return;
+    el.classList.remove("has-team", "is-light-text");
+    el.style.removeProperty("--cfp-team-bg");
+    el.style.removeProperty("--cfp-team-border");
+    el.style.removeProperty("--cfp-team-text");
+    el.style.removeProperty("--cfp-team-accent");
+    if (!teamName) return;
+    var brand = lookupBrand(teamName);
+    if (!brand || !brand.primary) {
+      el.classList.add("has-team");
+      return;
+    }
+    var text = contrastText(brand.primary);
+    el.classList.add("has-team");
+    if (String(text).toLowerCase() !== "#1e1e1e") {
+      el.classList.add("is-light-text");
+    }
+    el.style.setProperty("--cfp-team-bg", brand.primary);
+    el.style.setProperty("--cfp-team-border", brand.secondary || brand.accent || brand.primary);
+    el.style.setProperty("--cfp-team-text", text);
+    el.style.setProperty("--cfp-team-accent", brand.accent || brand.secondary || brand.primary);
+  }
+
+  function logoHtml(teamName) {
+    var brand = lookupBrand(teamName);
+    if (!brand || !brand.logo) return "";
+    return (
+      '<img class="cfp-team-logo" src="' +
+      escapeHtml(brand.logo) +
+      '" alt="" width="22" height="22" loading="lazy">'
+    );
+  }
+
   function renderSeedSlot(el) {
     var seed = Number(el.getAttribute("data-seed"));
     var value = state.teams[seed] || "";
     el.innerHTML =
       '<span class="cfp-seed-badge">' +
       seed +
-      '.</span><div class="cfp-slot-body"><div class="cfp-combo" data-seed="' +
+      ".</span>" +
+      logoHtml(value) +
+      '<div class="cfp-slot-body"><div class="cfp-combo" data-seed="' +
       seed +
       '">' +
       '<input class="cfp-combo-input" type="text" autocomplete="off" spellcheck="false" ' +
@@ -198,6 +250,7 @@
       '">' +
       '<ul class="cfp-combo-list" hidden role="listbox"></ul>' +
       "</div></div>";
+    applySlotBrand(el, value);
     bindCombo(el.querySelector(".cfp-combo"), seed);
   }
 
@@ -211,11 +264,14 @@
     el.innerHTML =
       '<span class="cfp-seed-badge">' +
       escapeHtml(String(badge)) +
-      '</span><div class="cfp-slot-body"><span class="cfp-team-label' +
+      "</span>" +
+      logoHtml(name) +
+      '<div class="cfp-slot-body"><span class="cfp-team-label' +
       (name ? "" : " is-empty") +
       '">' +
       (name ? escapeHtml(name) : "TBD") +
       "</span></div>";
+    applySlotBrand(el, name);
   }
 
   function setSeedTeam(seed, teamName, opts) {
@@ -240,12 +296,27 @@
     if (!opts.skipRender) {
       refreshAdvanceSlots();
       refreshWinnerHighlights();
+      refreshMatchupReady();
       refreshChampion();
       // Refresh other seed slots so duplicate teams disappear from their lists,
       // but keep the active field intact.
       $$(".cfp-slot[data-seed]").forEach(function (el) {
         var s = Number(el.getAttribute("data-seed"));
-        if (s === seed && opts.keepFocus) return;
+        if (s === seed && opts.keepFocus) {
+          applySlotBrand(el, teamName);
+          var logoHost = el.querySelector(".cfp-team-logo");
+          var existingLogo = logoHtml(teamName);
+          if (logoHost && existingLogo) {
+            logoHost.outerHTML = existingLogo;
+          } else if (!logoHost && existingLogo) {
+            var badge = el.querySelector(".cfp-seed-badge");
+            if (badge) badge.insertAdjacentHTML("afterend", existingLogo);
+          } else if (logoHost && !existingLogo) {
+            logoHost.remove();
+          }
+          refreshMatchupReady();
+          return;
+        }
         renderSeedSlot(el);
       });
     }
@@ -259,6 +330,7 @@
     $$(".cfp-slot[data-seed]").forEach(renderSeedSlot);
     refreshAdvanceSlots();
     refreshWinnerHighlights();
+    refreshMatchupReady();
     refreshChampion();
   }
 
@@ -273,6 +345,23 @@
     });
   }
 
+  function refreshMatchupReady() {
+    $$(".cfp-pair[data-game]").forEach(function (pair) {
+      var gameId = pair.getAttribute("data-game");
+      var g = GAMES[gameId];
+      if (!g) return;
+      var ready = slotFilled(g.slots[0]) && slotFilled(g.slots[1]);
+      pair.classList.toggle("is-ready", ready && !state.readonly);
+      $$(".cfp-slot", pair).forEach(function (el) {
+        var sid = el.getAttribute("data-slot");
+        var canPick = ready && !state.readonly && sid && slotFilled(sid);
+        el.classList.toggle("is-pickable", canPick);
+        if (canPick) el.title = "Click to advance this team";
+        else el.removeAttribute("title");
+      });
+    });
+  }
+
   function refreshChampion() {
     var banner = $("championBanner");
     var nameEl = $("championName");
@@ -284,7 +373,60 @@
     } else {
       banner.hidden = true;
       nameEl.textContent = "—";
+      state.lastChampShown = null;
     }
+  }
+
+  function showChampCelebration(teamName) {
+    if (!teamName || state.readonly) return;
+    if (state.lastChampShown === teamName) return;
+    state.lastChampShown = teamName;
+    var modal = document.getElementById("champModal");
+    var title = document.getElementById("champModalTitle");
+    var logo = document.getElementById("champModalLogo");
+    if (!modal || !title) return;
+    title.textContent = teamName;
+    var brand = lookupBrand(teamName);
+    if (logo) {
+      if (brand && brand.logo) {
+        logo.src = brand.logo;
+        logo.alt = teamName + " logo";
+        logo.hidden = false;
+      } else {
+        logo.removeAttribute("src");
+        logo.alt = "";
+        logo.hidden = true;
+      }
+    }
+    if (brand && brand.primary) {
+      modal.style.setProperty("--champ-team-bg", brand.primary);
+      modal.style.setProperty(
+        "--champ-team-border",
+        brand.secondary || brand.accent || brand.primary
+      );
+    } else {
+      modal.style.removeProperty("--champ-team-bg");
+      modal.style.removeProperty("--champ-team-border");
+    }
+    modal.hidden = false;
+    document.body.classList.add("cfp-modal-open");
+  }
+
+  function hideChampCelebration() {
+    var modal = document.getElementById("champModal");
+    if (modal) modal.hidden = true;
+    document.body.classList.remove("cfp-modal-open");
+  }
+
+  function bindChampModal() {
+    var modal = document.getElementById("champModal");
+    if (!modal) return;
+    modal.addEventListener("click", function (e) {
+      if (e.target.closest("[data-close-champ]")) hideChampCelebration();
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && !modal.hidden) hideChampCelebration();
+    });
   }
 
   function clearDownstreamFromSeed(seed) {
@@ -346,7 +488,12 @@
     }
 
     refreshAllSlots();
-    setStatus("");
+    if (gameId === "champ" && winner && winner.name) {
+      showChampCelebration(winner.name);
+      setStatus("National champion picked — save when you're ready.");
+    } else {
+      setStatus(g.advancesTo ? "Winner advanced. Keep picking through the bracket." : "");
+    }
   }
 
   function bindCombo(combo, seed) {
@@ -469,12 +616,25 @@
     $$(".cfp-pair[data-game]").forEach(function (pair) {
       var gameId = pair.getAttribute("data-game");
       pair.addEventListener("click", function (e) {
-        if (e.target.closest(".cfp-combo")) return;
+        if (e.target.closest(".cfp-combo-list")) return;
         var slotEl = e.target.closest(".cfp-slot");
         if (!slotEl || !pair.contains(slotEl)) return;
         var slotId = slotEl.getAttribute("data-slot");
         if (!slotId) return;
-        // Seed slots in a pair: clicking picks that seed as winner of the pair
+
+        var g = GAMES[gameId];
+        var ready = g && slotFilled(g.slots[0]) && slotFilled(g.slots[1]);
+        var onInput = e.target.closest(".cfp-combo-input");
+
+        // Matchup ready: single-click picks winner (including on the name field).
+        // Double-click the seed input to edit the team instead.
+        if (onInput) {
+          if (!ready || state.readonly) return;
+          if (e.detail >= 2) return;
+          e.preventDefault();
+          onInput.blur();
+        }
+
         pickWinner(gameId, slotId);
       });
     });
@@ -596,6 +756,8 @@
     state.teams = {};
     state.slots = {};
     state.picks = {};
+    state.lastChampShown = null;
+    hideChampCelebration();
     refreshAllSlots();
 
     if (!isLoggedIn()) {
@@ -729,8 +891,12 @@
   }
 
   document.addEventListener("DOMContentLoaded", async function () {
+    if (window.RecruitTeamBranding && window.RecruitTeamBranding.load) {
+      await window.RecruitTeamBranding.load();
+    }
     await loadTeamList();
     bindAdvanceClicks();
+    bindChampModal();
     bindTabs();
 
     var saveBtn = document.getElementById("saveBtn");

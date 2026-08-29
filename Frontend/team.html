@@ -291,20 +291,93 @@
                 </div>
             `;
 
-            // Build schedule preview
+            // Build compact “big games” schedule preview + link to full schedule picks
             let scheduleHtml = '';
             if (Array.isArray(gamesData) && gamesData.length > 0) {
-                const preview = gamesData
-                    .slice(0, 8)
-                    .map(g => {
-                        const matchup = `${g.awayTeam} @ ${g.homeTeam}`;
-                        const when = formatDate(g.startDate);
-                        const venue = g.venue || 'TBD';
-                        const completed = g.completed ? 'Final' : 'Scheduled';
-                        return `<li>${matchup} — ${when} — ${venue} <span style="opacity:0.8">(${completed})</span></li>`;
-                    })
-                    .join('');
-                scheduleHtml = `<h3 style="color:#FFD700; margin-top:1.5rem;">Schedule (preview)</h3><ul style="color:#f5deb3;">${preview}</ul>`;
+                const escapeText = (s) => String(s ?? '')
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;');
+
+                const sameTeam = (a, b) => {
+                    const x = String(a || '').toLowerCase().trim();
+                    const y = String(b || '').toLowerCase().trim();
+                    if (!x || !y) return false;
+                    return x === y || x.startsWith(y) || y.startsWith(x);
+                };
+
+                const opponentOf = (g) => {
+                    if (sameTeam(g.homeTeam, teamSchool)) return g.awayTeam || 'TBD';
+                    if (sameTeam(g.awayTeam, teamSchool)) return g.homeTeam || 'TBD';
+                    return g.awayTeam && g.homeTeam ? `${g.awayTeam} @ ${g.homeTeam}` : 'TBD';
+                };
+
+                const locOf = (g) => {
+                    if (g.neutralSite) return 'N';
+                    if (sameTeam(g.homeTeam, teamSchool)) return 'H';
+                    if (sameTeam(g.awayTeam, teamSchool)) return 'A';
+                    return '';
+                };
+
+                const shortWhen = (iso) => {
+                    if (!iso) return 'TBD';
+                    const d = new Date(iso);
+                    if (Number.isNaN(d.getTime())) return 'TBD';
+                    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+                };
+
+                const scored = gamesData.map((g, i) => {
+                    let score = 0;
+                    if (g.conferenceGame) score += 12;
+                    if (g.neutralSite) score += 4;
+                    if (!g.completed) score += 3;
+                    const week = Number(g.week);
+                    if (Number.isFinite(week) && week >= 8) score += 2;
+                    // Prefer mid/late season marquee over week-1 cupcakes when nothing else
+                    score += Math.min(week || 0, 14) * 0.05;
+                    return { g, i, score };
+                });
+                scored.sort((a, b) => b.score - a.score || a.i - b.i);
+
+                const big = scored
+                    .slice(0, 4)
+                    .map((x) => x.g)
+                    .sort((a, b) => {
+                        const da = new Date(a.startDate || 0).getTime();
+                        const db = new Date(b.startDate || 0).getTime();
+                        return da - db;
+                    });
+
+                const rows = big.map((g) => {
+                    const opp = opponentOf(g);
+                    const loc = locOf(g);
+                    const badge = g.conferenceGame
+                        ? '<span class="team-sched-badge is-conf">Conf</span>'
+                        : g.neutralSite
+                          ? '<span class="team-sched-badge">Neutral</span>'
+                          : '';
+                    const status = g.completed ? 'Final' : '';
+                    return (
+                        `<li class="team-sched-row">` +
+                        `<span class="team-sched-when">${escapeText(shortWhen(g.startDate))}</span>` +
+                        `<span class="team-sched-match">${loc ? escapeText(loc) + ' · ' : ''}${escapeText(opp)}</span>` +
+                        `${badge}` +
+                        `${status ? `<span class="team-sched-status">${status}</span>` : ''}` +
+                        `</li>`
+                    );
+                }).join('');
+
+                const predictHref = `bama.html?team=${encodeURIComponent(teamSchool)}`;
+                scheduleHtml = `
+                    <div class="team-sched-preview">
+                        <div class="team-sched-head">
+                            <h3 class="team-sched-title">Big games</h3>
+                            <a class="team-sched-link" href="${predictHref}">Pick full schedule →</a>
+                        </div>
+                        <ul class="team-sched-list">${rows}</ul>
+                        <p class="team-sched-foot">${gamesData.length} games · ${gamesRes.year}</p>
+                    </div>`;
             }
 
             // Full roster (clickable → player profiles)
