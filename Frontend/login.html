@@ -80,6 +80,13 @@
               <label for="registerPassword" style="color: #F5F5F5; font-weight: bold;">Password:</label>
               <input type="password" id="registerPassword" name="password" class="form-control" style="background-color: #3E2723; color: #F5F5F5; border: 1px solid #8D6E63;" required>
             </div>
+
+            <div class="mb-3" style="text-align:left;">
+              <label style="display:flex;align-items:flex-start;gap:0.55rem;color:#F5F5F5;cursor:pointer;font-weight:normal;">
+                <input type="checkbox" id="registerEmailReminders" name="emailReminders" style="margin-top:0.2rem;">
+                <span>Email me pick reminders before the weekly deadline (optional)</span>
+              </label>
+            </div>
             
             <div class="text-center">
               <button type="submit" class="btn" style="background-color: #3E2723; color: #F5F5F5; border: 1px solid #8D6E63; padding: 10px 30px; font-weight: bold;">Register</button>
@@ -242,7 +249,8 @@
       const registerData = {
         username: username,
         email: email,
-        password: password
+        password: password,
+        emailNotifications: document.getElementById('registerEmailReminders')?.checked === true
       };
       
       try {

@@ -46,6 +46,7 @@ exports.handler = async (event) => {
     displayNameRaw != null && String(displayNameRaw).trim() !== ""
       ? String(displayNameRaw).trim()
       : username;
+  const emailNotifications = Boolean(body.emailNotifications ?? body.email_notifications);
 
   const errors = [];
   if (username.length < 3) errors.push("Username must be at least 3 characters");
@@ -64,6 +65,7 @@ exports.handler = async (event) => {
       email,
       passwordHash,
       displayName,
+      emailNotifications,
     });
     if (!created || !created.id) {
       return json(500, { message: "Failed to create user" });

@@ -56,6 +56,16 @@
   status = 200
 
 [[redirects]]
+  from = "/api/auth/settings"
+  to = "/.netlify/functions/auth-settings"
+  status = 200
+
+[[redirects]]
+  from = "/api/cron/pick-reminders"
+  to = "/.netlify/functions/pick-reminders"
+  status = 200
+
+[[redirects]]
   from = "/api/leaderboard"
   to = "/.netlify/functions/leaderboard"
   status = 200

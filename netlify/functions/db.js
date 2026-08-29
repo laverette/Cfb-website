@@ -217,7 +217,44 @@ async function logUserLogin(userId) {
   }
 }
 
-async function registerUser({ username, email, passwordHash, displayName }) {
+async function findUserSettings(userId) {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from("user_settings")
+    .select("id, user_id, email_notifications, theme, notifications_enabled")
+    .eq("user_id", userId)
+    .maybeSingle();
+  dbError(error);
+  return data || null;
+}
+
+async function updateUserSettings(userId, patch = {}) {
+  const supabase = getSupabase();
+  const updates = {};
+  if (patch.emailNotifications !== undefined) {
+    updates.email_notifications = Boolean(patch.emailNotifications);
+  }
+  if (patch.notificationsEnabled !== undefined) {
+    updates.notifications_enabled = Boolean(patch.notificationsEnabled);
+  }
+  if (patch.theme !== undefined && String(patch.theme).trim()) {
+    updates.theme = String(patch.theme).trim();
+  }
+  if (!Object.keys(updates).length) {
+    return findUserSettings(userId);
+  }
+
+  const { data, error } = await supabase
+    .from("user_settings")
+    .update(updates)
+    .eq("user_id", userId)
+    .select("id, user_id, email_notifications, theme, notifications_enabled")
+    .maybeSingle();
+  dbError(error);
+  return data || null;
+}
+
+async function registerUser({ username, email, passwordHash, displayName, emailNotifications = false }) {
   const supabase = getSupabase();
   const { data: existingU, error: uErr } = await supabase
     .from("users")
@@ -263,11 +300,67 @@ async function registerUser({ username, email, passwordHash, displayName }) {
   });
   await supabase.from("user_settings").insert({
     user_id: created.id,
-    email_notifications: true,
+    email_notifications: Boolean(emailNotifications),
     theme: "dark",
     notifications_enabled: true,
   });
   return created;
+}
+
+async function listUsersForPickReminders(weekId) {
+  const supabase = getSupabase();
+  const { data: settingsRows, error: settingsErr } = await supabase
+    .from("user_settings")
+    .select("user_id")
+    .eq("email_notifications", true);
+  dbError(settingsErr);
+  const userIds = (settingsRows || []).map((r) => r.user_id).filter(Boolean);
+  if (!userIds.length) return [];
+
+  const { data: pickRows, error: picksErr } = await supabase
+    .from("user_picks")
+    .select("user_id")
+    .eq("week_id", weekId)
+    .in("user_id", userIds);
+  dbError(picksErr);
+  const submitted = new Set((pickRows || []).map((r) => r.user_id));
+
+  const { data: logRows, error: logErr } = await supabase
+    .from("pick_reminder_log")
+    .select("user_id")
+    .eq("week_id", weekId)
+    .in("user_id", userIds);
+  dbError(logErr);
+  const reminded = new Set((logRows || []).map((r) => r.user_id));
+
+  const needIds = userIds.filter((id) => !submitted.has(id) && !reminded.has(id));
+  if (!needIds.length) return [];
+
+  const { data: users, error: usersErr } = await supabase
+    .from("users")
+    .select("id, email, username, display_name")
+    .in("id", needIds);
+  dbError(usersErr);
+  return users || [];
+}
+
+async function recordPickReminderSent(userId, weekId) {
+  const supabase = getSupabase();
+  const { error } = await supabase.from("pick_reminder_log").insert({
+    user_id: userId,
+    week_id: weekId,
+  });
+  if (error && error.code !== "23505") dbError(error);
+}
+
+function getEffectiveWeekLockTime(games, now = new Date()) {
+  const lock = weekLockFromGames(games, now);
+  return lock.wouldLockAt || lock.locksAt || null;
+}
+
+async function getWeekEffectiveLockTime(weekId) {
+  const games = await loadGamesByWeek(weekId);
+  return getEffectiveWeekLockTime(games);
 }
 
 async function getUserWeekSubmission(userId, weekId, options = {}) {
@@ -863,8 +956,14 @@ module.exports = {
   findUserById,
   findUserByUsername,
   findProfileByUserId,
+  findUserSettings,
+  updateUserSettings,
   logUserLogin,
   registerUser,
+  listUsersForPickReminders,
+  recordPickReminderSent,
+  getEffectiveWeekLockTime,
+  getWeekEffectiveLockTime,
   getUserWeekSubmission,
   getUserPicksForWeek,
   getWeekPickLock,

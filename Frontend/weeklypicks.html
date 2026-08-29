@@ -1442,6 +1442,11 @@
       'GASO': 290, 'APPST': 2026
     };
 
+    function isUsableLogoUrl(url) {
+      const s = String(url || '').trim();
+      return /^https?:\/\//i.test(s);
+    }
+
     function espnLogoUrl(espnId) {
       const id = parseInt(espnId, 10);
       if (!Number.isFinite(id) || id < 1) return '';
@@ -1450,7 +1455,7 @@
 
     function resolveTeamLogo(logoUrl, espnId) {
       const fromDb = String(logoUrl || '').trim();
-      if (fromDb) return fromDb;
+      if (isUsableLogoUrl(fromDb)) return fromDb;
       return espnLogoUrl(espnId);
     }
 
@@ -1468,9 +1473,18 @@
       };
     }
 
-    function logoImgHtml(url, name) {
-      if (!url) return `<span class="picks-share-logo-fallback">${safeText((name || '?').slice(0, 3).toUpperCase())}</span>`;
-      return `<img class="picks-share-logo" src="${safeText(url)}" alt="${safeText(name || '')}" crossorigin="anonymous" referrerpolicy="no-referrer">`;
+    function logoImgHtml(url, name, espnId) {
+      const resolved = resolveTeamLogo(url, espnId);
+      if (!resolved) {
+        return `<span class="picks-share-logo-fallback">${safeText((name || '?').slice(0, 3).toUpperCase())}</span>`;
+      }
+      const fallback = espnLogoUrl(espnId);
+      const onError =
+        fallback && fallback !== resolved
+          ? ` onerror="if(!this.dataset.fb){this.dataset.fb='1';this.src='${safeText(fallback)}';}"`
+          : '';
+      // No crossorigin — ESPN logos don't send CORS headers and break when it's set.
+      return `<img class="picks-share-logo" src="${safeText(resolved)}" alt="${safeText(name || '')}"${onError}>`;
     }
 
     function resolvePickForGame(savedPicks, form, gameNumber, game) {
@@ -1524,17 +1538,17 @@
             <div class="picks-share-game-num">Game ${i}</div>
             <div class="picks-share-teams">
               <div class="picks-share-team${awayIsPick ? ' is-pick' : ''}">
-                ${logoImgHtml(awayLogo, awayName)}
+                ${logoImgHtml(awayLogo, awayName, game?.awayTeamEspnId)}
                 <span>${safeText(awayName || 'TBD')}</span>
               </div>
               <span class="picks-share-at">@</span>
               <div class="picks-share-team${homeIsPick ? ' is-pick' : ''}">
-                ${logoImgHtml(homeLogo, homeName)}
+                ${logoImgHtml(homeLogo, homeName, game?.homeTeamEspnId)}
                 <span>${safeText(homeName || 'TBD')}</span>
               </div>
             </div>
             <div class="picks-share-pick">
-              ${logoImgHtml(pickLogo, pickedName)}
+              ${logoImgHtml(pickLogo, pickedName, pickedEspnId)}
               <span>${safeText(pickedName)}</span>
             </div>
           </div>

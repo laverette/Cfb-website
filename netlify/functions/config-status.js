@@ -29,6 +29,12 @@ exports.handler = async (event) => {
   }
 
   const mistralKey = readMistralKey();
+  const resendKey =
+    (process.env.RESEND_API_KEY && String(process.env.RESEND_API_KEY).trim()) || "";
+  const reminderFrom =
+    (process.env.PICK_REMINDER_FROM_EMAIL &&
+      String(process.env.PICK_REMINDER_FROM_EMAIL).trim()) ||
+    "";
 
   return json(200, {
     jwtSecret: jwtPresent(),
@@ -37,5 +43,7 @@ exports.handler = async (event) => {
     supabaseUrlHost: host,
     mistralApiKey: Boolean(mistralKey),
     mistralKeyLength: mistralKey ? mistralKey.length : 0,
+    resendApiKey: Boolean(resendKey),
+    pickReminderFromEmail: Boolean(reminderFrom),
   });
 };

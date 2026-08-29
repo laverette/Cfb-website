@@ -108,6 +108,13 @@
         const streakLabel = streak === 0 ? 'Even' : `${Math.abs(streak)} ${streak > 0 ? 'hot' : 'cold'}`;
         document.title = `${user.displayName || user.username || 'Player'} · Profile`;
 
+        const me = window.AuthUI && AuthUI.getCurrentUser && AuthUI.getCurrentUser();
+        const isOwnProfile =
+          !!(me && (
+            (user.username && me.username && String(user.username).toLowerCase() === String(me.username).toLowerCase()) ||
+            (user.id != null && me.id != null && String(user.id) === String(me.id))
+          ));
+
         root.innerHTML = `
           <header class="section-card lb-profile-hero">
             <p class="lb-eyebrow">Player profile</p>
@@ -116,6 +123,20 @@
             <p class="lb-my-streak">${streakEmoji} Current streak: <strong>${escapeHtml(streakLabel)}</strong> · Best 🔥 ${stats.allTime?.bestStreak || 0}</p>
             ${user.bio ? `<p class="lb-bio">${escapeHtml(user.bio)}</p>` : ''}
           </header>
+
+          ${isOwnProfile ? `
+          <section class="section-card" id="reminderSettingsSection">
+            <h2 class="gold-heading" style="text-align:center;margin-bottom:0.75rem;">Email reminders</h2>
+            <p style="text-align:center;color:#d4b896;margin:0 0 1rem;font-size:0.92rem;">
+              Get a reminder about 2 hours before weekly picks lock if you haven't submitted yet.
+            </p>
+            <label style="display:flex;align-items:center;justify-content:center;gap:0.65rem;cursor:pointer;">
+              <input type="checkbox" id="emailRemindersToggle">
+              <span>Email me pick reminders</span>
+            </label>
+            <p id="reminderSettingsStatus" style="text-align:center;margin:0.75rem 0 0;font-size:0.85rem;color:#bfa88a;min-height:1.2em;"></p>
+          </section>
+          ` : ''}
 
           <section class="section-card">
             <h2 class="gold-heading" style="text-align:center;">Stats</h2>
@@ -239,6 +260,10 @@
               `).join('')}
           </section>
         `;
+
+        if (isOwnProfile) {
+          wireReminderSettings();
+        }
       } catch (err) {
         root.innerHTML = `
           <div class="section-card" style="text-align:center;">
@@ -246,6 +271,61 @@
             <p>${escapeHtml(err.message || 'Unknown error')}</p>
           </div>`;
       }
+    }
+
+    function authHeaders() {
+      const token = window.AuthUI && AuthUI.getAuthToken && AuthUI.getAuthToken();
+      return token ? { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' } : {};
+    }
+
+    async function wireReminderSettings() {
+      const toggle = document.getElementById('emailRemindersToggle');
+      const status = document.getElementById('reminderSettingsStatus');
+      if (!toggle) return;
+
+      const token = window.AuthUI && AuthUI.getAuthToken && AuthUI.getAuthToken();
+      if (!token) {
+        if (status) status.textContent = 'Log in to manage email reminders.';
+        toggle.disabled = true;
+        return;
+      }
+
+      try {
+        const resp = await fetch('/api/auth/settings', {
+          headers: { ...authHeaders(), accept: 'application/json' },
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok) throw new Error(data.error || data.message || `Failed (${resp.status})`);
+        toggle.checked = !!(data.settings && data.settings.emailNotifications);
+      } catch (err) {
+        if (status) status.textContent = 'Could not load reminder settings.';
+        toggle.disabled = true;
+        return;
+      }
+
+      toggle.addEventListener('change', async function () {
+        if (status) status.textContent = 'Saving…';
+        toggle.disabled = true;
+        try {
+          const resp = await fetch('/api/auth/settings', {
+            method: 'PATCH',
+            headers: { ...authHeaders(), accept: 'application/json' },
+            body: JSON.stringify({ emailNotifications: toggle.checked }),
+          });
+          const data = await resp.json().catch(() => ({}));
+          if (!resp.ok) throw new Error(data.error || data.message || `Failed (${resp.status})`);
+          if (status) {
+            status.textContent = toggle.checked
+              ? 'Pick reminders enabled.'
+              : 'Pick reminders turned off.';
+          }
+        } catch (err) {
+          toggle.checked = !toggle.checked;
+          if (status) status.textContent = err.message || 'Could not save settings.';
+        } finally {
+          toggle.disabled = false;
+        }
+      });
     }
 
     document.addEventListener('DOMContentLoaded', loadProfile);
