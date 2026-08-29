@@ -39,11 +39,7 @@
 
     <section class="section-card player-season-block">
       <div class="player-section-head">
-        <h2 class="gold-heading">Season stats</h2>
-        <label class="player-year-label">
-          Season
-          <select id="seasonSelect" class="player-year-select"></select>
-        </label>
+        <h2 class="gold-heading">Season stats <span class="player-year-fixed" id="seasonYearLabel">2026</span></h2>
       </div>
       <p class="player-season-sub" id="seasonTeamLine"></p>
       <p class="player-season-sub" id="seasonGames"></p>
@@ -52,7 +48,7 @@
 
     <section class="section-card player-career-block">
       <h2 class="gold-heading">Career</h2>
-      <p class="player-hint">Seasons with available CFBD stats (tap a year to view details).</p>
+      <p class="player-hint">Every season with available CFBD stats for this player.</p>
       <div class="table-responsive">
         <table class="player-career-table">
           <thead>
@@ -67,6 +63,7 @@
         </table>
       </div>
       <p id="careerEmpty" class="player-empty" hidden>No prior seasons found in CFBD for this player yet.</p>
+      <div id="careerDetails" class="player-career-details"></div>
     </section>
   </main>
 

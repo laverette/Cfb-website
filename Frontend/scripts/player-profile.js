@@ -1,18 +1,16 @@
 /**
- * Player profile — bio + season / career stats via CFBD proxy.
- * URL: player.html?id={playerId}&team={school}&year={season}&name={optional}
+ * Player profile UI — loads once from /api/player (server cache + CFBD).
+ * URL: player.html?id={playerId}&team={school}&name={optional}
  */
 (function () {
   "use strict";
 
-  var CAREER_YEARS_BACK = 6;
-  var CURRENT_YEAR = new Date().getFullYear();
+  var SEASON_YEAR = 2026;
 
   var state = {
     playerId: null,
     team: "",
     name: "",
-    year: CURRENT_YEAR,
     bio: null,
     seasonOverview: null,
     career: [],
@@ -32,31 +30,6 @@
 
   function qs() {
     return new URLSearchParams(window.location.search);
-  }
-
-  async function cfbd(path, params) {
-    var url = new URL("/.netlify/functions/cfbd", window.location.origin);
-    url.searchParams.set("path", path);
-    Object.keys(params || {}).forEach(function (k) {
-      var v = params[k];
-      if (v === undefined || v === null || v === "") return;
-      url.searchParams.set(k, String(v));
-    });
-    var resp = await fetch(url.toString(), {
-      method: "GET",
-      headers: { accept: "application/json" },
-    });
-    var body = await resp.json().catch(function () {
-      return null;
-    });
-    if (!resp.ok) {
-      var err = new Error(
-        (body && (body.error || body.message)) || "CFBD error (" + resp.status + ")"
-      );
-      err.status = resp.status;
-      throw err;
-    }
-    return body;
   }
 
   function pick(obj) {
@@ -92,165 +65,47 @@
     el.classList.toggle("is-error", Boolean(isError));
   }
 
-  function parseParams() {
-    var p = qs();
-    state.playerId = p.get("id") || p.get("playerId") || null;
-    state.team = p.get("team") || "";
-    state.name = p.get("name") || "";
-    var y = Number(p.get("year") || p.get("season") || CURRENT_YEAR);
-    state.year = Number.isFinite(y) && y >= 2000 ? y : CURRENT_YEAR;
-  }
-
-  async function loadBio() {
-    var fromRoster = null;
-    if (state.team) {
-      try {
-        var roster = await cfbd("/roster", { team: state.team, year: state.year });
-        var arr = Array.isArray(roster) ? roster : [];
-        fromRoster = arr.find(function (r) {
-          return String(r.id) === String(state.playerId);
-        });
-        if (!fromRoster && state.name) {
-          var needle = state.name.toLowerCase();
-          fromRoster = arr.find(function (r) {
-            var n = ((r.firstName || "") + " " + (r.lastName || "")).trim().toLowerCase();
-            return n === needle || n.includes(needle);
-          });
-        }
-      } catch (_) {}
-    }
-
-    var fromSearch = null;
-    var searchTerm = state.name || (fromRoster
-      ? ((fromRoster.firstName || "") + " " + (fromRoster.lastName || "")).trim()
-      : "");
-    if (searchTerm) {
-      try {
-        var hits = await cfbd("/player/search", {
-          searchTerm: searchTerm,
-          team: state.team || undefined,
-          year: state.year,
-        });
-        if (Array.isArray(hits) && hits.length) {
-          fromSearch =
-            hits.find(function (h) {
-              return String(h.id) === String(state.playerId);
-            }) || hits[0];
-          if (!state.playerId && fromSearch && fromSearch.id != null) {
-            state.playerId = String(fromSearch.id);
-          }
-        }
-      } catch (_) {}
-    }
-
-    state.bio = Object.assign({}, fromSearch || {}, fromRoster || {});
-    if (!state.bio.id && state.playerId) state.bio.id = state.playerId;
-    if (!state.team && state.bio.team) state.team = state.bio.team;
-    if (!state.name) state.name = playerDisplayName(state.bio);
-  }
-
-  async function loadSeasonOverview(year) {
-    if (!state.playerId) return null;
-    try {
-      return await cfbd("/player/season/overview", {
-        year: year,
-        playerId: state.playerId,
-      });
-    } catch (e1) {
-      try {
-        return await cfbd("/player/season/overview", {
-          year: year,
-          player_id: state.playerId,
-        });
-      } catch (_) {
-        return null;
-      }
-    }
-  }
-
-  /** Fallback: long-format /stats/player/season filtered by playerId */
-  async function loadSeasonStatsFallback(year) {
-    if (!state.team || !state.playerId) return null;
-    try {
-      var rows = await cfbd("/stats/player/season", {
-        year: year,
-        team: state.team,
-        seasonType: "both",
-      });
-      if (!Array.isArray(rows)) return null;
-      var mine = rows.filter(function (r) {
-        return (
-          String(r.playerId) === String(state.playerId) ||
-          String(r.athleteId) === String(state.playerId) ||
-          String(r.athlete_id) === String(state.playerId)
-        );
-      });
-      if (!mine.length) return null;
-      var byCat = {};
-      mine.forEach(function (r) {
-        var cat = r.category || "Stats";
-        if (!byCat[cat]) byCat[cat] = [];
-        byCat[cat].push({
-          name: r.statType || r.stat_type || "stat",
-          value: r.stat != null ? String(r.stat) : "—",
-        });
-      });
-      return {
-        season: year,
-        id: String(state.playerId),
-        name: playerDisplayName(state.bio),
-        position: state.bio && state.bio.position,
-        team: state.team,
-        games: null,
-        boxScoreStats: {
-          categories: Object.keys(byCat).map(function (name) {
-            return { name: name, stats: byCat[name] };
-          }),
-        },
-        _fallback: true,
-      };
-    } catch (_) {
-      return null;
-    }
-  }
-
-  async function loadSeason(year) {
-    var overview = await loadSeasonOverview(year);
-    if (!overview) overview = await loadSeasonStatsFallback(year);
-    return overview;
-  }
-
-  async function loadCareer() {
-    var years = [];
-    for (var y = state.year; y >= state.year - CAREER_YEARS_BACK; y -= 1) {
-      years.push(y);
-    }
-    var results = await Promise.all(
-      years.map(function (y) {
-        return loadSeason(y).then(function (data) {
-          return { year: y, data: data };
-        });
-      })
-    );
-    state.career = results.filter(function (r) {
-      return r.data && hasUsefulStats(r.data);
-    });
-  }
-
-  function hasUsefulStats(overview) {
-    if (!overview) return false;
-    if (overview.games != null && Number(overview.games) > 0) return true;
-    var cats = categoriesFrom(overview);
-    return cats.some(function (c) {
-      return Array.isArray(c.stats) && c.stats.length > 0;
-    });
-  }
-
   function categoriesFrom(overview) {
     if (!overview) return [];
     var box = pick(overview, "boxScoreStats", "box_score_stats") || {};
     var cats = pick(box, "categories") || [];
     return Array.isArray(cats) ? cats : [];
+  }
+
+  function hasUsefulStats(overview) {
+    if (!overview) return false;
+    if (overview.games != null && Number(overview.games) > 0) return true;
+    return categoriesFrom(overview).some(function (c) {
+      return Array.isArray(c.stats) && c.stats.length > 0;
+    });
+  }
+
+  function parseParams() {
+    var p = qs();
+    state.playerId = p.get("id") || p.get("playerId") || null;
+    state.team = p.get("team") || "";
+    state.name = p.get("name") || "";
+  }
+
+  async function loadProfile() {
+    var url = new URL("/api/player", window.location.origin);
+    url.searchParams.set("id", String(state.playerId));
+    if (state.team) url.searchParams.set("team", state.team);
+    if (state.name) url.searchParams.set("name", state.name);
+
+    var resp = await fetch(url.toString(), {
+      method: "GET",
+      headers: { accept: "application/json" },
+    });
+    var body = await resp.json().catch(function () {
+      return {};
+    });
+    if (!resp.ok) {
+      var err = new Error(body.error || body.message || "Failed to load player");
+      err.details = body.details;
+      throw err;
+    }
+    return body;
   }
 
   function renderHeader() {
@@ -267,7 +122,9 @@
     $("playerMeta").textContent = meta.join(" · ") || "College football player";
 
     var details = [];
-    details.push("<span><strong>Height</strong> " + escapeHtml(formatHeight(bio.height)) + "</span>");
+    details.push(
+      "<span><strong>Height</strong> " + escapeHtml(formatHeight(bio.height)) + "</span>"
+    );
     details.push(
       "<span><strong>Weight</strong> " +
         escapeHtml(bio.weight != null ? bio.weight + " lbs" : "—") +
@@ -277,8 +134,12 @@
       .filter(Boolean)
       .join(", ");
     if (!hometown && bio.hometown) hometown = bio.hometown;
-    details.push("<span><strong>Hometown</strong> " + escapeHtml(hometown || "—") + "</span>");
-    details.push("<span><strong>ID</strong> " + escapeHtml(String(state.playerId || "—")) + "</span>");
+    details.push(
+      "<span><strong>Hometown</strong> " + escapeHtml(hometown || "—") + "</span>"
+    );
+    details.push(
+      "<span><strong>ID</strong> " + escapeHtml(String(state.playerId || "—")) + "</span>"
+    );
     $("playerDetails").innerHTML = details.join("");
 
     var back = $("backToTeam");
@@ -291,28 +152,9 @@
         back.hidden = true;
       }
     }
-  }
 
-  function renderSeasonSelect() {
-    var sel = $("seasonSelect");
-    if (!sel) return;
-    var years = [];
-    for (var y = CURRENT_YEAR; y >= CURRENT_YEAR - CAREER_YEARS_BACK - 1; y -= 1) {
-      years.push(y);
-    }
-    sel.innerHTML = years
-      .map(function (y) {
-        return (
-          '<option value="' +
-          y +
-          '"' +
-          (y === state.year ? " selected" : "") +
-          ">" +
-          y +
-          "</option>"
-        );
-      })
-      .join("");
+    var seasonLabel = $("seasonYearLabel");
+    if (seasonLabel) seasonLabel.textContent = String(SEASON_YEAR);
   }
 
   function renderCategories(overview, hostId, emptyMsg) {
@@ -355,10 +197,14 @@
     var overview = state.seasonOverview;
     var gamesEl = $("seasonGames");
     var teamEl = $("seasonTeamLine");
-    if (!overview) {
-      if (teamEl) teamEl.textContent = "";
+    if (!overview || !hasUsefulStats(overview)) {
+      if (teamEl) teamEl.textContent = state.team || "";
       if (gamesEl) gamesEl.textContent = "";
-      renderCategories(null, "seasonStats", "No season stats found for " + state.year + ".");
+      renderCategories(
+        null,
+        "seasonStats",
+        "No " + SEASON_YEAR + " stats yet — check Career for prior seasons."
+      );
       return;
     }
     if (teamEl) {
@@ -372,11 +218,7 @@
       var g = pick(overview, "games");
       gamesEl.textContent = g != null ? g + " games" : "";
     }
-    renderCategories(
-      overview,
-      "seasonStats",
-      "No box-score stats for " + state.year + "."
-    );
+    renderCategories(overview, "seasonStats", "No box-score stats for " + SEASON_YEAR + ".");
   }
 
   function headlineStats(overview) {
@@ -386,7 +228,12 @@
     cats.forEach(function (cat) {
       (cat.stats || []).forEach(function (s) {
         var n = String(s.name || "").toUpperCase();
-        if (want.some(function (w) { return n === w || n.includes(w); }) && found.length < 4) {
+        if (
+          want.some(function (w) {
+            return n === w || n.includes(w);
+          }) &&
+          found.length < 6
+        ) {
           found.push({ label: s.name, value: s.value });
         }
       });
@@ -397,13 +244,17 @@
   function renderCareer() {
     var host = $("careerBody");
     var empty = $("careerEmpty");
+    var detailsHost = $("careerDetails");
     if (!host) return;
+
     if (!state.career.length) {
       host.innerHTML = "";
       if (empty) empty.hidden = false;
+      if (detailsHost) detailsHost.innerHTML = "";
       return;
     }
     if (empty) empty.hidden = true;
+
     host.innerHTML = state.career
       .map(function (row) {
         var o = row.data;
@@ -420,16 +271,14 @@
                 );
               })
               .join("")
-          : '<span class="player-chip muted">Stats available</span>';
+          : '<span class="player-chip muted">Played</span>';
         var team = pick(o, "team") || state.team || "—";
         var games = pick(o, "games");
         return (
           "<tr>" +
-          "<td><button type=\"button\" class=\"player-year-btn\" data-year=\"" +
+          "<td><strong>" +
           row.year +
-          '">' +
-          row.year +
-          "</button></td>" +
+          "</strong></td>" +
           "<td>" +
           escapeHtml(team) +
           "</td>" +
@@ -444,37 +293,62 @@
       })
       .join("");
 
-    host.querySelectorAll(".player-year-btn").forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        var y = Number(btn.getAttribute("data-year"));
-        if (!Number.isFinite(y)) return;
-        selectYear(y);
-      });
-    });
-  }
-
-  async function selectYear(year) {
-    state.year = year;
-    var sel = $("seasonSelect");
-    if (sel) sel.value = String(year);
-    var url = new URL(window.location.href);
-    url.searchParams.set("year", String(year));
-    if (state.playerId) url.searchParams.set("id", String(state.playerId));
-    if (state.team) url.searchParams.set("team", state.team);
-    if (state.name) url.searchParams.set("name", state.name);
-    window.history.replaceState({}, "", url.toString());
-
-    setStatus("Loading " + year + " stats…");
-    state.seasonOverview = await loadSeason(year);
-    renderSeasonPanel();
-    setStatus("");
+    if (detailsHost) {
+      detailsHost.innerHTML = state.career
+        .filter(function (row) {
+          return hasUsefulStats(row.data) && !(row.data && row.data._usageOnly);
+        })
+        .map(function (row) {
+          var o = row.data;
+          var team = pick(o, "team") || state.team || "";
+          var games = pick(o, "games");
+          var sub = [team, games != null ? games + " games" : ""].filter(Boolean).join(" · ");
+          var cats = categoriesFrom(o);
+          var cards = cats
+            .map(function (cat) {
+              var stats = Array.isArray(cat.stats) ? cat.stats : [];
+              var rows = stats
+                .map(function (s) {
+                  return (
+                    "<tr><th>" +
+                    escapeHtml(s.name || "Stat") +
+                    "</th><td>" +
+                    escapeHtml(s.value != null ? s.value : "—") +
+                    "</td></tr>"
+                  );
+                })
+                .join("");
+              return (
+                '<article class="player-stat-card">' +
+                "<h3>" +
+                escapeHtml(cat.name || "Stats") +
+                "</h3>" +
+                '<table class="player-stat-table"><tbody>' +
+                rows +
+                "</tbody></table>" +
+                "</article>"
+              );
+            })
+            .join("");
+          return (
+            '<div class="player-career-year">' +
+            '<h3 class="player-career-year-title">' +
+            row.year +
+            (sub ? " <span>" + escapeHtml(sub) + "</span>" : "") +
+            "</h3>" +
+            '<div class="player-stat-grid">' +
+            (cards || '<p class="player-empty">No box-score breakdown.</p>') +
+            "</div></div>"
+          );
+        })
+        .join("");
+    }
   }
 
   async function init() {
     parseParams();
-    renderSeasonSelect();
 
-    if (!state.playerId && !state.name) {
+    if (!state.playerId) {
       setStatus("Missing player id. Open a player from a team roster.", true);
       $("playerName").textContent = "Player not found";
       return;
@@ -482,29 +356,34 @@
 
     setStatus("Loading player…");
     try {
-      await loadBio();
-      if (!state.playerId) {
-        setStatus("Could not resolve player id.", true);
-        renderHeader();
-        return;
-      }
-      renderHeader();
-      state.seasonOverview = await loadSeason(state.year);
-      renderSeasonPanel();
-      setStatus("Loading career…");
-      await loadCareer();
-      renderCareer();
-      setStatus("");
-    } catch (err) {
-      setStatus(err.message || "Failed to load player", true);
-      renderHeader();
-    }
+      var data = await loadProfile();
+      state.bio = data.bio || {};
+      state.team = data.team || state.team;
+      state.name = data.name || state.name;
+      state.seasonOverview = data.seasonOverview || null;
+      state.career = Array.isArray(data.career) ? data.career : [];
+      if (data.seasonYear) SEASON_YEAR = Number(data.seasonYear) || SEASON_YEAR;
 
-    var sel = $("seasonSelect");
-    if (sel) {
-      sel.addEventListener("change", function () {
-        selectYear(Number(sel.value));
-      });
+      renderHeader();
+      renderSeasonPanel();
+      renderCareer();
+
+      var cache = data.cache || {};
+      if (cache.hit) {
+        setStatus("Loaded from cache (" + (cache.source || "server") + ").");
+        setTimeout(function () {
+          setStatus("");
+        }, 1800);
+      } else {
+        setStatus("");
+      }
+    } catch (err) {
+      setStatus(
+        (err.message || "Failed to load player") +
+          (err.details ? " — " + err.details : ""),
+        true
+      );
+      renderHeader();
     }
   }
 

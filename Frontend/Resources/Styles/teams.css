@@ -820,20 +820,40 @@ body {
     margin: 0;
 }
 
-.player-year-label {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.45rem;
-    color: #f5deb3;
-    font-size: 0.9rem;
+.player-year-fixed {
+    display: inline-block;
+    margin-left: 0.35rem;
+    padding: 0.1rem 0.55rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 215, 0, 0.35);
+    background: rgba(255, 215, 0, 0.1);
+    color: #ffe566;
+    font-size: 0.85rem;
+    font-weight: 700;
+    vertical-align: middle;
 }
 
-.player-year-select {
-    padding: 0.35rem 0.55rem;
-    border-radius: 8px;
-    border: 1px solid #8D6E63;
-    background: rgba(0, 0, 0, 0.28);
-    color: #f5deb3;
+.player-year-label {
+    display: none;
+}
+
+.player-career-details {
+    margin-top: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.player-career-year-title {
+    color: #FFD700;
+    font-size: 1.15rem;
+    margin: 0 0 0.55rem;
+}
+
+.player-career-year-title span {
+    color: rgba(245, 222, 179, 0.75);
+    font-size: 0.9rem;
+    font-weight: 500;
 }
 
 .player-season-sub {

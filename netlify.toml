@@ -196,6 +196,11 @@
   status = 200
 
 [[redirects]]
+  from = "/api/player"
+  to = "/.netlify/functions/player"
+  status = 200
+
+[[redirects]]
   from = "/api/admin/games/*"
   to = "/.netlify/functions/admin-delete-game?gameId=:splat"
   status = 200
