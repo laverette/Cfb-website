@@ -862,14 +862,18 @@ input:focus, select:focus {
     outline-offset: 2px;
 }
 
-.team-pick-btn.is-picked {
+.team-pick-btn.is-picked,
+.team-pick-btn.is-picked:hover:not(:disabled),
+.team-pick-btn.is-picked:focus,
+.team-pick-btn.is-picked:active {
     color: #1E1E1E;
     background: linear-gradient(135deg, #FFD700, #FFA000);
     border-color: #FFD700;
     box-shadow: 0 2px 10px rgba(255, 215, 0, 0.35);
 }
 
-.team-pick-btn.is-picked .team-spread {
+.team-pick-btn.is-picked .team-spread,
+.team-pick-btn.is-picked:hover:not(:disabled) .team-spread {
     background: rgba(30, 30, 30, 0.18);
     color: #1E1E1E;
     box-shadow: none;
