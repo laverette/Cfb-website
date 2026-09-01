@@ -24,7 +24,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1.12fr) minmax(0, 0.88fr);
   gap: 1.35rem;
-  align-items: stretch;
+  align-items: start;
   animation: pr-fade-up 0.45s ease 0.06s both;
 }
 
@@ -38,7 +38,6 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  min-height: 100%;
 }
 
 .home-panel::before {
@@ -114,7 +113,6 @@
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  flex: 1;
 }
 
 .home-power-empty {
@@ -297,7 +295,11 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.55rem;
-  margin-top: auto;
+  margin-top: 0.25rem;
+}
+
+.home-panel-nav {
+  align-self: start;
 }
 
 .home-nav-tile {
@@ -373,6 +375,23 @@
 
   .home-power-list.poll-collapsed .home-power-row:nth-child(n+6) {
     display: grid;
+  }
+
+  .home-power-list {
+    max-height: min(68vh, 42rem);
+    overflow-y: auto;
+    padding-right: 0.2rem;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 215, 0, 0.35) transparent;
+  }
+
+  .home-power-list::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .home-power-list::-webkit-scrollbar-thumb {
+    background: rgba(255, 215, 0, 0.35);
+    border-radius: 999px;
   }
 }
 

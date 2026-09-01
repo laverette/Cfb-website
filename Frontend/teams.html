@@ -102,6 +102,40 @@
             return logo || '';
         }
 
+        const CONFERENCE_ABBR = {
+            acc: 'ACC',
+            sec: 'SEC',
+            'big ten': 'B1G',
+            'big 12': 'Big 12',
+            'pac-12': 'Pac-12',
+            'pac 12': 'Pac-12',
+            american: 'AAC',
+            'american athletic': 'AAC',
+            'mountain west': 'MWC',
+            'sun belt': 'SBC',
+            'mid-american': 'MAC',
+            mac: 'MAC',
+            'conference usa': 'CUSA',
+            cusa: 'CUSA',
+            'fbs independents': 'FBS',
+            'fbs independent': 'FBS',
+            'fbs indep.': 'FBS',
+            'fbs indep': 'FBS',
+            independent: 'FBS',
+        };
+
+        function conferenceAbbreviation(conf) {
+            const raw = String(conf || '').trim();
+            if (!raw) return '';
+            const key = raw.toLowerCase();
+            if (CONFERENCE_ABBR[key]) return CONFERENCE_ABBR[key];
+            if (raw.length <= 6 && !/\s/.test(raw)) return raw;
+            for (const [name, abbr] of Object.entries(CONFERENCE_ABBR)) {
+                if (key === name || key.includes(name) || name.includes(key)) return abbr;
+            }
+            return raw;
+        }
+
         function normalizeTeamFromCfbd(t) {
             const teamKey = getTeamKey(t);
             const school = t?.school || '';
@@ -117,6 +151,7 @@
                 mascot,
                 abbreviation,
                 conference,
+                conferenceAbbr: conferenceAbbreviation(conference),
                 logoUrl,
                 // For any legacy search/name code
                 name: school ? `${school}${mascot ? ` ${mascot}` : ''}` : (t?.name || 'Team'),
@@ -347,6 +382,7 @@
                     .join('')
                     .substring(0, 2)
                     .toUpperCase();
+                const confBadge = team.conferenceAbbr || conferenceAbbreviation(team.conference);
                 
                 widget.innerHTML = `
                     <div class="team-widget-content">
@@ -356,7 +392,7 @@
                             <h3 class="team-widget-name">${team.school || team.name}</h3>
                             <p class="team-widget-conference" style="margin-bottom: 6px;">${team.mascot || ''}</p>
                             <p class="team-widget-conference" style="margin:0;">
-                              ${team.conference ? `<span class="site-badge">${team.conference}</span>` : ``}
+                              ${confBadge ? `<span class="site-badge">${confBadge}</span>` : ``}
                               ${team.abbreviation ? `<span class="site-badge" style="margin-left:6px; background: rgba(255,215,0,0.12); color: var(--gold); border: 1px solid rgba(255,215,0,0.35); box-shadow:none;">${team.abbreviation}</span>` : ``}
                             </p>
                         </div>
@@ -382,12 +418,14 @@
                 const schoolLower = String(team.school || '').toLowerCase();
                 const mascotLower = String(team.mascot || '').toLowerCase();
                 const conferenceLower = String(team.conference || '').toLowerCase();
+                const confAbbrLower = String(team.conferenceAbbr || conferenceAbbreviation(team.conference) || '').toLowerCase();
                 const abbrLower = String(team.abbreviation || '').toLowerCase();
 
                 return fullNameLower.includes(searchTerm) ||
                     schoolLower.includes(searchTerm) ||
                     mascotLower.includes(searchTerm) ||
                     conferenceLower.includes(searchTerm) ||
+                    confAbbrLower.includes(searchTerm) ||
                     abbrLower.includes(searchTerm);
             });
         }
@@ -479,6 +517,7 @@
                         abbreviation: '',
                         school: t.name,
                         mascot: '',
+                        conferenceAbbr: conferenceAbbreviation(t.conference),
                     }));
                     wireSearch(normalizedFallback);
                 }
