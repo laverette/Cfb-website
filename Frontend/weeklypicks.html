@@ -277,19 +277,19 @@
       <h1 class="title" id="resultsTabTitle">Weekly Results</h1>
     </div>
     
-    <div class="leaderboards-container">
-      <div class="Leaderboard last-week">
-        <h3 class="leaderboard-title" id="weekBoardTitle">🏆 This Week</h3>
-        <ol class="leaderboard-list" id="weekLeaderboardList">
-          <li class="leaderboard-list-item">Loading standings…</li>
+    <div class="results-standings-grid">
+      <section class="results-standings-board" aria-labelledby="weekBoardTitle">
+        <h3 class="results-standings-title" id="weekBoardTitle">🏆 This Week</h3>
+        <ol class="results-standings-list" id="weekLeaderboardList">
+          <li class="results-stand-empty">Loading standings…</li>
         </ol>
-      </div>
-      <div class="Leaderboard all-time">
-        <h3 class="leaderboard-title">🏆 All Time</h3>
-        <ol class="leaderboard-list" id="allTimeLeaderboardList">
-          <li class="leaderboard-list-item">Loading standings…</li>
+      </section>
+      <section class="results-standings-board" aria-labelledby="allTimeBoardTitle">
+        <h3 class="results-standings-title" id="allTimeBoardTitle">🏆 All Time</h3>
+        <ol class="results-standings-list" id="allTimeLeaderboardList">
+          <li class="results-stand-empty">Loading standings…</li>
         </ol>
-      </div>
+      </section>
     </div>
 
     <div class="analysis-container" id="resultsAnalysisContainer" hidden>
@@ -1885,17 +1885,31 @@
       if (!list) return;
       const rows = (entries || []).filter((e) => e.totalPicks > 0);
       if (!rows.length) {
-        list.innerHTML = `<li class="leaderboard-list-item">${safeText(emptyMessage || 'No picks yet')}</li>`;
+        list.innerHTML = `<li class="results-stand-empty">${safeText(emptyMessage || 'No picks yet')}</li>`;
         return;
       }
-      list.innerHTML = rows.map((e) => {
+      list.innerHTML = rows.map((e, index) => {
         const name = safeText(e.displayName || e.username || 'Player');
-        const record = recordLabel(e);
+        const record = safeText(recordLabel(e));
         const pct = Number(e.accuracy || 0).toFixed(1);
-        const pending = e.pendingPicks > 0
-          ? ` <span class="percentage" style="opacity:0.7;">(${e.pendingPicks} pending)</span>`
+        const rank = index + 1;
+        const rankClass = rank === 1 ? 'is-gold' : rank === 2 ? 'is-silver' : rank === 3 ? 'is-bronze' : '';
+        const pendingHtml = e.pendingPicks > 0
+          ? `<span class="results-stand-pending">${safeText(e.pendingPicks)} pending</span>`
           : '';
-        return `<li class="leaderboard-list-item">${name} ${record} <span class="percentage">${pct}%</span>${pending}</li>`;
+        return `
+          <li class="results-stand-row">
+            <span class="results-stand-rank ${rankClass}" aria-hidden="true">${rank}</span>
+            <div class="results-stand-player">
+              <span class="results-stand-name" title="${name}">${name}</span>
+              <span class="results-stand-record">${record}</span>
+            </div>
+            <div class="results-stand-stats">
+              <span class="results-stand-acc">${pct}%</span>
+              ${pendingHtml}
+            </div>
+          </li>
+        `;
       }).join('');
     }
 
@@ -1976,8 +1990,8 @@
       if (!weekList || !allList) return;
 
       if (!quiet) {
-        weekList.innerHTML = '<li class="leaderboard-list-item">Loading standings…</li>';
-        allList.innerHTML = '<li class="leaderboard-list-item">Loading standings…</li>';
+        weekList.innerHTML = '<li class="results-stand-empty">Loading standings…</li>';
+        allList.innerHTML = '<li class="results-stand-empty">Loading standings…</li>';
       }
 
       try {
@@ -2013,8 +2027,8 @@
         renderResultsAnalysis(weekBoard);
       } catch (err) {
         console.warn('loadResultsLeaderboards:', err);
-        weekList.innerHTML = `<li class="leaderboard-list-item">${safeText(err.message || 'Could not load standings')}</li>`;
-        allList.innerHTML = '<li class="leaderboard-list-item">Could not load standings</li>';
+        weekList.innerHTML = `<li class="results-stand-empty">${safeText(err.message || 'Could not load standings')}</li>`;
+        allList.innerHTML = '<li class="results-stand-empty">Could not load standings</li>';
       }
     }
 
