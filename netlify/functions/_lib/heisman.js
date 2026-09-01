@@ -11,6 +11,45 @@ const DEFAULT_TTL_HOURS = 3;
 const ATHLETE_CONCURRENCY = 12;
 
 const memoryOdds = new Map();
+const teamCache = new Map();
+
+function hexColor(raw) {
+  if (raw == null || raw === "") return null;
+  const s = String(raw).trim();
+  if (!s) return null;
+  return s.startsWith("#") ? s : `#${s}`;
+}
+
+async function resolveTeamFromRef(ref, signal) {
+  const refUrl =
+    typeof ref === "string" ? ref : ref && (ref.$ref || ref.href || ref.url);
+  if (!refUrl) return null;
+  const url = refUrl.startsWith("http")
+    ? refUrl
+    : `https://sports.core.api.espn.com${refUrl}`;
+  if (teamCache.has(url)) return teamCache.get(url);
+  try {
+    const data = await fetchJson(url, signal);
+    const teamId = data.id != null ? String(data.id) : null;
+    const info = {
+      teamId,
+      teamName:
+        data.displayName || data.name || data.shortDisplayName || null,
+      teamAbbr: data.abbreviation || data.shortDisplayName || null,
+      teamColor: hexColor(data.color),
+      teamAltColor: hexColor(data.alternateColor),
+      teamLogo:
+        (Array.isArray(data.logos) && data.logos[0] && data.logos[0].href) ||
+        (teamId
+          ? `https://a.espncdn.com/i/teamlogos/ncaa/500/${teamId}.png`
+          : null),
+    };
+    teamCache.set(url, info);
+    return info;
+  } catch {
+    return null;
+  }
+}
 
 function normalizeSeason(season) {
   const y = Number(season);
@@ -106,7 +145,10 @@ async function resolveAthlete(athleteId, seasonYear, signal) {
     `${ESPN_BASE}/seasons/${seasonYear}/athletes/${athleteId}?lang=en&region=us`,
     signal
   );
-  // Team is usually only a $ref on this endpoint; skip extra team round-trips for speed.
+  let teamInfo = null;
+  if (data.team) {
+    teamInfo = await resolveTeamFromRef(data.team, signal);
+  }
   return {
     playerKey: String(athleteId),
     playerName:
@@ -114,7 +156,12 @@ async function resolveAthlete(athleteId, seasonYear, signal) {
       data.fullName ||
       `${data.firstName || ""} ${data.lastName || ""}`.trim() ||
       `Athlete ${athleteId}`,
-    team: null,
+    team: teamInfo?.teamName || null,
+    teamId: teamInfo?.teamId || null,
+    teamAbbr: teamInfo?.teamAbbr || null,
+    teamColor: teamInfo?.teamColor || null,
+    teamAltColor: teamInfo?.teamAltColor || null,
+    teamLogo: teamInfo?.teamLogo || null,
     position: data.position?.abbreviation || data.position?.displayName || null,
     jersey: data.jersey != null ? String(data.jersey) : null,
     headshot: data.headshot?.href || null,
@@ -248,6 +295,11 @@ async function backfillUnresolvedNames(board, signal) {
         ...c,
         playerName: meta.playerName,
         team: meta.team,
+        teamId: meta.teamId,
+        teamAbbr: meta.teamAbbr,
+        teamColor: meta.teamColor,
+        teamAltColor: meta.teamAltColor,
+        teamLogo: meta.teamLogo,
         position: meta.position,
         jersey: meta.jersey,
         headshot: meta.headshot,
@@ -352,29 +404,92 @@ async function getOddsBoard(season, { forceRefresh = false } = {}) {
   }
 }
 
+async function backfillTeamMeta(board, signal) {
+  if (!board || !Array.isArray(board.candidates) || !board.candidates.length) {
+    return { board, changed: false };
+  }
+  const seasonYear = board.seasonYear || SEASON_YEAR;
+  const need = board.candidates
+    .map((c, i) => ({ c, i }))
+    .filter(
+      ({ c }) =>
+        c.playerKey && (!c.team || !c.teamLogo || !c.headshot)
+    );
+  if (!need.length) return { board, changed: false };
+
+  const next = board.candidates.slice();
+  await mapPool(need, ATHLETE_CONCURRENCY, async ({ c, i }) => {
+    try {
+      const meta = await resolveAthleteWithRetry(c.playerKey, seasonYear, signal);
+      next[i] = {
+        ...c,
+        playerName: isUnresolvedAthleteName(c.playerName, c.playerKey)
+          ? meta.playerName
+          : c.playerName,
+        team: meta.team || c.team,
+        teamId: meta.teamId || c.teamId,
+        teamAbbr: meta.teamAbbr || c.teamAbbr,
+        teamColor: meta.teamColor || c.teamColor,
+        teamAltColor: meta.teamAltColor || c.teamAltColor,
+        teamLogo: meta.teamLogo || c.teamLogo,
+        position: meta.position || c.position,
+        jersey: meta.jersey || c.jersey,
+        headshot: meta.headshot || c.headshot,
+      };
+    } catch {
+      /* keep row */
+    }
+  });
+
+  return {
+    board: { ...board, candidates: next, fetchedAt: new Date().toISOString() },
+    changed: true,
+  };
+}
+
 async function maybePatchCachedBoard(seasonYear, board, source) {
-  const needs =
+  const needsNames =
     Array.isArray(board.candidates) &&
     board.candidates.some((c) =>
       isUnresolvedAthleteName(c.playerName, c.playerKey)
     );
-  if (!needs) {
+  const needsTeams =
+    Array.isArray(board.candidates) &&
+    board.candidates.some((c) => c.playerKey && (!c.team || !c.teamLogo));
+
+  if (!needsNames && !needsTeams) {
     return { ...board, cache: { hit: true, source } };
   }
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 55_000);
   try {
-    const { board: filled, changed } = await backfillUnresolvedNames(
-      board,
-      controller.signal
-    );
-    if (changed) {
+    let working = board;
+    let anyChanged = false;
+
+    if (needsNames) {
+      const { board: filled, changed } = await backfillUnresolvedNames(
+        working,
+        controller.signal
+      );
+      working = filled;
+      anyChanged = anyChanged || changed;
+    }
+    if (needsTeams || needsNames) {
+      const { board: filled, changed } = await backfillTeamMeta(
+        working,
+        controller.signal
+      );
+      working = filled;
+      anyChanged = anyChanged || changed;
+    }
+
+    if (anyChanged) {
       const expiresAtMs = Date.now() + ttlMs();
-      writeMemoryOdds(seasonYear, filled, expiresAtMs);
-      await writeDbOdds(seasonYear, filled, new Date(expiresAtMs).toISOString());
+      writeMemoryOdds(seasonYear, working, expiresAtMs);
+      await writeDbOdds(seasonYear, working, new Date(expiresAtMs).toISOString());
       return {
-        ...filled,
+        ...working,
         cache: {
           hit: true,
           source: `${source}+backfill`,
@@ -383,7 +498,7 @@ async function maybePatchCachedBoard(seasonYear, board, source) {
       };
     }
   } catch (err) {
-    console.warn("heisman name backfill failed:", err.message || err);
+    console.warn("heisman cache backfill failed:", err.message || err);
   } finally {
     clearTimeout(timeout);
   }

@@ -4,6 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Heisman Odds</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
   <link rel="stylesheet" href="styles/site-theme.css">
   <link rel="stylesheet" href="Resources/Styles/list.css">
@@ -23,25 +26,34 @@
   </nav>
   <div class="menu-overlay" id="menuOverlay" onclick="closeMenu()"></div>
 
-  <main class="container my-4 page-shell heisman-shell">
+  <main class="container page-shell heisman-shell">
     <header class="heisman-hero">
       <p class="heisman-kicker">Prediction game</p>
-      <h1 class="page-title">Heisman Odds &amp; Ballot</h1>
-      <p class="page-subtitle">Live sportsbook odds, your pick anytime from week 0, and bragging rights if you lock a longshot that hits.</p>
+      <h1 class="heisman-title">Heisman Odds &amp; Ballot</h1>
+      <p class="heisman-subtitle">Pick your winner from live odds. Lock optional — freeze longshot odds for Prophet bragging rights.</p>
       <p class="heisman-status" id="statusLine" aria-live="polite"></p>
     </header>
 
     <div class="heisman-layout">
       <section class="section-card heisman-ballot" id="ballotCard">
         <h2 class="gold-heading">Your ballot</h2>
-        <p class="heisman-hint" id="ballotHint">Pick who you think wins the Heisman. Lock in to freeze today’s odds — that’s how underdogs become legends.</p>
+        <p class="heisman-hint" id="ballotHint">Select a player on the odds board, then cast your ballot below.</p>
         <div id="myPickPanel" class="heisman-mypick"></div>
-        <div class="heisman-ballot-actions">
-          <button type="button" class="btn btn-gold btn-sm" id="savePickBtn" disabled>Save pick</button>
-          <button type="button" class="btn btn-brown btn-sm" id="lockPickBtn" disabled>Lock in</button>
+
+        <div id="ballotActions" class="heisman-ballot-actions" hidden>
+          <label class="heisman-lock-option" id="lockOption">
+            <input type="checkbox" id="lockOnSubmit">
+            <span class="heisman-lock-copy">
+              <strong>Lock at <span id="lockOddsLabel">—</span></strong>
+              <span class="heisman-lock-detail">Optional. Freeze these odds for Prophet credit — you cannot change your pick after locking.</span>
+            </span>
+          </label>
+          <button type="button" class="btn btn-gold heisman-submit-btn" id="submitBallotBtn" disabled>Cast ballot</button>
+          <p class="heisman-change-hint" id="changePickHint">You can update your pick anytime until you lock.</p>
         </div>
+
         <p class="heisman-login-gate" id="loginGate" hidden>
-          <a id="loginLink" href="login.html">Log in</a> to save and lock your Heisman pick.
+          <a id="loginLink" href="login.html">Log in</a> to cast your Heisman ballot.
         </p>
       </section>
 
@@ -60,7 +72,7 @@
         </div>
         <input type="search" id="boardFilter" class="heisman-filter" placeholder="Filter players…" aria-label="Filter Heisman board">
       </div>
-      <div class="table-responsive">
+      <div class="table-responsive heisman-table-wrap">
         <table class="heisman-table">
           <thead>
             <tr>
@@ -69,7 +81,6 @@
               <th>Odds</th>
               <th>Impl.</th>
               <th>Crowd</th>
-              <th></th>
             </tr>
           </thead>
           <tbody id="boardBody"></tbody>
@@ -86,6 +97,7 @@
   </main>
 
   <script src="scripts/auth-ui.js"></script>
+  <script src="scripts/recruit-team-branding.js"></script>
   <script src="scripts/heisman.js"></script>
   <script>
     function closeMenu() {

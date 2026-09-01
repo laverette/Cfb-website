@@ -348,11 +348,16 @@
 @media (max-width: 992px) {
   .home-layout {
     grid-template-columns: 1fr;
-    gap: 1.1rem;
+    gap: 1rem;
   }
 
+  /* DOM order: rankings then nav — show poll first on mobile */
   .home-panel-nav {
-    order: -1;
+    order: 2;
+  }
+
+  .home-panel-rankings {
+    order: 1;
   }
 
   .home-feature-image-wrap {
@@ -364,7 +369,168 @@
   }
 
   .home-power-toggle {
-    display: block;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 3rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .home-page .home-shell {
+    width: 100%;
+    max-width: 100%;
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+    padding-top: 0.65rem;
+    padding-bottom: max(2.5rem, env(safe-area-inset-bottom));
+  }
+
+  .home-page .site-title {
+    font-size: clamp(0.82rem, 3.6vw, 1rem);
+    line-height: 1.2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+    flex: 1 1 auto;
+    text-align: center;
+    padding: 0 0.35rem;
+  }
+
+  .home-hero {
+    margin-bottom: 0.85rem;
+  }
+
+  .home-hero-title {
+    font-size: clamp(2rem, 10vw, 2.75rem);
+  }
+
+  .home-hero-sub {
+    font-size: 0.94rem;
+    line-height: 1.4;
+    padding: 0 0.15rem;
+  }
+
+  .home-panel {
+    padding: 1rem 0.85rem 0.95rem;
+    border-radius: 14px;
+  }
+
+  .home-panel-head {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.65rem;
+    margin-bottom: 0.85rem;
+    padding-bottom: 0.75rem;
+  }
+
+  .home-panel-link {
+    align-self: stretch;
+    text-align: center;
+    min-height: 3rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+  }
+
+  .home-panel-title {
+    font-size: 1.35rem;
+  }
+
+  .home-panel-meta {
+    font-size: 0.78rem;
+  }
+
+  .home-feature {
+    margin-bottom: 0.85rem;
+  }
+
+  .home-feature-title {
+    font-size: 1.2rem;
+    margin-bottom: 0.35rem;
+  }
+
+  .home-feature-lead {
+    margin-top: 0.35rem;
+    font-size: 0.88rem;
+  }
+
+  .home-nav-grid {
+    gap: 0.65rem;
+  }
+
+  .home-nav-tile {
+    min-height: 3rem;
+    padding: 0.6rem 0.45rem;
+    white-space: normal;
+    font-size: 0.82rem;
+    line-height: 1.25;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .home-nav-tile-primary {
+    min-height: 3.35rem;
+    font-size: 0.95rem;
+  }
+
+  /* Odd tile count — full-width last link looks intentional, not empty */
+  .home-nav-tile:not(.home-nav-tile-primary):last-child {
+    grid-column: 1 / -1;
+  }
+
+  .home-power-list {
+    gap: 0.45rem;
+  }
+
+  .home-power-row {
+    padding: 0.72rem 0.65rem;
+    gap: 0.5rem 0.55rem;
+    border-radius: 10px;
+  }
+
+  .home-power-rank {
+    width: 2rem;
+    height: 2rem;
+    font-size: 0.95rem;
+  }
+
+  .home-power-logo {
+    width: 1.85rem;
+    height: 1.85rem;
+  }
+
+  .home-power-name {
+    font-size: 0.9rem;
+  }
+
+  .home-power-raw {
+    font-size: 0.9rem;
+    min-width: 2.5rem;
+  }
+
+  .home-power-toggle {
+    margin-top: 0.65rem;
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 380px) {
+  .home-nav-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .home-nav-tile:not(.home-nav-tile-primary):last-child {
+    grid-column: auto;
+  }
+
+  .home-power-rec {
+    display: none;
+  }
+
+  .home-power-name {
+    font-size: 0.86rem;
   }
 }
 
@@ -396,18 +562,7 @@
 }
 
 @media (max-width: 420px) {
-  .home-panel-head {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .home-panel-link {
-    align-self: stretch;
-    text-align: center;
-  }
-
   .home-nav-tile {
-    font-size: 0.76rem;
-    padding: 0.5rem 0.4rem;
+    font-size: 0.8rem;
   }
 }

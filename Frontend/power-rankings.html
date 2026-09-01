@@ -46,7 +46,6 @@
           <span>Through week</span>
           <input id="weekInput" class="site-select power-input" type="number" min="0" max="20">
         </label>
-        <button type="button" class="btn btn-gold" id="reloadBtn">Load</button>
         <a class="btn btn-brown" href="predictor.html">Matchup Predictor</a>
       </div>
       <label class="power-field power-search-field">
@@ -67,6 +66,7 @@
     let sortKey = 'ranking';
     let sortDir = 1;
     let searchQuery = '';
+    let loadTimer = null;
 
     function escapeHtml(t) {
       return String(t ?? '')
@@ -210,13 +210,27 @@
       }
     }
 
-    document.getElementById('reloadBtn').addEventListener('click', load);
+    function scheduleLoad(delay) {
+      clearTimeout(loadTimer);
+      loadTimer = setTimeout(load, delay || 450);
+    }
+
+    function bindFilterInputs() {
+      const seasonInput = document.getElementById('seasonInput');
+      const weekInput = document.getElementById('weekInput');
+      seasonInput.addEventListener('change', load);
+      weekInput.addEventListener('change', load);
+      seasonInput.addEventListener('input', () => scheduleLoad(600));
+      weekInput.addEventListener('input', () => scheduleLoad(400));
+    }
+
     document.getElementById('teamSearch').addEventListener('input', (e) => {
       searchQuery = e.target.value || '';
       render();
     });
     document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('seasonInput').value = new Date().getFullYear();
+      bindFilterInputs();
       load();
     });
 
