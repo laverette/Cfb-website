@@ -4,12 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CFB</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
     <link rel="stylesheet" href="styles/site-theme.css">
+    <link rel="stylesheet" href="Resources/Styles/power.css">
     <link rel="stylesheet" href="Resources/Styles/index.css">
 </head>
-<body>
-    <!-- Site Header -->
+<body class="power-rankings-body home-page">
     <nav class="navbar weeklypicks-navbar site-nav">
       <div class="container-fluid">
         <div class="navbar-content-weekly site-nav-inner">
@@ -17,85 +20,157 @@
             <span></span><span></span><span></span>
           </button>
           <div class="dropdown-menu" id="dropdownMenu"></div>
-
           <h1 class="site-title">My College Football Site</h1>
-
           <div id="auth-nav" class="navbar-auth-cluster"></div>
         </div>
       </div>
     </nav>
     <div class="menu-overlay" id="menuOverlay" onclick="closeMenu()"></div>
-    <main class="container my-5 page-shell">
+
+    <main class="container page-shell home-shell">
+        <header class="home-hero">
+          <p class="power-eyebrow">College football hub</p>
+          <h1 class="power-title home-hero-title">Logan A Poll</h1>
+          <p class="power-subtitle home-hero-sub">
+            Model power rankings, weekly picks, team pages, and prediction games — all in one place.
+          </p>
+        </header>
+
         <div class="home-layout">
-            <!-- Left: Poll -->
-            <section class="section-card home-main-card">
-                <div class="poll-card-header">
-                  <div>
-                    <div class="season-badge">🏈 2025 Season</div>
-                    <h2 class="gold-heading poll-title">Logan A Poll</h2>
-                    <div class="poll-subtitle">
-                      Weekly picks, rankings, team pages, and college football predictions.
-                    </div>
+            <section class="home-panel home-panel-rankings" aria-labelledby="rankingsPanelTitle">
+                <div class="home-panel-head">
+                  <div class="home-panel-head-main">
+                    <div class="season-badge" id="homeSeasonBadge">🏈 Loading…</div>
+                    <h2 class="home-panel-title" id="rankingsPanelTitle">Power Rankings</h2>
+                    <p class="home-panel-meta" id="homeRankingsMeta">Loading model board…</p>
                   </div>
-                  <div class="site-badge poll-dashboard-badge">CFB Dashboard</div>
+                  <a href="power-rankings.html" class="home-panel-link">Full board →</a>
                 </div>
 
-                <ol class="list-group list-group-numbered poll-list poll-collapsed" id="homePollList">
-                <li class="list-group-item">Ohio State Buckeyes</li>
-                <li class="list-group-item">Georgia Bulldogs</li>
-                <li class="list-group-item">LSU Tigers</li>
-                <li class="list-group-item">Penn State Nittany Lions</li>
-                <li class="list-group-item">Texas Longhorns</li>
-                <li class="list-group-item">Oregon Ducks</li>
-                <li class="list-group-item">Miami Hurricanes</li>
-                <li class="list-group-item">Notre Dame Fighting Irish</li>
-                <li class="list-group-item">Tennessee Volunteers</li>
-                <li class="list-group-item">Alabama Crimson Tide</li>
-                <li class="list-group-item">Florida State Seminoles</li>
-                <li class="list-group-item">Utah Utes</li>
-                <li class="list-group-item">Oklahoma Sooners</li>
-                <li class="list-group-item">Texas A&M Aggies</li>
-                <li class="list-group-item">Clemson Tigers</li>
-                <li class="list-group-item">Ole Miss Rebels</li>
-                <li class="list-group-item">Arizona State Sun Devils</li>
-                <li class="list-group-item">Auburn Tigers</li>
-                <li class="list-group-item">Florida Gators</li>
-                <li class="list-group-item">Texas Tech Red Raiders</li>
-                <li class="list-group-item">Michigan Wolverines</li>
-                <li class="list-group-item">USF Bulls</li>
-                <li class="list-group-item">Louisville Cardinals</li>
-                <li class="list-group-item">Illinois Fighting Illini</li>
-                <li class="list-group-item">Baylor Bears</li>
-            </ol>
-                <button type="button" class="poll-toggle-btn" id="pollToggleBtn" aria-expanded="false" aria-controls="homePollList">
+                <ol class="home-power-list poll-collapsed" id="homePollList" aria-live="polite">
+                  <li class="home-power-empty">Loading rankings…</li>
+                </ol>
+
+                <button type="button" class="home-power-toggle" id="pollToggleBtn" aria-expanded="false" aria-controls="homePollList" hidden>
                   Show full Top 25
                 </button>
             </section>
 
-            <!-- Right: Feature + navigation -->
-            <aside class="section-card home-side-card">
-              <div class="feature-image-card">
-                <div class="gold-heading" style="font-size: 1.25rem; margin-bottom: 0.65rem;">Explore the Site</div>
-                <img src="https://a.espncdn.com/photo/2014/0714/ncf_trophy1_ms_1296x729.jpg" alt="Trophy" class="img-fluid">
-                <div style="margin-top: 0.75rem; color: rgba(245, 222, 179, 0.82); font-weight: 700;">
-                  Jump into picks, teams, and model tools.
+            <aside class="home-panel home-panel-nav">
+              <div class="home-feature">
+                <h2 class="home-feature-title">Explore the site</h2>
+                <div class="home-feature-image-wrap">
+                  <img src="https://a.espncdn.com/photo/2014/0714/ncf_trophy1_ms_1296x729.jpg" alt="College Football Playoff trophy" class="home-feature-image" loading="lazy">
                 </div>
+                <p class="home-feature-lead">Jump into picks, teams, and model tools.</p>
               </div>
 
-              <div class="home-button-grid">
-                <a href="weeklypicks.html" class="btn btn-gold btn-lg rounded-pill">Weekly Picks</a>
-                <a href="teams.html" class="btn btn-brown btn-lg rounded-pill">Teams</a>
-                <a href="predictor.html" class="btn btn-brown btn-lg rounded-pill">Model</a>
-                <a href="prediction-history.html" class="btn btn-brown btn-lg rounded-pill">Leaderboards</a>
-                <a href="bama.html" class="btn btn-brown btn-lg rounded-pill">Schedule Predictions</a>
-                <a href="CFPPredictions.html" class="btn btn-brown btn-lg rounded-pill">CFP Picks</a>
-                <a href="list.html" class="btn btn-brown btn-lg rounded-pill">Heisman</a>
-              </div>
+              <nav class="home-nav-grid" aria-label="Site sections">
+                <a href="weeklypicks.html" class="home-nav-tile home-nav-tile-primary">Weekly Picks</a>
+                <a href="teams.html" class="home-nav-tile">Teams</a>
+                <a href="predictor.html" class="home-nav-tile">Matchup Model</a>
+                <a href="power-rankings.html" class="home-nav-tile">Power Rankings</a>
+                <a href="prediction-history.html" class="home-nav-tile">Leaderboards</a>
+                <a href="bama.html" class="home-nav-tile">Schedule Picks</a>
+                <a href="CFPPredictions.html" class="home-nav-tile">CFP Bracket</a>
+                <a href="list.html" class="home-nav-tile">Heisman</a>
+              </nav>
             </aside>
         </div>
     </main>
+
     <script src="scripts/auth-ui.js"></script>
     <script>
+      function escapeHtml(t) {
+        return String(t ?? '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+      }
+
+      function teamHref(name) {
+        return `team.html?name=${encodeURIComponent(name || '')}`;
+      }
+
+      function renderPowerList(teams) {
+        const list = document.getElementById('homePollList');
+        const toggleBtn = document.getElementById('pollToggleBtn');
+        if (!list) return;
+
+        const top = (teams || [])
+          .slice()
+          .sort((a, b) => (Number(a.ranking) || 999) - (Number(b.ranking) || 999))
+          .slice(0, 25);
+
+        if (!top.length) {
+          list.innerHTML = '<li class="home-power-empty">No rankings available yet.</li>';
+          if (toggleBtn) toggleBtn.hidden = true;
+          return;
+        }
+
+        list.innerHTML = top.map((t) => {
+          const rank = Number(t.ranking) || 0;
+          const rankClass = rank === 1 ? 'is-gold' : rank === 2 ? 'is-silver' : rank === 3 ? 'is-bronze' : '';
+          const raw = Number(t.rawPower);
+          const rawLabel = Number.isFinite(raw) ? `${raw >= 0 ? '+' : ''}${raw.toFixed(1)}` : '—';
+          const record = t.record || `${t.wins || 0}-${t.losses || 0}`;
+          const logo = t.logoUrl
+            ? `<img class="home-power-logo" src="${escapeHtml(t.logoUrl)}" alt="" loading="lazy">`
+            : '<span class="home-power-logo home-power-logo-fallback" aria-hidden="true">🏈</span>';
+          return `
+            <li class="home-power-row">
+              <span class="home-power-rank ${rankClass}">${rank}</span>
+              <a class="home-power-team" href="${teamHref(t.name)}">
+                ${logo}
+                <span class="home-power-team-text">
+                  <span class="home-power-name">${escapeHtml(t.name)}</span>
+                  <span class="home-power-rec">${escapeHtml(record)}</span>
+                </span>
+              </a>
+              <span class="home-power-raw" title="Raw power (pts vs avg FBS)">${rawLabel}</span>
+            </li>
+          `;
+        }).join('');
+
+        if (toggleBtn) {
+          toggleBtn.hidden = top.length <= 5;
+          toggleBtn.setAttribute('aria-expanded', list.classList.contains('poll-collapsed') ? 'false' : 'true');
+        }
+      }
+
+      async function loadHomeRankings() {
+        const season = new Date().getFullYear();
+        const params = new URLSearchParams({ season: String(season) });
+        const badge = document.getElementById('homeSeasonBadge');
+        const meta = document.getElementById('homeRankingsMeta');
+        const list = document.getElementById('homePollList');
+
+        try {
+          let resp = await fetch(`/api/power/rankings?${params}`, { headers: { accept: 'application/json' } });
+          let data = await resp.json().catch(() => ({}));
+          if (!resp.ok && resp.status === 503) {
+            params.set('live', '1');
+            resp = await fetch(`/api/power/rankings?${params}`, { headers: { accept: 'application/json' } });
+            data = await resp.json().catch(() => ({}));
+          }
+          if (!resp.ok) throw new Error(data.details || data.error || 'Failed to load rankings');
+
+          const teams = Array.isArray(data.teams) ? data.teams : [];
+          if (badge) badge.textContent = `🏈 ${data.season || season} Season`;
+          if (meta) {
+            meta.textContent = `Through week ${data.week ?? '—'} · ${teams.length} FBS teams · ${data.source || 'model'} ratings`;
+          }
+          renderPowerList(teams);
+        } catch (err) {
+          if (badge) badge.textContent = `🏈 ${season} Season`;
+          if (meta) meta.textContent = 'Rankings unavailable';
+          if (list) {
+            list.innerHTML = `<li class="home-power-empty">${escapeHtml(err.message || 'Could not load rankings')}</li>`;
+          }
+        }
+      }
+
       function closeMenu() {
         const menu = document.getElementById('dropdownMenu');
         const button = document.querySelector('.hamburger-menu-btn');
@@ -132,7 +207,9 @@
         if (event.key === 'Escape') closeMenu();
       });
 
-      (function () {
+      document.addEventListener('DOMContentLoaded', () => {
+        loadHomeRankings();
+
         const pollList = document.getElementById('homePollList');
         const toggleBtn = document.getElementById('pollToggleBtn');
         if (!pollList || !toggleBtn) return;
@@ -140,9 +217,9 @@
         toggleBtn.addEventListener('click', function () {
           const collapsed = pollList.classList.toggle('poll-collapsed');
           toggleBtn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-          toggleBtn.textContent = collapsed ? 'Show full Top 25' : 'Show less';
+          toggleBtn.textContent = collapsed ? 'Show full Top 25' : 'Show top 5';
         });
-      })();
+      });
     </script>
 </body>
 </html>

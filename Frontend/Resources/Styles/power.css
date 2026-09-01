@@ -415,6 +415,109 @@
   gap: 0.75rem;
 }
 
+.matchup-adj-details {
+  border-radius: 12px;
+  border: 1px solid rgba(141, 110, 99, 0.45);
+  background: rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+}
+
+.matchup-adj-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.7rem 0.85rem;
+  cursor: pointer;
+  list-style: none;
+  font-weight: 700;
+  color: #f3e6d0;
+  user-select: none;
+}
+
+.matchup-adj-summary::-webkit-details-marker {
+  display: none;
+}
+
+.matchup-adj-summary::before {
+  content: '▸';
+  margin-right: 0.45rem;
+  color: #ffe566;
+  transition: transform 0.15s ease;
+}
+
+.matchup-adj-details[open] .matchup-adj-summary::before {
+  transform: rotate(90deg);
+}
+
+.matchup-adj-summary-hint {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--pr-muted);
+  white-space: nowrap;
+}
+
+.matchup-adj-lead {
+  margin: 0;
+  padding: 0 0.85rem 0.75rem;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--pr-muted);
+}
+
+.matchup-adj-teams {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  padding: 0 0.85rem 0.85rem;
+}
+
+.matchup-adj-team-block {
+  padding: 0.7rem;
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(62, 39, 35, 0.75), rgba(78, 52, 46, 0.55));
+  border: 1px solid rgba(141, 110, 99, 0.35);
+}
+
+.matchup-adj-team-title {
+  margin: 0 0 0.55rem;
+  font-family: "Barlow Condensed", Impact, sans-serif;
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #ffe566;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.matchup-adj-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem 0.55rem;
+}
+
+.matchup-adj-field span {
+  font-size: 0.68rem;
+}
+
+.matchup-adj-field .matchup-input {
+  padding: 0.4rem 0.5rem !important;
+  font-size: 0.88rem !important;
+}
+
+.matchup-adj-total {
+  margin: 0.55rem 0 0;
+  font-size: 0.78rem;
+  color: var(--pr-muted);
+}
+
+.matchup-adj-total strong {
+  color: #ffe566;
+  font-variant-numeric: tabular-nums;
+}
+
 .matchup-submit-btn {
   width: 100%;
   margin-top: 0.15rem;
@@ -784,6 +887,20 @@
 
   .matchup-adj-row {
     grid-template-columns: 1fr;
+  }
+
+  .matchup-adj-teams {
+    grid-template-columns: 1fr;
+  }
+
+  .matchup-adj-summary {
+    flex-wrap: wrap;
+  }
+
+  .matchup-adj-summary-hint {
+    width: 100%;
+    padding-left: 1.1rem;
+    white-space: normal;
   }
 
   .matchup-stats-head,
