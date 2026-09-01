@@ -193,32 +193,27 @@ input:focus, select:focus {
     
     
     
-    /* Form improvements */
-    form {
+    /* Form — full width, no negative bleed (legacy + dynamic picks) */
+    form,
+    #predictionsForm {
         padding: 0;
-        margin: 0 -10px 1rem -10px;
-        width: calc(100% + 20px);
-        max-width: none;
+        margin: 0 0 1rem;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
     }
     
     form p {
         margin-bottom: 0.75rem;
     }
     
-    /* Add extra margin to name field on mobile to prevent overlap with Coach Corso button */
-    form p:nth-of-type(2) {
-        margin-bottom: 1.5rem;
-    }
-    
     form label {
         display: block;
-        margin-bottom: 0.5rem;
+        margin: 0 0 0.5rem;
+        width: 100%;
+        text-align: center;
         font-weight: bold;
         color: #f5deb3;
-        margin-left: -15px;
-        margin-right: -8px;
-        width: calc(100% + 23px);
-        text-align: left;
     }
     
     form input[type="text"], 
@@ -231,9 +226,8 @@ input:focus, select:focus {
         background-color: #3E2723;
         color: #f5deb3;
         box-sizing: border-box;
-        max-width: none;
-        margin: 0 -5px;
-        width: calc(100% + 10px);
+        max-width: 100%;
+        margin: 0;
     }
     
     form input[type="text"]:focus, 
@@ -1001,10 +995,19 @@ input:focus, select:focus {
     }
 }
 
-/* Mobile: single column, keep tap hint */
+/* Mobile: single column, centered game rows */
 @media (max-width: 859px) {
     .pick-hint {
         display: block;
+        text-align: center;
+    }
+
+    .pick-meta {
+        text-align: center;
+    }
+
+    .pick-game-top {
+        justify-content: center;
     }
 
     .pick-game-row {
@@ -1014,6 +1017,9 @@ input:focus, select:focus {
     .pick-matchup {
         --pick-chip-fs: 0.88rem;
         gap: 4px;
+        justify-content: center;
+        margin-left: auto;
+        margin-right: auto;
     }
 
     .pick-matchup .team-pick-btn {
@@ -3443,9 +3449,11 @@ select {
     .leaderboards-container,
     .results-standings-grid,
     .analysis-container {
-        width: calc(100% - 1rem);
+        width: 100%;
+        max-width: 100%;
         margin-left: auto;
         margin-right: auto;
+        box-sizing: border-box;
     }
 
     .weeklypicks-navbar {
@@ -3520,8 +3528,76 @@ select {
     }
 
     .title-section {
-        justify-content: space-between;
-        text-align: left;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+    }
+
+    .weeklypicks-navbar .site-nav-inner .site-title {
+        flex: 1 1 auto;
+        min-width: 0;
+        text-align: center;
+        font-size: clamp(0.88rem, 3.8vw, 1.05rem);
+        padding: 0 0.35rem;
+    }
+
+    .picks-page-header {
+        justify-content: center;
+        padding-left: max(0.5rem, env(safe-area-inset-left));
+        padding-right: max(0.5rem, env(safe-area-inset-right));
+    }
+
+    .week11-layout,
+    .picks-layout-solo {
+        padding-left: max(0.85rem, env(safe-area-inset-left));
+        padding-right: max(0.85rem, env(safe-area-inset-right));
+        box-sizing: border-box;
+    }
+
+    .picks-auth-notice {
+        width: 100%;
+        box-sizing: border-box;
+        margin-left: 0;
+        margin-right: 0;
+    }
+
+    #dbWeekPicksContainer {
+        width: 100%;
+    }
+
+    .pick-game-row {
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .bouncing-football {
+        width: 30px;
+        height: 30px;
+        z-index: 1;
+        opacity: 0.9;
+    }
+
+    .pick-game-row,
+    .inline-score-display,
+    #dbWeekPicksContainer {
+        position: relative;
+        z-index: 2;
+    }
+
+    .corso-widget {
+        left: 0.75rem;
+        right: 0.75rem;
+        align-items: center;
+        max-width: none;
+    }
+
+    .corso-panel {
+        width: 100%;
+        max-width: 22rem;
+    }
+
+    .corso-fab {
+        align-self: flex-end;
     }
 
     .form-section form {
@@ -3656,8 +3732,12 @@ select {
 /* Mobile optimizations */
 @media (max-width: 768px) {
   .inline-score-display {
-    padding: 0.5rem;
-    margin: 0.4rem 0;
+    padding: 0.55rem 0.5rem;
+    margin: 0.45rem 0;
+    width: 100%;
+    box-sizing: border-box;
+    align-items: center;
+    text-align: center;
   }
   
   .live-status-badge,
@@ -3668,6 +3748,14 @@ select {
   
   .inline-score {
     font-size: 0.8rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    text-align: center;
+    gap: 0.35rem 0.5rem;
+  }
+
+  .score-team-display {
+    display: inline-block;
   }
 }
 
