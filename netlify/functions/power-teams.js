@@ -27,6 +27,7 @@ exports.handler = async (event) => {
             teams: snap.teams.map((t) => ({
               teamId: t.teamId,
               name: t.name,
+              abbreviation: t.abbreviation || null,
               conference: t.conference,
               logoUrl: t.logoUrl,
               ranking: t.ranking,
@@ -55,6 +56,7 @@ exports.handler = async (event) => {
       .map((t) => ({
         teamId: t.id,
         name: t.name,
+        abbreviation: t.abbreviation || null,
         conference: t.conference,
         logoUrl: t.logoUrl,
       }))

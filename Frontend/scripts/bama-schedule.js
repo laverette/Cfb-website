@@ -12,7 +12,39 @@
     games: [],
     submittedCount: 0,
     activeTab: "predict",
+    lbScope: "season",
     lbGameId: null,
+    brandIndex: {},
+  };
+
+  var ABBR_OVERRIDES = {
+    alabama: "ALA",
+    "app state": "APP",
+    auburn: "AUB",
+    "east carolina": "ECU",
+    "florida state": "FSU",
+    georgia: "UGA",
+    kentucky: "UK",
+    "louisiana tech": "LT",
+    lsu: "LSU",
+    "miami (oh)": "M-OH",
+    "mississippi state": "MSST",
+    "nc state": "NCST",
+    "north carolina": "UNC",
+    "ole miss": "MISS",
+    "south carolina": "SCAR",
+    "southern miss": "USM",
+    "texas a&m": "TAMU",
+    "ul monroe": "ULM",
+    utsa: "UTSA",
+    uab: "UAB",
+    ucf: "UCF",
+    usc: "USC",
+    ucla: "UCLA",
+    byu: "BYU",
+    smu: "SMU",
+    tcu: "TCU",
+    chattanooga: "UTC",
   };
 
   function $(id) {
@@ -34,6 +66,100 @@
       return JSON.parse(localStorage.getItem(STORAGE_USER) || "null");
     } catch (_) {
       return null;
+    }
+  }
+
+  function normSchoolKey(name) {
+    return String(name || "")
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, " ");
+  }
+
+  async function loadTeamBrandIndex() {
+    state.brandIndex = {};
+    try {
+      var res = await fetch("/api/power/teams?season=" + encodeURIComponent(state.season));
+      if (!res.ok) return;
+      var data = await res.json();
+      (data.teams || []).forEach(function (t) {
+        if (!t || !t.name) return;
+        state.brandIndex[normSchoolKey(t.name)] = {
+          logoUrl: t.logoUrl || "",
+          abbreviation: t.abbreviation || null,
+        };
+      });
+    } catch (_) {}
+  }
+
+  function schoolAbbreviation(school) {
+    var key = normSchoolKey(school);
+    if (state.brandIndex[key] && state.brandIndex[key].abbreviation) {
+      return state.brandIndex[key].abbreviation;
+    }
+    if (ABBR_OVERRIDES[key]) return ABBR_OVERRIDES[key];
+    var words = String(school || "")
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+    if (!words.length) return "—";
+    if (words.length === 1) return words[0].slice(0, 4).toUpperCase();
+    return words
+      .map(function (w) {
+        return w[0];
+      })
+      .join("")
+      .toUpperCase()
+      .slice(0, 4);
+  }
+
+  function schoolLogoUrl(school) {
+    var key = normSchoolKey(school);
+    if (state.brandIndex[key] && state.brandIndex[key].logoUrl) {
+      return state.brandIndex[key].logoUrl;
+    }
+    if (window.RecruitTeamBranding) {
+      var brand = RecruitTeamBranding.lookup(school);
+      if (brand && brand.logo) return brand.logo;
+    }
+    return "";
+  }
+
+  function logoMarkup(school, className) {
+    var cls = className || "bama-team-logo";
+    var url = schoolLogoUrl(school);
+    var fb = escapeHtml(schoolAbbreviation(school).slice(0, 3));
+    if (!url) {
+      return '<span class="' + cls + ' bama-logo-fallback" aria-hidden="true">' + fb + "</span>";
+    }
+    return (
+      '<img class="' +
+      cls +
+      '" src="' +
+      escapeHtml(url) +
+      '" alt="" loading="lazy" width="32" height="32" onerror="this.style.display=\'none\';if(this.nextElementSibling)this.nextElementSibling.style.display=\'flex\';">' +
+      '<span class="' +
+      cls +
+      ' bama-logo-fallback" style="display:none" aria-hidden="true">' +
+      fb +
+      "</span>"
+    );
+  }
+
+  function updateProgressLogo() {
+    var logoEl = $("progressTeamLogo");
+    if (!logoEl) return;
+    var url = schoolLogoUrl(teamName());
+    if (url) {
+      logoEl.src = url;
+      logoEl.alt = teamName();
+      logoEl.hidden = false;
+      logoEl.onerror = function () {
+        logoEl.hidden = true;
+      };
+    } else {
+      logoEl.removeAttribute("src");
+      logoEl.hidden = true;
     }
   }
 
@@ -200,6 +326,8 @@
         var lockClass = locked ? "" : " is-open";
         var loc = game.neutralSite ? "vs" : game.isHome ? "vs" : "at";
         var delay = Math.min(idx, 8) * 0.03;
+        var teamAb = schoolAbbreviation(teamName());
+        var oppAb = schoolAbbreviation(game.opponent);
 
         return (
           '<article class="' +
@@ -228,11 +356,15 @@
           resultBadge(game) +
           gradeChip(game.grades) +
           "</div>" +
-          '<h3 class="bama-matchup">' +
+          '<div class="bama-matchup-wrap">' +
+          logoMarkup(teamName(), "bama-team-logo bama-match-logo") +
+          '<h3 class="bama-matchup"><span class="bama-matchup-loc">' +
           loc +
-          " " +
+          "</span> " +
           escapeHtml(game.opponent) +
           "</h3>" +
+          logoMarkup(game.opponent, "bama-team-logo bama-match-logo bama-match-logo-opp") +
+          "</div>" +
           "</div>" +
           '<div class="bama-pick-row">' +
           '<div class="bama-wl" role="group" aria-label="Result">' +
@@ -257,6 +389,10 @@
           (winVal || "win") +
           '">' +
           '<div class="bama-score-pair">' +
+          '<label class="bama-score-field">' +
+          '<span class="bama-score-label">' +
+          escapeHtml(teamAb) +
+          "</span>" +
           '<input type="number" min="0" max="99" inputmode="numeric" class="bama-score-a" name="ascore-' +
           game.cfbdGameId +
           '" value="' +
@@ -266,14 +402,22 @@
           ' score" ' +
           disabled +
           ">" +
-          '<span class="bama-score-sep">–</span>' +
+          "</label>" +
+          '<span class="bama-score-sep" aria-hidden="true">–</span>' +
+          '<label class="bama-score-field">' +
+          '<span class="bama-score-label">' +
+          escapeHtml(oppAb) +
+          "</span>" +
           '<input type="number" min="0" max="99" inputmode="numeric" class="bama-score-o" name="oscore-' +
           game.cfbdGameId +
           '" value="' +
           oScore +
-          '" placeholder="—" aria-label="Opponent score" ' +
+          '" placeholder="—" aria-label="' +
+          escapeHtml(game.opponent) +
+          ' score" ' +
           disabled +
           ">" +
+          "</label>" +
           "</div>" +
           "</div></article>"
         );
@@ -356,6 +500,7 @@
     var filled = countFilledGames();
     state.submittedCount = filled;
     if (teamEl) teamEl.textContent = teamName();
+    updateProgressLogo();
     text.textContent =
       filled +
       " / " +
@@ -459,13 +604,15 @@
   }
 
   function populateLbGameOptions() {
-    var sel = $("lbViewSelect");
+    var sel = $("lbGameSelect");
     if (!sel) return;
-    sel.innerHTML = '<option value="season">Season standings</option>';
+    var prev = sel.value;
+    sel.innerHTML = '<option value="">Select a game…</option>';
     state.games.forEach(function (g) {
       var opt = document.createElement("option");
       opt.value = String(g.cfbdGameId);
-      var label = "Week " + (g.week || "?") + " vs " + g.opponent;
+      var loc = g.neutralSite ? "vs" : g.isHome ? "vs" : "at";
+      var label = "Week " + (g.week || "?") + " " + loc + " " + g.opponent;
       var ts = gameTeamScore(g);
       if (g.completed && ts != null) {
         label += " (" + ts + "-" + g.opponentScore + ")";
@@ -473,6 +620,34 @@
       opt.textContent = label;
       sel.appendChild(opt);
     });
+    if (prev && sel.querySelector('option[value="' + prev + '"]')) {
+      sel.value = prev;
+    } else if (state.lbScope === "game" && state.games.length) {
+      sel.value = String(state.games[0].cfbdGameId);
+      state.lbGameId = state.games[0].cfbdGameId;
+    }
+  }
+
+  function setLbScope(scope) {
+    state.lbScope = scope === "game" ? "game" : "season";
+    state.lbGameId = state.lbScope === "game" ? state.lbGameId : null;
+
+    document.querySelectorAll(".bama-lb-scope-btn").forEach(function (btn) {
+      var on = btn.getAttribute("data-lb-scope") === state.lbScope;
+      btn.classList.toggle("active", on);
+      btn.setAttribute("aria-selected", on ? "true" : "false");
+    });
+
+    var gameField = $("lbGameField");
+    if (gameField) gameField.hidden = state.lbScope !== "game";
+
+    if (state.lbScope === "game" && !state.lbGameId && state.games.length) {
+      state.lbGameId = state.games[0].cfbdGameId;
+      var sel = $("lbGameSelect");
+      if (sel) sel.value = String(state.lbGameId);
+    }
+
+    if (state.activeTab === "leaderboard") loadLeaderboard().catch(showError);
   }
 
   async function savePredictions() {
@@ -533,6 +708,10 @@
     var body = $("lbBody");
     var entries = board.entries || [];
     $("lbEmpty").hidden = entries.length > 0;
+    if (!entries.length) {
+      $("lbEmpty").textContent =
+        "No one has submitted picks for this team yet. Switch to My Predictions and be the first on the board.";
+    }
     body.innerHTML = entries
       .map(function (e) {
         var streak =
@@ -583,6 +762,9 @@
 
     var entries = board.entries || [];
     $("lbEmpty").hidden = entries.length > 0;
+    if (!entries.length) {
+      $("lbEmpty").textContent = "No picks submitted for this game yet.";
+    }
     $("lbBody").innerHTML = entries
       .map(function (e) {
         var won = e.predictedTeamWin != null ? e.predictedTeamWin : e.predictedAlabamaWin;
@@ -647,7 +829,17 @@
   }
 
   async function loadLeaderboard() {
-    var gameId = state.lbGameId;
+    if (state.lbScope === "game" && !state.lbGameId) {
+      $("lbBody").innerHTML = "";
+      $("lbHead").innerHTML = "";
+      $("lbTitle").textContent = teamName() + " · Pick a game";
+      $("lbHint").textContent = "Choose a game above to see how everyone called that matchup.";
+      $("lbEmpty").hidden = false;
+      $("lbEmpty").textContent = "Select a game from the dropdown to view picks for that week.";
+      $("bamaPodium").hidden = true;
+      return;
+    }
+    var gameId = state.lbScope === "game" ? state.lbGameId : null;
     var url =
       "/api/bama/leaderboard?" +
       teamQuery() +
@@ -669,7 +861,7 @@
     $("predictPanel").hidden = tab !== "predict";
     $("leaderboardPanel").hidden = tab !== "leaderboard";
     document.body.classList.toggle("sp-leaderboard-view", tab === "leaderboard");
-    if (tab === "leaderboard") loadLeaderboard().catch(showError);
+    if (tab === "leaderboard") setLbScope(state.lbScope || "season");
   }
 
   function showError(err) {
@@ -678,7 +870,11 @@
 
   function onTeamOrSeasonChange() {
     persistTeam(teamName());
-    loadSchedule().catch(showError);
+    loadTeamBrandIndex()
+      .then(function () {
+        return loadSchedule();
+      })
+      .catch(showError);
     if (state.activeTab === "leaderboard") loadLeaderboard().catch(showError);
   }
 
@@ -701,10 +897,16 @@
 
     $("saveBtn").addEventListener("click", savePredictions);
 
-    $("lbViewSelect").addEventListener("change", function (e) {
+    document.querySelectorAll(".bama-lb-scope-btn").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        setLbScope(btn.getAttribute("data-lb-scope"));
+      });
+    });
+
+    $("lbGameSelect").addEventListener("change", function (e) {
       var v = e.target.value;
-      state.lbGameId = v === "season" ? null : Number(v);
-      loadLeaderboard().catch(showError);
+      state.lbGameId = v ? Number(v) : null;
+      if (state.lbScope === "game" && state.lbGameId) loadLeaderboard().catch(showError);
     });
 
     if (window.location.hash === "#leaderboard") setTab("leaderboard");
@@ -719,7 +921,8 @@
     populateSeasonSelect();
     bindEvents();
     refreshAuthUi();
-    await loadTeams();
+    var brandingLoad = window.RecruitTeamBranding ? RecruitTeamBranding.load() : Promise.resolve();
+    await Promise.all([loadTeams(), brandingLoad, loadTeamBrandIndex()]);
     persistTeam(teamName());
     loadSchedule().catch(showError);
     document.addEventListener("auth:changed", refreshAuthUi);

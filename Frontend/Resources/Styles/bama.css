@@ -158,9 +158,24 @@
 .bama-progress-top {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
+  align-items: center;
   gap: 1rem;
   margin-bottom: 0.55rem;
+}
+
+.bama-progress-team-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.bama-progress-logo {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.35));
 }
 
 .bama-progress-team {
@@ -297,6 +312,44 @@
   background: rgba(125, 207, 138, 0.12);
 }
 
+.bama-matchup-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.bama-team-logo {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.bama-match-logo {
+  filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.3));
+}
+
+.bama-match-logo-opp {
+  margin-left: auto;
+}
+
+.bama-logo-fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.22), rgba(255, 160, 0, 0.12));
+  border: 1px solid rgba(255, 215, 0, 0.28);
+  color: #ffe566;
+  font-family: "Barlow Condensed", Impact, sans-serif;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
 .bama-matchup {
   font-family: "Barlow Condensed", Impact, sans-serif;
   color: #fff;
@@ -305,6 +358,15 @@
   font-weight: 700;
   letter-spacing: 0.01em;
   line-height: 1.1;
+  flex: 1;
+  min-width: 0;
+}
+
+.bama-matchup-loc {
+  color: rgba(243, 230, 208, 0.55);
+  font-weight: 600;
+  text-transform: lowercase;
+  font-size: 0.92em;
 }
 
 .bama-pick-row {
@@ -352,10 +414,28 @@
 
 .bama-score-pair {
   display: inline-flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 0.35rem;
   font-weight: 700;
   color: var(--sp-muted);
+}
+
+.bama-score-field {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  margin: 0;
+}
+
+.bama-score-label {
+  font-family: "Barlow Condensed", Impact, sans-serif;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 215, 0, 0.75);
+  line-height: 1;
 }
 
 .bama-score-pair input[type="number"] {
@@ -387,6 +467,7 @@
 .bama-score-sep {
   color: rgba(243, 230, 208, 0.45);
   font-size: 1.1rem;
+  padding-bottom: 0.45rem;
 }
 
 /* Sticky save bar */
@@ -462,6 +543,48 @@
 .bama-grade-correct { color: var(--sp-win); }
 .bama-grade-wrong { color: var(--sp-loss); }
 
+.bama-lb-scope {
+  display: inline-flex;
+  gap: 0;
+  padding: 3px;
+  margin-bottom: 0.85rem;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid var(--sp-line);
+}
+
+.bama-lb-scope-btn {
+  border: 0;
+  background: transparent;
+  color: var(--sp-muted);
+  padding: 0.4rem 0.95rem;
+  border-radius: 999px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 0.85rem;
+  transition: color 0.2s ease, background 0.2s ease;
+}
+
+.bama-lb-scope-btn:hover {
+  color: var(--sp-ink);
+}
+
+.bama-lb-scope-btn.active {
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.28), rgba(255, 160, 0, 0.18));
+  color: #ffe566;
+  box-shadow: inset 0 0 0 1px rgba(255, 215, 0, 0.35);
+}
+
+.bama-lb-game-field {
+  margin-bottom: 1rem;
+  max-width: 100%;
+}
+
+.bama-lb-game-field .site-select {
+  width: 100%;
+  max-width: 28rem;
+}
+
 .bama-lb-controls {
   margin-bottom: 1rem;
   padding-bottom: 0.75rem;
@@ -502,6 +625,20 @@ body.sp-leaderboard-view .bama-actions-spacer {
     grid-template-columns: 1fr;
     gap: 0.7rem;
     padding: 0.95rem 0.1rem 0.95rem 0.7rem;
+  }
+
+  .bama-matchup-wrap {
+    gap: 0.5rem;
+  }
+
+  .bama-match-logo-opp {
+    margin-left: 0;
+  }
+
+  .bama-team-logo,
+  .bama-logo-fallback {
+    width: 28px;
+    height: 28px;
   }
 
   .bama-pick-row {

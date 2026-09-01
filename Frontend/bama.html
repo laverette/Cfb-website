@@ -58,9 +58,12 @@
 
       <div id="progressCard" class="bama-progress" hidden>
         <div class="bama-progress-top">
-          <div>
-            <p class="bama-progress-team" id="progressTeam">—</p>
-            <p class="bama-progress-meta" id="progressText">0 / 0 games predicted</p>
+          <div class="bama-progress-team-wrap">
+            <img id="progressTeamLogo" class="bama-progress-logo" alt="" width="44" height="44" hidden>
+            <div>
+              <p class="bama-progress-team" id="progressTeam">—</p>
+              <p class="bama-progress-meta" id="progressText">0 / 0 games predicted</p>
+            </div>
           </div>
           <a id="myProfileQuickLink" class="bama-link-quiet" href="user-profile.html">Profile →</a>
         </div>
@@ -81,14 +84,16 @@
     </section>
 
     <section id="leaderboardPanel" class="bama-panel" hidden>
-      <div class="bama-lb-controls">
-        <label class="bama-field">
-          <span>View</span>
-          <select id="lbViewSelect" class="site-select">
-            <option value="season">Season standings</option>
-          </select>
-        </label>
+      <div class="bama-lb-scope" role="tablist" aria-label="Leaderboard scope">
+        <button type="button" class="bama-lb-scope-btn active" data-lb-scope="season" role="tab" aria-selected="true">Season</button>
+        <button type="button" class="bama-lb-scope-btn" data-lb-scope="game" role="tab" aria-selected="false">By game</button>
       </div>
+      <label id="lbGameField" class="bama-field bama-lb-game-field" hidden>
+        <span>Game</span>
+        <select id="lbGameSelect" class="site-select">
+          <option value="">Select a game…</option>
+        </select>
+      </label>
 
       <section id="bamaPodium" class="lb-podium" hidden></section>
 
@@ -105,12 +110,13 @@
             <tbody id="lbBody"></tbody>
           </table>
         </div>
-        <p id="lbEmpty" class="bama-empty" hidden>No predictions yet — be the first to submit your schedule!</p>
+        <p id="lbEmpty" class="bama-empty" hidden>No one has submitted picks for this team yet. Switch to <strong>My Predictions</strong> and be the first on the board.</p>
       </section>
     </section>
   </main>
 
   <script src="scripts/auth-ui.js"></script>
+  <script src="scripts/recruit-team-branding.js"></script>
   <script src="scripts/bama-schedule.js"></script>
   <script>
     function closeMenu() {
