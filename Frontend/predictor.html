@@ -4,11 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CFB Matchup Predictor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
   <link rel="stylesheet" href="styles/site-theme.css">
   <link rel="stylesheet" href="Resources/Styles/power.css">
 </head>
-<body>
+<body class="power-rankings-body">
   <nav class="navbar weeklypicks-navbar site-nav">
     <div class="container-fluid">
       <div class="navbar-content-weekly site-nav-inner">
@@ -23,48 +26,73 @@
   </nav>
   <div class="menu-overlay" id="menuOverlay" onclick="closeMenu()"></div>
 
-  <main class="container page-shell power-page">
-    <h1 class="page-title">Matchup Predictor</h1>
-    <p class="power-subtitle">
-      Spreads come from raw power ratings (points above average), not the 0–100 Power Score.
-    </p>
+  <main class="container page-shell power-page matchup-page">
+    <header class="power-header">
+      <p class="power-eyebrow">Power model</p>
+      <h1 class="power-title">Matchup Predictor</h1>
+      <p class="power-subtitle">
+        Spreads come from raw power ratings (points above average), not the 0–100 Power Score.
+      </p>
+    </header>
 
     <div class="matchup-grid">
-      <section class="section-card matchup-controls">
-        <div class="mb-3">
-          <label class="form-label" for="teamA">Team A</label>
-          <select id="teamA" class="form-select"></select>
+      <section class="matchup-panel matchup-panel-form" aria-labelledby="matchupFormTitle">
+        <div class="matchup-panel-head">
+          <h2 id="matchupFormTitle" class="matchup-panel-title">Build matchup</h2>
+          <p class="matchup-panel-lead">Select two teams, set venue and optional personnel tweaks.</p>
         </div>
-        <div class="mb-3">
-          <label class="form-label" for="teamB">Team B</label>
-          <select id="teamB" class="form-select"></select>
-        </div>
-        <div class="mb-3">
-          <label class="form-label" for="venue">Venue</label>
-          <select id="venue" class="form-select">
-            <option value="neutral">Neutral site</option>
-            <option value="a_home">Team A home</option>
-            <option value="b_home">Team B home</option>
-          </select>
-        </div>
-        <div class="row mb-3">
-          <div class="col-6">
-            <label class="form-label" for="persA">Team A personnel adj</label>
-            <input id="persA" type="number" step="0.5" value="0" class="form-control" title="Points (e.g. -3 if QB out)">
+
+        <form class="matchup-form" id="matchupForm" onsubmit="return false;">
+          <div class="matchup-team-row">
+            <label class="power-field matchup-team-field">
+              <span>Team A</span>
+              <select id="teamA" class="site-select matchup-select" required></select>
+            </label>
+            <div class="matchup-vs-badge" aria-hidden="true">VS</div>
+            <label class="power-field matchup-team-field">
+              <span>Team B</span>
+              <select id="teamB" class="site-select matchup-select" required></select>
+            </label>
           </div>
-          <div class="col-6">
-            <label class="form-label" for="persB">Team B personnel adj</label>
-            <input id="persB" type="number" step="0.5" value="0" class="form-control">
+
+          <label class="power-field">
+            <span>Venue</span>
+            <select id="venue" class="site-select matchup-select">
+              <option value="neutral">Neutral site</option>
+              <option value="a_home">Team A home</option>
+              <option value="b_home">Team B home</option>
+            </select>
+          </label>
+
+          <div class="matchup-adj-row">
+            <label class="power-field">
+              <span>Team A personnel adj</span>
+              <input id="persA" type="number" step="0.5" value="0" class="site-select matchup-input" title="Points (e.g. -3 if QB out)">
+            </label>
+            <label class="power-field">
+              <span>Team B personnel adj</span>
+              <input id="persB" type="number" step="0.5" value="0" class="site-select matchup-input">
+            </label>
           </div>
+
+          <button type="button" class="btn btn-gold matchup-submit-btn" id="predictBtn">
+            Predict matchup
+          </button>
+          <p class="matchup-form-note">Optional personnel adjustments are manual point impacts (QB out ≈ negative).</p>
+        </form>
+
+        <div class="matchup-panel-foot">
+          <a class="matchup-link-rankings" href="power-rankings.html">View Power Rankings →</a>
         </div>
-        <button type="button" class="btn btn-gold w-100" id="predictBtn">Predict matchup</button>
-        <p class="matchup-note">Optional personnel adjustments are manual point impacts (QB out ≈ negative).</p>
-        <a class="btn btn-brown w-100 mt-2" href="power-rankings.html">View Power Rankings</a>
       </section>
 
-      <section class="section-card" id="resultCard">
-        <p class="power-loading" id="resultPlaceholder">Pick two teams and hit predict.</p>
-        <div id="resultBody" hidden></div>
+      <section class="matchup-panel matchup-panel-result" id="resultCard" aria-live="polite">
+        <div class="matchup-empty" id="resultPlaceholder">
+          <div class="matchup-empty-icon" aria-hidden="true">🏈</div>
+          <h2 class="matchup-empty-title">Ready to predict</h2>
+          <p class="matchup-empty-text">Pick two teams and hit <strong>Predict matchup</strong> to see projected spread, win odds, and category breakdown.</p>
+        </div>
+        <div id="resultBody" class="matchup-result" hidden></div>
       </section>
     </div>
   </main>
@@ -97,48 +125,78 @@
       fillSelects();
     }
 
+    function edgeClass(edge) {
+      const n = Number(String(edge || '').replace(/[^0-9.\-]/g, ''));
+      if (!Number.isFinite(n) || n === 0) return '';
+      return n > 0 ? 'is-pos' : 'is-neg';
+    }
+
+    function renderComparisonRow(label, aVal, bVal, edge) {
+      return `
+        <div class="matchup-stat-row">
+          <span class="matchup-stat-label">${escapeHtml(label)}</span>
+          <span class="matchup-stat-val">${escapeHtml(aVal)}</span>
+          <span class="matchup-stat-val">${escapeHtml(bVal)}</span>
+          <span class="matchup-stat-edge ${edgeClass(edge)}">${escapeHtml(edge)}</span>
+        </div>
+      `;
+    }
+
     function renderPrediction(pred) {
       const p = pred.prediction || pred;
       const a = p.teamA;
       const b = p.teamB;
       const c = p.comparisons || {};
+      const aWin = Math.max(0, Math.min(100, Number(a.winProbability) || 0));
+      const bWin = Math.max(0, Math.min(100, Number(b.winProbability) || 0));
+
       document.getElementById('resultPlaceholder').hidden = true;
       const body = document.getElementById('resultBody');
       body.hidden = false;
       body.innerHTML = `
-        <div class="matchup-hero">
-          <p class="lb-eyebrow" style="color:#ffd700;font-weight:800;letter-spacing:0.06em;text-transform:uppercase;margin:0;">Predicted winner</p>
+        <div class="matchup-result-hero">
+          <p class="matchup-result-eyebrow">Predicted winner</p>
           <h2 class="matchup-winner">${escapeHtml(p.predictedWinner.name)}</h2>
-          <p class="matchup-spread">${escapeHtml(p.projectedSpreadLabel)}</p>
+          <p class="matchup-spread-pill">${escapeHtml(p.projectedSpreadLabel)}</p>
         </div>
-        <div class="matchup-probs">
-          <div class="matchup-prob-card">
-            <strong>${a.winProbability}%</strong>
-            <span>${escapeHtml(a.name)}</span>
+
+        <div class="matchup-prob-section">
+          <div class="matchup-prob-labels">
+            <span class="matchup-prob-name">${escapeHtml(a.name)}</span>
+            <span class="matchup-prob-name">${escapeHtml(b.name)}</span>
           </div>
-          <div class="matchup-prob-card">
-            <strong>${b.winProbability}%</strong>
-            <span>${escapeHtml(b.name)}</span>
+          <div class="matchup-prob-track" role="img" aria-label="${escapeHtml(a.name)} ${aWin}%, ${escapeHtml(b.name)} ${bWin}%">
+            <div class="matchup-prob-seg matchup-prob-seg-a" style="width:${aWin}%">
+              <span>${aWin}%</span>
+            </div>
+            <div class="matchup-prob-seg matchup-prob-seg-b" style="width:${bWin}%">
+              <span>${bWin}%</span>
+            </div>
           </div>
         </div>
+
         <p class="matchup-explain">${escapeHtml(p.explanation)}</p>
-        <table class="matchup-compare">
-          <thead>
-            <tr><th></th><th>${escapeHtml(a.name)}</th><th>${escapeHtml(b.name)}</th><th>Edge</th></tr>
-          </thead>
-          <tbody>
-            <tr><td>Raw power</td><td>${a.rawPower}</td><td>${b.rawPower}</td><td>${c.power}</td></tr>
-            <tr><td>Offense</td><td>${a.offenseRating}</td><td>${b.offenseRating}</td><td>${c.offense}</td></tr>
-            <tr><td>Defense</td><td>${a.defenseRating}</td><td>${b.defenseRating}</td><td>${c.defense}</td></tr>
-            <tr><td>Special teams</td><td>${a.specialTeamsRating}</td><td>${b.specialTeamsRating}</td><td>${c.specialTeams}</td></tr>
-            <tr><td>Talent</td><td>${a.talentRating}</td><td>${b.talentRating}</td><td>${c.talent}</td></tr>
-            <tr><td>SOS</td><td>${a.sosRating}</td><td>${b.sosRating}</td><td>${c.sos}</td></tr>
-          </tbody>
-        </table>
-        <p class="matchup-note">
-          Neutral margin ${p.neutralMargin} · Venue adj ${p.venueAdjustment} ·
-          Projected margin (Team A perspective) ${p.projectedMargin}
-        </p>
+
+        <div class="matchup-stats-card">
+          <div class="matchup-stats-head">
+            <span></span>
+            <span>${escapeHtml(a.name)}</span>
+            <span>${escapeHtml(b.name)}</span>
+            <span>Edge</span>
+          </div>
+          ${renderComparisonRow('Raw power', a.rawPower, b.rawPower, c.power)}
+          ${renderComparisonRow('Offense', a.offenseRating, b.offenseRating, c.offense)}
+          ${renderComparisonRow('Defense', a.defenseRating, b.defenseRating, c.defense)}
+          ${renderComparisonRow('Special teams', a.specialTeamsRating, b.specialTeamsRating, c.specialTeams)}
+          ${renderComparisonRow('Talent', a.talentRating, b.talentRating, c.talent)}
+          ${renderComparisonRow('SOS', a.sosRating, b.sosRating, c.sos)}
+        </div>
+
+        <div class="matchup-meta-chips">
+          <span class="matchup-meta-chip">Neutral margin ${escapeHtml(p.neutralMargin)}</span>
+          <span class="matchup-meta-chip">Venue adj ${escapeHtml(p.venueAdjustment)}</span>
+          <span class="matchup-meta-chip">Projected margin ${escapeHtml(p.projectedMargin)}</span>
+        </div>
       `;
     }
 
@@ -166,8 +224,13 @@
         if (!resp.ok) throw new Error(data.details || data.error || 'Predict failed');
         renderPrediction(data);
       } catch (err) {
-        document.getElementById('resultPlaceholder').hidden = false;
-        document.getElementById('resultPlaceholder').textContent = err.message || 'Failed';
+        const placeholder = document.getElementById('resultPlaceholder');
+        placeholder.hidden = false;
+        placeholder.innerHTML = `
+          <div class="matchup-empty-icon" aria-hidden="true">⚠️</div>
+          <h2 class="matchup-empty-title">Could not predict</h2>
+          <p class="matchup-empty-text">${escapeHtml(err.message || 'Failed')}</p>
+        `;
         document.getElementById('resultBody').hidden = true;
       } finally {
         btn.disabled = false;
@@ -178,7 +241,12 @@
     document.getElementById('predictBtn').addEventListener('click', predict);
     document.addEventListener('DOMContentLoaded', () => {
       loadTeams().catch((err) => {
-        document.getElementById('resultPlaceholder').textContent = err.message || 'Could not load teams';
+        const placeholder = document.getElementById('resultPlaceholder');
+        placeholder.innerHTML = `
+          <div class="matchup-empty-icon" aria-hidden="true">⚠️</div>
+          <h2 class="matchup-empty-title">Teams unavailable</h2>
+          <p class="matchup-empty-text">${escapeHtml(err.message || 'Could not load teams')}</p>
+        `;
       });
     });
 
