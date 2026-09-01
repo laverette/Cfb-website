@@ -1,7 +1,7 @@
 {
-  "version": 1,
+  "version": 2,
   "season": 2026,
-  "description": "FBS football conference membership for 2026 realignment (Pac-12 expansion, Mountain West reshuffle).",
+  "description": "FBS football conference membership for 2026 realignment (Pac-12 expansion, MAC adds Sacramento State, Mountain West adds North Dakota State).",
   "conferences": {
     "SEC": [
       "Alabama",
@@ -117,8 +117,8 @@
       "Eastern Michigan",
       "Kent State",
       "Miami (OH)",
-      "Northern Illinois",
       "Ohio",
+      "Sacramento State",
       "Toledo",
       "Western Michigan"
     ],
@@ -127,6 +127,8 @@
       "Hawai'i",
       "Nevada",
       "New Mexico",
+      "North Dakota State",
+      "Northern Illinois",
       "San José State",
       "UNLV",
       "Wyoming"
@@ -137,7 +139,6 @@
       "Fresno State",
       "Oregon State",
       "San Diego State",
-      "Texas State",
       "Utah State",
       "Washington State"
     ],
@@ -153,6 +154,7 @@
       "Old Dominion",
       "South Alabama",
       "Southern Miss",
+      "Texas State",
       "Troy",
       "UL Monroe"
     ],
@@ -161,5 +163,21 @@
       "Notre Dame",
       "UConn"
     ]
-  }
+  },
+  "supplementalTeams": [
+    {
+      "school": "Sacramento State",
+      "mascot": "Hornets",
+      "abbreviation": "SAC",
+      "conference": "MAC",
+      "logoUrl": "https://a.espncdn.com/i/teamlogos/ncaa/500/16.png"
+    },
+    {
+      "school": "North Dakota State",
+      "mascot": "Bison",
+      "abbreviation": "NDSU",
+      "conference": "Mountain West",
+      "logoUrl": "https://a.espncdn.com/i/teamlogos/ncaa/500/2440.png"
+    }
+  ]
 }

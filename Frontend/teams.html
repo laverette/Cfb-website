@@ -62,6 +62,7 @@
     </main>
 
     <script src="scripts/auth-ui.js"></script>
+    <script src="scripts/fbs-conferences.js"></script>
     <script>
         // ---------------------------------------------------------------------
         // CFBD integration (Phase 5)
@@ -122,6 +123,7 @@
             'fbs indep.': 'FBS',
             'fbs indep': 'FBS',
             independent: 'FBS',
+            independents: 'IND',
         };
 
         function conferenceAbbreviation(conf) {
@@ -172,7 +174,7 @@
             { name: "Auburn Tigers", conference: "SEC", logoId: "2" },
             { name: "Ball State Cardinals", conference: "MAC", logoId: "2050" },
             { name: "Baylor Bears", conference: "Big 12", logoId: "239" },
-            { name: "Boise State Broncos", conference: "Mountain West", logoId: "68" },
+            { name: "Boise State Broncos", conference: "Pac-12", logoId: "68" },
             { name: "Boston College Eagles", conference: "ACC", logoId: "103" },
             { name: "Bowling Green Falcons", conference: "MAC", logoId: "189" },
             { name: "Buffalo Bulls", conference: "MAC", logoId: "2084" },
@@ -184,7 +186,7 @@
             { name: "Clemson Tigers", conference: "ACC", logoId: "228" },
             { name: "Coastal Carolina Chanticleers", conference: "Sun Belt", logoId: "324" },
             { name: "Colorado Buffaloes", conference: "Big 12", logoId: "38" },
-            { name: "Colorado State Rams", conference: "Mountain West", logoId: "36" },
+            { name: "Colorado State Rams", conference: "Pac-12", logoId: "36" },
             { name: "Delaware Blue Hens", conference: "CUSA", logoId: "2697" },
             { name: "Duke Blue Devils", conference: "ACC", logoId: "150" },
             { name: "East Carolina Pirates", conference: "American", logoId: "151" },
@@ -193,7 +195,7 @@
             { name: "Florida Atlantic Owls", conference: "American", logoId: "2226" },
             { name: "Florida International Panthers", conference: "CUSA", logoId: "2229" },
             { name: "Florida State Seminoles", conference: "ACC", logoId: "52" },
-            { name: "Fresno State Bulldogs", conference: "Mountain West", logoId: "278" },
+            { name: "Fresno State Bulldogs", conference: "Pac-12", logoId: "278" },
             { name: "Georgia Bulldogs", conference: "SEC", logoId: "61" },
             { name: "Georgia Southern Eagles", conference: "Sun Belt", logoId: "290" },
             { name: "Georgia State Panthers", conference: "Sun Belt", logoId: "2247" },
@@ -237,7 +239,8 @@
             { name: "New Mexico State Aggies", conference: "CUSA", logoId: "166" },
             { name: "North Carolina Tar Heels", conference: "ACC", logoId: "153" },
             { name: "North Texas Mean Green", conference: "American", logoId: "249" },
-            { name: "Northern Illinois Huskies", conference: "MAC", logoId: "2459" },
+            { name: "North Dakota State Bison", conference: "Mountain West", logoId: "2440" },
+            { name: "Northern Illinois Huskies", conference: "Mountain West", logoId: "2459" },
             { name: "Northwestern Wildcats", conference: "Big Ten", logoId: "77" },
             { name: "Notre Dame Fighting Irish", conference: "FBS Indep.", logoId: "87" },
             { name: "Ohio Bobcats", conference: "MAC", logoId: "195" },
@@ -254,7 +257,8 @@
             { name: "Rice Owls", conference: "American", logoId: "242" },
             { name: "Rutgers Scarlet Knights", conference: "Big Ten", logoId: "164" },
             { name: "Sam Houston Bearkats", conference: "CUSA", logoId: "2569" },
-            { name: "San Diego State Aztecs", conference: "Mountain West", logoId: "21" },
+            { name: "Sacramento State Hornets", conference: "MAC", logoId: "16" },
+            { name: "San Diego State Aztecs", conference: "Pac-12", logoId: "21" },
             { name: "San José State Spartans", conference: "Mountain West", logoId: "23" },
             { name: "SMU Mustangs", conference: "ACC", logoId: "2567" },
             { name: "South Alabama Jaguars", conference: "Sun Belt", logoId: "6" },
@@ -281,7 +285,7 @@
             { name: "UL Monroe Warhawks", conference: "Sun Belt", logoId: "2433" },
             { name: "UNLV Rebels", conference: "Mountain West", logoId: "2439" },
             { name: "USC Trojans", conference: "Big Ten", logoId: "30" },
-            { name: "Utah State Aggies", conference: "Mountain West", logoId: "328" },
+            { name: "Utah State Aggies", conference: "Pac-12", logoId: "328" },
             { name: "Utah Utes", conference: "Big 12", logoId: "254" },
             { name: "UTEP Miners", conference: "CUSA", logoId: "2638" },
             { name: "UTSA Roadrunners", conference: "American", logoId: "2636" },
@@ -334,21 +338,37 @@
             return { collegeName, mascot, fullName: teamName };
         }
 
-        // Build conference dropdown options
+        async function finalizeTeamsWith2026Conferences(teams) {
+            if (!window.FbsConferences) return teams;
+            await FbsConferences.load();
+            let out = FbsConferences.applyConferenceOverrides(teams, conferenceAbbreviation);
+            out = FbsConferences.mergeSupplementalTeams(out, conferenceAbbreviation);
+            return out;
+        }
+
+        // Build conference dropdown options (canonical 2026 list + abbreviations)
         function populateConferenceFilter(allTeams) {
             const select = document.getElementById('conferenceFilter');
             if (!select) return;
 
-            const conferences = Array.from(new Set(
+            const canonical = (window.FbsConferences && FbsConferences.getConferenceList()) || [];
+            const fromTeams = Array.from(new Set(
                 (allTeams || [])
                     .map(t => String(t.conference || '').trim())
                     .filter(Boolean)
-            )).sort((a, b) => a.localeCompare(b));
+            ));
+            const conferences = (canonical.length ? canonical : fromTeams)
+                .filter((c, i, arr) => arr.indexOf(c) === i)
+                .sort((a, b) => a.localeCompare(b));
 
-            // Preserve current selection if possible
             const current = select.value || '';
             select.innerHTML = `<option value="">All Conferences</option>` + conferences
-                .map(c => `<option value="${c}">${c}</option>`)
+                .map(c => {
+                    const abbr = conferenceAbbreviation(c);
+                    const count = (allTeams || []).filter(t => String(t.conference || '').trim() === c).length;
+                    const label = count ? `${abbr} (${count})` : abbr;
+                    return `<option value="${c}">${label}</option>`;
+                })
                 .join('');
             select.value = conferences.includes(current) ? current : '';
         }
@@ -502,23 +522,29 @@
                     }
                     // Per requirement: /.netlify/functions/cfbd?path=/teams/fbs&year=2026
                     const cfbdTeams = await cfbdProxyRequest('/teams/fbs', { year: 2026 });
-                    const normalized = (Array.isArray(cfbdTeams) ? cfbdTeams : [])
+                    let normalized = (Array.isArray(cfbdTeams) ? cfbdTeams : [])
                         .map(normalizeTeamFromCfbd)
                         .sort((a, b) => String(a.school || a.name).localeCompare(String(b.school || b.name)));
 
                     if (normalized.length === 0) throw new Error('CFBD returned no teams.');
+                    normalized = await finalizeTeamsWith2026Conferences(normalized);
                     wireSearch(normalized);
                 } catch (e) {
                     // Fall back to the existing static list so Teams page never breaks.
-                    const normalizedFallback = fallbackTeams.map(t => ({
-                        ...t,
-                        teamKey: encodeURIComponent(t.name),
-                        logoUrl: t.logoId ? `https://a.espncdn.com/i/teamlogos/ncaa/500/${t.logoId}.png` : '',
-                        abbreviation: '',
-                        school: t.name,
-                        mascot: '',
-                        conferenceAbbr: conferenceAbbreviation(t.conference),
-                    }));
+                    let normalizedFallback = fallbackTeams.map(t => {
+                        const parsed = parseTeamName(t.name);
+                        return {
+                            ...t,
+                            teamKey: encodeURIComponent(t.name),
+                            logoUrl: t.logoId ? `https://a.espncdn.com/i/teamlogos/ncaa/500/${t.logoId}.png` : '',
+                            abbreviation: '',
+                            school: parsed.collegeName || t.name,
+                            mascot: parsed.mascot || '',
+                            name: t.name,
+                            conferenceAbbr: conferenceAbbreviation(t.conference),
+                        };
+                    });
+                    normalizedFallback = await finalizeTeamsWith2026Conferences(normalizedFallback);
                     wireSearch(normalizedFallback);
                 }
             })();
