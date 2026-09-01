@@ -279,72 +279,23 @@
     
     <div class="leaderboards-container">
       <div class="Leaderboard last-week">
-        <h3 class="leaderboard-title">🏆 Last Week</h3>
-        <ol class="leaderboard-list">
-          
-          <li class="leaderboard-list-item"> Gracie 5-3 <span class="percentage">63%</span><span class="ranking-change up">▲ 5</span></li>
-          <li class="leaderboard-list-item"> Blake 4-4 <span class="percentage">50%</span><span class="ranking-change up">▲ 4</span></li>
-          <li class="leaderboard-list-item"> Logan 4-4 <span class="percentage">50%</span><span class="ranking-change down">▼ 2</span></li>
-          <li class="leaderboard-list-item"> Blake's AI Model 4-4 <span class="percentage">50%</span><span class="ranking-change down">▼ 2</span></li>
-          <li class="leaderboard-list-item"> Michaela 3-5 <span class="percentage">38%</span><span class="ranking-change up">▲ 1</span></li>
-          <li class="leaderboard-list-item"> Katelyn 2-6 <span class="percentage">25%</span><span class="ranking-change down">▼ 3</span></li>
+        <h3 class="leaderboard-title" id="weekBoardTitle">🏆 This Week</h3>
+        <ol class="leaderboard-list" id="weekLeaderboardList">
+          <li class="leaderboard-list-item">Loading standings…</li>
         </ol>
       </div>
       <div class="Leaderboard all-time">
         <h3 class="leaderboard-title">🏆 All Time</h3>
-        <ol class="leaderboard-list">
-          <li class="leaderboard-list-item">Blake 120-44 <span class="percentage">73.17%</span><span class="ranking-change up">▲ 1</span></li>
-          <li class="leaderboard-list-item">Michaela 111-41 <span class="percentage">73.03%</span><span class="ranking-change down">▼ 1</span></li>
-          <li class="leaderboard-list-item">Logan 118-46<span class="percentage">71.95%</span><span class="ranking-change up">▲ 1</span></li>
-          <li class="leaderboard-list-item">Gracie 106-46 <span class="percentage">69.74%</span><span class="ranking-change up">▲ 1</span></li>
-          <li class="leaderboard-list-item">Katelyn 104-48 <span class="percentage">68.42%</span><span class="ranking-change down">▼ 1</span></li>
-          <li class="leaderboard-list-item">Chase 65-31 <span class="percentage">67.71%</span><span class="ranking-change none">-</span></li>
-          <li class="leaderboard-list-item">Blake's AI Model 66-26  <span class="percentage">71.74%</span><span class="ranking-change down">▼ 3</span></li>
-          <li class="leaderboard-list-item">Allie 22-14 <span class="percentage">61.1%</span><span class="ranking-change none">-</span></li>
+        <ol class="leaderboard-list" id="allTimeLeaderboardList">
+          <li class="leaderboard-list-item">Loading standings…</li>
         </ol>
       </div>
     </div>
 
-    <!-- WEEK 10 Analysis Section -->
-    <div class="analysis-container">
+    <div class="analysis-container" id="resultsAnalysisContainer" hidden>
       <h3 class="analysis-title" id="analysisTitle">📊 Weekly Analysis</h3>
       <div class="analysis-content">
-        <div class="analysis-stats">
-          <div class="stat-highlight">
-            <span class="stat-icon">⏰</span>
-            <span class="stat-text">Blake and Michaela are seperated by only .14% all time. Who will pull ahead?</span>
-          </div>
-          <div class="stat-highlight">
-              <span class="stat-icon">🎯</span>
-              <span class="stat-text">Gracie was the only user to correctly pick Kennesaw State to beat Jacksonville State!</span>
-            </div>
-          <div class="stat-highlight">
-            <span class="stat-icon">📉</span>
-            <span class="stat-text">Everyone did horrible this week, so don't feel like you're the only one!</span>
-          </div>
-          <div class="stat-highlight">
-            <span class="stat-icon">🗑️</span>
-            <span class="stat-text">All users combined this week went 22-26 (45.83%). Down 33.93% from last week. Good for worst week of all time!</span>
-          </div>
-          <div class="stat-highlight">
-            <span class="stat-icon">❌</span>
-            <span class="stat-text">Not a single user correctly picked Indiana to beat Ohio State!</span>
-          </div>
-          <div class="stat-highlight">
-            <span class="stat-icon">❌</span>
-            <span class="stat-text">100% Consensus on Alabama beating Georgia! And it was wrong!</span>
-          </div>
-        </div>
-        
-        <div class="analysis-insights">
-          <h4 class="insights-title">🔑 Keys for Bowl Season</h4>
-          <ul class="insights-list">
-            <li>How will Alabama handle another rematch?</li>
-            <li>There will be an XBOX Bowl this year!</li>
-            <li>How many live poptarts will be at the Pop Tart Bowl?</li>
-            <li>Can either Tulane or James Madison pull of an upset?</li>
-          </ul>
-        </div>
+        <div class="analysis-stats" id="resultsAnalysisStats"></div>
       </div>
     </div>
   </div>
@@ -529,6 +480,9 @@
 
       const analysisTitle = document.getElementById('analysisTitle');
       if (analysisTitle) analysisTitle.textContent = `📊 ${weekPart} Analysis`;
+
+      const weekBoardTitle = document.getElementById('weekBoardTitle');
+      if (weekBoardTitle) weekBoardTitle.textContent = `🏆 ${weekPart}`;
     }
 
     function showDbPicksContainer() {
@@ -1916,6 +1870,170 @@
     });
 
     // Tab functionality
+    let resultsLeaderboardInterval = null;
+
+    function recordLabel(entry) {
+      const w = entry.correctPicks || 0;
+      const l = entry.incorrectPicks || 0;
+      const pending = entry.pendingPicks || 0;
+      if (pending > 0 && w + l === 0) return '—';
+      return `${w}-${l}`;
+    }
+
+    function renderResultsLeaderboardList(containerId, entries, { emptyMessage } = {}) {
+      const list = document.getElementById(containerId);
+      if (!list) return;
+      const rows = (entries || []).filter((e) => e.totalPicks > 0);
+      if (!rows.length) {
+        list.innerHTML = `<li class="leaderboard-list-item">${safeText(emptyMessage || 'No picks yet')}</li>`;
+        return;
+      }
+      list.innerHTML = rows.map((e) => {
+        const name = safeText(e.displayName || e.username || 'Player');
+        const record = recordLabel(e);
+        const pct = Number(e.accuracy || 0).toFixed(1);
+        const pending = e.pendingPicks > 0
+          ? ` <span class="percentage" style="opacity:0.7;">(${e.pendingPicks} pending)</span>`
+          : '';
+        return `<li class="leaderboard-list-item">${name} ${record} <span class="percentage">${pct}%</span>${pending}</li>`;
+      }).join('');
+    }
+
+    function renderResultsAnalysis(weekBoard) {
+      const container = document.getElementById('resultsAnalysisContainer');
+      const statsEl = document.getElementById('resultsAnalysisStats');
+      if (!container || !statsEl) return;
+
+      const entries = (weekBoard?.entries || []).filter((e) => e.totalPicks > 0);
+      if (!entries.length) {
+        container.hidden = true;
+        return;
+      }
+
+      let totalCorrect = 0;
+      let totalIncorrect = 0;
+      let totalPending = 0;
+      let players = 0;
+      for (const e of entries) {
+        players += 1;
+        totalCorrect += e.correctPicks || 0;
+        totalIncorrect += e.incorrectPicks || 0;
+        totalPending += e.pendingPicks || 0;
+      }
+      const graded = totalCorrect + totalIncorrect;
+      const combinedPct = graded > 0 ? ((totalCorrect / graded) * 100).toFixed(1) : '—';
+      const leader = [...entries]
+        .filter((e) => e.gradedPicks > 0)
+        .sort((a, b) => b.correctPicks - a.correctPicks || b.accuracy - a.accuracy)[0];
+
+      const highlights = [];
+      highlights.push({
+        icon: '👥',
+        text: `${players} player${players === 1 ? '' : 's'} submitted picks this week.`,
+      });
+      if (graded > 0) {
+        highlights.push({
+          icon: '📊',
+          text: `Combined record: ${totalCorrect}-${totalIncorrect} (${combinedPct}%).`,
+        });
+      }
+      if (leader) {
+        highlights.push({
+          icon: '🏆',
+          text: `${leader.displayName || leader.username} leads with ${recordLabel(leader)} (${Number(leader.accuracy || 0).toFixed(1)}%).`,
+        });
+      }
+      if (totalPending > 0) {
+        highlights.push({
+          icon: '⏳',
+          text: `${totalPending} pick${totalPending === 1 ? '' : 's'} still pending — scores update when games finalize.`,
+        });
+      }
+
+      statsEl.innerHTML = highlights.map((h) => `
+        <div class="stat-highlight">
+          <span class="stat-icon">${h.icon}</span>
+          <span class="stat-text">${safeText(h.text)}</span>
+        </div>
+      `).join('');
+      container.hidden = false;
+    }
+
+    async function fetchResultsLeaderboard(scope, weekId) {
+      const params = new URLSearchParams({ scope });
+      if (scope === 'week' && weekId) params.set('weekId', String(weekId));
+      const resp = await fetch(`/api/leaderboard?${params}`, {
+        headers: { accept: 'application/json' },
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(data.error || `Failed (${resp.status})`);
+      return data;
+    }
+
+    async function loadResultsLeaderboards({ quiet = false } = {}) {
+      const weekList = document.getElementById('weekLeaderboardList');
+      const allList = document.getElementById('allTimeLeaderboardList');
+      if (!weekList || !allList) return;
+
+      if (!quiet) {
+        weekList.innerHTML = '<li class="leaderboard-list-item">Loading standings…</li>';
+        allList.innerHTML = '<li class="leaderboard-list-item">Loading standings…</li>';
+      }
+
+      try {
+        const weekId = activeWeekId;
+        const [weekBoard, allBoard] = await Promise.all([
+          fetchResultsLeaderboard('week', weekId),
+          fetchResultsLeaderboard('all'),
+        ]);
+
+        const weekTitle = document.getElementById('weekBoardTitle');
+        if (weekTitle && weekBoard.scopeLabel) {
+          weekTitle.textContent = `🏆 ${weekBoard.scopeLabel}`;
+        }
+
+        const weekRows = [...(weekBoard.entries || [])]
+          .filter((e) => e.totalPicks > 0)
+          .sort((a, b) => {
+            if (b.correctPicks !== a.correctPicks) return b.correctPicks - a.correctPicks;
+            if (b.accuracy !== a.accuracy) return b.accuracy - a.accuracy;
+            return (a.rank || 999) - (b.rank || 999);
+          });
+
+        const allRows = [...(allBoard.entries || [])]
+          .filter((e) => e.gradedPicks > 0)
+          .sort((a, b) => (a.rank || 999) - (b.rank || 999));
+
+        renderResultsLeaderboardList('weekLeaderboardList', weekRows, {
+          emptyMessage: 'No picks submitted yet this week.',
+        });
+        renderResultsLeaderboardList('allTimeLeaderboardList', allRows, {
+          emptyMessage: 'No graded picks yet.',
+        });
+        renderResultsAnalysis(weekBoard);
+      } catch (err) {
+        console.warn('loadResultsLeaderboards:', err);
+        weekList.innerHTML = `<li class="leaderboard-list-item">${safeText(err.message || 'Could not load standings')}</li>`;
+        allList.innerHTML = '<li class="leaderboard-list-item">Could not load standings</li>';
+      }
+    }
+
+    function startResultsLeaderboardRefresh() {
+      if (resultsLeaderboardInterval) return;
+      resultsLeaderboardInterval = setInterval(() => {
+        const resultsTab = document.getElementById('week10-results');
+        if (resultsTab && resultsTab.classList.contains('active')) {
+          loadResultsLeaderboards({ quiet: true });
+        }
+      }, 45000);
+    }
+
+    function stopResultsLeaderboardRefresh() {
+      if (!resultsLeaderboardInterval) return;
+      clearInterval(resultsLeaderboardInterval);
+      resultsLeaderboardInterval = null;
+    }
+
     function openTab(evt, tabName) {
       var i, tabcontent, tablinks;
       
@@ -1936,6 +2054,13 @@
       document.getElementById(tabName).classList.add("active");
       evt.currentTarget.classList.add("active");
       evt.currentTarget.setAttribute("aria-selected", "true");
+
+      if (tabName === 'week10-results') {
+        loadResultsLeaderboards();
+        startResultsLeaderboardRefresh();
+      } else {
+        stopResultsLeaderboardRefresh();
+      }
     }
 
     // Coach Corso chat
@@ -2623,6 +2748,11 @@
         cachedLiveScores = liveScores;
         renderDbGamesIntoForm(cachedDbGames, liveScores);
       }
+
+      const resultsTab = document.getElementById('week10-results');
+      if (resultsTab && resultsTab.classList.contains('active')) {
+        loadResultsLeaderboards({ quiet: true });
+      }
     }
 
     function startLiveScoresAutoRefresh() {
@@ -2664,6 +2794,7 @@
 
     window.addEventListener('beforeunload', () => {
       stopLiveScoresAutoRefresh();
+      stopResultsLeaderboardRefresh();
     });
 
 </script>

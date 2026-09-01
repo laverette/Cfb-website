@@ -692,10 +692,11 @@ async function resolveLeaderboardSeasonYear(requestedYear) {
 }
 
 /**
- * scope: 'all' | 'season' | 'year'
+ * scope: 'all' | 'season' | 'year' | 'week'
  * year: used for season/year scopes
+ * weekId: used for week scope
  */
-async function getLeaderboard({ scope = "all", year = null } = {}) {
+async function getLeaderboard({ scope = "all", year = null, weekId = null } = {}) {
   const supabase = getSupabase();
   const users = await listPublicUsers();
   const seasons = await listSeasonYears();
@@ -706,6 +707,7 @@ async function getLeaderboard({ scope = "all", year = null } = {}) {
       : seasons[0] ?? new Date().getFullYear();
 
   let filterYear = null;
+  let filterWeekId = null;
   let scopeLabel = "All Time";
   if (scope === "season") {
     filterYear = currentSeasonYear;
@@ -713,6 +715,30 @@ async function getLeaderboard({ scope = "all", year = null } = {}) {
   } else if (scope === "year") {
     filterYear = await resolveLeaderboardSeasonYear(year);
     scopeLabel = `${filterYear} Season`;
+  } else if (scope === "week") {
+    const resolvedWeekId =
+      weekId != null && Number.isFinite(Number(weekId))
+        ? Number(weekId)
+        : currentWeek?.id != null
+          ? Number(currentWeek.id)
+          : null;
+    if (resolvedWeekId) {
+      filterWeekId = resolvedWeekId;
+      const { data: weekRow, error: weekErr } = await supabase
+        .from("weeks")
+        .select("week_number, season_year")
+        .eq("id", resolvedWeekId)
+        .maybeSingle();
+      dbError(weekErr);
+      if (weekRow) {
+        scopeLabel = `Week ${weekRow.week_number} (${weekRow.season_year})`;
+        filterYear = Number(weekRow.season_year);
+      } else {
+        scopeLabel = "This Week";
+      }
+    } else {
+      scopeLabel = "This Week";
+    }
   }
 
   const picks = await selectAllPages(() =>
@@ -738,7 +764,9 @@ async function getLeaderboard({ scope = "all", year = null } = {}) {
     const uid = Number(pick.user_id);
     if (!byUser.has(uid)) continue;
     const seasonYear = pick.weeks?.season_year != null ? Number(pick.weeks.season_year) : null;
+    const pickWeekId = pick.week_id != null ? Number(pick.week_id) : null;
     if (filterYear != null && seasonYear !== filterYear) continue;
+    if (filterWeekId != null && pickWeekId !== filterWeekId) continue;
     addPickToBucket(byUser.get(uid), pick.is_correct, {
       seasonYear,
       weekNumber: pick.weeks?.week_number != null ? Number(pick.weeks.week_number) : 0,
@@ -781,6 +809,7 @@ async function getLeaderboard({ scope = "all", year = null } = {}) {
     scope,
     scopeLabel,
     year: filterYear,
+    weekId: filterWeekId,
     currentSeasonYear,
     availableYears: seasons.length ? seasons : [currentSeasonYear],
     entries,

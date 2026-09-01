@@ -6,6 +6,7 @@
  * Prefers ESPN scoreboard (real-time), falls back to CFBD /games + /scoreboard.
  */
 const { json } = require("./_http");
+const { scheduleGradeFromLiveGames } = require("./_lib/grade-picks");
 
 const ESPN_SB =
   "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard";
@@ -284,6 +285,8 @@ exports.handler = async (event) => {
       );
       if (!hasEspn) push(g);
     });
+
+    scheduleGradeFromLiveGames(merged);
 
     return json(
       200,

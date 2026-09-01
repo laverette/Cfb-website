@@ -1,5 +1,5 @@
 /**
- * GET /api/leaderboard?scope=all|season|year&year=2026
+ * GET /api/leaderboard?scope=all|season|year|week&year=2026&weekId=12
  */
 const { json } = require("./_http");
 const { getLeaderboard } = require("./db");
@@ -12,18 +12,23 @@ exports.handler = async (event) => {
   const q = event.queryStringParameters || {};
   const scopeRaw = String(q.scope || "all").toLowerCase();
   const scope =
-    scopeRaw === "season" || scopeRaw === "year" || scopeRaw === "all"
+    scopeRaw === "season" || scopeRaw === "year" || scopeRaw === "week" || scopeRaw === "all"
       ? scopeRaw
       : "all";
   const year =
     q.year != null && String(q.year).trim() !== ""
       ? Number(q.year)
       : null;
+  const weekId =
+    q.weekId != null && String(q.weekId).trim() !== ""
+      ? Number(q.weekId)
+      : null;
 
   try {
     const board = await getLeaderboard({
       scope,
       year: Number.isFinite(year) ? year : null,
+      weekId: Number.isFinite(weekId) ? weekId : null,
     });
     return json(200, board);
   } catch (err) {
