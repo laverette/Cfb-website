@@ -36,9 +36,23 @@
 
     <div class="bama-control-bar">
       <div class="bama-filters">
-        <label class="bama-field">
+        <label class="bama-field bama-team-field">
           <span>Team</span>
-          <select id="teamSelect" class="site-select"></select>
+          <div class="bama-combo" id="teamCombo">
+            <input type="hidden" id="teamSelect" value="">
+            <input
+              class="site-select bama-combo-input"
+              id="teamSearch"
+              type="text"
+              autocomplete="off"
+              spellcheck="false"
+              placeholder="Search team…"
+              aria-label="Team"
+              aria-autocomplete="list"
+              aria-controls="teamList"
+            >
+            <ul class="bama-combo-list" id="teamList" hidden role="listbox"></ul>
+          </div>
         </label>
         <label class="bama-field">
           <span>Season</span>

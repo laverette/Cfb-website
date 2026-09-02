@@ -66,6 +66,9 @@
   border-bottom: 1px solid var(--sp-line);
   margin-bottom: 1.25rem;
   animation: sp-fade-up 0.55s ease 0.06s both;
+  overflow: visible;
+  position: relative;
+  z-index: 4;
 }
 
 .bama-filters {
@@ -73,6 +76,7 @@
   flex-wrap: wrap;
   gap: 0.75rem 1rem;
   align-items: flex-end;
+  overflow: visible;
 }
 
 .bama-field {
@@ -97,9 +101,63 @@
   border: 1px solid rgba(141, 110, 99, 0.7) !important;
 }
 
-#teamSelect {
+.bama-team-field {
+  position: relative;
+  z-index: 5;
+}
+
+.bama-combo {
+  position: relative;
   min-width: 13rem;
   max-width: 18rem;
+}
+
+.bama-combo-input {
+  width: 100%;
+  min-width: 13rem;
+  max-width: 18rem;
+  cursor: text;
+}
+
+.bama-combo-list {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 0.3rem);
+  z-index: 40;
+  max-height: 14rem;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0.25rem 0;
+  list-style: none;
+  background: #1f1713;
+  border: 1px solid rgba(232, 197, 106, 0.45);
+  border-radius: 10px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+}
+
+.bama-combo-list[hidden] {
+  display: none !important;
+}
+
+.bama-combo-option {
+  padding: 0.45rem 0.7rem;
+  color: #f5deb3;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.bama-combo-option:hover,
+.bama-combo-option.is-active {
+  background: rgba(255, 215, 0, 0.16);
+  color: #ffe566;
+}
+
+.bama-combo-empty {
+  padding: 0.55rem 0.7rem;
+  color: rgba(245, 222, 179, 0.65);
+  font-size: 0.85rem;
 }
 
 .bama-tabs {

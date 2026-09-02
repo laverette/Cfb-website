@@ -9,6 +9,7 @@
   var state = {
     season: new Date().getFullYear(),
     team: DEFAULT_TEAM,
+    teamList: [],
     games: [],
     submittedCount: 0,
     activeTab: "predict",
@@ -260,8 +261,10 @@
   }
 
   async function loadTeams() {
-    var sel = $("teamSelect");
-    if (!sel) return;
+    var hidden = $("teamSelect");
+    var input = $("teamSearch");
+    if (!hidden || !input) return;
+
     var saved = readTeamFromUrl();
     if (!saved) {
       try {
@@ -287,14 +290,147 @@
     names.sort(function (a, b) {
       return a.localeCompare(b);
     });
+    state.teamList = names;
 
-    sel.innerHTML = "";
-    names.forEach(function (name) {
-      var opt = document.createElement("option");
-      opt.value = name;
-      opt.textContent = name;
-      if (name === state.team) opt.selected = true;
-      sel.appendChild(opt);
+    hidden.value = state.team;
+    input.value = state.team;
+  }
+
+  function filterTeamNames(query) {
+    var q = String(query || "").trim().toLowerCase();
+    return state.teamList
+      .filter(function (name) {
+        if (!q) return true;
+        return String(name).toLowerCase().indexOf(q) !== -1;
+      })
+      .slice(0, 40);
+  }
+
+  function setTeamFromCombo(name, opts) {
+    opts = opts || {};
+    var next = (name && String(name).trim()) || DEFAULT_TEAM;
+    var changed = next !== state.team;
+    state.team = next;
+    var hidden = $("teamSelect");
+    var input = $("teamSearch");
+    if (hidden) hidden.value = next;
+    if (input && !opts.keepTyped) input.value = next;
+    if (changed && !opts.skipReload) onTeamOrSeasonChange();
+  }
+
+  function bindTeamCombo() {
+    var combo = $("teamCombo");
+    var input = $("teamSearch");
+    var list = $("teamList");
+    if (!combo || !input || !list) return;
+    var activeIndex = -1;
+
+    function close() {
+      list.hidden = true;
+      list.innerHTML = "";
+      activeIndex = -1;
+    }
+
+    function open(items) {
+      if (!items.length) {
+        list.innerHTML = '<li class="bama-combo-empty">No matching teams</li>';
+        list.hidden = false;
+        return;
+      }
+      list.innerHTML = items
+        .map(function (name, i) {
+          return (
+            '<li class="bama-combo-option" role="option" data-i="' +
+            i +
+            '">' +
+            escapeHtml(name) +
+            "</li>"
+          );
+        })
+        .join("");
+      list.hidden = false;
+      activeIndex = 0;
+      highlight();
+    }
+
+    function highlight() {
+      Array.prototype.forEach.call(list.querySelectorAll(".bama-combo-option"), function (opt, i) {
+        opt.classList.toggle("is-active", i === activeIndex);
+      });
+    }
+
+    function currentItems() {
+      return filterTeamNames(input.value);
+    }
+
+    function commit(name) {
+      if (!name) return;
+      setTeamFromCombo(name);
+      close();
+    }
+
+    input.addEventListener("focus", function () {
+      open(currentItems());
+      if (input.value) {
+        try {
+          input.select();
+        } catch (_) {}
+      }
+    });
+
+    input.addEventListener("input", function () {
+      open(currentItems());
+    });
+
+    input.addEventListener("keydown", function (e) {
+      var items = currentItems();
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        if (list.hidden) open(items);
+        activeIndex = Math.min(activeIndex + 1, Math.max(items.length - 1, 0));
+        highlight();
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        activeIndex = Math.max(activeIndex - 1, 0);
+        highlight();
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        if (!list.hidden && items[activeIndex]) commit(items[activeIndex]);
+        else {
+          var exact = state.teamList.find(function (t) {
+            return t.toLowerCase() === input.value.trim().toLowerCase();
+          });
+          if (exact) commit(exact);
+        }
+      } else if (e.key === "Escape") {
+        close();
+      }
+    });
+
+    list.addEventListener("mousedown", function (e) {
+      var opt = e.target.closest(".bama-combo-option");
+      if (!opt) return;
+      e.preventDefault();
+      var items = currentItems();
+      commit(items[Number(opt.getAttribute("data-i"))]);
+    });
+
+    input.addEventListener("blur", function () {
+      setTimeout(function () {
+        var exact = state.teamList.find(function (t) {
+          return t.toLowerCase() === input.value.trim().toLowerCase();
+        });
+        if (exact) {
+          commit(exact);
+        } else {
+          input.value = state.team || DEFAULT_TEAM;
+        }
+        close();
+      }, 120);
+    });
+
+    document.addEventListener("click", function (e) {
+      if (!e.target.closest(".bama-combo")) close();
     });
   }
 
@@ -597,7 +733,13 @@
     });
     if (!res.ok) throw new Error("Failed to load schedule");
     var data = await res.json();
-    if (data.team) state.team = data.team;
+    if (data.team) {
+      state.team = data.team;
+      var hidden = $("teamSelect");
+      var input = $("teamSearch");
+      if (hidden) hidden.value = data.team;
+      if (input && document.activeElement !== input) input.value = data.team;
+    }
     state.games = data.games || [];
     renderGames();
     populateLbGameOptions();
@@ -884,10 +1026,7 @@
       onTeamOrSeasonChange();
     });
 
-    $("teamSelect").addEventListener("change", function (e) {
-      state.team = e.target.value || DEFAULT_TEAM;
-      onTeamOrSeasonChange();
-    });
+    bindTeamCombo();
 
     document.querySelectorAll(".bama-tab").forEach(function (btn) {
       btn.addEventListener("click", function () {
