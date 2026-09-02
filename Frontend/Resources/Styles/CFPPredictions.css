@@ -498,13 +498,69 @@ body.cfp-readonly .cfp-combo-input {
 
 .cfp-slot.is-clickable,
 .cfp-slot.is-pickable {
-  cursor: pointer;
+  cursor: default;
+}
+
+.cfp-slot.is-pickable {
+  padding-right: 0.28rem;
 }
 
 .cfp-slot.is-pickable:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  transform: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  filter: none;
+}
+
+.cfp-advance-btn {
+  appearance: none;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  margin-left: 0.15rem;
+  padding: 0.28rem 0.42rem;
+  border-radius: 6px;
+  border: 1px solid rgba(26, 20, 16, 0.22);
+  background: linear-gradient(135deg, #ffd700, #ffa000);
+  color: #1a1410;
+  font-family: "Barlow Condensed", Impact, sans-serif;
+  font-weight: 800;
+  font-size: 0.72rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.22);
+  transition: transform 0.12s ease, filter 0.12s ease, background 0.12s ease;
+}
+
+.cfp-advance-btn[hidden] {
+  display: none !important;
+}
+
+.cfp-advance-btn:hover {
   filter: brightness(1.06);
+  transform: translateY(-1px);
+}
+
+.cfp-advance-btn:active {
+  transform: translateY(0);
+}
+
+.cfp-advance-btn-icon {
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+.cfp-advance-btn.is-switch {
+  background: linear-gradient(135deg, #ffe566, #ffc107);
+}
+
+.cfp-advance-btn.is-clear {
+  background: rgba(26, 20, 16, 0.72);
+  color: #f5deb3;
+  border-color: rgba(245, 222, 179, 0.35);
 }
 
 .cfp-pair.is-ready,

@@ -4,89 +4,210 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Admin Panel - Weekly Picks</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
   <link rel="stylesheet" href="styles/site-theme.css">
   <style>
     :root {
-      --admin-bg: #141210;
-      --admin-surface: #1c1916;
-      --admin-surface-2: #252119;
-      --admin-border: rgba(232, 197, 71, 0.28);
-      --admin-border-soft: rgba(255, 255, 255, 0.08);
+      --admin-bg: #12100e;
+      --admin-surface: #1a1714;
+      --admin-surface-2: #24201a;
+      --admin-ink: #0c0b0a;
+      --admin-border: rgba(232, 197, 71, 0.32);
+      --admin-border-soft: rgba(255, 255, 255, 0.09);
       --admin-text: #f3efe6;
       --admin-muted: #b9a990;
       --admin-accent: #e8c547;
       --admin-accent-hot: #f0a020;
-      --admin-danger: #c62828;
-      --admin-ok: #2e7d32;
-      --admin-radius: 10px;
+      --admin-danger: #e05a4a;
+      --admin-ok: #3d9a5f;
+      --admin-radius: 12px;
+      --admin-font: "Source Sans 3", system-ui, sans-serif;
+      --admin-display: "Barlow Condensed", Impact, sans-serif;
     }
     body {
       background:
-        radial-gradient(ellipse 80% 50% at 50% -10%, rgba(232, 197, 71, 0.08), transparent 55%),
+        radial-gradient(ellipse 90% 45% at 50% -8%, rgba(232, 197, 71, 0.11), transparent 52%),
+        radial-gradient(ellipse 50% 40% at 100% 30%, rgba(240, 160, 32, 0.05), transparent 50%),
         var(--admin-bg);
       color: var(--admin-text);
-      font-family: "Segoe UI", system-ui, sans-serif;
+      font-family: var(--admin-font);
       margin: 0;
       padding: 0;
       line-height: 1.45;
+      min-height: 100vh;
     }
     .admin-container {
-      max-width: 1080px;
+      max-width: 1100px;
       margin: 0 auto;
-      padding: 16px;
+      padding: 16px 16px 3rem;
     }
     .admin-page-title {
+      font-family: var(--admin-display);
       color: var(--admin-accent);
       text-align: center;
-      margin: 0.5rem 0 1.25rem;
-      font-size: 1.65rem;
-      font-weight: 700;
-      letter-spacing: 0.02em;
+      margin: 0.35rem 0 1rem;
+      font-size: clamp(1.85rem, 4vw, 2.35rem);
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .admin-jump-wrap {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      margin: 0 -16px 1rem;
+      padding: 0.55rem 16px;
+      background: rgba(18, 16, 14, 0.92);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--admin-border-soft);
     }
     .admin-jump {
       display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-      margin-bottom: 1rem;
+      flex-wrap: nowrap;
+      gap: 0.4rem;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      padding-bottom: 2px;
     }
+    .admin-jump::-webkit-scrollbar { display: none; }
     .admin-jump a {
       color: var(--admin-muted);
       text-decoration: none;
-      font-size: 0.85rem;
-      padding: 0.35rem 0.7rem;
+      font-family: var(--admin-display);
+      font-size: 0.95rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      padding: 0.45rem 0.85rem;
       border: 1px solid var(--admin-border-soft);
       border-radius: 999px;
       background: rgba(255,255,255,0.03);
+      white-space: nowrap;
+      transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
     }
     .admin-jump a:hover {
       color: var(--admin-accent);
       border-color: var(--admin-border);
     }
+    .admin-jump a.is-active {
+      color: #1a1508;
+      background: linear-gradient(180deg, var(--admin-accent), var(--admin-accent-hot));
+      border-color: transparent;
+    }
     .admin-section {
-      background: var(--admin-surface);
+      background:
+        linear-gradient(180deg, rgba(232, 197, 71, 0.04), transparent 28%),
+        var(--admin-surface);
       border-radius: var(--admin-radius);
-      padding: 1.15rem 1.25rem 1.35rem;
-      margin-bottom: 1rem;
+      padding: 1.25rem 1.3rem 1.4rem;
+      margin-bottom: 1.1rem;
       border: 1px solid var(--admin-border);
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+      scroll-margin-top: 4.5rem;
     }
     .admin-section h2 {
+      font-family: var(--admin-display);
       color: var(--admin-accent);
-      margin: 0 0 0.35rem;
-      font-size: 1.2rem;
-      font-weight: 700;
+      margin: 0 0 0.3rem;
+      font-size: 1.55rem;
+      font-weight: 800;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
     }
     .admin-section .section-lead {
       color: var(--admin-muted);
       margin: 0 0 1rem;
-      font-size: 0.9rem;
+      font-size: 0.92rem;
+      max-width: 52rem;
     }
     .admin-section h3 {
+      font-family: var(--admin-display);
       color: var(--admin-accent);
+      font-size: 1.15rem;
+      margin: 0 0 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+    .admin-step {
+      margin-top: 1.15rem;
+      padding: 1rem 1rem 1.1rem;
+      border-radius: 10px;
+      border: 1px solid var(--admin-border-soft);
+      background: rgba(0, 0, 0, 0.22);
+    }
+    .admin-step-head {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      margin-bottom: 0.85rem;
+    }
+    .admin-step-head h3 { margin: 0; }
+    .admin-step-num {
+      flex-shrink: 0;
+      width: 1.7rem;
+      height: 1.7rem;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: linear-gradient(180deg, var(--admin-accent), var(--admin-accent-hot));
+      color: #1a1508;
+      font-family: var(--admin-display);
+      font-weight: 800;
       font-size: 0.95rem;
-      margin: 1.1rem 0 0.65rem;
-      font-weight: 600;
-      letter-spacing: 0.01em;
+    }
+    .week-hero {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 1rem;
+      align-items: center;
+      padding: 1rem 1.1rem;
+      border-radius: 10px;
+      border: 1px solid var(--admin-border);
+      background:
+        linear-gradient(135deg, rgba(232, 197, 71, 0.12), transparent 55%),
+        var(--admin-ink);
+      margin-bottom: 1rem;
+    }
+    .week-hero-label {
+      font-family: var(--admin-display);
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--admin-muted);
+      margin: 0 0 0.2rem;
+    }
+    .week-hero-title {
+      font-family: var(--admin-display);
+      font-size: clamp(1.4rem, 3vw, 1.85rem);
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      color: var(--admin-accent);
+      margin: 0;
+      text-transform: uppercase;
+    }
+    .week-hero-meta {
+      color: var(--admin-muted);
+      font-size: 0.85rem;
+      margin: 0.25rem 0 0;
+    }
+    .week-hero-badge {
+      font-family: var(--admin-display);
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      font-size: 0.78rem;
+      padding: 0.35rem 0.7rem;
+      border-radius: 999px;
+      border: 1px solid var(--admin-border);
+      color: var(--admin-accent);
+      background: rgba(232, 197, 71, 0.08);
+      white-space: nowrap;
     }
     .form-group {
       margin-bottom: 0.75rem;
@@ -95,42 +216,53 @@
       display: block;
       margin-bottom: 0.3rem;
       color: var(--admin-muted);
-      font-size: 0.8rem;
-      font-weight: 600;
+      font-size: 0.72rem;
+      font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.04em;
+      letter-spacing: 0.06em;
     }
     .form-group input, .form-group select,
     .search-box, .admin-input {
       width: 100%;
-      padding: 0.55rem 0.7rem;
+      padding: 0.58rem 0.75rem;
       border-radius: 8px;
       border: 1px solid var(--admin-border-soft);
-      background: #0f0e0c;
+      background: var(--admin-ink);
       color: var(--admin-text);
       font-size: 0.95rem;
+      font-family: inherit;
     }
     .form-group input:focus, .form-group select:focus,
     .search-box:focus, .admin-input:focus {
       outline: none;
       border-color: var(--admin-accent);
+      box-shadow: 0 0 0 2px rgba(232, 197, 71, 0.18);
     }
     .btn {
-      padding: 0.55rem 0.95rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.35rem;
+      padding: 0.58rem 1rem;
       border-radius: 8px;
       border: none;
       cursor: pointer;
-      font-weight: 600;
-      font-size: 0.88rem;
+      font-family: var(--admin-display);
+      font-weight: 700;
+      font-size: 0.95rem;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      text-decoration: none;
       margin: 0;
-      transition: background 0.15s ease, transform 0.1s ease;
+      transition: filter 0.15s ease, transform 0.1s ease, border-color 0.15s ease, color 0.15s ease;
     }
     .btn:active { transform: scale(0.98); }
     .btn-primary {
       background: linear-gradient(180deg, var(--admin-accent), var(--admin-accent-hot));
       color: #1a1508;
+      box-shadow: 0 0 18px rgba(232, 197, 71, 0.22);
     }
-    .btn-primary:hover { filter: brightness(1.05); }
+    .btn-primary:hover { filter: brightness(1.06); color: #1a1508; }
     .btn-secondary {
       background: var(--admin-surface-2);
       color: var(--admin-text);
@@ -144,8 +276,26 @@
       background: transparent;
       color: var(--admin-muted);
       border: 1px solid transparent;
+      font-size: 0.88rem;
     }
-    .btn-ghost:hover { color: var(--admin-accent); }
+    .btn-ghost:hover {
+      color: var(--admin-accent);
+      border-color: var(--admin-border-soft);
+    }
+    .btn-danger {
+      background: transparent;
+      color: #f0b0a8;
+      border: 1px solid rgba(224, 90, 74, 0.45);
+    }
+    .btn-danger:hover {
+      background: rgba(224, 90, 74, 0.15);
+      color: #fff;
+      border-color: var(--admin-danger);
+    }
+    .btn-sm {
+      padding: 0.4rem 0.7rem;
+      font-size: 0.82rem;
+    }
     .btn-row {
       display: flex;
       flex-wrap: wrap;
@@ -155,22 +305,35 @@
     }
     .search-box { margin-bottom: 0; }
     .status-message {
-      padding: 0.65rem 0.85rem;
+      padding: 0.7rem 0.9rem;
       border-radius: 8px;
       margin-top: 0.65rem;
       font-size: 0.9rem;
+      border: 1px solid transparent;
     }
-    .status-success { background: var(--admin-ok); color: #fff; }
-    .status-error { background: var(--admin-danger); color: #fff; }
+    .status-success {
+      background: rgba(61, 154, 95, 0.16);
+      border-color: rgba(61, 154, 95, 0.4);
+      color: #b8e6c6;
+    }
+    .status-error {
+      background: rgba(224, 90, 74, 0.14);
+      border-color: rgba(224, 90, 74, 0.4);
+      color: #ffc7c0;
+    }
     .loading {
       text-align: center;
-      padding: 1rem;
+      padding: 1.1rem;
       color: var(--admin-accent);
+      font-family: var(--admin-display);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      font-weight: 700;
     }
     .admin-todo-banner {
       background: rgba(232, 197, 71, 0.06);
       border: 1px solid var(--admin-border);
-      border-radius: 8px;
+      border-radius: 10px;
       padding: 0.75rem 1rem;
       margin-bottom: 1rem;
       color: var(--admin-muted);
@@ -178,15 +341,18 @@
     }
     .admin-details {
       border: 1px solid var(--admin-border-soft);
-      border-radius: 8px;
-      padding: 0.35rem 0.85rem 0.85rem;
-      background: rgba(0,0,0,0.2);
-      margin-top: 0.75rem;
+      border-radius: 10px;
+      padding: 0.35rem 0.95rem 0.9rem;
+      background: rgba(0,0,0,0.22);
+      margin-top: 0.85rem;
     }
     .admin-details > summary {
       cursor: pointer;
       color: var(--admin-accent);
-      font-weight: 600;
+      font-family: var(--admin-display);
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
       padding: 0.55rem 0;
       list-style: none;
     }
@@ -202,20 +368,102 @@
       grid-template-columns: 1.4fr 1fr 1fr 1fr auto;
       gap: 0.55rem;
       align-items: end;
-      margin: 0.85rem 0 0.55rem;
-      padding: 0.75rem;
+      margin: 0.75rem 0 0.55rem;
+      padding: 0.8rem;
       background: var(--admin-surface-2);
-      border-radius: 8px;
+      border-radius: 10px;
       border: 1px solid var(--admin-border-soft);
     }
     .cfbd-toolbar .form-group { margin: 0; }
+    .cfbd-fetch-scope {
+      margin: 0.85rem 0 0;
+      padding: 0.85rem;
+      background: var(--admin-surface-2);
+      border-radius: 10px;
+      border: 1px solid var(--admin-border-soft);
+    }
+    .cfbd-fetch-scope-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.65rem 1rem;
+      align-items: end;
+    }
+    .cfbd-fetch-scope-row .form-group {
+      margin: 0;
+      min-width: 12rem;
+      flex: 1;
+    }
+    .cfbd-auto-select {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      color: var(--admin-muted);
+      font-size: 0.86rem;
+      font-weight: 600;
+      margin: 0;
+      cursor: pointer;
+      padding-bottom: 0.35rem;
+    }
+    .cfbd-auto-select input {
+      width: 1rem;
+      height: 1rem;
+      accent-color: var(--admin-accent);
+    }
+    .cfbd-conf-picker {
+      margin-top: 0.7rem;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+      gap: 0.35rem 0.55rem;
+    }
+    .cfbd-conf-picker[hidden] {
+      display: none !important;
+    }
+    .cfbd-conf-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      margin: 0;
+      padding: 0.35rem 0.5rem;
+      border-radius: 8px;
+      border: 1px solid var(--admin-border-soft);
+      background: var(--admin-ink);
+      color: #f5deb3;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      user-select: none;
+      transition: border-color 0.15s ease, background 0.15s ease;
+    }
+    .cfbd-conf-chip:hover,
+    .cfbd-conf-chip:has(input:checked) {
+      border-color: rgba(232, 197, 71, 0.5);
+      background: rgba(232, 197, 71, 0.08);
+    }
+    .cfbd-conf-chip input {
+      width: 0.9rem;
+      height: 0.9rem;
+      margin: 0;
+      accent-color: var(--admin-accent);
+    }
+    .cfbd-conf-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-top: 0.55rem;
+    }
+    .cfbd-quick-filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin: 0 0 0.15rem;
+    }
     .cfbd-meta {
       display: flex;
       flex-wrap: wrap;
       gap: 0.65rem 1rem;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 0.5rem;
+      margin: 0.65rem 0 0.5rem;
       color: var(--admin-muted);
       font-size: 0.85rem;
     }
@@ -224,21 +472,22 @@
       max-height: min(58vh, 560px);
       overflow: auto;
       border: 1px solid var(--admin-border-soft);
-      border-radius: 8px;
-      background: #0f0e0c;
+      border-radius: 10px;
+      background: var(--admin-ink);
     }
     .cfbd-game-row {
       display: grid;
-      grid-template-columns: auto 1fr auto;
-      gap: 0.65rem;
+      grid-template-columns: auto auto 1fr auto;
+      gap: 0.7rem;
       align-items: center;
-      padding: 0.55rem 0.75rem;
+      padding: 0.65rem 0.8rem;
       border-bottom: 1px solid var(--admin-border-soft);
       cursor: pointer;
+      transition: background 0.12s ease;
     }
     .cfbd-game-row:last-child { border-bottom: none; }
     .cfbd-game-row:hover { background: rgba(232, 197, 71, 0.05); }
-    .cfbd-game-row.is-selected { background: rgba(232, 197, 71, 0.1); }
+    .cfbd-game-row.is-selected { background: rgba(232, 197, 71, 0.11); }
     .cfbd-game-row input[type="checkbox"] {
       width: 1.05rem;
       height: 1.05rem;
@@ -246,49 +495,117 @@
       margin: 0;
       flex-shrink: 0;
     }
+    .cfbd-logos {
+      display: flex;
+      align-items: center;
+      gap: 0.2rem;
+    }
+    .cfbd-logo {
+      width: 28px;
+      height: 28px;
+      object-fit: contain;
+      border-radius: 4px;
+      background: rgba(255,255,255,0.04);
+    }
+    .cfbd-logo-fallback {
+      display: inline-block;
+      width: 28px;
+      height: 28px;
+      border-radius: 4px;
+      background: var(--admin-surface-2);
+      border: 1px solid var(--admin-border-soft);
+    }
     .cfbd-matchup {
-      font-weight: 600;
+      font-weight: 700;
       color: var(--admin-text);
-      font-size: 0.92rem;
+      font-size: 0.95rem;
+    }
+    .cfbd-rank {
+      color: var(--admin-accent);
+      font-weight: 700;
     }
     .cfbd-sub {
       color: var(--admin-muted);
       font-size: 0.78rem;
-      margin-top: 0.1rem;
+      margin-top: 0.12rem;
     }
     .cfbd-chip {
       font-size: 0.72rem;
-      font-weight: 600;
+      font-weight: 700;
       color: var(--admin-muted);
       border: 1px solid var(--admin-border-soft);
       border-radius: 999px;
-      padding: 0.15rem 0.5rem;
+      padding: 0.2rem 0.55rem;
       white-space: nowrap;
+      letter-spacing: 0.02em;
+    }
+    .cfbd-chip.is-ranked {
+      color: #1a1508;
+      background: var(--admin-accent);
+      border-color: transparent;
     }
     .cfbd-empty {
       color: var(--admin-muted);
-      padding: 1.25rem;
+      padding: 1.5rem 1.25rem;
       text-align: center;
       margin: 0;
     }
+    .saved-slate {
+      display: flex;
+      flex-direction: column;
+      gap: 0.55rem;
+    }
     .saved-game-row {
       display: grid;
-      grid-template-columns: 1fr auto auto;
-      gap: 0.65rem;
+      grid-template-columns: auto 1fr auto;
+      gap: 0.75rem;
       align-items: center;
-      padding: 0.65rem 0.75rem;
-      margin: 0.4rem 0;
-      background: #0f0e0c;
+      padding: 0.75rem 0.85rem;
+      background: var(--admin-ink);
       border: 1px solid var(--admin-border-soft);
+      border-radius: 10px;
+      transition: border-color 0.15s ease;
+    }
+    .saved-game-row:hover {
+      border-color: rgba(232, 197, 71, 0.35);
+    }
+    .saved-slot {
+      width: 2.4rem;
+      height: 2.4rem;
+      display: grid;
+      place-items: center;
       border-radius: 8px;
+      background: rgba(232, 197, 71, 0.12);
+      border: 1px solid var(--admin-border);
+      color: var(--admin-accent);
+      font-family: var(--admin-display);
+      font-weight: 800;
+      font-size: 1.05rem;
+    }
+    .saved-matchup {
+      font-weight: 700;
+      color: var(--admin-text);
+      font-size: 0.95rem;
+    }
+    .saved-sub {
+      color: var(--admin-muted);
+      font-size: 0.78rem;
+      margin-top: 0.15rem;
+    }
+    .saved-controls {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
     }
     .saved-game-row input[type="number"] {
-      width: 64px;
-      padding: 0.45rem;
+      width: 58px;
+      padding: 0.45rem 0.4rem;
       border-radius: 6px;
       border: 1px solid var(--admin-border-soft);
       background: var(--admin-surface);
       color: var(--admin-text);
+      text-align: center;
+      font-weight: 700;
     }
     .form-row-3 {
       display: grid;
@@ -300,10 +617,21 @@
       grid-template-columns: 1fr 1fr;
       gap: 0.75rem;
     }
+    .week-picker-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 0.75rem;
+      align-items: end;
+    }
+    .week-picker-row .form-group { margin: 0; }
     @media (max-width: 800px) {
       .cfbd-toolbar { grid-template-columns: 1fr 1fr; }
-      .form-row-3, .form-row-2 { grid-template-columns: 1fr; }
-      .saved-game-row { grid-template-columns: 1fr; }
+      .form-row-3, .form-row-2, .week-picker-row { grid-template-columns: 1fr; }
+      .saved-game-row { grid-template-columns: auto 1fr; }
+      .saved-controls { grid-column: 1 / -1; justify-content: flex-end; }
+      .cfbd-game-row { grid-template-columns: auto auto 1fr; }
+      .cfbd-game-row .cfbd-chip { display: none; }
+      .week-hero { grid-template-columns: 1fr; }
     }
     @media (max-width: 1100px) and (min-width: 801px) {
       .cfbd-toolbar { grid-template-columns: 1fr 1fr 1fr; }
@@ -337,13 +665,15 @@
     </div>
 
     <div id="adminApp" style="display: none;">
-    <nav class="admin-jump" aria-label="Admin sections">
-      <a href="#section-week">Active week</a>
-      <a href="#section-power">Power rankings</a>
-      <a href="#section-heisman">Heisman</a>
-      <a href="#section-picks">Weekly picks</a>
-      <a href="#recruitMapAdminSection">Recruit map</a>
-    </nav>
+    <div class="admin-jump-wrap">
+      <nav class="admin-jump" aria-label="Admin sections">
+        <a href="#section-week" data-section="section-week">Active week</a>
+        <a href="#section-power" data-section="section-power">Power rankings</a>
+        <a href="#section-heisman" data-section="section-heisman">Heisman</a>
+        <a href="#section-picks" data-section="section-picks">Weekly picks</a>
+        <a href="#recruitMapAdminSection" data-section="recruitMapAdminSection">Recruit map</a>
+      </nav>
+    </div>
 
     <div class="admin-todo-banner">
       Signed in as admin — JWT required; actions need <code style="color:var(--admin-accent);">role = admin</code>.
@@ -354,7 +684,7 @@
       <h2>Active week</h2>
       <p class="section-lead">Controls what Weekly Picks shows by default.</p>
       <div id="currentWeekInfo" class="loading">Loading...</div>
-      <div class="form-row-3" style="margin-top:0.75rem;">
+      <div class="form-row-3">
         <div class="form-group">
           <label>Season year</label>
           <input type="number" id="seasonYear" value="2026" min="2020" max="2035">
@@ -427,15 +757,17 @@
     <!-- Weekly Picks Games -->
     <div class="admin-section" id="section-picks">
       <h2>Weekly Picks Games</h2>
-      <p class="section-lead">Fetch a week’s schedule, filter down to the slate you want, then save. Lines are stored for the picks page but not shown here.</p>
+      <p class="section-lead">Fetch a week’s schedule, narrow by Top 25 or conferences, pick the slate, then save. Lines are stored for the picks page but not shown here.</p>
 
-      <div class="form-group">
-        <label>Week to edit</label>
-        <select id="weekSelect"></select>
-      </div>
-      <div class="btn-row">
-        <button type="button" class="btn btn-secondary" onclick="refreshWeeks()">Refresh weeks</button>
-        <button type="button" class="btn btn-primary" onclick="setActiveFromSelection()">Set as active week</button>
+      <div class="week-picker-row">
+        <div class="form-group">
+          <label for="weekSelect">Week to edit</label>
+          <select id="weekSelect"></select>
+        </div>
+        <div class="btn-row" style="margin:0;">
+          <button type="button" class="btn btn-secondary" onclick="refreshWeeks()">Refresh</button>
+          <button type="button" class="btn btn-primary" onclick="setActiveFromSelection()">Set active</button>
+        </div>
       </div>
 
       <details class="admin-details">
@@ -456,92 +788,136 @@
         <div id="createWeekStatus"></div>
       </details>
 
-      <h3>1. Fetch schedule</h3>
-      <div class="form-row-3">
-        <div class="form-group">
-          <label>Season year</label>
-          <input type="number" id="cfbdSeasonYear" value="2026" min="2020" max="2035">
+      <div class="admin-step">
+        <div class="admin-step-head">
+          <span class="admin-step-num">1</span>
+          <h3>Fetch schedule</h3>
         </div>
-        <div class="form-group">
-          <label>Week number</label>
-          <input type="number" id="cfbdWeekNumber" value="1" min="1" max="20">
+        <div class="form-row-3">
+          <div class="form-group">
+            <label>Season year</label>
+            <input type="number" id="cfbdSeasonYear" value="2026" min="2020" max="2035">
+          </div>
+          <div class="form-group">
+            <label>Week number</label>
+            <input type="number" id="cfbdWeekNumber" value="1" min="1" max="20">
+          </div>
+          <div class="form-group">
+            <label>Season type</label>
+            <select id="cfbdSeasonType">
+              <option value="regular" selected>regular</option>
+              <option value="postseason">postseason</option>
+            </select>
+          </div>
         </div>
-        <div class="form-group">
-          <label>Season type</label>
-          <select id="cfbdSeasonType">
-            <option value="regular" selected>regular</option>
-            <option value="postseason">postseason</option>
-          </select>
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>Division</label>
+            <select id="cfbdClassification">
+              <option value="fbs" selected>FBS only (recommended)</option>
+              <option value="fcs">FCS only</option>
+              <option value="all">All divisions</option>
+            </select>
+          </div>
+          <div class="form-group" style="align-self: end;">
+            <button type="button" class="btn btn-primary" onclick="fetchCfbdGames()">Fetch CFBD games</button>
+          </div>
         </div>
-      </div>
-      <div class="form-row-2">
-        <div class="form-group">
-          <label>Division</label>
-          <select id="cfbdClassification">
-            <option value="fbs" selected>FBS only (recommended)</option>
-            <option value="fcs">FCS only</option>
-            <option value="all">All divisions</option>
-          </select>
-        </div>
-        <div class="form-group" style="align-self: end;">
-          <button type="button" class="btn btn-primary" onclick="fetchCfbdGames()">Fetch CFBD games</button>
-        </div>
-      </div>
-      <div id="cfbdFetchStatus"></div>
 
-      <h3>2. Filter &amp; select</h3>
-      <div class="cfbd-toolbar">
-        <div class="form-group">
-          <label for="cfbdSearch">Team search</label>
-          <input type="text" id="cfbdSearch" class="search-box" placeholder="Ohio State, Alabama…" oninput="renderCfbdList()">
+        <div class="cfbd-fetch-scope">
+          <div class="cfbd-fetch-scope-row">
+            <div class="form-group">
+              <label for="cfbdFetchFocus">Fetch focus</label>
+              <select id="cfbdFetchFocus" onchange="syncCfbdFetchFocusUi()">
+                <option value="all" selected>All games this week</option>
+                <option value="ranked">Top 25 team involved</option>
+                <option value="conferences">Selected conferences</option>
+              </select>
+            </div>
+            <label class="cfbd-auto-select">
+              <input type="checkbox" id="cfbdAutoSelect" checked>
+              Auto-select matching games
+            </label>
+          </div>
+          <div id="cfbdConfPicker" class="cfbd-conf-picker" hidden aria-label="Conference picker"></div>
+          <div class="cfbd-conf-actions" id="cfbdConfActions" hidden>
+            <button type="button" class="btn btn-ghost" onclick="setCfbdConfPreset('power')">Power conferences</button>
+            <button type="button" class="btn btn-ghost" onclick="setCfbdConfPreset('group5')">Group of 5</button>
+            <button type="button" class="btn btn-ghost" onclick="setCfbdConfPreset('all')">Select all</button>
+            <button type="button" class="btn btn-ghost" onclick="setCfbdConfPreset('none')">Clear conferences</button>
+          </div>
         </div>
-        <div class="form-group">
-          <label for="cfbdConference">Conference</label>
-          <select id="cfbdConference" onchange="renderCfbdList()">
-            <option value="">All conferences</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label for="cfbdDayFilter">Kickoff day</label>
-          <select id="cfbdDayFilter" onchange="renderCfbdList()">
-            <option value="">Any day</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label for="cfbdRankedFilter">Rankings</label>
-          <select id="cfbdRankedFilter" onchange="renderCfbdList()">
-            <option value="">All games</option>
-            <option value="any">Top 25 team involved</option>
-            <option value="both">Both teams ranked</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>&nbsp;</label>
-          <button type="button" class="btn btn-ghost" onclick="clearCfbdFilters()">Clear filters</button>
-        </div>
+        <div id="cfbdFetchStatus"></div>
       </div>
 
-      <div class="cfbd-meta">
-        <span id="cfbdListMeta">Fetch a schedule to begin.</span>
-        <span>
-          <button type="button" class="btn btn-ghost" onclick="selectAllVisibleCfbd()">Select visible</button>
-          <button type="button" class="btn btn-ghost" onclick="clearCfbdSelection()">Clear selection</button>
-        </span>
-      </div>
-      <div id="cfbdList" class="cfbd-list"><p class="cfbd-empty">No games loaded yet.</p></div>
-      <div class="btn-row">
-        <button type="button" class="btn btn-primary" onclick="saveSelectedGames()">Save selected to this week</button>
-        <span id="cfbdSelectedCount" style="color:var(--admin-muted); font-size:0.85rem;"></span>
-      </div>
-      <div id="saveGamesStatus"></div>
+      <div class="admin-step">
+        <div class="admin-step-head">
+          <span class="admin-step-num">2</span>
+          <h3>Filter &amp; select</h3>
+        </div>
+        <div class="cfbd-quick-filters">
+          <button type="button" class="btn btn-ghost" onclick="applyCfbdQuickFilter('ranked')">Show Top 25</button>
+          <button type="button" class="btn btn-ghost" onclick="applyCfbdQuickFilter('power')">Show Power conferences</button>
+          <button type="button" class="btn btn-ghost" onclick="applyCfbdQuickFilter('clear')">Show all</button>
+        </div>
+        <div class="cfbd-toolbar">
+          <div class="form-group">
+            <label for="cfbdSearch">Team search</label>
+            <input type="text" id="cfbdSearch" class="search-box" placeholder="Ohio State, Alabama…" oninput="renderCfbdList()">
+          </div>
+          <div class="form-group">
+            <label for="cfbdConference">Conference</label>
+            <select id="cfbdConference" onchange="onCfbdConferenceChange()">
+              <option value="">All conferences</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="cfbdDayFilter">Kickoff day</label>
+            <select id="cfbdDayFilter" onchange="renderCfbdList()">
+              <option value="">Any day</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="cfbdRankedFilter">Rankings</label>
+            <select id="cfbdRankedFilter" onchange="renderCfbdList()">
+              <option value="">All games</option>
+              <option value="any">Top 25 team involved</option>
+              <option value="both">Both teams ranked</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>&nbsp;</label>
+            <button type="button" class="btn btn-ghost" onclick="clearCfbdFilters()">Clear filters</button>
+          </div>
+        </div>
 
-      <h3>3. Saved slate</h3>
-      <p class="section-lead">Reorder slots or delete games already on this week.</p>
-      <div id="savedGamesContainer" class="loading">Select a week to load saved games.</div>
-      <div class="btn-row">
-        <button type="button" class="btn btn-secondary" onclick="applyReorder()">Apply reorder</button>
+        <div class="cfbd-meta">
+          <span id="cfbdListMeta">Fetch a schedule to begin.</span>
+          <span>
+            <button type="button" class="btn btn-ghost" onclick="selectAllVisibleCfbd()">Select visible</button>
+            <button type="button" class="btn btn-ghost" onclick="clearCfbdSelection()">Clear selection</button>
+          </span>
+        </div>
+        <div id="cfbdList" class="cfbd-list"><p class="cfbd-empty">No games loaded yet.</p></div>
+        <div class="btn-row">
+          <button type="button" class="btn btn-primary" onclick="saveSelectedGames()">Save selected to this week</button>
+          <span id="cfbdSelectedCount" style="color:var(--admin-muted); font-size:0.85rem;"></span>
+        </div>
+        <div id="saveGamesStatus"></div>
       </div>
-      <div id="reorderStatus"></div>
+
+      <div class="admin-step">
+        <div class="admin-step-head">
+          <span class="admin-step-num">3</span>
+          <h3>Saved slate</h3>
+        </div>
+        <p class="section-lead" style="margin-bottom:0.75rem;">Reorder slots or delete games already on this week.</p>
+        <div id="savedGamesContainer" class="loading">Select a week to load saved games.</div>
+        <div class="btn-row">
+          <button type="button" class="btn btn-secondary" onclick="applyReorder()">Apply reorder</button>
+        </div>
+        <div id="reorderStatus"></div>
+      </div>
     </div>
 
     <div id="recruitMapAdminSection" class="admin-section" style="display: none;">
@@ -609,6 +985,140 @@
     let cfbdGamesCache = [];
     let cfbdSelectedIds = new Set();
     let cfbdConferencesCache = [];
+
+    const CFBD_POWER_CONFS = ['SEC', 'Big Ten', 'Big 12', 'ACC', 'Pac-12'];
+    const CFBD_GROUP5_CONFS = [
+      'American Athletic',
+      'Conference USA',
+      'Mid-American',
+      'Mountain West',
+      'Sun Belt',
+    ];
+    const CFBD_DEFAULT_CONFS = [
+      ...CFBD_POWER_CONFS,
+      ...CFBD_GROUP5_CONFS,
+      'FBS Independents',
+      'Independent',
+    ];
+
+    function normalizeConfName(name) {
+      return String(name || '')
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, ' ');
+    }
+
+    function confMatches(gameConf, selectedConf) {
+      const a = normalizeConfName(gameConf);
+      const b = normalizeConfName(selectedConf);
+      if (!a || !b) return false;
+      if (a === b) return true;
+      if (a.includes(b) || b.includes(a)) return true;
+      // Independents naming drift between CFBD seasons
+      if (
+        (a.includes('independent') && b.includes('independent')) ||
+        (a.includes('independents') && b.includes('independents'))
+      ) {
+        return true;
+      }
+      return false;
+    }
+
+    function gameMatchesAnyConference(g, confNames) {
+      if (!confNames || !confNames.length) return true;
+      return confNames.some(
+        (c) => confMatches(g.home_conference, c) || confMatches(g.away_conference, c)
+      );
+    }
+
+    function getSelectedFetchConferences() {
+      return Array.from(document.querySelectorAll('#cfbdConfPicker input[type="checkbox"]:checked')).map(
+        (el) => el.value
+      );
+    }
+
+    function renderCfbdConfPicker(conferences, keepChecked) {
+      const box = document.getElementById('cfbdConfPicker');
+      if (!box) return;
+      const prev = keepChecked
+        ? new Set(getSelectedFetchConferences().map(normalizeConfName))
+        : new Set();
+      const list = (Array.isArray(conferences) && conferences.length
+        ? conferences
+        : CFBD_DEFAULT_CONFS
+      ).slice().sort((a, b) => a.localeCompare(b));
+      box.innerHTML = list
+        .map((c) => {
+          const checked = prev.has(normalizeConfName(c)) ? 'checked' : '';
+          return (
+            `<label class="cfbd-conf-chip"><input type="checkbox" value="${escapeHtml(c)}" ${checked}>` +
+            `<span>${escapeHtml(c)}</span></label>`
+          );
+        })
+        .join('');
+    }
+
+    function syncCfbdFetchFocusUi() {
+      const focus = (document.getElementById('cfbdFetchFocus')?.value || 'all').trim();
+      const picker = document.getElementById('cfbdConfPicker');
+      const actions = document.getElementById('cfbdConfActions');
+      const show = focus === 'conferences';
+      if (picker) picker.hidden = !show;
+      if (actions) actions.hidden = !show;
+      if (show && picker && !picker.childElementCount) {
+        renderCfbdConfPicker(cfbdConferencesCache.length ? cfbdConferencesCache : CFBD_DEFAULT_CONFS, false);
+      }
+    }
+
+    function setCfbdConfPreset(kind) {
+      const boxes = document.querySelectorAll('#cfbdConfPicker input[type="checkbox"]');
+      if (!boxes.length) return;
+      let wanted = null;
+      if (kind === 'power') wanted = new Set(CFBD_POWER_CONFS.map(normalizeConfName));
+      else if (kind === 'group5') wanted = new Set(CFBD_GROUP5_CONFS.map(normalizeConfName));
+      else if (kind === 'all') wanted = 'all';
+      else wanted = 'none';
+      boxes.forEach((box) => {
+        if (wanted === 'all') box.checked = true;
+        else if (wanted === 'none') box.checked = false;
+        else box.checked = wanted.has(normalizeConfName(box.value));
+      });
+    }
+
+    function onCfbdConferenceChange() {
+      const sel = document.getElementById('cfbdConference');
+      if (!sel) return;
+      delete sel.dataset.powerOnly;
+      delete sel.dataset.multiConfs;
+      renderCfbdList();
+    }
+
+    function applyCfbdQuickFilter(kind) {
+      const confSel = document.getElementById('cfbdConference');
+      if (kind === 'ranked') {
+        document.getElementById('cfbdSearch').value = '';
+        if (confSel) {
+          confSel.value = '';
+          delete confSel.dataset.powerOnly;
+          delete confSel.dataset.multiConfs;
+        }
+        document.getElementById('cfbdDayFilter').value = '';
+        document.getElementById('cfbdRankedFilter').value = 'any';
+      } else if (kind === 'power') {
+        document.getElementById('cfbdSearch').value = '';
+        document.getElementById('cfbdDayFilter').value = '';
+        document.getElementById('cfbdRankedFilter').value = '';
+        if (confSel) {
+          confSel.value = '';
+          delete confSel.dataset.powerOnly;
+          confSel.dataset.multiConfs = CFBD_POWER_CONFS.join('|');
+        }
+      } else {
+        clearCfbdFilters();
+        return;
+      }
+      renderCfbdList();
+    }
 
     function adminAuthHeaders(includeJsonContentType) {
       const h = {};
@@ -708,6 +1218,8 @@
       }
       const admin = u && String(u.role || '').toLowerCase() === 'admin';
       sec.style.display = admin ? 'block' : 'none';
+      const jump = document.querySelector('.admin-jump a[data-section="recruitMapAdminSection"]');
+      if (jump) jump.style.display = admin ? '' : 'none';
     }
 
     const RECRUIT_GEOCODE_LIMIT = 10;
@@ -1476,12 +1988,13 @@
         const sel = document.getElementById('weekSelect');
         const prev = sel.value;
         sel.innerHTML = weeks.length
-          ? weeks.map(w => `<option value="${w.id}">ID ${w.id} — Week ${w.week_number}, ${w.season_year}</option>`).join('')
+          ? weeks.map(w => `<option value="${w.id}" data-week="${w.week_number}" data-season="${w.season_year}">ID ${w.id} — Week ${w.week_number}, ${w.season_year}</option>`).join('')
           : '<option value="">(no weeks yet)</option>';
         if (prev && [...sel.options].some(o => o.value === prev)) sel.value = prev;
         else if (activeWeekNorm && [...sel.options].some(o => o.value === String(activeWeekNorm.id))) {
           sel.value = String(activeWeekNorm.id);
         }
+        syncCfbdWeekFromSelection();
         loadSavedGamesForSelection();
       } catch (e) {
         console.error(e);
@@ -1496,14 +2009,27 @@
         const data = await res.json().catch(() => ({}));
         if (res.status === 404) {
           activeWeekNorm = null;
-          el.innerHTML = '<p style="color:#f5deb3;">No active week set. Create a week and set it active below.</p>';
+          el.innerHTML = `
+            <div class="week-hero">
+              <div>
+                <p class="week-hero-label">Status</p>
+                <p class="week-hero-title">No active week</p>
+                <p class="week-hero-meta">Create a week below and set it active.</p>
+              </div>
+            </div>`;
           return;
         }
         if (!res.ok) throw new Error(data.error || res.statusText);
         activeWeekNorm = normWeek(data);
         el.innerHTML = `
-          <p><strong>Active week:</strong> Week ${activeWeekNorm.weekNumber}, ${activeWeekNorm.seasonYear}</p>
-          <p><strong>Week ID:</strong> ${activeWeekNorm.id}</p>
+          <div class="week-hero">
+            <div>
+              <p class="week-hero-label">Currently live on Weekly Picks</p>
+              <p class="week-hero-title">Week ${activeWeekNorm.weekNumber}, ${activeWeekNorm.seasonYear}</p>
+              <p class="week-hero-meta">Database week ID ${activeWeekNorm.id}</p>
+            </div>
+            <span class="week-hero-badge">Active</span>
+          </div>
         `;
         document.getElementById('seasonYear').value = activeWeekNorm.seasonYear;
         document.getElementById('weekNumber').value = activeWeekNorm.weekNumber;
@@ -1612,6 +2138,52 @@
         .replace(/"/g, '&quot;');
     }
 
+    function teamLogoHtml(url, alt) {
+      if (url) {
+        return `<img class="cfbd-logo" src="${escapeHtml(url)}" alt="${escapeHtml(alt || '')}" loading="lazy" onerror="this.className='cfbd-logo-fallback';this.removeAttribute('src');this.alt=''">`;
+      }
+      return '<span class="cfbd-logo-fallback" aria-hidden="true"></span>';
+    }
+
+    function syncCfbdWeekFromSelection() {
+      const sel = document.getElementById('weekSelect');
+      const opt = sel?.selectedOptions?.[0];
+      if (!opt || !opt.value) return;
+      const week = opt.getAttribute('data-week');
+      const season = opt.getAttribute('data-season');
+      if (season) document.getElementById('cfbdSeasonYear').value = season;
+      if (week) document.getElementById('cfbdWeekNumber').value = week;
+    }
+
+    function initAdminJumpNav() {
+      const links = [...document.querySelectorAll('.admin-jump a[data-section]')];
+      if (!links.length) return;
+      const sections = links
+        .map((a) => document.getElementById(a.getAttribute('data-section')))
+        .filter(Boolean);
+      const setActive = (id) => {
+        links.forEach((a) => {
+          a.classList.toggle('is-active', a.getAttribute('data-section') === id);
+        });
+      };
+      if ('IntersectionObserver' in window) {
+        const observer = new IntersectionObserver(
+          (entries) => {
+            const visible = entries
+              .filter((e) => e.isIntersecting)
+              .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
+            if (visible[0]?.target?.id) setActive(visible[0].target.id);
+          },
+          { rootMargin: '-20% 0px -55% 0px', threshold: [0.1, 0.35, 0.6] }
+        );
+        sections.forEach((s) => observer.observe(s));
+      }
+      links.forEach((a) => {
+        a.addEventListener('click', () => setActive(a.getAttribute('data-section')));
+      });
+      if (sections[0]) setActive(sections[0].id);
+    }
+
     function populateConferenceFilter(conferences) {
       const sel = document.getElementById('cfbdConference');
       const prev = sel.value;
@@ -1622,6 +2194,8 @@
           .map((c) => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`)
           .join('');
       if (prev && cfbdConferencesCache.includes(prev)) sel.value = prev;
+      renderCfbdConfPicker(cfbdConferencesCache, true);
+      syncCfbdFetchFocusUi();
     }
 
     function populateDayFilter() {
@@ -1641,15 +2215,23 @@
       const conf = (document.getElementById('cfbdConference').value || '').trim();
       const day = (document.getElementById('cfbdDayFilter').value || '').trim();
       const ranked = (document.getElementById('cfbdRankedFilter').value || '').trim();
+      const confSel = document.getElementById('cfbdConference');
+      const powerOnly = confSel?.dataset?.powerOnly === '1';
+      const multi = (confSel?.dataset?.multiConfs || '')
+        .split('|')
+        .map((s) => s.trim())
+        .filter(Boolean);
       return cfbdGamesCache.filter((g) => {
         if (q) {
           const t = `${g.away_team_name} ${g.home_team_name}`.toLowerCase();
           if (!t.includes(q)) return false;
         }
-        if (conf) {
-          const hc = String(g.home_conference || '');
-          const ac = String(g.away_conference || '');
-          if (hc !== conf && ac !== conf) return false;
+        if (multi.length) {
+          if (!gameMatchesAnyConference(g, multi)) return false;
+        } else if (powerOnly) {
+          if (!gameMatchesAnyConference(g, CFBD_POWER_CONFS)) return false;
+        } else if (conf) {
+          if (!gameMatchesAnyConference(g, [conf])) return false;
         }
         if (day && kickoffDayKey(g.game_date) !== day) return false;
         if (ranked === 'any') {
@@ -1693,9 +2275,49 @@
     function clearCfbdFilters() {
       document.getElementById('cfbdSearch').value = '';
       document.getElementById('cfbdConference').value = '';
+      delete document.getElementById('cfbdConference').dataset.powerOnly;
+      delete document.getElementById('cfbdConference').dataset.multiConfs;
       document.getElementById('cfbdDayFilter').value = '';
       document.getElementById('cfbdRankedFilter').value = '';
       renderCfbdList();
+    }
+
+    function applyFetchFocusFilters() {
+      const focus = (document.getElementById('cfbdFetchFocus')?.value || 'all').trim();
+      const confSel = document.getElementById('cfbdConference');
+      document.getElementById('cfbdSearch').value = '';
+      document.getElementById('cfbdDayFilter').value = '';
+      if (confSel) {
+        confSel.value = '';
+        delete confSel.dataset.powerOnly;
+        delete confSel.dataset.multiConfs;
+      }
+
+      if (focus === 'ranked') {
+        document.getElementById('cfbdRankedFilter').value = 'any';
+        return 'Top 25 involved';
+      }
+
+      if (focus === 'conferences') {
+        document.getElementById('cfbdRankedFilter').value = '';
+        const picked = getSelectedFetchConferences();
+        if (!picked.length) {
+          return 'selected conferences (none checked — showing all)';
+        }
+        if (picked.length === 1 && confSel) {
+          const hit = Array.from(confSel.options).find(
+            (o) => normalizeConfName(o.value) === normalizeConfName(picked[0])
+          );
+          if (hit) confSel.value = hit.value;
+          else confSel.dataset.multiConfs = picked.join('|');
+        } else if (confSel) {
+          confSel.dataset.multiConfs = picked.join('|');
+        }
+        return `conferences: ${picked.join(', ')}`;
+      }
+
+      document.getElementById('cfbdRankedFilter').value = '';
+      return 'all games';
     }
 
     async function fetchCfbdGames() {
@@ -1703,6 +2325,10 @@
       const week_number = parseInt(document.getElementById('cfbdWeekNumber').value, 10);
       const season_type = document.getElementById('cfbdSeasonType').value;
       const classification = document.getElementById('cfbdClassification').value || 'fbs';
+      const focus = (document.getElementById('cfbdFetchFocus')?.value || 'all').trim();
+      if (focus === 'conferences' && !getSelectedFetchConferences().length) {
+        return alert('Pick at least one conference, or switch Fetch focus to All / Top 25.');
+      }
       document.getElementById('cfbdFetchStatus').innerHTML = '<div class="loading">Loading CFBD…</div>';
       try {
         const q = new URLSearchParams({ season_year, week_number, season_type, classification });
@@ -1716,6 +2342,12 @@
         cfbdSelectedIds.clear();
         populateConferenceFilter(data.conferences || []);
         populateDayFilter();
+        const focusLabel = applyFetchFocusFilters();
+        const visible = getFilteredCfbdGames();
+        const autoSelect = document.getElementById('cfbdAutoSelect')?.checked;
+        if (autoSelect && focus !== 'all') {
+          visible.forEach((g) => cfbdSelectedIds.add(Number(g.cfbd_game_id)));
+        }
         const divLabel = data.classification || classification;
         const rankMeta = data.rankings || {};
         const rankNote =
@@ -1723,7 +2355,7 @@
             ? ` · ${rankMeta.gamesWithRankedTeam || 0} with Top 25 (${escapeHtml(rankMeta.poll || 'poll')})`
             : ' · no rankings found for this week yet';
         document.getElementById('cfbdFetchStatus').innerHTML =
-          `<div class="status-message status-success">${cfbdGamesCache.length} games loaded (${escapeHtml(divLabel)})${rankNote}</div>`;
+          `<div class="status-message status-success">${cfbdGamesCache.length} games loaded (${escapeHtml(divLabel)})${rankNote}. Focus: <strong>${escapeHtml(focusLabel)}</strong> → showing <strong>${visible.length}</strong>${autoSelect && focus !== 'all' ? `, selected <strong>${cfbdSelectedIds.size}</strong>` : ''}.</div>`;
         renderCfbdList();
       } catch (e) {
         document.getElementById('cfbdFetchStatus').innerHTML =
@@ -1760,23 +2392,24 @@
           .filter(Boolean)
           .filter((v, i, a) => a.indexOf(v) === i);
         const confLabel = confBits.length ? confBits.join(' / ') : 'Ind.';
-        const awayLabel =
-          g.away_rank != null
-            ? `#${g.away_rank} ${g.away_team_name}`
-            : g.away_team_name;
-        const homeLabel =
-          g.home_rank != null
-            ? `#${g.home_rank} ${g.home_team_name}`
-            : g.home_team_name;
+        const ranked = g.home_rank != null || g.away_rank != null;
+        const awayRank =
+          g.away_rank != null ? `<span class="cfbd-rank">#${g.away_rank}</span> ` : '';
+        const homeRank =
+          g.home_rank != null ? `<span class="cfbd-rank">#${g.home_rank}</span> ` : '';
         return `
         <label class="cfbd-game-row${checked ? ' is-selected' : ''}" for="cfbd-${id}">
           <input type="checkbox" class="cfbd-pick" data-cfbd-id="${id}" id="cfbd-${id}" ${checked ? 'checked' : ''}
             onchange="toggleCfbdSelection(${id}, this.checked); this.closest('.cfbd-game-row').classList.toggle('is-selected', this.checked)">
+          <div class="cfbd-logos" aria-hidden="true">
+            ${teamLogoHtml(g.away_team_logo_url, g.away_team_name)}
+            ${teamLogoHtml(g.home_team_logo_url, g.home_team_name)}
+          </div>
           <div>
-            <div class="cfbd-matchup">${escapeHtml(awayLabel)} @ ${escapeHtml(homeLabel)}</div>
+            <div class="cfbd-matchup">${awayRank}${escapeHtml(g.away_team_name)} @ ${homeRank}${escapeHtml(g.home_team_name)}</div>
             <div class="cfbd-sub">${escapeHtml(formatKickoff(g.game_date))}${g.venue ? ' · ' + escapeHtml(g.venue) : ''}${g.is_completed ? ' · Final' : ''}</div>
           </div>
-          <span class="cfbd-chip">${escapeHtml(confLabel)}</span>
+          <span class="cfbd-chip${ranked ? ' is-ranked' : ''}">${ranked ? 'Top 25 · ' : ''}${escapeHtml(confLabel)}</span>
         </label>
       `;
       }).join('');
@@ -1833,10 +2466,12 @@
       const weekId = selectedWeekId();
       const el = document.getElementById('savedGamesContainer');
       if (!weekId) {
-        el.innerHTML = '<p style="color:var(--admin-muted);">Select a week.</p>';
+        el.className = '';
+        el.innerHTML = '<p class="cfbd-empty">Select a week.</p>';
         return;
       }
-      el.innerHTML = '<div class="loading">Loading…</div>';
+      el.className = 'loading';
+      el.innerHTML = 'Loading…';
       try {
         const res = await fetch(`${API_BASE}/api/admin/games/week/${weekId}`, {
           headers: adminAuthHeaders(false),
@@ -1846,24 +2481,33 @@
         if (!res.ok) throw new Error(data.error || data.hint || res.statusText);
         const games = data.games || [];
         if (!games.length) {
-          el.innerHTML = '<p style="color:var(--admin-muted);">No games saved for this week yet.</p>';
+          el.className = '';
+          el.innerHTML = '<p class="cfbd-empty">No games saved for this week yet.</p>';
           return;
         }
+        el.className = 'saved-slate';
         el.innerHTML = games.map(g => {
           return `
           <div class="saved-game-row" data-game-id="${g.id}">
+            <div class="saved-slot" aria-hidden="true"><span class="gn">${g.game_number}</span></div>
             <div>
-              <strong>Slot <span class="gn">${g.game_number}</span>:</strong>
-              ${escapeHtml(g.away_team_name)} @ ${escapeHtml(g.home_team_name)}
-              <br><small style="color:var(--admin-muted);">${escapeHtml(formatKickoff(g.game_date))}</small>
+              <div class="cfbd-logos" style="margin-bottom:0.25rem;" aria-hidden="true">
+                ${teamLogoHtml(g.away_team_logo_url, g.away_team_name)}
+                ${teamLogoHtml(g.home_team_logo_url, g.home_team_name)}
+              </div>
+              <div class="saved-matchup">${escapeHtml(g.away_team_name)} @ ${escapeHtml(g.home_team_name)}</div>
+              <div class="saved-sub">${escapeHtml(formatKickoff(g.game_date))}</div>
             </div>
-            <input type="number" min="1" class="gn-input" value="${g.game_number}" aria-label="Game number">
-            <button type="button" class="btn btn-secondary" onclick="deleteSavedGame(${g.id})">Delete</button>
+            <div class="saved-controls">
+              <input type="number" min="1" class="gn-input" value="${g.game_number}" aria-label="Slot number">
+              <button type="button" class="btn btn-danger btn-sm" onclick="deleteSavedGame(${g.id})">Delete</button>
+            </div>
           </div>
         `;
         }).join('');
       } catch (e) {
-        el.innerHTML = `<p style="color:#f44336;">${e.message}</p>`;
+        el.className = '';
+        el.innerHTML = `<p style="color:var(--admin-danger);">${escapeHtml(e.message)}</p>`;
       }
     }
 
@@ -1923,7 +2567,10 @@
       }
     }
 
-    document.getElementById('weekSelect').addEventListener('change', loadSavedGamesForSelection);
+    document.getElementById('weekSelect').addEventListener('change', () => {
+      syncCfbdWeekFromSelection();
+      loadSavedGamesForSelection();
+    });
 
     document.addEventListener('DOMContentLoaded', async () => {
       if (!localStorage.getItem('authToken') || !localStorage.getItem('currentUser')) {
@@ -1931,6 +2578,9 @@
         return;
       }
       showAdminApp();
+      initAdminJumpNav();
+      renderCfbdConfPicker(CFBD_DEFAULT_CONFS, false);
+      syncCfbdFetchFocusUi();
       await loadCurrentWeek();
       await refreshWeeks();
     });

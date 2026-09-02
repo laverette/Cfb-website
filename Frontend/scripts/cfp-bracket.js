@@ -251,6 +251,16 @@
     );
   }
 
+  function advanceBtnHtml() {
+    if (state.readonly) return "";
+    return (
+      '<button type="button" class="cfp-advance-btn" hidden>' +
+      '<span class="cfp-advance-btn-label">Advance</span>' +
+      '<span class="cfp-advance-btn-icon" aria-hidden="true">→</span>' +
+      "</button>"
+    );
+  }
+
   function renderSeedSlot(el) {
     var seed = Number(el.getAttribute("data-seed"));
     var value = state.teams[seed] || "";
@@ -269,7 +279,8 @@
       escapeHtml(value) +
       '">' +
       '<ul class="cfp-combo-list" hidden role="listbox"></ul>' +
-      "</div></div>";
+      "</div></div>" +
+      advanceBtnHtml();
     applySlotBrand(el, value);
     bindCombo(el.querySelector(".cfp-combo"), seed);
   }
@@ -280,7 +291,7 @@
     var name = entry && entry.name ? entry.name : "";
     var seed = entry && entry.seed != null ? entry.seed : "";
     var badge = seed !== "" && seed != null ? seed + "." : "·";
-    el.classList.toggle("is-clickable", Boolean(name));
+    el.classList.toggle("is-clickable", false);
     el.innerHTML =
       '<span class="cfp-seed-badge">' +
       escapeHtml(String(badge)) +
@@ -290,7 +301,8 @@
       (name ? "" : " is-empty") +
       '">' +
       (name ? escapeHtml(name) : "TBD") +
-      "</span></div>";
+      "</span></div>" +
+      advanceBtnHtml();
     applySlotBrand(el, name);
   }
 
@@ -380,14 +392,35 @@
         var isWin = currentPick && sid === currentPick;
         el.classList.toggle("is-pickable", canPick);
         el.classList.toggle("is-loser", Boolean(canPick && currentPick && !isWin));
-        if (canPick) {
-          el.title = isWin
-            ? "Click again to clear this pick"
-            : currentPick
-              ? "Click to switch winner"
-              : "Click to advance this team";
+        el.removeAttribute("title");
+
+        var btn = el.querySelector(".cfp-advance-btn");
+        if (!btn) return;
+        if (!canPick) {
+          btn.hidden = true;
+          btn.classList.remove("is-clear", "is-switch");
+          return;
+        }
+        btn.hidden = false;
+        var label = btn.querySelector(".cfp-advance-btn-label");
+        var icon = btn.querySelector(".cfp-advance-btn-icon");
+        if (isWin) {
+          btn.classList.add("is-clear");
+          btn.classList.remove("is-switch");
+          if (label) label.textContent = "Clear";
+          if (icon) icon.textContent = "×";
+          btn.setAttribute("aria-label", "Clear this pick");
+        } else if (currentPick) {
+          btn.classList.add("is-switch");
+          btn.classList.remove("is-clear");
+          if (label) label.textContent = "Switch";
+          if (icon) icon.textContent = "⇄";
+          btn.setAttribute("aria-label", "Switch winner to this team");
         } else {
-          el.removeAttribute("title");
+          btn.classList.remove("is-clear", "is-switch");
+          if (label) label.textContent = "Advance";
+          if (icon) icon.textContent = "→";
+          btn.setAttribute("aria-label", "Advance this team to the next round");
         }
       });
     });
@@ -512,7 +545,7 @@
         hideChampCelebration();
       }
       refreshAllSlots();
-      setStatus("Pick cleared — click a team to choose the winner.");
+      setStatus("Pick cleared — use Advance on a team to choose the winner.");
       return;
     }
 
@@ -543,7 +576,11 @@
     } else if (switching) {
       setStatus("Winner switched. Later rounds using the old pick were reset.");
     } else {
-      setStatus(g.advancesTo ? "Winner advanced. Click the other team to switch, or edit a seed in its search box." : "");
+      setStatus(
+        g.advancesTo
+          ? "Winner advanced. Use Switch on the other team, or Clear on the winner."
+          : ""
+      );
     }
   }
 
@@ -683,33 +720,22 @@
       var gameId = pair.getAttribute("data-game");
       pair.addEventListener("click", function (e) {
         if (state.readonly) return;
-        // Seed search/edit must never advance a team.
-        if (
-          e.target.closest(".cfp-combo") ||
-          e.target.closest(".cfp-combo-input") ||
-          e.target.closest(".cfp-combo-list") ||
-          e.target.closest(".cfp-combo-option")
-        ) {
-          return;
-        }
+        var btn = e.target.closest(".cfp-advance-btn");
+        if (!btn || btn.hidden || !pair.contains(btn)) return;
+        e.preventDefault();
+        e.stopPropagation();
 
-        var slotEl = e.target.closest(".cfp-slot");
-        if (!slotEl || !pair.contains(slotEl)) return;
+        var slotEl = btn.closest(".cfp-slot");
+        if (!slotEl) return;
         var slotId = slotEl.getAttribute("data-slot");
         if (!slotId) return;
 
         var g = GAMES[gameId];
         var ready = g && slotFilled(g.slots[0]) && slotFilled(g.slots[1]);
         if (!ready) {
-          if (slotEl.getAttribute("data-seed") != null) {
-            var input = $(".cfp-combo-input", slotEl);
-            if (input) input.focus();
-          } else {
-            setStatus("Fill both teams in this matchup first.");
-          }
+          setStatus("Fill both teams in this matchup first.");
           return;
         }
-
         pickWinner(gameId, slotId);
       });
     });
