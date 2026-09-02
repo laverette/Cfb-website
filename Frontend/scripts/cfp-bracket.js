@@ -543,7 +543,7 @@
     } else if (switching) {
       setStatus("Winner switched. Later rounds using the old pick were reset.");
     } else {
-      setStatus(g.advancesTo ? "Winner advanced. Click the other team anytime to switch." : "");
+      setStatus(g.advancesTo ? "Winner advanced. Click the other team to switch, or edit a seed in its search box." : "");
     }
   }
 
@@ -602,8 +602,22 @@
       close();
     }
 
+    // Don't let pair click-to-advance steal focus from seed editing.
+    combo.addEventListener("click", function (e) {
+      e.stopPropagation();
+    });
+    combo.addEventListener("mousedown", function (e) {
+      e.stopPropagation();
+    });
+
     input.addEventListener("focus", function () {
       open(currentItems());
+      // Make it easy to replace an already-chosen team.
+      if (input.value) {
+        try {
+          input.select();
+        } catch (_) {}
+      }
     });
 
     input.addEventListener("input", function () {
@@ -643,6 +657,7 @@
       var opt = e.target.closest(".cfp-combo-option");
       if (!opt) return;
       e.preventDefault();
+      e.stopPropagation();
       commit(opt.textContent);
     });
 
@@ -667,7 +682,17 @@
     $$(".cfp-pair[data-game]").forEach(function (pair) {
       var gameId = pair.getAttribute("data-game");
       pair.addEventListener("click", function (e) {
-        if (e.target.closest(".cfp-combo-list")) return;
+        if (state.readonly) return;
+        // Seed search/edit must never advance a team.
+        if (
+          e.target.closest(".cfp-combo") ||
+          e.target.closest(".cfp-combo-input") ||
+          e.target.closest(".cfp-combo-list") ||
+          e.target.closest(".cfp-combo-option")
+        ) {
+          return;
+        }
+
         var slotEl = e.target.closest(".cfp-slot");
         if (!slotEl || !pair.contains(slotEl)) return;
         var slotId = slotEl.getAttribute("data-slot");
@@ -675,15 +700,14 @@
 
         var g = GAMES[gameId];
         var ready = g && slotFilled(g.slots[0]) && slotFilled(g.slots[1]);
-        var onInput = e.target.closest(".cfp-combo-input");
-
-        // Matchup ready: single-click picks winner (including on the name field).
-        // Double-click the seed input to edit the team instead.
-        if (onInput) {
-          if (!ready || state.readonly) return;
-          if (e.detail >= 2) return;
-          e.preventDefault();
-          onInput.blur();
+        if (!ready) {
+          if (slotEl.getAttribute("data-seed") != null) {
+            var input = $(".cfp-combo-input", slotEl);
+            if (input) input.focus();
+          } else {
+            setStatus("Fill both teams in this matchup first.");
+          }
+          return;
         }
 
         pickWinner(gameId, slotId);

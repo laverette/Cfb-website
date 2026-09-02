@@ -39,19 +39,47 @@
       <section class="matchup-panel matchup-panel-form" aria-labelledby="matchupFormTitle">
         <div class="matchup-panel-head">
           <h2 id="matchupFormTitle" class="matchup-panel-title">Build matchup</h2>
-          <p class="matchup-panel-lead">Select two teams, set venue and optional personnel tweaks.</p>
+          <p class="matchup-panel-lead">Search two teams, set venue and optional personnel tweaks.</p>
         </div>
 
         <form class="matchup-form" id="matchupForm" onsubmit="return false;">
           <div class="matchup-team-row">
             <label class="power-field matchup-team-field">
               <span>Team A</span>
-              <select id="teamA" class="site-select matchup-select" required></select>
+              <div class="matchup-combo" data-side="a">
+                <input type="hidden" id="teamA" value="" required>
+                <input
+                  class="site-select matchup-select matchup-combo-input"
+                  id="teamASearch"
+                  type="text"
+                  autocomplete="off"
+                  spellcheck="false"
+                  placeholder="Search team…"
+                  aria-label="Team A"
+                  aria-autocomplete="list"
+                  aria-controls="teamAList"
+                >
+                <ul class="matchup-combo-list" id="teamAList" hidden role="listbox"></ul>
+              </div>
             </label>
             <div class="matchup-vs-badge" aria-hidden="true">VS</div>
             <label class="power-field matchup-team-field">
               <span>Team B</span>
-              <select id="teamB" class="site-select matchup-select" required></select>
+              <div class="matchup-combo" data-side="b">
+                <input type="hidden" id="teamB" value="" required>
+                <input
+                  class="site-select matchup-select matchup-combo-input"
+                  id="teamBSearch"
+                  type="text"
+                  autocomplete="off"
+                  spellcheck="false"
+                  placeholder="Search team…"
+                  aria-label="Team B"
+                  aria-autocomplete="list"
+                  aria-controls="teamBList"
+                >
+                <ul class="matchup-combo-list" id="teamBList" hidden role="listbox"></ul>
+              </div>
             </label>
           </div>
 
@@ -109,6 +137,7 @@
   <script src="scripts/auth-ui.js"></script>
   <script>
     let teams = [];
+    const selected = { a: null, b: null };
 
     const ADJ_ROLES = [
       { id: 'qb', label: 'QB' },
@@ -134,9 +163,166 @@
       return teams.find((t) => String(t.teamId) === String(id)) || null;
     }
 
+    function teamLabel(t) {
+      if (!t) return '';
+      return t.ranking ? `${t.name} (#${t.ranking})` : t.name;
+    }
+
     function teamDisplayName(id, fallback) {
       const t = teamById(id);
       return t?.name || fallback;
+    }
+
+    function usedTeamIds(exceptSide) {
+      const used = new Set();
+      if (exceptSide !== 'a' && selected.a != null) used.add(String(selected.a));
+      if (exceptSide !== 'b' && selected.b != null) used.add(String(selected.b));
+      return used;
+    }
+
+    function filterTeams(query, exceptSide) {
+      const q = String(query || '').trim().toLowerCase();
+      const used = usedTeamIds(exceptSide);
+      return teams
+        .filter((t) => {
+          if (used.has(String(t.teamId))) return false;
+          if (!q) return true;
+          const hay = `${t.name} ${t.abbreviation || ''} ${t.conference || ''}`.toLowerCase();
+          return hay.includes(q);
+        })
+        .slice(0, 40);
+    }
+
+    function setSelectedTeam(side, team, opts) {
+      opts = opts || {};
+      selected[side] = team ? team.teamId : null;
+      const hidden = document.getElementById(side === 'a' ? 'teamA' : 'teamB');
+      const input = document.getElementById(side === 'a' ? 'teamASearch' : 'teamBSearch');
+      if (hidden) hidden.value = team ? String(team.teamId) : '';
+      if (input && !opts.keepTyped) input.value = team ? teamLabel(team) : '';
+      updateTeamLabels();
+    }
+
+    function bindTeamCombo(side) {
+      const combo = document.querySelector(`.matchup-combo[data-side="${side}"]`);
+      if (!combo) return;
+      const input = combo.querySelector('.matchup-combo-input');
+      const list = combo.querySelector('.matchup-combo-list');
+      if (!input || !list) return;
+      let activeIndex = -1;
+
+      function close() {
+        list.hidden = true;
+        list.innerHTML = '';
+        activeIndex = -1;
+      }
+
+      function open(items) {
+        if (!items.length) {
+          list.innerHTML = '<li class="matchup-combo-empty">No matching teams</li>';
+          list.hidden = false;
+          return;
+        }
+        list.innerHTML = items
+          .map((t, i) => {
+            const conf = t.conference ? ` · ${escapeHtml(t.conference)}` : '';
+            return (
+              `<li class="matchup-combo-option" role="option" data-i="${i}" data-id="${escapeHtml(String(t.teamId))}">` +
+              `${escapeHtml(teamLabel(t))}<span class="matchup-combo-meta">${conf}</span></li>`
+            );
+          })
+          .join('');
+        list.hidden = false;
+        activeIndex = 0;
+        highlight();
+      }
+
+      function highlight() {
+        list.querySelectorAll('.matchup-combo-option').forEach((opt, i) => {
+          opt.classList.toggle('is-active', i === activeIndex);
+        });
+      }
+
+      function currentItems() {
+        return filterTeams(input.value, side);
+      }
+
+      function commit(team) {
+        if (!team) return;
+        setSelectedTeam(side, team);
+        close();
+      }
+
+      function commitByIndex(i) {
+        const items = currentItems();
+        if (items[i]) commit(items[i]);
+      }
+
+      input.addEventListener('focus', () => {
+        open(currentItems());
+        if (input.value) {
+          try { input.select(); } catch (_) {}
+        }
+      });
+
+      input.addEventListener('input', () => {
+        if (!input.value.trim()) {
+          setSelectedTeam(side, null, { keepTyped: true });
+        } else if (selected[side] != null) {
+          const current = teamById(selected[side]);
+          if (!current || teamLabel(current).toLowerCase() !== input.value.trim().toLowerCase()) {
+            selected[side] = null;
+            const hidden = document.getElementById(side === 'a' ? 'teamA' : 'teamB');
+            if (hidden) hidden.value = '';
+            updateTeamLabels();
+          }
+        }
+        open(currentItems());
+      });
+
+      input.addEventListener('keydown', (e) => {
+        const items = currentItems();
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          if (list.hidden) open(items);
+          activeIndex = Math.min(activeIndex + 1, Math.max(items.length - 1, 0));
+          highlight();
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          activeIndex = Math.max(activeIndex - 1, 0);
+          highlight();
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          if (!list.hidden && items[activeIndex]) commit(items[activeIndex]);
+          else {
+            const exact = teams.find((t) => t.name.toLowerCase() === input.value.trim().toLowerCase());
+            if (exact && !usedTeamIds(side).has(String(exact.teamId))) commit(exact);
+          }
+        } else if (e.key === 'Escape') {
+          close();
+        }
+      });
+
+      list.addEventListener('mousedown', (e) => {
+        const opt = e.target.closest('.matchup-combo-option');
+        if (!opt) return;
+        e.preventDefault();
+        commitByIndex(Number(opt.getAttribute('data-i')));
+      });
+
+      input.addEventListener('blur', () => {
+        setTimeout(() => {
+          const exact = teams.find((t) => t.name.toLowerCase() === input.value.trim().toLowerCase());
+          if (exact && !usedTeamIds(side).has(String(exact.teamId))) {
+            commit(exact);
+          } else if (selected[side] != null) {
+            input.value = teamLabel(teamById(selected[side]));
+          } else {
+            input.value = '';
+          }
+          close();
+        }, 120);
+      });
     }
 
     function buildAdjInputs() {
@@ -220,21 +406,13 @@
       updateVenueLabels();
     }
 
-    function fillSelects() {
-      const opts = teams.map((t) =>
-        `<option value="${t.teamId}">${escapeHtml(t.name)}${t.ranking ? ` (#${t.ranking})` : ''}</option>`
-      ).join('');
-      document.getElementById('teamA').innerHTML = '<option value="">Select team</option>' + opts;
-      document.getElementById('teamB').innerHTML = '<option value="">Select team</option>' + opts;
-      updateTeamLabels();
-    }
-
     async function loadTeams() {
       const resp = await fetch('/api/power/teams', { headers: { accept: 'application/json' } });
       const data = await resp.json().catch(() => ({}));
       if (!resp.ok) throw new Error(data.details || data.error || 'Failed to load teams');
       teams = Array.isArray(data.teams) ? data.teams : [];
-      fillSelects();
+      teams.sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+      updateTeamLabels();
     }
 
     function edgeClass(edge) {
@@ -351,11 +529,19 @@
     }
 
     document.getElementById('predictBtn').addEventListener('click', predict);
-    document.getElementById('teamA').addEventListener('change', updateTeamLabels);
-    document.getElementById('teamB').addEventListener('change', updateTeamLabels);
+    document.addEventListener('click', function (e) {
+      if (!e.target.closest('.matchup-combo')) {
+        document.querySelectorAll('.matchup-combo-list').forEach((list) => {
+          list.hidden = true;
+          list.innerHTML = '';
+        });
+      }
+    });
     document.addEventListener('DOMContentLoaded', () => {
       buildAdjInputs();
       updateAdjTotals();
+      bindTeamCombo('a');
+      bindTeamCombo('b');
       loadTeams().catch((err) => {
         const placeholder = document.getElementById('resultPlaceholder');
         placeholder.innerHTML = `

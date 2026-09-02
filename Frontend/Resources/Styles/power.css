@@ -348,6 +348,11 @@
   min-height: 100%;
 }
 
+.matchup-panel-form {
+  overflow: visible;
+  z-index: 2;
+}
+
 .matchup-panel::before {
   content: '';
   position: absolute;
@@ -413,6 +418,72 @@
 
 .matchup-team-field {
   min-width: 0;
+}
+
+.matchup-combo {
+  position: relative;
+  width: 100%;
+}
+
+.matchup-combo-input {
+  cursor: text;
+}
+
+.matchup-combo-list {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 0.3rem);
+  z-index: 40;
+  max-height: 14rem;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0.25rem 0;
+  list-style: none;
+  background: #1f1713;
+  border: 1px solid rgba(232, 197, 106, 0.45);
+  border-radius: 10px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+}
+
+.matchup-combo-list[hidden] {
+  display: none !important;
+}
+
+.matchup-combo-option {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.45rem 0.7rem;
+  color: #f5deb3;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.matchup-combo-option:hover,
+.matchup-combo-option.is-active {
+  background: rgba(255, 215, 0, 0.16);
+  color: #ffe566;
+}
+
+.matchup-combo-meta {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgba(245, 222, 179, 0.55);
+  white-space: nowrap;
+}
+
+.matchup-combo-option.is-active .matchup-combo-meta,
+.matchup-combo-option:hover .matchup-combo-meta {
+  color: rgba(255, 229, 102, 0.7);
+}
+
+.matchup-combo-empty {
+  padding: 0.55rem 0.7rem;
+  color: rgba(245, 222, 179, 0.65);
+  font-size: 0.85rem;
 }
 
 .matchup-select,
