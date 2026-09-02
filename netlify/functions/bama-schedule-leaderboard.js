@@ -9,10 +9,7 @@ exports.handler = async (event) => {
     return json(405, { error: "Method not allowed" });
   }
 
-  const apiKey = process.env.CFBD_API_KEY;
-  if (!apiKey) {
-    return json(500, { error: "CFBD_API_KEY not configured" });
-  }
+  const apiKey = process.env.CFBD_API_KEY || "";
 
   const q = event.queryStringParameters || {};
   const season = q.season ?? q.year ?? new Date().getFullYear();

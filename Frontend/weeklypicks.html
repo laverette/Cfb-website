@@ -302,9 +302,10 @@
 
   <!-- Coach Corso floating chat (available while making picks) -->
   <div id="corsoWidget" class="corso-widget">
+    <button type="button" id="corsoBackdrop" class="corso-backdrop" hidden aria-label="Close Coach Corso"></button>
     <div id="corsoPanel" class="corso-panel" hidden role="dialog" aria-labelledby="corsoPanelTitle" aria-modal="false">
       <div class="corso-panel-head">
-        <div>
+        <div class="corso-panel-head-text">
           <h2 id="corsoPanelTitle" class="corso-panel-title">Ask Coach Corso</h2>
           <p class="corso-panel-sub">Hot takes with season storylines baked in.</p>
         </div>
@@ -312,6 +313,11 @@
       </div>
       <div class="corso-chat" id="corsoChat">
         <div class="corso-chat-log" id="corsoChatLog" role="log" aria-live="polite" aria-relevant="additions"></div>
+        <div class="corso-quick-prompts" id="corsoQuickPrompts" aria-label="Quick questions">
+          <button type="button" class="corso-quick-prompt" data-prompt="Who do you like in Game 1?">Game 1</button>
+          <button type="button" class="corso-quick-prompt" data-prompt="Give me your best upset pick this week.">Upset pick</button>
+          <button type="button" class="corso-quick-prompt" data-prompt="Who puts on the headgear this week?">Headgear</button>
+        </div>
         <form class="corso-chat-form" id="corsoChatForm">
           <label class="visually-hidden" for="corsoChatInput">Ask Coach Corso</label>
           <textarea
@@ -774,11 +780,11 @@
             liveScoreHtml = `
               <div class="inline-score-display">
                 <span class="${statusClass}">${safeText(status.label)}</span>
-                <span class="inline-score">
-                  <span class="score-team-display ${awayWinning}">${safeText(awayName)} ${safeText(awayScore)}</span>
-                  <span style="opacity:0.6;">-</span>
-                  <span class="score-team-display ${homeWinning}">${safeText(homeName)} ${safeText(homeScore)}</span>
-                </span>
+                <div class="inline-score">
+                  <span class="score-team-display score-team-away ${awayWinning}">${safeText(awayName)} ${safeText(awayScore)}</span>
+                  <span class="inline-score-sep" aria-hidden="true">–</span>
+                  <span class="score-team-display score-team-home ${homeWinning}">${safeText(homeName)} ${safeText(homeScore)}</span>
+                </div>
               </div>
             `;
           }
@@ -802,7 +808,7 @@
           <div class="pick-game-row" data-game-number="${gameNumber}">
             <div class="pick-game-top">
               <span class="games">Game ${gameNumber}</span>
-              ${formatStatusBadge(isCompleted)}
+              ${liveScoreHtml ? '' : formatStatusBadge(isCompleted)}
             </div>
             <div class="team-row pick-matchup">
               ${teamPickButtonHtml({
@@ -2075,6 +2081,7 @@
       } else {
         stopResultsLeaderboardRefresh();
       }
+      document.body.classList.toggle('weekly-results-view', tabName === 'week10-results');
     }
 
     // Coach Corso chat
@@ -2108,12 +2115,17 @@
       if (el) el.textContent = msg || '';
     }
 
+    function hideCorsoQuickPrompts() {
+      const el = document.getElementById('corsoQuickPrompts');
+      if (el) el.hidden = true;
+    }
+
     function setCorsoBusy(busy) {
       const send = document.getElementById('corsoChatSend');
       const input = document.getElementById('corsoChatInput');
       if (send) {
         send.disabled = busy;
-        send.textContent = busy ? 'Thinking…' : 'Ask Corso';
+        send.textContent = busy ? 'Thinking…' : 'Ask';
       }
       if (input) input.disabled = busy;
     }
@@ -2177,6 +2189,7 @@
         if (!message) return;
 
         appendCorsoBubble('user', message);
+        hideCorsoQuickPrompts();
         input.value = '';
         setCorsoBusy(true);
         setCorsoStatus('Corso is checking the tape and injury reports…');
@@ -2206,6 +2219,16 @@
           form.requestSubmit();
         }
       });
+
+      document.getElementById('corsoQuickPrompts')?.addEventListener('click', (e) => {
+        const btn = e.target.closest('.corso-quick-prompt');
+        if (!btn) return;
+        const prompt = btn.getAttribute('data-prompt');
+        if (!prompt) return;
+        input.value = prompt;
+        input.focus();
+        form.requestSubmit();
+      });
     }
 
     // Coach Corso floating widget
@@ -2213,11 +2236,15 @@
       const panel = document.getElementById('corsoPanel');
       const fab = document.getElementById('corsoFab');
       const widget = document.getElementById('corsoWidget');
+      const backdrop = document.getElementById('corsoBackdrop');
       if (!panel || !fab) return;
       const next = Boolean(open);
       panel.hidden = !next;
+      if (backdrop) backdrop.hidden = !next;
+      panel.setAttribute('aria-modal', next ? 'true' : 'false');
       fab.setAttribute('aria-expanded', next ? 'true' : 'false');
       if (widget) widget.classList.toggle('is-open', next);
+      document.body.classList.toggle('corso-panel-open', next);
       if (next) {
         setTimeout(() => {
           const input = document.getElementById('corsoChatInput');
@@ -2241,6 +2268,7 @@
 
     document.getElementById('corsoFab')?.addEventListener('click', toggleCoachCorso);
     document.getElementById('corsoPanelClose')?.addEventListener('click', () => setCorsoOpen(false));
+    document.getElementById('corsoBackdrop')?.addEventListener('click', () => setCorsoOpen(false));
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') setCorsoOpen(false);
     });

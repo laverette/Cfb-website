@@ -2351,6 +2351,32 @@ body.picks-results-open #cfbdWeek1PicksContainer {
     align-items: flex-end;
     gap: 0.65rem;
     max-width: min(100vw - 1.5rem, 22rem);
+    pointer-events: none;
+}
+
+.corso-widget > * {
+    pointer-events: auto;
+}
+
+.corso-backdrop {
+    position: fixed;
+    inset: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: rgba(0, 0, 0, 0.58);
+    cursor: pointer;
+    z-index: 0;
+    animation: corsoBackdropIn 0.2s ease;
+}
+
+.corso-backdrop[hidden] {
+    display: none !important;
+}
+
+@keyframes corsoBackdropIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 
 .corso-fab {
@@ -2382,15 +2408,40 @@ body.picks-results-open #cfbdWeek1PicksContainer {
 }
 
 .corso-panel {
+    position: relative;
+    z-index: 1;
     width: min(100vw - 1.5rem, 22rem);
     max-height: min(70vh, 32rem);
     display: flex;
     flex-direction: column;
     border-radius: 14px;
-    border: 1px solid rgba(255, 215, 0, 0.35);
+    border: 1px solid rgba(255, 215, 0, 0.4);
     background: linear-gradient(165deg, #2a1c18 0%, #1a1210 100%);
-    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.55);
     overflow: hidden;
+    animation: corsoPanelIn 0.22s ease;
+}
+
+.corso-panel::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #FFD700, #FFA000, #FFD700);
+    z-index: 1;
+}
+
+@keyframes corsoPanelIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
 }
 
 .corso-panel[hidden] {
@@ -2402,33 +2453,46 @@ body.picks-results-open #cfbdWeek1PicksContainer {
     align-items: flex-start;
     justify-content: space-between;
     gap: 0.75rem;
-    padding: 0.85rem 0.9rem 0.65rem;
+    padding: 0.9rem 0.95rem 0.7rem;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.corso-panel-head-text {
+    min-width: 0;
+    flex: 1;
 }
 
 .corso-panel-title {
     margin: 0;
-    font-size: 1.05rem;
+    font-size: 1.08rem;
     font-weight: 800;
     color: #FFD700;
+    line-height: 1.2;
 }
 
 .corso-panel-sub {
-    margin: 0.2rem 0 0;
-    font-size: 0.78rem;
-    color: rgba(245, 222, 179, 0.7);
-    line-height: 1.3;
+    margin: 0.25rem 0 0;
+    font-size: 0.8rem;
+    color: rgba(245, 222, 179, 0.82);
+    line-height: 1.35;
 }
 
 .corso-panel-close {
     appearance: none;
-    border: 0;
-    background: transparent;
-    color: rgba(245, 222, 179, 0.75);
-    font-size: 1.5rem;
+    flex-shrink: 0;
+    border: 1px solid rgba(255, 215, 0, 0.25);
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.2);
+    color: rgba(245, 222, 179, 0.9);
+    font-size: 1.35rem;
     line-height: 1;
     cursor: pointer;
-    padding: 0 0.15rem;
+    min-width: 2.25rem;
+    min-height: 2.25rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
 }
 
 .corso-panel-close:hover {
@@ -2440,16 +2504,45 @@ body.picks-results-open #cfbdWeek1PicksContainer {
     flex-direction: column;
     min-height: 0;
     flex: 1;
-    padding: 0.65rem 0.75rem 0.75rem;
+    padding: 0.75rem 0.85rem 0.85rem;
+    gap: 0.65rem;
 }
 
 .corso-widget .corso-chat-log {
     max-height: min(42vh, 16rem);
-    min-height: 8rem;
+    min-height: 5.5rem;
+    padding: 0.65rem;
+    margin: 0;
 }
 
 .corso-widget .corso-chat-form {
-    margin-top: 0.55rem;
+    margin-top: 0;
+}
+
+.corso-quick-prompts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.corso-quick-prompt {
+    appearance: none;
+    border: 1px solid rgba(255, 215, 0, 0.35);
+    border-radius: 999px;
+    background: rgba(62, 39, 35, 0.55);
+    color: #f5deb3;
+    font: inherit;
+    font-size: 0.76rem;
+    font-weight: 700;
+    padding: 0.35rem 0.65rem;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.corso-quick-prompt:hover {
+    border-color: #ffd700;
+    color: #ffd700;
+    background: rgba(62, 39, 35, 0.85);
 }
 
 .corso-jump-link,
@@ -2682,22 +2775,24 @@ body.picks-results-open #cfbdWeek1PicksContainer {
 }
 
 .corso-chat-input:focus {
-    outline: 2px solid #FFD700;
-    outline-offset: 1px;
+    outline: none;
+    border-color: #FFD700;
+    box-shadow: 0 0 0 2px rgba(255, 215, 0, 0.22);
 }
 
 .corso-chat-send {
     appearance: none;
     border: none;
     border-radius: 10px;
-    padding: 0.75rem 1.1rem;
+    padding: 0.7rem 1rem;
     background: linear-gradient(135deg, #FFD700, #FFA000);
     color: #1E1E1E;
     font: inherit;
     font-weight: 800;
+    font-size: 0.95rem;
     cursor: pointer;
     white-space: nowrap;
-    min-height: 2.8rem;
+    min-height: 2.65rem;
     transition: transform 0.12s ease, box-shadow 0.12s ease;
 }
 
@@ -2732,16 +2827,80 @@ body.picks-results-open #cfbdWeek1PicksContainer {
 }
 
 @media (max-width: 768px) {
+    body.corso-panel-open {
+        overflow: hidden;
+    }
+
     .corso-chat-form {
         grid-template-columns: 1fr;
+        gap: 0.5rem;
     }
 
     .corso-chat-send {
         width: 100%;
+        min-height: 2.75rem;
     }
 
     .corso-chat-log {
         max-height: min(360px, 48vh);
+    }
+
+    .corso-widget.is-open {
+        left: 0;
+        right: 0;
+        bottom: 0;
+        max-width: none;
+        align-items: stretch;
+        gap: 0;
+        padding-bottom: env(safe-area-inset-bottom, 0);
+    }
+
+    .corso-widget.is-open .corso-panel {
+        width: 100%;
+        max-width: none;
+        max-height: min(88vh, 100%);
+        border-radius: 16px 16px 0 0;
+        border-bottom: none;
+        animation: corsoSheetIn 0.24s ease;
+    }
+
+    @keyframes corsoSheetIn {
+        from {
+            opacity: 0;
+            transform: translateY(100%);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .corso-widget.is-open .corso-fab {
+        display: none;
+    }
+
+    .corso-widget .corso-chat-log {
+        max-height: min(36vh, 14rem);
+        min-height: 4.5rem;
+    }
+
+    .corso-widget .corso-chat {
+        padding: 0.7rem 0.85rem max(0.85rem, env(safe-area-inset-bottom));
+    }
+
+    .corso-chat-bubble {
+        font-size: 0.9rem;
+        padding: 0.65rem 0.8rem;
+    }
+
+    .corso-quick-prompts {
+        gap: 0.35rem;
+    }
+
+    .corso-quick-prompt {
+        font-size: 0.74rem;
+        padding: 0.4rem 0.7rem;
+        min-height: 2rem;
     }
 }
 
@@ -3548,7 +3707,8 @@ select {
     }
 
     .week11-layout,
-    .picks-layout-solo {
+    .picks-layout-solo,
+    #week10-results {
         padding-left: max(0.85rem, env(safe-area-inset-left));
         padding-right: max(0.85rem, env(safe-area-inset-right));
         box-sizing: border-box;
@@ -3589,6 +3749,14 @@ select {
         right: 0.75rem;
         align-items: center;
         max-width: none;
+    }
+
+    .corso-widget:not(.is-open) {
+        pointer-events: none;
+    }
+
+    .corso-widget:not(.is-open) .corso-fab {
+        pointer-events: auto;
     }
 
     .corso-panel {
@@ -3708,18 +3876,38 @@ select {
 
 .inline-score {
   display: flex;
-  gap: 0.5rem;
   align-items: center;
   justify-content: center;
+  gap: 0.4rem;
+  width: 100%;
   font-size: 0.85rem;
   color: #f5deb3;
 }
 
+.inline-score-sep {
+  flex: 0 0 auto;
+  opacity: 0.55;
+  font-weight: 700;
+  padding: 0 0.1rem;
+}
+
 .score-team-display {
+  flex: 1 1 0;
+  min-width: 0;
   font-weight: 600;
-  padding: 0.2rem 0.4rem;
+  padding: 0.25rem 0.45rem;
   border-radius: 4px;
   transition: all 0.3s ease;
+  line-height: 1.25;
+  text-align: center;
+}
+
+.score-team-away {
+  text-align: right;
+}
+
+.score-team-home {
+  text-align: left;
 }
 
 .score-team-display.score-winning {
@@ -3748,14 +3936,12 @@ select {
   
   .inline-score {
     font-size: 0.8rem;
-    flex-wrap: wrap;
-    justify-content: center;
-    text-align: center;
-    gap: 0.35rem 0.5rem;
+    gap: 0.3rem;
   }
 
   .score-team-display {
-    display: inline-block;
+    padding: 0.22rem 0.35rem;
+    font-size: 0.78rem;
   }
 }
 
@@ -3938,8 +4124,89 @@ select {
 @media (max-width: 900px) {
   .results-standings-grid {
     grid-template-columns: 1fr;
-    gap: 1.25rem;
-    width: calc(100% - 1rem);
+    gap: 1rem;
+    margin: 1rem auto 1.25rem;
+    width: 100%;
+    padding: 0;
+  }
+}
+
+@media (max-width: 768px) {
+  body.weekly-results-view .bouncing-football {
+    display: none !important;
+  }
+
+  #week10-results .title-section {
+    margin-bottom: 0.85rem;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  #week10-results .results-standings-board {
+    padding: 1rem 0.85rem 0.9rem;
+    border-radius: 14px;
+  }
+
+  #week10-results .results-standings-title {
+    font-size: 1.15rem;
+    margin-bottom: 0.75rem;
+  }
+
+  #week10-results .results-stand-row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas:
+      'rank player'
+      'rank stats';
+    gap: 0.4rem 0.7rem;
+    padding: 0.8rem 0.75rem;
+    position: relative;
+    z-index: 2;
+  }
+
+  #week10-results .results-stand-rank {
+    grid-area: rank;
+    align-self: center;
+    width: 2.15rem;
+    height: 2.15rem;
+  }
+
+  #week10-results .results-stand-player {
+    grid-area: player;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.6rem;
+  }
+
+  #week10-results .results-stand-stats {
+    grid-area: stats;
+    justify-content: center;
+    flex-wrap: wrap;
+    padding-left: 0;
+    gap: 0.35rem;
+  }
+
+  #week10-results .analysis-container {
+    margin: 0 0 1.5rem;
+    padding: 1.25rem 1rem;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  #week10-results .analysis-title {
+    font-size: 1.35rem;
+    margin-bottom: 1rem;
+  }
+
+  #week10-results .analysis-stats {
+    gap: 0.75rem;
+  }
+
+  #week10-results .stat-highlight {
+    padding: 1rem 0.85rem;
+    text-align: center;
+    justify-content: center;
   }
 }
 
@@ -3960,12 +4227,13 @@ select {
 
   .results-stand-player {
     grid-area: player;
+    justify-content: center;
   }
 
   .results-stand-stats {
     grid-area: stats;
-    justify-content: flex-start;
-    padding-left: 0.15rem;
+    justify-content: center;
+    padding-left: 0;
   }
 
   .results-stand-name {

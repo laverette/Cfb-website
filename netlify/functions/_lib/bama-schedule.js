@@ -4,7 +4,74 @@
  */
 
 const CFBD_BASE = "https://api.collegefootballdata.com";
+const ESPN_TEAMS_URL =
+  "https://site.api.espn.com/apis/site/v2/sports/football/college-football/teams?limit=500";
+const ESPN_SCHEDULE_BASE =
+  "https://site.api.espn.com/apis/site/v2/sports/football/college-football/teams";
 const DEFAULT_TEAM = "Alabama";
+const CFBD_TIMEOUT_MS = 12_000;
+const CFBD_RETRY_STATUSES = new Set([429, 502, 503, 504]);
+
+const FETCH_HEADERS = {
+  accept: "application/json, text/plain, */*",
+  "user-agent":
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+};
+
+let espnTeamIndex = null;
+
+const ESPN_ID_FALLBACK = new Map([
+  ["alabama", "333"],
+  ["auburn", "2"],
+  ["georgia", "61"],
+  ["lsu", "99"],
+  ["tennessee", "2633"],
+  ["texas a&m", "245"],
+  ["ole miss", "145"],
+  ["mississippi state", "344"],
+  ["florida", "57"],
+  ["florida state", "52"],
+  ["clemson", "228"],
+  ["ohio state", "194"],
+  ["michigan", "130"],
+  ["texas", "251"],
+  ["oklahoma", "201"],
+  ["usc", "30"],
+  ["oregon", "2483"],
+  ["notre dame", "87"],
+  ["penn state", "213"],
+]);
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function toInt(v) {
+  if (v == null || v === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+async function fetchJson(url, options = {}) {
+  const resp = await fetch(url, {
+    headers: FETCH_HEADERS,
+    ...options,
+  });
+  const text = await resp.text().catch(() => "");
+  let body = null;
+  try {
+    body = text ? JSON.parse(text) : null;
+  } catch {
+    body = { raw: text.slice(0, 200) };
+  }
+  if (!resp.ok) {
+    const err = new Error(`HTTP ${resp.status} for ${url}`);
+    err.status = resp.status;
+    err.body = body;
+    throw err;
+  }
+  return body;
+}
 
 const {
   getSupabase,
@@ -35,15 +102,154 @@ async function cfbdGet(path, query, apiKey, signal) {
     if (v == null || v === "") continue;
     url.searchParams.set(k, String(v));
   }
-  const resp = await fetch(url.toString(), {
-    headers: { authorization: `Bearer ${apiKey}`, accept: "application/json" },
-    signal,
-  });
-  if (!resp.ok) {
-    const text = await resp.text().catch(() => "");
-    throw new Error(`CFBD ${path} failed (${resp.status}): ${text.slice(0, 180)}`);
+
+  let lastErr = null;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    if (attempt > 0) await sleep(350 * attempt);
+    try {
+      const resp = await fetch(url.toString(), {
+        headers: { ...FETCH_HEADERS, authorization: `Bearer ${apiKey}` },
+        signal,
+      });
+      if (!resp.ok) {
+        const text = await resp.text().catch(() => "");
+        const err = new Error(`CFBD ${path} failed (${resp.status}): ${text.slice(0, 180)}`);
+        err.status = resp.status;
+        if (CFBD_RETRY_STATUSES.has(resp.status) && attempt < 2) {
+          lastErr = err;
+          continue;
+        }
+        throw err;
+      }
+      return resp.json();
+    } catch (err) {
+      if (err?.name === "AbortError") throw err;
+      if (attempt < 2 && (CFBD_RETRY_STATUSES.has(err.status) || /fetch failed/i.test(err.message))) {
+        lastErr = err;
+        continue;
+      }
+      throw err;
+    }
   }
-  return resp.json();
+  throw lastErr || new Error(`CFBD ${path} failed`);
+}
+
+async function cfbdGetWithTimeout(path, query, apiKey) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), CFBD_TIMEOUT_MS);
+  try {
+    return await cfbdGet(path, query, apiKey, controller.signal);
+  } catch (err) {
+    if (err?.name === "AbortError") {
+      throw new Error(`CFBD ${path} timed out after ${CFBD_TIMEOUT_MS}ms`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function loadEspnTeamIndex() {
+  if (espnTeamIndex) return espnTeamIndex;
+  try {
+    const data = await fetchJson(ESPN_TEAMS_URL);
+    const teams = (data?.sports?.[0]?.leagues?.[0]?.teams || []).map((row) => row.team).filter(Boolean);
+    espnTeamIndex = new Map();
+    for (const team of teams) {
+      const id = team.id;
+      const keys = [team.location, team.shortDisplayName, team.displayName, team.name]
+        .filter(Boolean)
+        .map((k) => String(k).trim().toLowerCase());
+      for (const key of keys) {
+        if (!espnTeamIndex.has(key)) espnTeamIndex.set(key, id);
+      }
+    }
+    return espnTeamIndex;
+  } catch (err) {
+    console.warn("loadEspnTeamIndex failed:", err.message);
+    espnTeamIndex = new Map();
+    return espnTeamIndex;
+  }
+}
+
+async function resolveEspnTeamId(school, apiKey, seasonYear) {
+  const key = String(school || "").trim().toLowerCase();
+  const index = await loadEspnTeamIndex();
+  if (index.has(key)) return index.get(key);
+  for (const [name, id] of index.entries()) {
+    if (name.startsWith(`${key} `) || key.startsWith(`${name} `)) return id;
+  }
+
+  if (apiKey) {
+    try {
+      const teams = await cfbdGetWithTimeout("/teams/fbs", { year: seasonYear }, apiKey);
+      const match = (Array.isArray(teams) ? teams : []).find((t) => sameTeam(t.school, school));
+      if (match?.id != null) return String(match.id);
+    } catch (err) {
+      console.warn("resolveEspnTeamId CFBD teams failed:", err.message);
+    }
+  }
+
+  if (ESPN_ID_FALLBACK.has(key)) return ESPN_ID_FALLBACK.get(key);
+  return null;
+}
+
+function mapEspnEventToCfbdShape(evt, seasonYear) {
+  const comp = Array.isArray(evt?.competitions) ? evt.competitions[0] : null;
+  if (!comp) return null;
+  const competitors = Array.isArray(comp.competitors) ? comp.competitors : [];
+  const home = competitors.find((c) => c.homeAway === "home");
+  const away = competitors.find((c) => c.homeAway === "away");
+  if (!home || !away) return null;
+
+  const status = evt?.status?.type || {};
+  const statusState = String(status.state || "").toLowerCase();
+  const completed =
+    statusState === "post" || /final/i.test(String(status.name || status.detail || ""));
+
+  return {
+    id: Number(evt.id),
+    season: Number(evt.season?.year) || seasonYear,
+    week: Number(evt.week?.number),
+    startDate: evt.date || null,
+    completed,
+    neutralSite: Boolean(comp.neutralSite),
+    conferenceGame: false,
+    homeTeam: home.team?.location || home.team?.shortDisplayName || home.team?.displayName,
+    awayTeam: away.team?.location || away.team?.shortDisplayName || away.team?.displayName,
+    homePoints: completed ? toInt(home.score) : null,
+    awayPoints: completed ? toInt(away.score) : null,
+  };
+}
+
+async function fetchTeamScheduleFromEspn(season, team, apiKey) {
+  const seasonYear = normalizeSeason(season);
+  const school = normalizeTeam(team);
+  const teamId = await resolveEspnTeamId(school, apiKey, seasonYear);
+  if (!teamId) {
+    throw new Error(`Could not resolve ESPN team id for ${school}`);
+  }
+  const data = await fetchJson(`${ESPN_SCHEDULE_BASE}/${teamId}/schedule?season=${seasonYear}`);
+  return (Array.isArray(data?.events) ? data.events : [])
+    .map((evt) => mapEspnEventToCfbdShape(evt, seasonYear))
+    .filter(Boolean)
+    .map((g) => mapScheduleGame(g, school))
+    .filter(Boolean)
+    .sort((a, b) => {
+      if (a.week !== b.week) return a.week - b.week;
+      const ta = a.startDate ? new Date(a.startDate).getTime() : 0;
+      const tb = b.startDate ? new Date(b.startDate).getTime() : 0;
+      return ta - tb;
+    });
+}
+
+function sortScheduleGames(games) {
+  return [...games].sort((a, b) => {
+    if (a.week !== b.week) return a.week - b.week;
+    const ta = a.startDate ? new Date(a.startDate).getTime() : 0;
+    const tb = b.startDate ? new Date(b.startDate).getTime() : 0;
+    return ta - tb;
+  });
 }
 
 function mapScheduleGame(g, school) {
@@ -101,22 +307,24 @@ function isGameLocked(startDate, completed) {
 }
 
 async function fetchTeamSchedule(season, team, apiKey) {
-  if (!apiKey) throw new Error("CFBD_API_KEY required");
   const school = normalizeTeam(team);
-  const raw = await cfbdGet(
-    "/games",
-    { year: normalizeSeason(season), team: school, seasonType: "regular" },
-    apiKey
-  );
-  return (Array.isArray(raw) ? raw : [])
-    .map((g) => mapScheduleGame(g, school))
-    .filter(Boolean)
-    .sort((a, b) => {
-      if (a.week !== b.week) return a.week - b.week;
-      const ta = a.startDate ? new Date(a.startDate).getTime() : 0;
-      const tb = b.startDate ? new Date(b.startDate).getTime() : 0;
-      return ta - tb;
-    });
+  const seasonYear = normalizeSeason(season);
+  const query = { year: seasonYear, team: school, seasonType: "regular" };
+
+  if (apiKey) {
+    try {
+      const raw = await cfbdGetWithTimeout("/games", query, apiKey);
+      return sortScheduleGames(
+        (Array.isArray(raw) ? raw : [])
+          .map((g) => mapScheduleGame(g, school))
+          .filter(Boolean)
+      );
+    } catch (err) {
+      console.warn("fetchTeamSchedule CFBD failed, trying ESPN:", err.message);
+    }
+  }
+
+  return fetchTeamScheduleFromEspn(seasonYear, school, apiKey);
 }
 
 function fetchAlabamaSchedule(season, apiKey) {
@@ -508,7 +716,6 @@ async function getLeaderboard({ season, team, cfbdGameId = null, apiKey }) {
   const seasonYear = normalizeSeason(season);
   const school = normalizeTeam(team);
   const games = await fetchTeamSchedule(seasonYear, school, apiKey);
-  await syncGrades(seasonYear, games, school);
   const gamesById = new Map(games.map((g) => [g.cfbdGameId, g]));
 
   const users = await listPublicUsers();

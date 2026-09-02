@@ -2,6 +2,15 @@
   publish = "Frontend"
   functions = "netlify/functions"
 
+[functions."bama-schedule"]
+  timeout = 26
+
+[functions."bama-schedule-leaderboard"]
+  timeout = 26
+
+[functions."bama-schedule-submit"]
+  timeout = 26
+
 [build.environment]
   SUPABASE_URL = "https://nkxitcvsqnmcsvvkndyx.supabase.co"
 
