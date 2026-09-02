@@ -262,11 +262,31 @@ body {
 }
 
 .site-title {
+  /* True viewport-center: ignore unequal left/right controls */
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1;
+  max-width: min(16rem, calc(100% - 7.5rem));
+  margin: 0;
+  padding: 0 0.25rem;
   color: var(--text-main);
   font-weight: 800;
-  letter-spacing: 0.2px;
-  margin: 0;
   font-size: 1.15rem;
+  letter-spacing: 0.2px;
+  line-height: 1.2;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+
+.hamburger-menu-btn,
+.navbar-auth-cluster,
+.navbar-login-section {
+  position: relative;
+  z-index: 2;
 }
 
 /* Menu button — football icon; spins while dropdown is open (.active) */

@@ -3693,11 +3693,8 @@ select {
     }
 
     .weeklypicks-navbar .site-nav-inner .site-title {
-        flex: 1 1 auto;
-        min-width: 0;
-        text-align: center;
         font-size: clamp(0.88rem, 3.8vw, 1.05rem);
-        padding: 0 0.35rem;
+        max-width: calc(100% - 7.25rem);
     }
 
     .picks-page-header {
