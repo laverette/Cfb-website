@@ -8,7 +8,7 @@
 
   var state = {
     season: new Date().getFullYear(),
-    team: DEFAULT_TEAM,
+    team: "",
     teamList: [],
     games: [],
     submittedCount: 0,
@@ -165,7 +165,11 @@
   }
 
   function teamName() {
-    return state.team || DEFAULT_TEAM;
+    return String(state.team || "").trim();
+  }
+
+  function hasTeam() {
+    return Boolean(teamName());
   }
 
   function predWin(pred) {
@@ -252,12 +256,36 @@
   }
 
   function persistTeam(name) {
-    try {
-      localStorage.setItem(STORAGE_TEAM, name);
-    } catch (_) {}
+    var team = String(name || "").trim();
     var url = new URL(window.location.href);
-    url.searchParams.set("team", name);
+    if (team) {
+      try {
+        localStorage.setItem(STORAGE_TEAM, team);
+      } catch (_) {}
+      url.searchParams.set("team", team);
+    } else {
+      try {
+        localStorage.removeItem(STORAGE_TEAM);
+      } catch (_) {}
+      url.searchParams.delete("team");
+    }
     history.replaceState(null, "", url.pathname + url.search + url.hash);
+  }
+
+  function showEmptyTeamState() {
+    state.games = [];
+    var form = $("predictForm");
+    if (form) {
+      form.innerHTML =
+        '<p class="bama-empty-prompt">Search and pick a team above to load their schedule.</p>';
+    }
+    var card = $("progressCard");
+    if (card) card.hidden = true;
+    var lbEmpty = $("lbEmpty");
+    if (lbEmpty && state.activeTab === "leaderboard") {
+      lbEmpty.hidden = false;
+      lbEmpty.textContent = "Pick a team first to view that schedule leaderboard.";
+    }
   }
 
   async function loadTeams() {
@@ -265,15 +293,11 @@
     var input = $("teamSearch");
     if (!hidden || !input) return;
 
-    var saved = readTeamFromUrl();
-    if (!saved) {
-      try {
-        saved = localStorage.getItem(STORAGE_TEAM);
-      } catch (_) {}
-    }
-    state.team = saved && saved.trim() ? saved.trim() : DEFAULT_TEAM;
+    // Only honor an explicit ?team= deep link — never auto-fill Alabama/localStorage.
+    var fromUrl = readTeamFromUrl();
+    state.team = fromUrl && fromUrl.trim() ? fromUrl.trim() : "";
 
-    var names = [DEFAULT_TEAM];
+    var names = [];
     try {
       var res = await fetch("/api/power/teams?season=" + encodeURIComponent(state.season));
       if (res.ok) {
@@ -286,7 +310,8 @@
       }
     } catch (_) {}
 
-    if (names.indexOf(state.team) === -1) names.unshift(state.team);
+    if (!names.length) names = [DEFAULT_TEAM];
+    if (state.team && names.indexOf(state.team) === -1) names.unshift(state.team);
     names.sort(function (a, b) {
       return a.localeCompare(b);
     });
@@ -294,6 +319,7 @@
 
     hidden.value = state.team;
     input.value = state.team;
+    input.placeholder = "Search team…";
   }
 
   function filterTeamNames(query) {
@@ -308,7 +334,7 @@
 
   function setTeamFromCombo(name, opts) {
     opts = opts || {};
-    var next = (name && String(name).trim()) || DEFAULT_TEAM;
+    var next = name && String(name).trim() ? String(name).trim() : "";
     var changed = next !== state.team;
     state.team = next;
     var hidden = $("teamSelect");
@@ -423,7 +449,7 @@
         if (exact) {
           commit(exact);
         } else {
-          input.value = state.team || DEFAULT_TEAM;
+          input.value = state.team || "";
         }
         close();
       }, 120);
@@ -722,6 +748,11 @@
   }
 
   async function loadSchedule() {
+    if (!hasTeam()) {
+      showEmptyTeamState();
+      return;
+    }
+
     var form = $("predictForm");
     if (form) {
       form.innerHTML =
@@ -971,6 +1002,16 @@
   }
 
   async function loadLeaderboard() {
+    if (!hasTeam()) {
+      $("lbBody").innerHTML = "";
+      $("lbHead").innerHTML = "";
+      $("lbTitle").textContent = "Schedule Leaderboard";
+      $("lbHint").textContent = "Search for a team above to open their board.";
+      $("lbEmpty").hidden = false;
+      $("lbEmpty").textContent = "Pick a team first to view that schedule leaderboard.";
+      $("bamaPodium").hidden = true;
+      return;
+    }
     if (state.lbScope === "game" && !state.lbGameId) {
       $("lbBody").innerHTML = "";
       $("lbHead").innerHTML = "";
@@ -1011,6 +1052,11 @@
   }
 
   function onTeamOrSeasonChange() {
+    if (!hasTeam()) {
+      persistTeam("");
+      showEmptyTeamState();
+      return;
+    }
     persistTeam(teamName());
     loadTeamBrandIndex()
       .then(function () {
@@ -1062,8 +1108,13 @@
     refreshAuthUi();
     var brandingLoad = window.RecruitTeamBranding ? RecruitTeamBranding.load() : Promise.resolve();
     await Promise.all([loadTeams(), brandingLoad, loadTeamBrandIndex()]);
-    persistTeam(teamName());
-    loadSchedule().catch(showError);
+    if (hasTeam()) {
+      persistTeam(teamName());
+      loadSchedule().catch(showError);
+    } else {
+      persistTeam("");
+      showEmptyTeamState();
+    }
     document.addEventListener("auth:changed", refreshAuthUi);
   });
 })();

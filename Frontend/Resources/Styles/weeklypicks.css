@@ -140,10 +140,13 @@ input:focus, select:focus {
 }
 
 #submit,
-.picks-action-btn {
+.picks-action-btn,
+.form-nav-link {
+    appearance: none;
+    -webkit-appearance: none;
     background-color: var(--bg-panel, #3E2723);
-    color: var(--text-primary, #f5deb3);
-    border: 1px solid var(--border, #8D6E63);
+    color: #FFD700;
+    border: 1px solid rgba(245, 222, 179, 0.85);
     border-radius: var(--radius-sm, 8px);
     text-decoration: none;
     display: inline-flex;
@@ -157,18 +160,24 @@ input:focus, select:focus {
     margin: 0;
     cursor: pointer;
     box-sizing: border-box;
+    box-shadow: none;
     transition: border-color 0.2s ease, color 0.2s ease, background-color 0.2s ease;
 }
 
 #submit:hover,
-.picks-action-btn:hover {
-    color: var(--gold, #FFD700);
-    border-color: var(--gold, #FFD700);
+.picks-action-btn:hover,
+.form-nav-link:hover {
+    color: #FFE566;
+    border-color: #FFD700;
     background-color: var(--bg-panel-2, #4E342E);
 }
 
+/* Keep Submit visually matched even when login-gated */
 #submit:disabled {
-    opacity: 0.55;
+    opacity: 1;
+    color: #FFD700;
+    border-color: rgba(245, 222, 179, 0.85);
+    background-color: var(--bg-panel, #3E2723);
     cursor: not-allowed;
 }
 
@@ -271,8 +280,8 @@ input:focus, select:focus {
         font-size: 0.95rem;
         font-weight: 700;
         background-color: var(--bg-panel, #3E2723);
-        color: var(--text-primary, #f5deb3);
-        border: 1px solid var(--border, #8D6E63);
+        color: #FFD700;
+        border: 1px solid rgba(245, 222, 179, 0.85);
         border-radius: var(--radius-sm, 8px);
         cursor: pointer;
         text-decoration: none;
@@ -289,11 +298,18 @@ input:focus, select:focus {
     .picks-action-btn:hover,
     .form-nav-link:hover,
     form p:last-of-type a:hover {
-        color: var(--gold, #FFD700);
-        border-color: var(--gold, #FFD700);
+        color: #FFE566;
+        border-color: #FFD700;
         background-color: var(--bg-panel-2, #4E342E);
         transform: none;
         box-shadow: none;
+    }
+
+    #submit:disabled {
+        opacity: 1;
+        color: #FFD700;
+        border-color: rgba(245, 222, 179, 0.85);
+        cursor: not-allowed;
     }
 
     .picks-form-actions {
@@ -301,6 +317,7 @@ input:focus, select:focus {
         flex-direction: column;
         gap: 0.55rem;
         width: 100%;
+        margin-top: 1.75rem;
     }
     
     .leaderboards-container {
@@ -981,6 +998,7 @@ input:focus, select:focus {
     display: grid;
     grid-template-columns: 1fr;
     gap: 0.55rem;
+    margin-bottom: 0.35rem;
 }
 
 #dbWeekPicksContainer > .picks-loading-message,
@@ -2309,36 +2327,14 @@ body.picks-results-open #cfbdWeek1PicksContainer {
     flex-wrap: wrap;
     gap: 0.55rem;
     align-items: center;
+    margin-top: 1.75rem;
+    padding-top: 0.35rem;
 }
 
 .picks-form-actions .form-nav-link,
 .picks-form-actions .picks-action-btn,
 .picks-form-actions #submit {
     margin: 0;
-}
-
-/* Form action links share button styling and wrap cleanly */
-.form-nav-link {
-    background-color: var(--bg-panel, #3E2723);
-    color: var(--text-primary, #f5deb3);
-    border: 1px solid var(--border, #8D6E63);
-    border-radius: var(--radius-sm, 8px);
-    text-decoration: none;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 40px;
-    padding: 0.5rem 0.9rem;
-    font-weight: 700;
-    font-size: 0.9rem;
-    margin: 0;
-    transition: border-color 0.2s ease, color 0.2s ease, background-color 0.2s ease;
-}
-
-.form-nav-link:hover {
-    color: var(--gold, #FFD700);
-    border-color: var(--gold, #FFD700);
-    background-color: var(--bg-panel-2, #4E342E);
 }
 
 /* ===== Coach Corso floating widget ===== */
@@ -3915,7 +3911,8 @@ select {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.4rem;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.55rem;
   width: 100%;
   font-size: 0.85rem;
   color: #f5deb3;
@@ -3929,29 +3926,30 @@ select {
 }
 
 .score-team-display {
-  flex: 1 1 0;
+  flex: 0 1 auto;
+  width: auto;
+  max-width: min(100%, 14rem);
   min-width: 0;
   font-weight: 600;
-  padding: 0.25rem 0.45rem;
-  border-radius: 4px;
-  transition: all 0.3s ease;
+  padding: 0.25rem 0.55rem;
+  border-radius: 6px;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
   line-height: 1.25;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.score-team-away,
+.score-team-home {
   text-align: center;
 }
 
-.score-team-away {
-  text-align: right;
-}
-
-.score-team-home {
-  text-align: left;
-}
-
 .score-team-display.score-winning {
-  color: #FFD700;
-  font-weight: bold;
-  background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(255, 160, 0, 0.15));
-  border: 1px solid rgba(255, 215, 0, 0.4);
+  color: #1e1e1e;
+  font-weight: 800;
+  background: linear-gradient(135deg, #ffd700, #ffa000);
+  border: 1px solid rgba(255, 215, 0, 0.65);
+  box-shadow: 0 2px 8px rgba(255, 215, 0, 0.22);
 }
 
 /* Mobile optimizations */

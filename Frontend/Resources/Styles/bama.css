@@ -570,10 +570,21 @@
 }
 
 .bama-loading,
-.bama-empty {
+.bama-empty,
+.bama-empty-prompt {
   text-align: center;
   color: var(--sp-muted);
   padding: 2rem 1rem;
+}
+
+.bama-empty-prompt {
+  margin: 1.5rem 0 2.5rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #f5deb3;
+  border: 1px dashed rgba(255, 215, 0, 0.28);
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.18);
 }
 
 .bama-result {
