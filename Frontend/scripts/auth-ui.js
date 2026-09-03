@@ -19,9 +19,7 @@
         { href: "weeklypicks.html", label: "📅 Weekly Picks" },
         { href: "bama.html", label: "📅 Schedule Predictions" },
         { href: "prediction-history.html", label: "🏆 Leaderboards" },
-        { href: "power-rankings.html", label: "📈 Power Rankings" },
         { href: "predictor.html", label: "🎯 Matchup Predictor" },
-        { href: "prop-bet.html", label: "📊 Prop Evaluator" },
         { href: "CFPPredictions.html", label: "🏆 CFP Picks" },
       ]
     },
@@ -29,6 +27,8 @@
       label: "🏈 Teams & Players",
       items: [
         { href: "teams.html", label: "🏈 Teams" },
+        { href: "power-rankings.html", label: "📈 Power Rankings" },
+        { href: "prop-bet.html", label: "📊 Prop Evaluator" },
         { href: "list.html", label: "👑 Heisman" },
         { href: "recruitmap.html", label: "🗺️ Recruit Map" },
       ]
