@@ -235,6 +235,11 @@
   status = 200
 
 [[redirects]]
+  from = "/api/prop-eval"
+  to = "/.netlify/functions/prop-eval"
+  status = 200
+
+[[redirects]]
   from = "/api/heisman"
   to = "/.netlify/functions/heisman"
   status = 200

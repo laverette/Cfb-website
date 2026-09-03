@@ -17,6 +17,7 @@
         { href: "prediction-history.html", label: "🏆 Leaderboards" },
         { href: "power-rankings.html", label: "📈 Power Rankings" },
         { href: "predictor.html", label: "🎯 Matchup Predictor" },
+        { href: "prop-bet.html", label: "📊 Prop Evaluator" },
         { href: "CFPPredictions.html", label: "🏆 CFP Picks" },
       ]
     },

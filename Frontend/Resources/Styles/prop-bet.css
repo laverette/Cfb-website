@@ -1,0 +1,163 @@
+/* Prop Bet Evaluator — extends power.css shell */
+
+.prop-page .power-subtitle {
+  max-width: 40rem;
+}
+
+.prop-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: 1.1rem;
+  align-items: start;
+}
+
+.prop-form-row {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 0.75rem;
+}
+
+.prop-optional {
+  font-style: normal;
+  font-weight: 500;
+  opacity: 0.65;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 0.78rem;
+}
+
+.prop-result-empty {
+  color: rgba(243, 239, 230, 0.65);
+  padding: 0.35rem 0 0.5rem;
+}
+
+.prop-verdict {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  border: 1px solid rgba(232, 197, 71, 0.35);
+  background:
+    linear-gradient(135deg, rgba(232, 197, 71, 0.14), transparent 55%),
+    rgba(0, 0, 0, 0.28);
+}
+
+.prop-verdict-lean {
+  font-family: "Barlow Condensed", Impact, sans-serif;
+  font-size: clamp(1.6rem, 4vw, 2.1rem);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #e8c547;
+  margin: 0;
+}
+
+.prop-verdict-lean.is-over { color: #7dcea0; }
+.prop-verdict-lean.is-under { color: #f0a090; }
+.prop-verdict-lean.is-tossup { color: #e8c547; }
+
+.prop-verdict-meta {
+  margin: 0;
+  color: rgba(243, 239, 230, 0.8);
+  font-size: 0.92rem;
+}
+
+.prop-player-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+
+.prop-player-logo {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.prop-player-name {
+  font-family: "Barlow Condensed", Impact, sans-serif;
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #f3efe6;
+  margin: 0;
+}
+
+.prop-player-sub {
+  margin: 0.1rem 0 0;
+  color: rgba(185, 169, 144, 0.95);
+  font-size: 0.88rem;
+}
+
+.prop-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+  margin: 0.75rem 0 1rem;
+}
+
+.prop-metric {
+  padding: 0.65rem 0.75rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.prop-metric-label {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(185, 169, 144, 0.95);
+  margin-bottom: 0.2rem;
+}
+
+.prop-metric-value {
+  font-family: "Barlow Condensed", Impact, sans-serif;
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #e8c547;
+}
+
+.prop-reason {
+  margin: 0 0 0.75rem;
+  color: rgba(243, 239, 230, 0.78);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.prop-disclaimer {
+  margin: 0;
+  font-size: 0.78rem;
+  color: rgba(185, 169, 144, 0.85);
+}
+
+.prop-error {
+  color: #ffc7c0;
+  margin: 0;
+}
+
+.prop-loading {
+  color: #e8c547;
+  font-family: "Barlow Condensed", Impact, sans-serif;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+@media (max-width: 900px) {
+  .prop-grid {
+    grid-template-columns: 1fr;
+  }
+  .prop-form-row {
+    grid-template-columns: 1fr;
+  }
+}

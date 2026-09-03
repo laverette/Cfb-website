@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prop Bet Evaluator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <link rel="stylesheet" href="styles/site-theme.css">
+  <link rel="stylesheet" href="Resources/Styles/power.css">
+  <link rel="stylesheet" href="Resources/Styles/prop-bet.css">
+</head>
+<body class="power-rankings-body">
+  <nav class="navbar weeklypicks-navbar site-nav">
+    <div class="container-fluid">
+      <div class="navbar-content-weekly site-nav-inner">
+        <button class="hamburger-menu-btn" onclick="toggleMenu()" aria-label="Menu" aria-expanded="false" aria-controls="dropdownMenu">
+          <span></span><span></span><span></span>
+        </button>
+        <div class="dropdown-menu" id="dropdownMenu"></div>
+        <h1 class="site-title">Prop Evaluator</h1>
+        <div id="auth-nav" class="navbar-auth-cluster"></div>
+      </div>
+    </div>
+  </nav>
+  <div class="menu-overlay" id="menuOverlay" onclick="closeMenu()"></div>
+
+  <main class="container page-shell power-page prop-page">
+    <header class="power-header">
+      <p class="power-eyebrow">Player props</p>
+      <h1 class="power-title">Prop Bet Evaluator</h1>
+      <p class="power-subtitle">
+        Search a player, enter the sportsbook line, and we’ll compare it to season averages adjusted for this week’s opponent.
+      </p>
+    </header>
+
+    <div class="prop-grid">
+      <section class="matchup-panel matchup-panel-form" aria-labelledby="propFormTitle">
+        <div class="matchup-panel-head">
+          <h2 id="propFormTitle" class="matchup-panel-title">Build a leg</h2>
+          <p class="matchup-panel-lead">Single-leg v1 — over / under lean from averages + opponent strength.</p>
+        </div>
+
+        <form class="matchup-form" id="propForm" onsubmit="return false;">
+          <label class="power-field">
+            <span>Player</span>
+            <div class="matchup-combo" id="playerCombo">
+              <input type="hidden" id="playerId" value="">
+              <input type="hidden" id="playerTeam" value="">
+              <input type="hidden" id="playerName" value="">
+              <input
+                class="site-select matchup-select matchup-combo-input"
+                id="playerSearch"
+                type="text"
+                autocomplete="off"
+                spellcheck="false"
+                placeholder="Search player (e.g. Keelon Russell)…"
+                aria-label="Player search"
+                aria-autocomplete="list"
+                aria-controls="playerList"
+              >
+              <ul class="matchup-combo-list" id="playerList" hidden role="listbox"></ul>
+            </div>
+          </label>
+
+          <div class="prop-form-row">
+            <label class="power-field">
+              <span>Stat</span>
+              <select id="propStat" class="site-select matchup-select" disabled>
+                <option value="">Select a player first…</option>
+              </select>
+            </label>
+            <label class="power-field">
+              <span>Line</span>
+              <input
+                id="propLine"
+                class="site-select matchup-select"
+                type="number"
+                step="0.5"
+                inputmode="decimal"
+                placeholder="e.g. 224.5"
+              >
+            </label>
+          </div>
+
+          <label class="power-field">
+            <span>Opponent <em class="prop-optional">(optional — auto from schedule)</em></span>
+            <div class="matchup-combo" id="oppCombo">
+              <input type="hidden" id="opponentId" value="">
+              <input
+                class="site-select matchup-select matchup-combo-input"
+                id="opponentSearch"
+                type="text"
+                autocomplete="off"
+                spellcheck="false"
+                placeholder="Leave blank to use next game…"
+                aria-label="Opponent team"
+                aria-autocomplete="list"
+                aria-controls="opponentList"
+              >
+              <ul class="matchup-combo-list" id="opponentList" hidden role="listbox"></ul>
+            </div>
+          </label>
+
+          <button type="button" class="btn btn-gold matchup-submit-btn" id="evaluateBtn" disabled>
+            Evaluate prop
+          </button>
+          <p class="matchup-form-note">Not betting advice. Model uses season averages and power rankings only.</p>
+        </form>
+      </section>
+
+      <section class="matchup-panel prop-result-panel" aria-live="polite" aria-labelledby="propResultTitle">
+        <div class="matchup-panel-head">
+          <h2 id="propResultTitle" class="matchup-panel-title">Result</h2>
+        </div>
+        <div id="propResult" class="prop-result-empty">
+          <p>Pick a player and line to see a lean.</p>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script src="scripts/auth-ui.js"></script>
+  <script src="scripts/prop-bet.js"></script>
+  <script>
+    function closeMenu() {
+      const menu = document.getElementById('dropdownMenu');
+      const button = document.querySelector('.hamburger-menu-btn');
+      const overlay = document.getElementById('menuOverlay');
+      if (!menu || !button || !overlay) return;
+      menu.classList.remove('show');
+      button.classList.remove('active');
+      button.setAttribute('aria-expanded', 'false');
+      overlay.classList.remove('show');
+      document.body.classList.remove('menu-open');
+    }
+    function toggleMenu() {
+      const menu = document.getElementById('dropdownMenu');
+      const button = document.querySelector('.hamburger-menu-btn');
+      const overlay = document.getElementById('menuOverlay');
+      if (!menu || !button || !overlay) return;
+      const isOpening = !menu.classList.contains('show');
+      menu.classList.toggle('show');
+      button.classList.toggle('active');
+      button.setAttribute('aria-expanded', isOpening ? 'true' : 'false');
+      overlay.classList.toggle('show', isOpening);
+      document.body.classList.toggle('menu-open', isOpening);
+    }
+    document.addEventListener('click', function (event) {
+      const menu = document.getElementById('dropdownMenu');
+      const button = document.querySelector('.hamburger-menu-btn');
+      if (!menu || !button) return;
+      if (!menu.contains(event.target) && !button.contains(event.target)) closeMenu();
+    });
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape') closeMenu();
+    });
+  </script>
+</body>
+</html>
