@@ -87,6 +87,13 @@
                 <span>Email me pick reminders before the weekly deadline (optional)</span>
               </label>
             </div>
+
+            <div class="mb-3 avatar-picker-block">
+              <label class="avatar-picker-label">Choose your avatar <span style="color:#FFD700;">*</span></label>
+              <p class="avatar-picker-hint">Pick one of six — you can swap the image files later in Resources/Images/avatars/</p>
+              <div class="avatar-picker-grid" id="avatarPickerGrid" role="radiogroup" aria-label="Avatar choice"></div>
+              <input type="hidden" id="registerAvatarId" name="avatarId" value="" required>
+            </div>
             
             <div class="text-center">
               <button type="submit" class="btn" style="background-color: #3E2723; color: #F5F5F5; border: 1px solid #8D6E63; padding: 10px 30px; font-weight: bold;">Register</button>
@@ -158,6 +165,7 @@
       document.getElementById('registerFormContainer').style.display = 'block';
       document.getElementById('pageTitle').textContent = '🏈 Register for CFB Predictions';
       clearMessage();
+      initAvatarPicker();
     }
 
     function showMessage(message, type) {
@@ -173,6 +181,47 @@
 
     function clearMessage() {
       document.getElementById('message').innerHTML = '';
+    }
+
+    function initAvatarPicker() {
+      var grid = document.getElementById('avatarPickerGrid');
+      var hidden = document.getElementById('registerAvatarId');
+      if (!grid || grid.dataset.ready === '1') return;
+      grid.dataset.ready = '1';
+      var count = (window.AuthUI && AuthUI.AVATAR_COUNT) || 6;
+      var html = '';
+      for (var i = 1; i <= count; i++) {
+        var png = AuthUI.avatarPngPath(i);
+        var svg = AuthUI.avatarSvgPath(i);
+        html +=
+          '<button type="button" class="avatar-pick-option" data-avatar-id="' +
+          i +
+          '" role="radio" aria-checked="false" aria-label="Avatar ' +
+          i +
+          '">' +
+          '<img src="' +
+          png +
+          '" alt="" width="64" height="64" decoding="async" onerror="this.onerror=null;this.src=\'' +
+          svg +
+          '\'">' +
+          '<span>Avatar ' +
+          i +
+          '</span>' +
+          '</button>';
+      }
+      grid.innerHTML = html;
+      grid.addEventListener('click', function (e) {
+        var btn = e.target.closest('.avatar-pick-option');
+        if (!btn || !grid.contains(btn)) return;
+        var id = btn.getAttribute('data-avatar-id');
+        hidden.value = id;
+        var opts = grid.querySelectorAll('.avatar-pick-option');
+        for (var j = 0; j < opts.length; j++) {
+          var on = opts[j] === btn;
+          opts[j].classList.toggle('is-selected', on);
+          opts[j].setAttribute('aria-checked', on ? 'true' : 'false');
+        }
+      });
     }
 
     // Login form handler
@@ -240,6 +289,10 @@
       if (!password || password.length < 8) {
         validationErrors.push('Password must be at least 8 characters long');
       }
+      const avatarId = Number(document.getElementById('registerAvatarId')?.value || 0);
+      if (!avatarId || avatarId < 1 || avatarId > 6) {
+        validationErrors.push('Please choose an avatar');
+      }
       
       if (validationErrors.length > 0) {
         showMessage(`❌ Please fix the following:\n${validationErrors.join('\n')}`, 'error');
@@ -250,7 +303,8 @@
         username: username,
         email: email,
         password: password,
-        emailNotifications: document.getElementById('registerEmailReminders')?.checked === true
+        emailNotifications: document.getElementById('registerEmailReminders')?.checked === true,
+        avatarId: avatarId
       };
       
       try {

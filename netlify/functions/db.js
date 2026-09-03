@@ -254,7 +254,14 @@ async function updateUserSettings(userId, patch = {}) {
   return data || null;
 }
 
-async function registerUser({ username, email, passwordHash, displayName, emailNotifications = false }) {
+async function registerUser({
+  username,
+  email,
+  passwordHash,
+  displayName,
+  emailNotifications = false,
+  avatarUrl = null,
+}) {
   const supabase = getSupabase();
   const { data: existingU, error: uErr } = await supabase
     .from("users")
@@ -279,15 +286,18 @@ async function registerUser({ username, email, passwordHash, displayName, emailN
     throw err;
   }
 
+  const insertRow = {
+    username,
+    email,
+    password_hash: passwordHash,
+    display_name: displayName,
+    role: "user",
+  };
+  if (avatarUrl) insertRow.avatar_url = String(avatarUrl);
+
   const { data: created, error: insErr } = await supabase
     .from("users")
-    .insert({
-      username,
-      email,
-      password_hash: passwordHash,
-      display_name: displayName,
-      role: "user",
-    })
+    .insert(insertRow)
     .select("id, username, email, display_name, avatar_url, bio, role, created_at")
     .single();
   dbError(insErr);

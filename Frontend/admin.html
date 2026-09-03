@@ -834,10 +834,6 @@
                 <option value="conferences">Selected conferences</option>
               </select>
             </div>
-            <label class="cfbd-auto-select">
-              <input type="checkbox" id="cfbdAutoSelect" checked>
-              Auto-select matching games
-            </label>
           </div>
           <div id="cfbdConfPicker" class="cfbd-conf-picker" hidden aria-label="Conference picker"></div>
           <div class="cfbd-conf-actions" id="cfbdConfActions" hidden>
@@ -2344,10 +2340,6 @@
         populateDayFilter();
         const focusLabel = applyFetchFocusFilters();
         const visible = getFilteredCfbdGames();
-        const autoSelect = document.getElementById('cfbdAutoSelect')?.checked;
-        if (autoSelect && focus !== 'all') {
-          visible.forEach((g) => cfbdSelectedIds.add(Number(g.cfbd_game_id)));
-        }
         const divLabel = data.classification || classification;
         const rankMeta = data.rankings || {};
         const rankNote =
@@ -2355,7 +2347,7 @@
             ? ` · ${rankMeta.gamesWithRankedTeam || 0} with Top 25 (${escapeHtml(rankMeta.poll || 'poll')})`
             : ' · no rankings found for this week yet';
         document.getElementById('cfbdFetchStatus').innerHTML =
-          `<div class="status-message status-success">${cfbdGamesCache.length} games loaded (${escapeHtml(divLabel)})${rankNote}. Focus: <strong>${escapeHtml(focusLabel)}</strong> → showing <strong>${visible.length}</strong>${autoSelect && focus !== 'all' ? `, selected <strong>${cfbdSelectedIds.size}</strong>` : ''}.</div>`;
+          `<div class="status-message status-success">${cfbdGamesCache.length} games loaded (${escapeHtml(divLabel)})${rankNote}. Focus: <strong>${escapeHtml(focusLabel)}</strong> → showing <strong>${visible.length}</strong>. None selected — pick games below.</div>`;
         renderCfbdList();
       } catch (e) {
         document.getElementById('cfbdFetchStatus').innerHTML =

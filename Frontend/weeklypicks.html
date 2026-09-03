@@ -230,40 +230,18 @@
       </div>
     </div>
     
-    <!-- Heisman Rankings Preview Section -->
-    <div class="heisman-preview-container">
+    <!-- Heisman odds board preview -->
+    <div class="heisman-preview-container" id="heismanOddsPreview" aria-labelledby="heismanPreviewTitle">
       <div class="heisman-preview-header">
-        <h2 class="heisman-preview-title">👑 Final Heisman Results</h2>
+        <h2 class="heisman-preview-title" id="heismanPreviewTitle">👑 Heisman Odds Board</h2>
         <a href="list.html" class="heisman-view-all-link">View Full Rankings →</a>
       </div>
       <div class="heisman-preview-content">
-        <ol class="heisman-preview-list">
-          <li class="heisman-preview-item">
-            <span class="heisman-rank">1</span>
+        <ol class="heisman-preview-list" id="heismanPreviewList">
+          <li class="heisman-preview-item heisman-preview-loading">
             <span class="heisman-player-info">
-              <span class="heisman-player-name">Fernando Mendoza</span>
-              <span class="heisman-player-details">INDY • QB</span>
-            </span>
-          </li>
-          <li class="heisman-preview-item">
-            <span class="heisman-rank">2</span>
-            <span class="heisman-player-info">
-              <span class="heisman-player-name">Diego Pavia</span>
-              <span class="heisman-player-details">VANDY • QB</span>
-            </span>
-          </li>
-          <li class="heisman-preview-item">
-            <span class="heisman-rank">3</span>
-            <span class="heisman-player-info">
-              <span class="heisman-player-name">Jeremiyah Love</span>
-              <span class="heisman-player-details">ND • HB</span>
-            </span>
-          </li>
-          <li class="heisman-preview-item">
-            <span class="heisman-rank">4</span>
-            <span class="heisman-player-info">
-              <span class="heisman-player-name">Julian Sayin</span>
-              <span class="heisman-player-details">OSU • QB</span>
+              <span class="heisman-player-name">Loading live odds…</span>
+              <span class="heisman-player-details">Top favorites from the board</span>
             </span>
           </li>
         </ol>
@@ -1015,10 +993,88 @@
       // Live scores will be loaded automatically after games are loaded
       hideHardcodedGameRows();
       loadActiveWeekAndGames();
+      loadHeismanOddsPreview();
 
       // Optional CFBD smoke test (kept for later; OFF in Phase 1)
       // if (USE_CFBD_GAMES_FOR_WEEKLY_PICKS) { ... }
     });
+
+    function escapeHeismanHtml(s) {
+      return String(s ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    async function loadHeismanOddsPreview() {
+      const list = document.getElementById('heismanPreviewList');
+      const title = document.getElementById('heismanPreviewTitle');
+      if (!list) return;
+      try {
+        const res = await fetch('/api/heisman?season=2026', {
+          headers: { accept: 'application/json' },
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || res.statusText);
+
+        // If official winner is set, show final results styling/title
+        const winnerKey = data.result?.winnerPlayerKey || data.result?.winner_player_key;
+        if (title) {
+          title.textContent = winnerKey
+            ? '👑 Final Heisman Results'
+            : '👑 Heisman Odds Board';
+        }
+
+        const candidates = Array.isArray(data.board?.candidates)
+          ? data.board.candidates.slice(0, 4)
+          : [];
+        if (!candidates.length) {
+          list.innerHTML =
+            '<li class="heisman-preview-item heisman-preview-loading">' +
+            '<span class="heisman-player-info">' +
+            '<span class="heisman-player-name">Odds unavailable</span>' +
+            '<span class="heisman-player-details">Open the full board to try again</span>' +
+            '</span></li>';
+          return;
+        }
+
+        list.innerHTML = candidates
+          .map((c, i) => {
+            const rank = c.rank != null ? c.rank : i + 1;
+            const team =
+              c.teamAbbr ||
+              c.team ||
+              '';
+            const pos = c.position || '';
+            const odds = c.americanDisplay || '';
+            const detail = [team, pos, odds].filter(Boolean).join(' · ');
+            const headshot = c.headshot
+              ? `<img class="heisman-preview-headshot" src="${escapeHeismanHtml(c.headshot)}" alt="" loading="lazy" onerror="this.style.display='none'">`
+              : '';
+            const logo = c.teamLogo
+              ? `<img class="heisman-preview-team-logo" src="${escapeHeismanHtml(c.teamLogo)}" alt="" loading="lazy" onerror="this.style.display='none'">`
+              : '';
+            return (
+              `<li class="heisman-preview-item">` +
+              `<span class="heisman-rank">${escapeHeismanHtml(String(rank))}</span>` +
+              headshot +
+              `<span class="heisman-player-info">` +
+              `<span class="heisman-player-name">${escapeHeismanHtml(c.playerName || 'Player')}</span>` +
+              `<span class="heisman-player-details">${logo}${escapeHeismanHtml(detail)}</span>` +
+              `</span></li>`
+            );
+          })
+          .join('');
+      } catch (err) {
+        list.innerHTML =
+          '<li class="heisman-preview-item heisman-preview-loading">' +
+          '<span class="heisman-player-info">' +
+          '<span class="heisman-player-name">Couldn’t load odds</span>' +
+          `<span class="heisman-player-details">${escapeHeismanHtml(err.message || 'Try the full board')}</span>` +
+          '</span></li>';
+      }
+    }
 
     const FOOTBALL_OFF_KEY = 'weeklyPicksFootballOff';
 
@@ -1355,7 +1411,7 @@
           (window.__DB_GAMES__ || []).length,
           savedPicks.length
         );
-        document.getElementById('results').innerHTML = buildPicksShareCardHtml({
+        const shareOpts = {
           userName,
           form: document.querySelector('form[name="predictions"]'),
           gameCount,
@@ -1363,8 +1419,22 @@
           statusText: 'Your picks for this week',
           canEdit,
           locksAt,
+        };
+        window.__SHARE_CARD_OPTS__ = shareOpts;
+        document.getElementById('results').innerHTML = buildPicksShareCardHtml({
+          ...shareOpts,
+          liveScores: cachedLiveScores,
         });
         wireShareCardActions({ locksAt });
+        // Pull live scores for the share graphic (and keep refreshing).
+        fetchLiveScores({ fast: true })
+          .then((scores) => {
+            if (!scores) return;
+            cachedLiveScores = scores;
+            renderShareCardFromCache(scores);
+          })
+          .catch(() => {});
+        startLiveScoresAutoRefresh();
         setTimeout(() => {
           const card = document.getElementById('picksShareCard');
           if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1473,12 +1543,68 @@
       };
     }
 
-    function buildPicksShareCardHtml({ userName, form, gameCount, savedPicks, statusText, canEdit, locksAt }) {
+    function pickResultForShare(game, pick, liveGame) {
+      if (!liveGame || !pick) return { state: 'pending', label: 'Your pick' };
+      const status = getGameStatus(liveGame);
+      if (status.kind === 'scheduled') return { state: 'pending', label: 'Your pick' };
+
+      const awayScore = toScoreInt(liveGame.awayPoints);
+      const homeScore = toScoreInt(liveGame.homePoints);
+      const pickedEspn = Number(pick.espnId);
+      const awayEspn = Number(game?.awayTeamEspnId);
+      const homeEspn = Number(game?.homeTeamEspnId);
+      const pickedAway =
+        Number.isFinite(pickedEspn) && pickedEspn === awayEspn
+          ? true
+          : Number.isFinite(pickedEspn) && pickedEspn === homeEspn
+            ? false
+            : String(pick.name || '') === String(game?.awayTeamName || '');
+      const pickedHome = !pickedAway;
+
+      if (status.kind === 'live') {
+        if (awayScore == null || homeScore == null || awayScore === homeScore) {
+          return { state: 'live', label: 'LIVE' };
+        }
+        const leading =
+          (pickedAway && awayScore > homeScore) || (pickedHome && homeScore > awayScore);
+        return {
+          state: leading ? 'leading' : 'trailing',
+          label: leading ? 'Leading' : 'Trailing',
+        };
+      }
+
+      // final
+      if (awayScore == null || homeScore == null || awayScore === homeScore) {
+        return { state: 'final', label: 'Final' };
+      }
+      const won =
+        (pickedAway && awayScore > homeScore) || (pickedHome && homeScore > awayScore);
+      return {
+        state: won ? 'correct' : 'wrong',
+        label: won ? 'Correct' : 'Wrong',
+      };
+    }
+
+    function buildPicksShareCardHtml({
+      userName,
+      form,
+      gameCount,
+      savedPicks,
+      statusText,
+      canEdit,
+      locksAt,
+      liveScores = null,
+    }) {
       const week = shareWeekLabel();
       const games = Array.isArray(window.__DB_GAMES__) ? window.__DB_GAMES__ : [];
+      const scores = liveScores || cachedLiveScores || null;
       const safeUser = safeText(userName || 'Guest');
       const lockLabel = locksAt ? formatGameDate(locksAt) : '';
       let gamesHtml = '';
+      let correctCount = 0;
+      let wrongCount = 0;
+      let liveCount = 0;
+      let finalCount = 0;
 
       for (let i = 1; i <= gameCount; i++) {
         const game = games.find((g) => Number(g.gameNumber) === i) || games[i - 1] || null;
@@ -1493,26 +1619,80 @@
         const homeIsPick = Number(game?.homeTeamEspnId) === pickedEspnId || homeName === pickedName;
         const pickLogo = awayIsPick ? awayLogo : homeIsPick ? homeLogo : resolveTeamLogo('', pickedEspnId);
 
+        const liveGame = findLiveGameForPick(scores, game);
+        const status = liveGame ? getGameStatus(liveGame) : { kind: 'scheduled', label: '' };
+        const awayScore = liveGame ? toScoreInt(liveGame.awayPoints) : null;
+        const homeScore = liveGame ? toScoreInt(liveGame.homePoints) : null;
+        const showScores = status.kind === 'live' || status.kind === 'final';
+        const result = pickResultForShare(game, pick, liveGame);
+
+        if (result.state === 'correct') correctCount += 1;
+        if (result.state === 'wrong') wrongCount += 1;
+        if (status.kind === 'live') liveCount += 1;
+        if (status.kind === 'final') finalCount += 1;
+
+        const awayWinning =
+          showScores && awayScore != null && homeScore != null && awayScore > homeScore
+            ? ' is-winning'
+            : '';
+        const homeWinning =
+          showScores && awayScore != null && homeScore != null && homeScore > awayScore
+            ? ' is-winning'
+            : '';
+
+        const middleHtml = showScores
+          ? `<div class="picks-share-scoreblock">
+              <span class="picks-share-status picks-share-status-${safeText(status.kind)}">${safeText(status.label)}</span>
+              <div class="picks-share-scoreline">
+                <span class="picks-share-score${awayWinning}">${safeText(awayScore ?? 0)}</span>
+                <span class="picks-share-score-sep">–</span>
+                <span class="picks-share-score${homeWinning}">${safeText(homeScore ?? 0)}</span>
+              </div>
+            </div>`
+          : `<span class="picks-share-at">@</span>`;
+
         gamesHtml += `
-          <div class="picks-share-game">
-            <div class="picks-share-game-num">Game ${i}</div>
+          <div class="picks-share-game is-${safeText(result.state)}${status.kind === 'live' ? ' is-live' : ''}${status.kind === 'final' ? ' is-final' : ''}">
+            <div class="picks-share-game-top">
+              <div class="picks-share-game-num">Game ${i}</div>
+              ${
+                result.state !== 'pending'
+                  ? `<span class="picks-share-result-chip is-${safeText(result.state)}">${safeText(result.label)}</span>`
+                  : ''
+              }
+            </div>
             <div class="picks-share-teams">
-              <div class="picks-share-team${awayIsPick ? ' is-pick' : ''}">
+              <div class="picks-share-team${awayIsPick ? ' is-pick' : ''}${awayWinning}">
                 ${logoImgHtml(awayLogo, awayName, game?.awayTeamEspnId)}
                 <span>${safeText(awayName || 'TBD')}</span>
               </div>
-              <span class="picks-share-at">@</span>
-              <div class="picks-share-team${homeIsPick ? ' is-pick' : ''}">
+              ${middleHtml}
+              <div class="picks-share-team${homeIsPick ? ' is-pick' : ''}${homeWinning}">
                 ${logoImgHtml(homeLogo, homeName, game?.homeTeamEspnId)}
                 <span>${safeText(homeName || 'TBD')}</span>
               </div>
             </div>
-            <div class="picks-share-pick">
+            <div class="picks-share-pick is-${safeText(result.state)}">
               ${logoImgHtml(pickLogo, pickedName, pickedEspnId)}
-              <span>${safeText(pickedName)}</span>
+              <span>${safeText(pickedName || '—')}</span>
+              ${
+                result.state === 'correct'
+                  ? '<span class="picks-share-pick-mark" aria-hidden="true">✓</span>'
+                  : result.state === 'wrong'
+                    ? '<span class="picks-share-pick-mark" aria-hidden="true">✗</span>'
+                    : ''
+              }
             </div>
           </div>
         `;
+      }
+
+      let recordHtml = '';
+      if (finalCount > 0 || liveCount > 0) {
+        const bits = [];
+        if (finalCount > 0) bits.push(`${correctCount}–${wrongCount}`);
+        if (liveCount > 0) bits.push(`${liveCount} live`);
+        recordHtml = `<p class="picks-share-record">${safeText(bits.join(' · '))}</p>`;
       }
 
       const editBlock = canEdit
@@ -1524,6 +1704,10 @@
             <p class="screenshot-note">Picks are locked for this week.</p>
           `;
 
+      const footerBits = [`${gameCount} picks`];
+      if (finalCount > 0) footerBits.push(`${correctCount}–${wrongCount} final`);
+      footerBits.push(`${safeText(week.weekPart)}${week.yearPart ? safeText(week.yearPart) : ''}`);
+
       return `
         <div class="picks-share-wrap">
           <div class="picks-share-card" id="picksShareCard">
@@ -1531,11 +1715,12 @@
               <p class="picks-share-brand">Weekly Picks</p>
               <p class="picks-share-week-badge">${safeText(week.weekPart)}${week.yearPart ? safeText(week.yearPart) : ''}</p>
               <h2 class="picks-share-title">${safeUser}</h2>
+              ${recordHtml}
             </div>
             <div class="picks-share-grid">
               ${gamesHtml}
             </div>
-            <p class="picks-share-footer">${gameCount} picks · ${safeText(week.weekPart)}${week.yearPart ? safeText(week.yearPart) : ''}</p>
+            <p class="picks-share-footer">${footerBits.join(' · ')}</p>
           </div>
           <div class="picks-share-actions">
             <p class="success-message">${safeText(statusText || 'Your picks for this week')}</p>
@@ -1548,6 +1733,18 @@
           </div>
         </div>
       `;
+    }
+
+    function renderShareCardFromCache(liveScores = null) {
+      const opts = window.__SHARE_CARD_OPTS__;
+      if (!opts || !document.getElementById('picksShareCard')) return;
+      const results = document.getElementById('results');
+      if (!results) return;
+      results.innerHTML = buildPicksShareCardHtml({
+        ...opts,
+        liveScores: liveScores || cachedLiveScores,
+      });
+      wireShareCardActions({ locksAt: opts.locksAt });
     }
 
     function authHeaders() {
@@ -2789,6 +2986,9 @@
       if (liveScores) {
         cachedLiveScores = liveScores;
         renderDbGamesIntoForm(cachedDbGames, liveScores);
+        if (document.body.classList.contains('picks-results-open')) {
+          renderShareCardFromCache(liveScores);
+        }
       }
 
       const resultsTab = document.getElementById('week10-results');

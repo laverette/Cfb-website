@@ -2,10 +2,15 @@
  * Site-wide nav: auth cluster + standardized dropdown (single source of truth).
  * Requires: #dropdownMenu, #auth-nav.navbar-auth-cluster
  * Admin link visibility: UI hint only (currentUser.role === 'admin'). Server enforces JWT.
+ *
+ * Avatars: drop PNG files named "Avatar 1.png" … "Avatar 6.png" in
+ * Resources/Images/avatars/ (SVG placeholders ship until then).
  */
 (function () {
   var STORAGE_TOKEN = "authToken";
   var STORAGE_USER = "currentUser";
+  var AVATAR_DIR = "Resources/Images/avatars/";
+  var AVATAR_COUNT = 6;
 
   var NAV_CATEGORIES = {
     main: { href: "index.html", label: "🏠 Home" },
@@ -80,6 +85,85 @@
     return "user-profile.html";
   }
 
+  function parseAvatarId(raw) {
+    if (raw == null || raw === "") return null;
+    var n = Number(raw);
+    if (Number.isInteger(n) && n >= 1 && n <= AVATAR_COUNT) return n;
+    var m = String(raw).match(/Avatar\s*([1-6])/i);
+    return m ? Number(m[1]) : null;
+  }
+
+  function avatarIdForUser(user) {
+    if (!user) return null;
+    return (
+      parseAvatarId(user.avatarId) ||
+      parseAvatarId(user.avatar_id) ||
+      parseAvatarId(user.avatarUrl) ||
+      parseAvatarId(user.avatar_url)
+    );
+  }
+
+  function avatarPngPath(id) {
+    return AVATAR_DIR + "Avatar " + id + ".png";
+  }
+
+  function avatarSvgPath(id) {
+    return AVATAR_DIR + "Avatar " + id + ".svg";
+  }
+
+  /** Prefer PNG (your files); fall back to shipped SVG placeholders. */
+  function avatarSrcForUser(user) {
+    var id = avatarIdForUser(user);
+    if (!id) return null;
+    return avatarPngPath(id);
+  }
+
+  function avatarImgHtml(user, className, size) {
+    var id = avatarIdForUser(user);
+    var cls = className || "user-avatar";
+    var wh = size || 40;
+    if (!id) {
+      var initial = (
+        (user && (user.displayName || user.display_name || user.username)) ||
+        "?"
+      )
+        .toString()
+        .trim()
+        .charAt(0)
+        .toUpperCase();
+      return (
+        '<span class="' +
+        cls +
+        " " +
+        cls +
+        '--initial" aria-hidden="true" style="width:' +
+        wh +
+        "px;height:" +
+        wh +
+        'px;line-height:' +
+        wh +
+        'px;">' +
+        initial +
+        "</span>"
+      );
+    }
+    var png = avatarPngPath(id);
+    var svg = avatarSvgPath(id);
+    return (
+      '<img class="' +
+      cls +
+      '" src="' +
+      png +
+      '" alt="" width="' +
+      wh +
+      '" height="' +
+      wh +
+      '" decoding="async" onerror="this.onerror=null;this.src=\'' +
+      svg +
+      "'\">"
+    );
+  }
+
   function buildAuthClusterMarkup() {
     var loginHref = getLoginHref();
     return (
@@ -89,7 +173,14 @@
       '" class="navbar-login-btn">Login</a>' +
       "</div>" +
       '<div id="userSection" style="display:none;" class="navbar-auth-stack">' +
-      '<a id="userProfileLink" class="navbar-user-name" href="user-profile.html">Profile</a>' +
+      '<a id="userProfileLink" class="navbar-profile-btn" href="user-profile.html" title="View your profile">' +
+      '<span id="userAvatarSlot" class="navbar-avatar-slot" aria-hidden="true"></span>' +
+      '<span class="navbar-profile-text">' +
+      '<span id="userProfileName" class="navbar-user-name">Profile</span>' +
+      '<span class="navbar-profile-hint">View profile</span>' +
+      "</span>" +
+      '<span class="navbar-profile-chevron" aria-hidden="true">›</span>' +
+      "</a>" +
       '<button type="button" id="logoutBtn" class="navbar-logout-btn">Logout</button>' +
       "</div>"
     );
@@ -99,6 +190,8 @@
     var loginSection = document.getElementById("loginButtonSection");
     var userSection = document.getElementById("userSection");
     var profileLink = document.getElementById("userProfileLink");
+    var nameEl = document.getElementById("userProfileName");
+    var avatarSlot = document.getElementById("userAvatarSlot");
     var display =
       (user &&
         (user.displayName ||
@@ -107,10 +200,12 @@
       "User";
     if (loginSection) loginSection.style.display = "none";
     if (userSection) userSection.style.display = "flex";
+    if (nameEl) nameEl.textContent = display;
+    if (avatarSlot) avatarSlot.innerHTML = avatarImgHtml(user, "navbar-avatar", 36);
     if (profileLink) {
-      profileLink.textContent = display;
       profileLink.href = profileHrefForUser(user);
-      profileLink.title = "View your profile";
+      profileLink.title = "View " + display + "'s profile";
+      profileLink.setAttribute("aria-label", "Open profile for " + display);
     }
   }
 
@@ -308,7 +403,20 @@
           localStorage.removeItem(STORAGE_USER);
           refreshAll();
           document.dispatchEvent(new CustomEvent("auth:invalid"));
+          return null;
         }
+        if (!res.ok) return null;
+        return res.json().catch(function () {
+          return null;
+        });
+      })
+      .then(function (data) {
+        if (!data || !data.user) return;
+        var prev = parseUser() || {};
+        var next = Object.assign({}, prev, data.user);
+        if (data.user.avatarUrl != null) next.avatarUrl = data.user.avatarUrl;
+        localStorage.setItem(STORAGE_USER, JSON.stringify(next));
+        refreshAll();
       })
       .catch(function () {})
       .finally(function () {
@@ -328,6 +436,12 @@
     logout: logout,
     refreshFromStorage: refreshFromStorage,
     maybeValidateToken: maybeValidateToken,
+    avatarIdForUser: avatarIdForUser,
+    avatarSrcForUser: avatarSrcForUser,
+    avatarImgHtml: avatarImgHtml,
+    avatarPngPath: avatarPngPath,
+    avatarSvgPath: avatarSvgPath,
+    AVATAR_COUNT: AVATAR_COUNT,
   };
 
   function onReady() {

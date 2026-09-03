@@ -117,9 +117,16 @@
 
         root.innerHTML = `
           <header class="section-card lb-profile-hero">
-            <p class="lb-eyebrow">Player profile</p>
-            <h1 class="page-title" style="margin-bottom:0.2rem;">${escapeHtml(user.displayName || user.username)}</h1>
-            <p class="lb-subtitle">@${escapeHtml(user.username)}${user.memberSince ? ` · joined ${escapeHtml(new Date(user.memberSince).toLocaleDateString())}` : ''}</p>
+            <div class="lb-profile-hero-top">
+              ${window.AuthUI && AuthUI.avatarImgHtml
+                ? AuthUI.avatarImgHtml(user, "lb-profile-avatar user-avatar", 72)
+                : ""}
+              <div>
+                <p class="lb-eyebrow">Player profile</p>
+                <h1 class="page-title" style="margin-bottom:0.2rem;">${escapeHtml(user.displayName || user.username)}</h1>
+                <p class="lb-subtitle">@${escapeHtml(user.username)}${user.memberSince ? ` · joined ${escapeHtml(new Date(user.memberSince).toLocaleDateString())}` : ''}</p>
+              </div>
+            </div>
             <p class="lb-my-streak">${streakEmoji} Current streak: <strong>${escapeHtml(streakLabel)}</strong> · Best 🔥 ${stats.allTime?.bestStreak || 0}</p>
             ${user.bio ? `<p class="lb-bio">${escapeHtml(user.bio)}</p>` : ''}
           </header>

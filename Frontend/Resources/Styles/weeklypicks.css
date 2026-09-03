@@ -1704,6 +1704,147 @@ body.picks-results-open #cfbdWeek1PicksContainer {
     background: rgba(255, 255, 255, 0.25);
 }
 
+.picks-share-record {
+    margin: 0.45rem 0 0;
+    color: #FFD700;
+    font-size: 1.05rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+}
+
+.picks-share-game-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.45rem;
+}
+
+.picks-share-game-num {
+    margin-bottom: 0;
+}
+
+.picks-share-result-chip {
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 0.18rem 0.5rem;
+    border-radius: 999px;
+    border: 1px solid transparent;
+}
+
+.picks-share-result-chip.is-correct {
+    color: #0f2a18;
+    background: #7dcea0;
+}
+
+.picks-share-result-chip.is-wrong {
+    color: #2a1210;
+    background: #f0a090;
+}
+
+.picks-share-result-chip.is-leading {
+    color: #1a1410;
+    background: #FFD700;
+}
+
+.picks-share-result-chip.is-trailing,
+.picks-share-result-chip.is-live,
+.picks-share-result-chip.is-final {
+    color: #FFD700;
+    background: rgba(255, 215, 0, 0.12);
+    border-color: rgba(255, 215, 0, 0.45);
+}
+
+.picks-share-game.is-correct {
+    border-color: rgba(125, 206, 160, 0.55);
+    box-shadow: inset 0 0 0 1px rgba(125, 206, 160, 0.18);
+}
+
+.picks-share-game.is-wrong {
+    border-color: rgba(240, 160, 144, 0.5);
+    box-shadow: inset 0 0 0 1px rgba(240, 160, 144, 0.15);
+}
+
+.picks-share-game.is-live {
+    border-color: rgba(255, 215, 0, 0.55);
+}
+
+.picks-share-scoreblock {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.2rem;
+    flex: 0 0 auto;
+    min-width: 4.5rem;
+}
+
+.picks-share-status {
+    font-size: 0.62rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #FFD700;
+}
+
+.picks-share-status-final {
+    color: #d4b896;
+}
+
+.picks-share-scoreline {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-weight: 800;
+    color: #f5deb3;
+    font-variant-numeric: tabular-nums;
+}
+
+.picks-share-score {
+    font-size: 1.05rem;
+    min-width: 1.2rem;
+    text-align: center;
+}
+
+.picks-share-score.is-winning {
+    color: #FFD700;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.35);
+}
+
+.picks-share-score-sep {
+    opacity: 0.55;
+}
+
+.picks-share-team.is-winning span {
+    color: #FFD700;
+}
+
+.picks-share-pick.is-correct {
+    background: linear-gradient(135deg, #7dcea0, #4caf70);
+    color: #0f2a18;
+}
+
+.picks-share-pick.is-wrong {
+    background: linear-gradient(135deg, #f0a090, #d96a5c);
+    color: #2a1210;
+}
+
+.picks-share-pick.is-leading {
+    box-shadow: 0 0 0 2px rgba(255, 215, 0, 0.35), 0 0 16px rgba(255, 215, 0, 0.2);
+}
+
+.picks-share-pick.is-trailing {
+    background: linear-gradient(135deg, #8d6e63, #6d4c41);
+    color: #f5deb3;
+}
+
+.picks-share-pick-mark {
+    font-size: 0.95rem;
+    font-weight: 900;
+    margin-left: 0.1rem;
+}
+
 .picks-share-footer {
     margin: 1rem 0 0;
     text-align: center;
@@ -3145,15 +3286,15 @@ body.picks-results-open #cfbdWeek1PicksContainer {
 .navbar-login-section #userSection {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 0.5rem;
-    background-color: #2E2E2E;
-    padding: 10px;
-    border-radius: 8px;
-    border: 1px solid #8D6E63;
+    align-items: stretch;
+    gap: 0.4rem;
+    background-color: transparent;
+    padding: 0;
+    border-radius: 0;
+    border: none;
     width: fit-content;
-    min-width: 120px;
-    max-width: 250px;
+    min-width: 0;
+    max-width: 260px;
 }
 
 .navbar-login-btn {
@@ -3178,8 +3319,8 @@ body.picks-results-open #cfbdWeek1PicksContainer {
     margin: 0;
     font-weight: bold;
     font-size: 0.9rem;
-    text-align: center;
-    width: 100%;
+    text-align: left;
+    width: auto;
     word-wrap: break-word;
     overflow-wrap: break-word;
 }
@@ -3288,24 +3429,27 @@ body.picks-results-open #cfbdWeek1PicksContainer {
     list-style: none;
     padding: 0;
     margin: 0;
-    counter-reset: heisman-counter;
 }
 
 .heisman-preview-item {
     display: flex;
     align-items: center;
+    gap: 0.65rem;
     padding: 12px 15px;
     margin-bottom: 10px;
     background: rgba(255, 255, 255, 0.05);
     border-radius: 8px;
     border-left: 4px solid #FFD700;
     transition: all 0.3s ease;
-    counter-increment: heisman-counter;
 }
 
 .heisman-preview-item:hover {
     background: rgba(255, 255, 255, 0.1);
     transform: translateX(5px);
+}
+
+.heisman-preview-item.heisman-preview-loading {
+    border-left-color: rgba(255, 215, 0, 0.35);
 }
 
 .heisman-rank {
@@ -3319,7 +3463,16 @@ body.picks-results-open #cfbdWeek1PicksContainer {
     font-weight: bold;
     font-size: 1.1rem;
     border-radius: 50%;
-    margin-right: 15px;
+    margin-right: 0;
+    flex-shrink: 0;
+}
+
+.heisman-preview-headshot {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    object-fit: cover;
+    background: rgba(0, 0, 0, 0.3);
     flex-shrink: 0;
 }
 
@@ -3327,6 +3480,7 @@ body.picks-results-open #cfbdWeek1PicksContainer {
     display: flex;
     flex-direction: column;
     flex: 1;
+    min-width: 0;
 }
 
 .heisman-player-name {
@@ -3339,6 +3493,16 @@ body.picks-results-open #cfbdWeek1PicksContainer {
 .heisman-player-details {
     color: #BDBDBD;
     font-size: 0.85rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-wrap: wrap;
+}
+
+.heisman-preview-team-logo {
+    width: 16px;
+    height: 16px;
+    object-fit: contain;
 }
 
 /* Mobile Responsive Styles for Heisman Preview */
@@ -3575,8 +3739,8 @@ select {
 }
 
 .navbar-login-section #userSection {
-    background-color: rgba(30, 30, 30, 0.92);
-    box-shadow: var(--shadow-sm);
+    background-color: transparent;
+    box-shadow: none;
 }
 
 /* Tablet and down */
@@ -3635,10 +3799,12 @@ select {
     }
 
     .navbar-login-section #userSection {
-        min-width: 96px;
-        max-width: 160px;
-        padding: 0.45rem 0.5rem;
-        gap: 0.3rem;
+        min-width: 0;
+        max-width: 200px;
+        padding: 0;
+        gap: 0.35rem;
+        background: transparent;
+        border: none;
     }
 
     .navbar-user-name {

@@ -48,11 +48,28 @@ exports.handler = async (event) => {
       : username;
   const emailNotifications = Boolean(body.emailNotifications ?? body.email_notifications);
 
+  // Avatar 1–6 → stored path under Resources/Images/avatars/
+  const avatarRaw = body.avatarId ?? body.avatar_id ?? body.avatarUrl ?? body.avatar_url;
+  let avatarId = null;
+  if (avatarRaw != null && String(avatarRaw).trim() !== "") {
+    const asNum = Number(avatarRaw);
+    if (Number.isInteger(asNum) && asNum >= 1 && asNum <= 6) {
+      avatarId = asNum;
+    } else {
+      const m = String(avatarRaw).match(/Avatar\s*([1-6])/i);
+      if (m) avatarId = Number(m[1]);
+    }
+  }
+  const avatarUrl = avatarId
+    ? `Resources/Images/avatars/Avatar ${avatarId}.png`
+    : null;
+
   const errors = [];
   if (username.length < 3) errors.push("Username must be at least 3 characters");
   if (username.length > 50) errors.push("Username must be at most 50 characters");
   if (!email || !email.includes("@")) errors.push("Valid email is required");
   if (password.length < 8) errors.push("Password must be at least 8 characters");
+  if (!avatarId) errors.push("Please choose an avatar (1–6)");
 
   if (errors.length) {
     return json(400, { message: "Validation failed", errors });
@@ -66,6 +83,7 @@ exports.handler = async (event) => {
       passwordHash,
       displayName,
       emailNotifications,
+      avatarUrl,
     });
     if (!created || !created.id) {
       return json(500, { message: "Failed to create user" });
