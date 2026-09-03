@@ -5,6 +5,7 @@ const bcrypt = require("bcryptjs");
 const { registerUser } = require("./db");
 const { json, parseJsonBody } = require("./_http");
 const { signUserToken, jwtSecretOr500 } = require("./_auth");
+const { parseAvatarId, avatarPathForId, AVATAR_COUNT } = require("./_lib/avatars");
 
 function rowToUser(row) {
   return {
@@ -48,28 +49,16 @@ exports.handler = async (event) => {
       : username;
   const emailNotifications = Boolean(body.emailNotifications ?? body.email_notifications);
 
-  // Avatar 1–6 → stored path under Resources/Images/avatars/
   const avatarRaw = body.avatarId ?? body.avatar_id ?? body.avatarUrl ?? body.avatar_url;
-  let avatarId = null;
-  if (avatarRaw != null && String(avatarRaw).trim() !== "") {
-    const asNum = Number(avatarRaw);
-    if (Number.isInteger(asNum) && asNum >= 1 && asNum <= 6) {
-      avatarId = asNum;
-    } else {
-      const m = String(avatarRaw).match(/Avatar\s*([1-6])/i);
-      if (m) avatarId = Number(m[1]);
-    }
-  }
-  const avatarUrl = avatarId
-    ? `Resources/Images/avatars/Avatar ${avatarId}.png`
-    : null;
+  const avatarId = parseAvatarId(avatarRaw);
+  const avatarUrl = avatarId ? avatarPathForId(avatarId) : null;
 
   const errors = [];
   if (username.length < 3) errors.push("Username must be at least 3 characters");
   if (username.length > 50) errors.push("Username must be at most 50 characters");
   if (!email || !email.includes("@")) errors.push("Valid email is required");
   if (password.length < 8) errors.push("Password must be at least 8 characters");
-  if (!avatarId) errors.push("Please choose an avatar (1–6)");
+  if (!avatarId) errors.push(`Please choose an avatar (1–${AVATAR_COUNT})`);
 
   if (errors.length) {
     return json(400, { message: "Validation failed", errors });

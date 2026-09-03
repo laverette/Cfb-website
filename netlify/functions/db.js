@@ -317,6 +317,21 @@ async function registerUser({
   return created;
 }
 
+async function updateUserAvatar(userId, avatarUrl) {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from("users")
+    .update({
+      avatar_url: avatarUrl,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", userId)
+    .select("id, username, email, display_name, avatar_url, bio, role, created_at")
+    .single();
+  dbError(error);
+  return data || null;
+}
+
 async function listUsersForPickReminders(weekId) {
   const supabase = getSupabase();
   const { data: settingsRows, error: settingsErr } = await supabase
@@ -999,6 +1014,7 @@ module.exports = {
   updateUserSettings,
   logUserLogin,
   registerUser,
+  updateUserAvatar,
   listUsersForPickReminders,
   recordPickReminderSent,
   getEffectiveWeekLockTime,

@@ -3,14 +3,13 @@
  * Requires: #dropdownMenu, #auth-nav.navbar-auth-cluster
  * Admin link visibility: UI hint only (currentUser.role === 'admin'). Server enforces JWT.
  *
- * Avatars: drop PNG files named "Avatar 1.png" … "Avatar 6.png" in
- * Resources/Images/avatars/ (SVG placeholders ship until then).
+ * Avatars: A1.png … A12.png in Resources/Images/avatars/
  */
 (function () {
   var STORAGE_TOKEN = "authToken";
   var STORAGE_USER = "currentUser";
   var AVATAR_DIR = "Resources/Images/avatars/";
-  var AVATAR_COUNT = 6;
+  var AVATAR_COUNT = 12;
 
   var NAV_CATEGORIES = {
     main: { href: "index.html", label: "🏠 Home" },
@@ -87,10 +86,16 @@
 
   function parseAvatarId(raw) {
     if (raw == null || raw === "") return null;
-    var n = Number(raw);
+    var s = String(raw).trim();
+    var n = Number(s);
     if (Number.isInteger(n) && n >= 1 && n <= AVATAR_COUNT) return n;
-    var m = String(raw).match(/Avatar\s*([1-6])/i);
-    return m ? Number(m[1]) : null;
+    var m =
+      s.match(/(?:^|[\\/])A(\d{1,2})(?:\.(?:png|jpe?g|webp|svg))?$/i) ||
+      s.match(/^A(\d{1,2})$/i) ||
+      s.match(/Avatar\s*(\d{1,2})/i);
+    if (!m) return null;
+    var id = Number(m[1]);
+    return Number.isInteger(id) && id >= 1 && id <= AVATAR_COUNT ? id : null;
   }
 
   function avatarIdForUser(user) {
@@ -104,14 +109,14 @@
   }
 
   function avatarPngPath(id) {
-    return AVATAR_DIR + "Avatar " + id + ".png";
+    return AVATAR_DIR + "A" + id + ".png";
   }
 
   function avatarSvgPath(id) {
-    return AVATAR_DIR + "Avatar " + id + ".svg";
+    return AVATAR_DIR + "A" + id + ".svg";
   }
 
-  /** Prefer PNG (your files); fall back to shipped SVG placeholders. */
+  /** Prefer A#.png files. */
   function avatarSrcForUser(user) {
     var id = avatarIdForUser(user);
     if (!id) return null;
@@ -148,7 +153,6 @@
       );
     }
     var png = avatarPngPath(id);
-    var svg = avatarSvgPath(id);
     return (
       '<img class="' +
       cls +
@@ -158,10 +162,67 @@
       wh +
       '" height="' +
       wh +
-      '" decoding="async" onerror="this.onerror=null;this.src=\'' +
-      svg +
-      "'\">"
+      '" decoding="async">'
     );
+  }
+
+  function buildAvatarPickerHtml(selectedId, options) {
+    var opts = options || {};
+    var gridId = opts.gridId || "avatarPickerGrid";
+    var hiddenId = opts.hiddenId || "registerAvatarId";
+    var count = AVATAR_COUNT;
+    var html =
+      '<div class="avatar-picker-grid" id="' +
+      gridId +
+      '" role="radiogroup" aria-label="Avatar choice">';
+    for (var i = 1; i <= count; i++) {
+      var on = Number(selectedId) === i;
+      html +=
+        '<button type="button" class="avatar-pick-option' +
+        (on ? " is-selected" : "") +
+        '" data-avatar-id="' +
+        i +
+        '" role="radio" aria-checked="' +
+        (on ? "true" : "false") +
+        '" aria-label="Avatar ' +
+        i +
+        '">' +
+        '<img src="' +
+        avatarPngPath(i) +
+        '" alt="" width="64" height="64" decoding="async">' +
+        "<span>A" +
+        i +
+        "</span>" +
+        "</button>";
+    }
+    html += "</div>";
+    if (hiddenId) {
+      html +=
+        '<input type="hidden" id="' +
+        hiddenId +
+        '" name="avatarId" value="' +
+        (selectedId ? String(selectedId) : "") +
+        '">';
+    }
+    return html;
+  }
+
+  function wireAvatarPicker(gridEl, hiddenEl, onChange) {
+    if (!gridEl || gridEl.dataset.avatarWired === "1") return;
+    gridEl.dataset.avatarWired = "1";
+    gridEl.addEventListener("click", function (e) {
+      var btn = e.target.closest(".avatar-pick-option");
+      if (!btn || !gridEl.contains(btn)) return;
+      var id = btn.getAttribute("data-avatar-id");
+      if (hiddenEl) hiddenEl.value = id;
+      var opts = gridEl.querySelectorAll(".avatar-pick-option");
+      for (var j = 0; j < opts.length; j++) {
+        var on = opts[j] === btn;
+        opts[j].classList.toggle("is-selected", on);
+        opts[j].setAttribute("aria-checked", on ? "true" : "false");
+      }
+      if (typeof onChange === "function") onChange(Number(id));
+    });
   }
 
   function buildAuthClusterMarkup() {
@@ -441,6 +502,9 @@
     avatarImgHtml: avatarImgHtml,
     avatarPngPath: avatarPngPath,
     avatarSvgPath: avatarSvgPath,
+    buildAvatarPickerHtml: buildAvatarPickerHtml,
+    wireAvatarPicker: wireAvatarPicker,
+    parseAvatarId: parseAvatarId,
     AVATAR_COUNT: AVATAR_COUNT,
   };
 

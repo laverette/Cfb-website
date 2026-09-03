@@ -1,9 +1,11 @@
 /**
  * GET /api/auth/profile — requires Bearer JWT
+ * PATCH /api/auth/profile — update avatar (avatarId 1–12)
  */
-const { findUserById, findProfileByUserId } = require("./db");
-const { json } = require("./_http");
+const { findUserById, findProfileByUserId, updateUserAvatar } = require("./db");
+const { json, parseJsonBody } = require("./_http");
 const { requireAuth } = require("./_auth");
+const { parseAvatarId, avatarPathForId, AVATAR_COUNT } = require("./_lib/avatars");
 
 function mapUser(row) {
   return {
@@ -46,7 +48,8 @@ function mapProfile(r) {
 }
 
 exports.handler = async (event) => {
-  if (event.httpMethod && event.httpMethod !== "GET") {
+  const method = event.httpMethod || "GET";
+  if (method !== "GET" && method !== "PATCH") {
     return json(405, { error: "Method not allowed" });
   }
 
@@ -59,15 +62,37 @@ exports.handler = async (event) => {
   }
 
   try {
-    const userRow = await findUserById(userId);
-    if (!userRow) {
+    if (method === "GET") {
+      const userRow = await findUserById(userId);
+      if (!userRow) {
+        return json(404, { message: "User not found" });
+      }
+      const profileRow = await findProfileByUserId(userId);
+      return json(200, {
+        user: mapUser(userRow),
+        profile: profileRow ? mapProfile(profileRow) : null,
+      });
+    }
+
+    const body = parseJsonBody(event);
+    if (!body || typeof body !== "object") {
+      return json(400, { message: "Invalid JSON body" });
+    }
+
+    const avatarRaw = body.avatarId ?? body.avatar_id ?? body.avatarUrl ?? body.avatar_url;
+    const avatarId = parseAvatarId(avatarRaw);
+    if (!avatarId) {
+      return json(400, {
+        message: `Please choose an avatar (1–${AVATAR_COUNT})`,
+      });
+    }
+
+    const avatarUrl = avatarPathForId(avatarId);
+    const updated = await updateUserAvatar(userId, avatarUrl);
+    if (!updated) {
       return json(404, { message: "User not found" });
     }
-    const profileRow = await findProfileByUserId(userId);
-    return json(200, {
-      user: mapUser(userRow),
-      profile: profileRow ? mapProfile(profileRow) : null,
-    });
+    return json(200, { user: mapUser(updated) });
   } catch (err) {
     console.error("auth-profile:", err);
     if (err.code === "NO_DATABASE_URL") {

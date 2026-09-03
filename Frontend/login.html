@@ -90,9 +90,8 @@
 
             <div class="mb-3 avatar-picker-block">
               <label class="avatar-picker-label">Choose your avatar <span style="color:#FFD700;">*</span></label>
-              <p class="avatar-picker-hint">Pick one of six — you can swap the image files later in Resources/Images/avatars/</p>
-              <div class="avatar-picker-grid" id="avatarPickerGrid" role="radiogroup" aria-label="Avatar choice"></div>
-              <input type="hidden" id="registerAvatarId" name="avatarId" value="" required>
+              <p class="avatar-picker-hint">Pick one of twelve avatars (A1–A12).</p>
+              <div id="registerAvatarPickerHost"></div>
             </div>
             
             <div class="text-center">
@@ -184,44 +183,18 @@
     }
 
     function initAvatarPicker() {
-      var grid = document.getElementById('avatarPickerGrid');
-      var hidden = document.getElementById('registerAvatarId');
-      if (!grid || grid.dataset.ready === '1') return;
-      grid.dataset.ready = '1';
-      var count = (window.AuthUI && AuthUI.AVATAR_COUNT) || 6;
-      var html = '';
-      for (var i = 1; i <= count; i++) {
-        var png = AuthUI.avatarPngPath(i);
-        var svg = AuthUI.avatarSvgPath(i);
-        html +=
-          '<button type="button" class="avatar-pick-option" data-avatar-id="' +
-          i +
-          '" role="radio" aria-checked="false" aria-label="Avatar ' +
-          i +
-          '">' +
-          '<img src="' +
-          png +
-          '" alt="" width="64" height="64" decoding="async" onerror="this.onerror=null;this.src=\'' +
-          svg +
-          '\'">' +
-          '<span>Avatar ' +
-          i +
-          '</span>' +
-          '</button>';
-      }
-      grid.innerHTML = html;
-      grid.addEventListener('click', function (e) {
-        var btn = e.target.closest('.avatar-pick-option');
-        if (!btn || !grid.contains(btn)) return;
-        var id = btn.getAttribute('data-avatar-id');
-        hidden.value = id;
-        var opts = grid.querySelectorAll('.avatar-pick-option');
-        for (var j = 0; j < opts.length; j++) {
-          var on = opts[j] === btn;
-          opts[j].classList.toggle('is-selected', on);
-          opts[j].setAttribute('aria-checked', on ? 'true' : 'false');
-        }
+      var host = document.getElementById('registerAvatarPickerHost');
+      if (!host || !window.AuthUI || !AuthUI.buildAvatarPickerHtml) return;
+      if (host.dataset.ready === '1') return;
+      host.dataset.ready = '1';
+      host.innerHTML = AuthUI.buildAvatarPickerHtml('', {
+        gridId: 'avatarPickerGrid',
+        hiddenId: 'registerAvatarId',
       });
+      AuthUI.wireAvatarPicker(
+        document.getElementById('avatarPickerGrid'),
+        document.getElementById('registerAvatarId')
+      );
     }
 
     // Login form handler
@@ -290,7 +263,8 @@
         validationErrors.push('Password must be at least 8 characters long');
       }
       const avatarId = Number(document.getElementById('registerAvatarId')?.value || 0);
-      if (!avatarId || avatarId < 1 || avatarId > 6) {
+      const maxAvatar = (window.AuthUI && AuthUI.AVATAR_COUNT) || 12;
+      if (!avatarId || avatarId < 1 || avatarId > maxAvatar) {
         validationErrors.push('Please choose an avatar');
       }
       

@@ -1,6 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Avatar 5">
-  <rect width="128" height="128" rx="28" fill="#B71C1C"/>
-  <circle cx="64" cy="48" r="24" fill="#EF9A9A"/>
-  <ellipse cx="64" cy="104" rx="40" ry="28" fill="#EF9A9A"/>
-  <text x="64" y="118" text-anchor="middle" font-size="18" font-family="Arial,sans-serif" fill="#5C0A0A" font-weight="700">5</text>
-</svg>

@@ -132,6 +132,15 @@
           </header>
 
           ${isOwnProfile ? `
+          <section class="section-card" id="avatarSettingsSection">
+            <h2 class="gold-heading" style="text-align:center;margin-bottom:0.75rem;">Your avatar</h2>
+            <p style="text-align:center;color:#d4b896;margin:0 0 1rem;font-size:0.92rem;">
+              Pick a new look anytime — changes show in the nav and on your profile.
+            </p>
+            <div class="avatar-picker-block" id="profileAvatarPickerHost"></div>
+            <p id="avatarSettingsStatus" style="text-align:center;margin:0.75rem 0 0;font-size:0.85rem;color:#bfa88a;min-height:1.2em;"></p>
+          </section>
+
           <section class="section-card" id="reminderSettingsSection">
             <h2 class="gold-heading" style="text-align:center;margin-bottom:0.75rem;">Email reminders</h2>
             <p style="text-align:center;color:#d4b896;margin:0 0 1rem;font-size:0.92rem;">
@@ -269,6 +278,7 @@
         `;
 
         if (isOwnProfile) {
+          wireAvatarSettings(user);
           wireReminderSettings();
         }
       } catch (err) {
@@ -283,6 +293,70 @@
     function authHeaders() {
       const token = window.AuthUI && AuthUI.getAuthToken && AuthUI.getAuthToken();
       return token ? { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' } : {};
+    }
+
+    function syncLocalUserAvatar(userPayload) {
+      try {
+        const prev = (window.AuthUI && AuthUI.getCurrentUser && AuthUI.getCurrentUser()) || {};
+        const next = Object.assign({}, prev, userPayload || {});
+        if (userPayload && userPayload.avatarUrl != null) next.avatarUrl = userPayload.avatarUrl;
+        localStorage.setItem('currentUser', JSON.stringify(next));
+        if (window.AuthUI && AuthUI.refreshFromStorage) AuthUI.refreshFromStorage();
+      } catch (e) {}
+    }
+
+    function wireAvatarSettings(user) {
+      const host = document.getElementById('profileAvatarPickerHost');
+      const status = document.getElementById('avatarSettingsStatus');
+      if (!host || !window.AuthUI || !AuthUI.buildAvatarPickerHtml) return;
+
+      const token = AuthUI.getAuthToken && AuthUI.getAuthToken();
+      if (!token) {
+        if (status) status.textContent = 'Log in to change your avatar.';
+        return;
+      }
+
+      const currentId = AuthUI.avatarIdForUser(user) || '';
+      host.innerHTML = AuthUI.buildAvatarPickerHtml(currentId, {
+        gridId: 'profileAvatarPickerGrid',
+        hiddenId: 'profileAvatarId',
+      });
+      const grid = document.getElementById('profileAvatarPickerGrid');
+      const hidden = document.getElementById('profileAvatarId');
+      let saving = false;
+
+      AuthUI.wireAvatarPicker(grid, hidden, async function (avatarId) {
+        if (saving) return;
+        saving = true;
+        if (status) status.textContent = 'Saving…';
+        try {
+          const resp = await fetch('/api/auth/profile', {
+            method: 'PATCH',
+            headers: { ...authHeaders(), accept: 'application/json' },
+            body: JSON.stringify({ avatarId }),
+          });
+          const data = await resp.json().catch(() => ({}));
+          if (!resp.ok) throw new Error(data.error || data.message || `Failed (${resp.status})`);
+          syncLocalUserAvatar(data.user || { avatarUrl: AuthUI.avatarPngPath(avatarId), avatarId });
+          const hero = document.querySelector('.lb-profile-hero-top');
+          if (hero && data.user) {
+            const slot = hero.querySelector('.lb-profile-avatar, .user-avatar, .user-avatar--initial');
+            const html = AuthUI.avatarImgHtml(data.user, 'lb-profile-avatar user-avatar', 72);
+            if (slot) {
+              slot.outerHTML = html;
+            } else {
+              const wrap = document.createElement('div');
+              wrap.innerHTML = html;
+              hero.insertBefore(wrap.firstChild, hero.firstChild);
+            }
+          }
+          if (status) status.textContent = 'Avatar updated.';
+        } catch (err) {
+          if (status) status.textContent = err.message || 'Could not save avatar.';
+        } finally {
+          saving = false;
+        }
+      });
     }
 
     async function wireReminderSettings() {
