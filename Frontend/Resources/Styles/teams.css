@@ -805,8 +805,8 @@ body {
 
 .roster-link {
     display: grid;
-    grid-template-columns: 2.4rem 1fr auto;
-    gap: 0.4rem;
+    grid-template-columns: 2.4rem 2.2rem 1fr auto;
+    gap: 0.45rem;
     align-items: center;
     padding: 0.45rem 0.6rem;
     color: #f5deb3;
@@ -822,8 +822,9 @@ body {
 
 .roster-item-disabled {
     display: grid;
-    grid-template-columns: 2.4rem 1fr auto;
-    gap: 0.4rem;
+    grid-template-columns: 2.4rem 2.2rem 1fr auto;
+    gap: 0.45rem;
+    align-items: center;
     padding: 0.45rem 0.6rem;
     opacity: 0.55;
 }
@@ -834,11 +835,62 @@ body {
     font-variant-numeric: tabular-nums;
 }
 
+.roster-headshot,
+.roster-headshot-fallback {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    object-fit: cover;
+    background: rgba(0, 0, 0, 0.35);
+    flex-shrink: 0;
+}
+
+.roster-headshot.is-broken {
+    display: none;
+}
+
+.roster-headshot.is-broken + .roster-headshot-fallback {
+    display: flex;
+}
+
+.roster-headshot-fallback {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: #FFD700;
+    border: 1px solid rgba(255, 215, 0, 0.25);
+}
+
+.roster-headshot-fallback[hidden] {
+    display: none;
+}
+
+.roster-headshot.is-broken + .roster-headshot-fallback[hidden] {
+    display: flex;
+}
+
+.roster-name-block {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+}
+
 .roster-name {
     font-weight: 600;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.roster-depth {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: rgba(255, 215, 0, 0.85);
 }
 
 .roster-year {

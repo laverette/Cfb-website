@@ -230,6 +230,11 @@
   status = 200
 
 [[redirects]]
+  from = "/api/team-roster-meta"
+  to = "/.netlify/functions/team-roster-meta"
+  status = 200
+
+[[redirects]]
   from = "/api/heisman"
   to = "/.netlify/functions/heisman"
   status = 200

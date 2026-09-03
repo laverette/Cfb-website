@@ -94,6 +94,77 @@
             return logo || '';
         }
 
+        function espnIdFromLogoUrl(logoUrl) {
+            const m = String(logoUrl || '').match(/\/ncaa\/(?:500|500-dark)\/(\d+)\.(?:png|svg)/i);
+            return m ? m[1] : '';
+        }
+
+        function normalizePlayerName(s) {
+            return String(s || '')
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/[^a-z0-9\s]/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+        }
+
+        function jerseyKey(j) {
+            if (j == null || j === '') return '';
+            const n = Number(String(j).replace(/[^\d]/g, ''));
+            return Number.isFinite(n) ? String(n) : String(j).trim();
+        }
+
+        function matchRosterMeta(cfbdPlayer, metaPlayers) {
+            if (!Array.isArray(metaPlayers) || !metaPlayers.length) return null;
+            const jersey = jerseyKey(cfbdPlayer.jersey);
+            const full = normalizePlayerName(
+                `${cfbdPlayer.firstName || ''} ${cfbdPlayer.lastName || ''}`.trim()
+            );
+            const last = normalizePlayerName(cfbdPlayer.lastName);
+            const candidates = metaPlayers.filter((m) => {
+                if (jersey && jerseyKey(m.jersey) === jersey) return true;
+                if (full && normalizePlayerName(m.displayName) === full) return true;
+                return false;
+            });
+            if (!candidates.length) return null;
+            if (candidates.length === 1) return candidates[0];
+            const exact = candidates.find((m) => normalizePlayerName(m.displayName) === full);
+            if (exact) return exact;
+            return candidates.find(
+                (m) =>
+                    jersey &&
+                    jerseyKey(m.jersey) === jersey &&
+                    last &&
+                    normalizePlayerName(m.lastName) === last
+            ) || candidates[0];
+        }
+
+        async function fetchRosterMeta(teamSchool, year, logoUrl) {
+            try {
+                const url = new URL('/api/team-roster-meta', window.location.origin);
+                url.searchParams.set('team', teamSchool);
+                if (year) url.searchParams.set('year', String(year));
+                const espnId = espnIdFromLogoUrl(logoUrl);
+                if (espnId) url.searchParams.set('espnTeamId', espnId);
+                if (logoUrl) url.searchParams.set('logoUrl', logoUrl);
+                const resp = await fetch(url.toString(), { headers: { accept: 'application/json' } });
+                if (!resp.ok) return null;
+                return await resp.json();
+            } catch {
+                return null;
+            }
+        }
+
+        function depthLabel(rank) {
+            const n = Number(rank);
+            if (!Number.isFinite(n) || n < 1) return '';
+            if (n === 1) return '1st string';
+            if (n === 2) return '2nd string';
+            if (n === 3) return '3rd string';
+            return `${n}th string`;
+        }
+
         function formatDate(value) {
             if (!value) return '';
             const d = new Date(value);
@@ -261,6 +332,7 @@
             const rosterData = rosterRes.data;
             const ratingsData = ratingsRes.data;
             const gamesData = gamesRes.data;
+            const rosterMetaPromise = fetchRosterMeta(teamSchool, rosterRes.year, logoUrl);
 
             // Records summary
             const recordValue = extractRecordString(recordsData, teamSchool);
@@ -380,12 +452,27 @@
                     </div>`;
             }
 
-            // Full roster (clickable → player profiles)
+            // Full roster (clickable → player profiles) with ESPN portraits + depth/usage sort
             let rosterHtml = '';
             const rosterArr = extractRosterArray(rosterData);
+            const rosterMeta = await rosterMetaPromise;
+            const metaPlayers = Array.isArray(rosterMeta?.players) ? rosterMeta.players : [];
+            const sortMode = rosterMeta?.sortMode || 'jersey';
+
             if (Array.isArray(rosterArr) && rosterArr.length > 0) {
+                const enriched = rosterArr.map((p) => {
+                    const meta = matchRosterMeta(p, metaPlayers);
+                    return {
+                        ...p,
+                        headshot: meta?.headshot || null,
+                        depthRank: meta?.depthRank != null ? Number(meta.depthRank) : null,
+                        usageOverall:
+                            meta?.usageOverall != null ? Number(meta.usageOverall) : null,
+                    };
+                });
+
                 const byPos = {};
-                rosterArr.forEach((p) => {
+                enriched.forEach((p) => {
                     const pos = (p.position || 'OTH').toUpperCase();
                     if (!byPos[pos]) byPos[pos] = [];
                     byPos[pos].push(p);
@@ -403,19 +490,30 @@
                 const escapeText = (s) => String(s ?? '')
                     .replace(/&/g, '&amp;')
                     .replace(/</g, '&lt;')
-                    .replace(/>/g, '&gt;');
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;');
+
+                const sortPlayers = (list) =>
+                    list.slice().sort((a, b) => {
+                        if (sortMode === 'depth') {
+                            const da = Number.isFinite(a.depthRank) ? a.depthRank : 999;
+                            const db = Number.isFinite(b.depthRank) ? b.depthRank : 999;
+                            if (da !== db) return da - db;
+                        } else if (sortMode === 'usage') {
+                            const ua = Number.isFinite(a.usageOverall) ? a.usageOverall : -1;
+                            const ub = Number.isFinite(b.usageOverall) ? b.usageOverall : -1;
+                            if (ua !== ub) return ub - ua;
+                        }
+                        const ja = Number(a.jersey);
+                        const jb = Number(b.jersey);
+                        if (Number.isFinite(ja) && Number.isFinite(jb) && ja !== jb) return ja - jb;
+                        const na = `${a.lastName || ''} ${a.firstName || ''}`;
+                        const nb = `${b.lastName || ''} ${b.firstName || ''}`;
+                        return na.localeCompare(nb);
+                    });
 
                 const groups = positions.map((pos) => {
-                    const players = byPos[pos]
-                        .slice()
-                        .sort((a, b) => {
-                            const ja = Number(a.jersey);
-                            const jb = Number(b.jersey);
-                            if (Number.isFinite(ja) && Number.isFinite(jb) && ja !== jb) return ja - jb;
-                            const na = `${a.lastName || ''} ${a.firstName || ''}`;
-                            const nb = `${b.lastName || ''} ${b.firstName || ''}`;
-                            return na.localeCompare(nb);
-                        })
+                    const players = sortPlayers(byPos[pos])
                         .map((p) => {
                             const fullName = `${p.firstName || ''} ${p.lastName || ''}`.trim() || 'Player';
                             const id = p.id != null ? String(p.id) : '';
@@ -424,9 +522,22 @@
                             const href = id
                                 ? `player.html?id=${encodeURIComponent(id)}&team=${encodeURIComponent(teamSchool)}&year=${encodeURIComponent(rosterRes.year)}&name=${encodeURIComponent(fullName)}`
                                 : '';
+                            const initial = (fullName.charAt(0) || '?').toUpperCase();
+                            const portrait = p.headshot
+                                ? `<img class="roster-headshot" src="${escapeText(p.headshot)}" alt="" loading="lazy" onerror="this.classList.add('is-broken');">
+                                   <span class="roster-headshot-fallback" hidden aria-hidden="true">${escapeText(initial)}</span>`
+                                : `<span class="roster-headshot-fallback" aria-hidden="true">${escapeText(initial)}</span>`;
+                            const depth =
+                                sortMode === 'depth' && p.depthRank != null
+                                    ? `<span class="roster-depth">${escapeText(depthLabel(p.depthRank))}</span>`
+                                    : '';
                             const inner = `
                                 <span class="roster-jersey">${escapeText(jersey || '—')}</span>
-                                <span class="roster-name">${escapeText(fullName)}</span>
+                                ${portrait}
+                                <span class="roster-name-block">
+                                    <span class="roster-name">${escapeText(fullName)}</span>
+                                    ${depth}
+                                </span>
                                 <span class="roster-year">${escapeText(yearLabel)}</span>`;
                             if (!href) {
                                 return `<li class="roster-item roster-item-disabled">${inner}</li>`;
@@ -441,11 +552,19 @@
                         </div>`;
                 }).join('');
 
+                let sortHint = 'jersey order';
+                if (sortMode === 'depth') sortHint = 'depth chart order';
+                else if (sortMode === 'usage') {
+                    sortHint = rosterMeta?.usageYear
+                        ? `playing-time order (${rosterMeta.usageYear} usage)`
+                        : 'playing-time order';
+                }
+
                 rosterHtml = `
                     <div class="roster-section">
                         <div class="roster-head">
                             <h3 class="roster-title">Roster</h3>
-                            <p class="roster-hint">${rosterArr.length} players · ${rosterRes.year} · tap a name for season &amp; career stats</p>
+                            <p class="roster-hint">${rosterArr.length} players · ${rosterRes.year} · ${sortHint} · tap a name for season &amp; career stats</p>
                             <input type="search" id="rosterFilter" class="roster-filter" placeholder="Filter roster…" aria-label="Filter roster">
                         </div>
                         <div class="roster-grid" id="rosterGrid">${groups}</div>
