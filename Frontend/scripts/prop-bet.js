@@ -178,6 +178,7 @@
         ? `${player.name} (${player.team})`
         : player.name;
       close();
+      clearResult();
       loadPlayerStats(player);
       setEvaluateEnabled();
     }
@@ -208,6 +209,7 @@
       document.getElementById("playerTeam").value = "";
       document.getElementById("playerName").value = "";
       populateStats([]);
+      clearResult();
       setEvaluateEnabled();
       clearTimeout(state.searchTimer);
       state.searchTimer = setTimeout(() => runSearch(input.value), 280);
@@ -282,11 +284,32 @@
     });
   }
 
+  function teamLogoForName(name) {
+    if (!name) return "";
+    const hit = state.teams.find(
+      (t) => String(t.name || "").toLowerCase() === String(name).toLowerCase()
+    );
+    return hit?.logoUrl || "";
+  }
+
+  function clearResult() {
+    const box = document.getElementById("propResult");
+    if (box) {
+      box.innerHTML = "<p>Pick a player and line to see a lean.</p>";
+      box.className = "prop-result-empty";
+    }
+  }
+
   function renderResult(data) {
     const box = document.getElementById("propResult");
     if (!box) return;
+    box.className = "";
     const lean = data.lean || "tossup";
     const opp = data.opponent;
+    const playerLogo =
+      data.playerTeamRating?.logoUrl ||
+      teamLogoForName(data.player?.team) ||
+      "";
     const oppBits = [];
     if (opp?.name) {
       let o = opp.name;
@@ -299,9 +322,11 @@
     box.innerHTML = `
       <div class="prop-player-row">
         ${
-          opp?.logoUrl
-            ? `<img class="prop-player-logo" src="${escapeHtml(opp.logoUrl)}" alt="" loading="lazy">`
-            : ""
+          playerLogo
+            ? `<img class="prop-player-logo" src="${escapeHtml(playerLogo)}" alt="${escapeHtml(data.player?.team || "")}" loading="lazy">`
+            : `<span class="prop-player-logo prop-player-logo-fallback" aria-hidden="true">${escapeHtml(
+                (data.player?.team || "?").charAt(0).toUpperCase()
+              )}</span>`
         }
         <div>
           <p class="prop-player-name">${escapeHtml(data.player?.name || "Player")}</p>
@@ -331,8 +356,8 @@
           <div class="prop-metric-value">${escapeHtml(fmt(data.expected, 1))}</div>
         </div>
         <div class="prop-metric">
-          <span class="prop-metric-label">Season avg (${escapeHtml(String(data.games || "—"))} g)</span>
-          <div class="prop-metric-value">${escapeHtml(fmt(data.seasonAvg, 1))}</div>
+          <span class="prop-metric-label">Baseline pace</span>
+          <div class="prop-metric-value">${escapeHtml(fmt(data.baselineAvg != null ? data.baselineAvg : data.seasonAvg, 1))}</div>
         </div>
         <div class="prop-metric">
           <span class="prop-metric-label">Opp adjust</span>
@@ -344,11 +369,31 @@
         </div>
       </div>
 
-      <p class="prop-reason">${escapeHtml(data.adjustmentReason || "")}${
-        oppBits.length
-          ? `<br><strong>Opponent:</strong> ${escapeHtml(oppBits.join(""))}`
-          : "<br>No opponent matched — projection uses season average only."
-      }</p>
+      <p class="prop-reason">
+        <strong>Sample:</strong> ${escapeHtml(data.sampleNote || `${fmt(data.seasonTotal, 0)} in ${data.games || "—"} games`)}
+        ${
+          data.seasonAvg != null && data.baselineAvg != null && Math.abs(data.seasonAvg - data.baselineAvg) > 0.05
+            ? `<br><strong>${escapeHtml(String(data.seasonYear))} avg:</strong> ${escapeHtml(fmt(data.seasonAvg, 1))}` +
+              (data.priorAvg != null
+                ? ` · <strong>${escapeHtml(String(data.priorYear))} avg:</strong> ${escapeHtml(fmt(data.priorAvg, 1))}`
+                : "")
+            : ""
+        }
+        <br>${escapeHtml(data.adjustmentReason || "")}
+        ${
+          oppBits.length
+            ? `<br><strong>Opponent:</strong> ${
+                opp?.logoUrl
+                  ? `<img class="prop-opp-logo" src="${escapeHtml(opp.logoUrl)}" alt="" loading="lazy"> `
+                  : ""
+              }${escapeHtml(oppBits.join(""))}${
+                data.opponent && data.opponent.matched === false
+                  ? " (no power rating match — limited adjustment)"
+                  : ""
+              }`
+            : "<br>No opponent matched — projection uses baseline pace only."
+        }
+      </p>
       <p class="prop-disclaimer">${escapeHtml(data.disclaimer || "")}</p>
     `;
   }

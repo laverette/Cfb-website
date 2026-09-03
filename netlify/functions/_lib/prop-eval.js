@@ -246,6 +246,71 @@ async function loadOverviewWithFallback(playerId, seasonYear, apiKey, signal) {
   return { overview: null, seasonYear };
 }
 
+async function loadSeasonSnapshot(playerId, year, def, apiKey, signal) {
+  if (year < 2015) return null;
+  const overview = await loadSeasonOverview(playerId, year, apiKey, signal);
+  if (!overview) return null;
+  const total = extractStatTotal(overview, def);
+  const games = toNum(overview.games) || 0;
+  if (total == null || games <= 0) return null;
+  return {
+    year,
+    total,
+    games,
+    avg: total / games,
+    overview,
+  };
+}
+
+/**
+ * Early-season seasons are noisy. Blend current pace with prior-year pace
+ * when the sample is small.
+ */
+function buildBaseline(current, prior) {
+  if (!current && !prior) return null;
+  if (!current) {
+    return {
+      avg: prior.avg,
+      games: prior.games,
+      seasonTotal: prior.total,
+      seasonYear: prior.year,
+      currentAvg: null,
+      priorAvg: prior.avg,
+      priorYear: prior.year,
+      blendWeightCurrent: 0,
+      sampleNote: `Using ${prior.year} average only (${prior.total} in ${prior.games} games).`,
+    };
+  }
+
+  const games = current.games;
+  let avg = current.avg;
+  let blendWeightCurrent = 1;
+  let sampleNote = `${current.total} ${current.year} total across ${games} game${games === 1 ? "" : "s"} (avg ${current.avg.toFixed(1)}).`;
+
+  if (prior && games < 4) {
+    // 1 game → 35% current / 65% prior; 3 games → 70% / 30%
+    blendWeightCurrent = clamp(0.2 + games * 0.175, 0.35, 0.75);
+    avg = current.avg * blendWeightCurrent + prior.avg * (1 - blendWeightCurrent);
+    sampleNote =
+      `Small ${current.year} sample (${current.total} in ${games}g, avg ${current.avg.toFixed(1)}). ` +
+      `Blended with ${prior.year} (${prior.total} in ${prior.games}g, avg ${prior.avg.toFixed(1)}).`;
+  } else if (games < 3) {
+    sampleNote += " Small sample — treat projection cautiously.";
+  }
+
+  return {
+    avg,
+    games,
+    seasonTotal: current.total,
+    seasonYear: current.year,
+    currentAvg: current.avg,
+    priorAvg: prior ? prior.avg : null,
+    priorYear: prior ? prior.year : null,
+    blendWeightCurrent,
+    sampleNote,
+  };
+}
+
 function sameTeam(a, b) {
   return (
     String(a || "")
@@ -294,47 +359,78 @@ async function findNextOpponent(team, seasonYear, apiKey, signal) {
 function findTeamRating(teams, name) {
   if (!name || !Array.isArray(teams)) return null;
   const key = String(name).trim().toLowerCase();
-  return (
-    teams.find((t) => String(t.name || "").toLowerCase() === key) ||
-    teams.find((t) => String(t.name || "").toLowerCase().includes(key)) ||
-    teams.find((t) => key.includes(String(t.name || "").toLowerCase())) ||
-    null
-  );
+  if (!key) return null;
+  const abbrAliases = {
+    ecu: "east carolina",
+    "e carolina": "east carolina",
+    "east carolina": "east carolina",
+    "ole miss": "ole miss",
+    "miss state": "mississippi state",
+    "miami fl": "miami",
+    "miami ohio": "miami (oh)",
+  };
+  const needle = abbrAliases[key] || key;
+
+  const scored = teams
+    .map((t) => {
+      const n = String(t.name || "").toLowerCase();
+      const ab = String(t.abbreviation || "").toLowerCase();
+      let score = 0;
+      if (n === needle || ab === key || ab === needle) score = 100;
+      else if (n.startsWith(needle) || needle.startsWith(n)) score = 80;
+      else if (n.includes(needle) || needle.includes(n)) score = 60;
+      else if (ab && (needle.includes(ab) || ab.includes(needle))) score = 40;
+      return { t, score };
+    })
+    .filter((x) => x.score > 0)
+    .sort((a, b) => b.score - a.score);
+  return scored[0]?.t || null;
 }
 
 /**
- * Adjust season average by opponent strength.
- * Offense props: tougher defense / stronger overall opponent → lower expectation.
- * Defense props: tougher offense opponent → higher expectation.
+ * Adjust baseline by relative team strength (player team vs opponent),
+ * not opponent absolute rating alone — Alabama vs ECU should boost offense.
  */
-function adjustForOpponent(avg, def, oppTeam) {
+function adjustForOpponent(avg, def, oppTeam, playerTeamRating) {
   if (!oppTeam || avg == null) {
     return { expected: avg, adjustmentPct: 0, reason: "No opponent rating applied" };
   }
 
-  const raw = toNum(oppTeam.rawPower) ?? 0;
-  const defR = toNum(oppTeam.defenseRating);
-  const offR = toNum(oppTeam.offenseRating);
+  const oppRaw = toNum(oppTeam.rawPower) ?? 0;
+  const oppDef = toNum(oppTeam.defenseRating);
+  const oppOff = toNum(oppTeam.offenseRating);
+  const playerRaw = toNum(playerTeamRating?.rawPower);
 
   let adjPct = 0;
   let reason = "";
 
   if (def.side === "offense") {
-    // Prefer defense rating when present; else raw power
-    const signal = defR != null ? defR : raw;
-    // Positive signal = stronger opponent unit → suppress offensive production
-    adjPct = -clamp(signal / 45, -0.28, 0.28);
-    reason =
-      defR != null
-        ? `Opponent defense rating ${defR.toFixed(1)} → ${(adjPct * 100).toFixed(0)}% vs season avg`
-        : `Opponent raw power ${raw.toFixed(1)} → ${(adjPct * 100).toFixed(0)}% vs season avg`;
+    // Relative power gap: stronger own team / weaker opponent → more production
+    if (playerRaw != null) {
+      const gap = playerRaw - oppRaw;
+      adjPct = clamp(gap / 40, -0.35, 0.45);
+      reason = `Matchup gap ${gap >= 0 ? "+" : ""}${gap.toFixed(1)} power (player team ${playerRaw.toFixed(1)} vs opp ${oppRaw.toFixed(1)}) → ${(adjPct * 100).toFixed(0)}%`;
+    } else {
+      const signal = oppDef != null ? oppDef : oppRaw;
+      adjPct = -clamp(signal / 40, -0.35, 0.35);
+      reason =
+        oppDef != null
+          ? `Opponent defense ${oppDef.toFixed(1)} → ${(adjPct * 100).toFixed(0)}% vs baseline`
+          : `Opponent raw power ${oppRaw.toFixed(1)} → ${(adjPct * 100).toFixed(0)}% vs baseline`;
+    }
   } else {
-    const signal = offR != null ? offR : raw;
-    adjPct = clamp(signal / 45, -0.28, 0.28);
-    reason =
-      offR != null
-        ? `Opponent offense rating ${offR.toFixed(1)} → ${(adjPct * 100).toFixed(0)}% vs season avg`
-        : `Opponent raw power ${raw.toFixed(1)} → ${(adjPct * 100).toFixed(0)}% vs season avg`;
+    if (playerRaw != null) {
+      const gap = oppRaw - playerRaw;
+      adjPct = clamp(gap / 40, -0.35, 0.45);
+      reason = `Matchup gap ${gap >= 0 ? "+" : ""}${gap.toFixed(1)} (opponent offense environment) → ${(adjPct * 100).toFixed(0)}%`;
+    } else {
+      const signal = oppOff != null ? oppOff : oppRaw;
+      adjPct = clamp(signal / 40, -0.35, 0.35);
+      reason =
+        oppOff != null
+          ? `Opponent offense ${oppOff.toFixed(1)} → ${(adjPct * 100).toFixed(0)}% vs baseline`
+          : `Opponent raw power ${oppRaw.toFixed(1)} → ${(adjPct * 100).toFixed(0)}% vs baseline`;
+    }
   }
 
   return {
@@ -344,18 +440,22 @@ function adjustForOpponent(avg, def, oppTeam) {
   };
 }
 
-function buildVerdict(expected, line, games) {
+function buildVerdict(expected, line, games, blended) {
   const edge = expected - line;
   const rel = Math.abs(line) > 0.01 ? Math.abs(edge) / Math.abs(line) : Math.abs(edge);
-  const sampleFactor = clamp((Number(games) || 0) / 8, 0.35, 1);
+  const sampleGames = Number(games) || 0;
+  const sampleFactor = clamp(sampleGames / 8, blended ? 0.28 : 0.35, 1);
 
   let lean = "tossup";
-  if (edge > 0.08 * Math.max(Math.abs(line), 1)) lean = "over";
-  else if (edge < -0.08 * Math.max(Math.abs(line), 1)) lean = "under";
+  // Counting stats / small edges stay toss-up more often
+  const thresh = 0.1 * Math.max(Math.abs(line), 1);
+  if (edge > thresh) lean = "over";
+  else if (edge < -thresh) lean = "under";
 
-  // Soft confidence 0–100
-  let confidence = Math.round(clamp(rel * 180 * sampleFactor, 18, 88));
-  if (lean === "tossup") confidence = Math.min(confidence, 45);
+  let confidence = Math.round(clamp(rel * 170 * sampleFactor, 15, 86));
+  if (lean === "tossup") confidence = Math.min(confidence, 42);
+  if (sampleGames > 0 && sampleGames < 3) confidence = Math.min(confidence, 48);
+  if (blended) confidence = Math.min(confidence, 58);
 
   return { lean, edge, confidence };
 }
@@ -386,28 +486,19 @@ async function evaluateProp({
   }
 
   const seasonYear = Number(season) || new Date().getFullYear();
-  const { overview, seasonYear: statsYear } = await loadOverviewWithFallback(
-    playerId,
-    seasonYear,
-    apiKey,
-    signal
-  );
-  if (!overview) {
-    const err = new Error("No season stats found for this player");
-    err.code = "NO_STATS";
-    throw err;
-  }
+  const [current, prior] = await Promise.all([
+    loadSeasonSnapshot(playerId, seasonYear, def, apiKey, signal),
+    loadSeasonSnapshot(playerId, seasonYear - 1, def, apiKey, signal),
+  ]);
 
-  const games = toNum(overview.games) || 0;
-  const total = extractStatTotal(overview, def);
-  if (total == null) {
-    const err = new Error(`No ${def.label} found in season stats`);
+  const baseline = buildBaseline(current, prior);
+  if (!baseline) {
+    const err = new Error(`No ${def.label} found in recent seasons`);
     err.code = "NO_STAT_VALUE";
     throw err;
   }
-  const gamesUsed = games > 0 ? games : 1;
-  const avg = total / gamesUsed;
 
+  const overview = current?.overview || prior?.overview || null;
   const playerTeam =
     team ||
     pick(overview, "team", "teamName") ||
@@ -421,8 +512,20 @@ async function evaluateProp({
   }
 
   const oppRating = findTeamRating(powerTeams, oppName);
-  const adjusted = adjustForOpponent(avg, def, oppRating);
-  const verdict = buildVerdict(adjusted.expected, lineNum, gamesUsed);
+  const playerTeamRating = findTeamRating(powerTeams, playerTeam);
+  const adjusted = adjustForOpponent(
+    baseline.avg,
+    def,
+    oppRating,
+    playerTeamRating
+  );
+  const blended = baseline.blendWeightCurrent != null && baseline.blendWeightCurrent < 1;
+  const verdict = buildVerdict(
+    adjusted.expected,
+    lineNum,
+    baseline.games,
+    blended
+  );
 
   return {
     player: {
@@ -436,16 +539,21 @@ async function evaluateProp({
     },
     stat: { id: def.id, label: def.label, category: def.category },
     line: lineNum,
-    seasonYear: statsYear,
-    games: gamesUsed,
-    seasonTotal: total,
-    seasonAvg: avg,
+    seasonYear: baseline.seasonYear,
+    games: baseline.games,
+    seasonTotal: baseline.seasonTotal,
+    seasonAvg: baseline.currentAvg != null ? baseline.currentAvg : baseline.avg,
+    baselineAvg: baseline.avg,
+    priorAvg: baseline.priorAvg,
+    priorYear: baseline.priorYear,
+    blendWeightCurrent: baseline.blendWeightCurrent,
+    sampleNote: baseline.sampleNote,
     expected: adjusted.expected,
     adjustmentPct: adjusted.adjustmentPct,
     adjustmentReason: adjusted.reason,
     opponent: oppName
       ? {
-          name: oppName,
+          name: oppRating?.name || oppName,
           ranking: oppRating?.ranking ?? null,
           rawPower: oppRating?.rawPower ?? null,
           offenseRating: oppRating?.offenseRating ?? null,
@@ -455,6 +563,15 @@ async function evaluateProp({
           fromSchedule: Boolean(nextGame),
           week: nextGame?.week ?? null,
           homeAway: nextGame?.homeAway ?? null,
+          matched: Boolean(oppRating),
+        }
+      : null,
+    playerTeamRating: playerTeamRating
+      ? {
+          name: playerTeamRating.name,
+          ranking: playerTeamRating.ranking ?? null,
+          rawPower: playerTeamRating.rawPower ?? null,
+          logoUrl: playerTeamRating.logoUrl ?? null,
         }
       : null,
     lean: verdict.lean,
@@ -462,7 +579,7 @@ async function evaluateProp({
     confidence: verdict.confidence,
     availableStats: listAvailableStats(overview),
     disclaimer:
-      "Educational model only — not betting advice. Based on season averages and opponent power ratings.",
+      "Educational model only — not betting advice. Early-season props blend prior-year pace when the sample is thin.",
   };
 }
 
