@@ -120,6 +120,7 @@
 
         <div class="matchup-panel-foot">
           <a class="matchup-link-rankings" href="power-rankings.html">View Power Rankings →</a>
+          <a class="matchup-link-picks" id="backToPicksLink" href="weeklypicks.html" hidden>← Back to Weekly Picks</a>
         </div>
       </section>
 
@@ -161,6 +162,102 @@
 
     function teamById(id) {
       return teams.find((t) => String(t.teamId) === String(id)) || null;
+    }
+
+    function normalizeTeamKey(value) {
+      return String(value || '')
+        .toLowerCase()
+        .replace(/&/g, ' and ')
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .replace(/\b(university|univ|of|the|football|team)\b/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
+    function resolveTeamFromQuery(name, id) {
+      if (id != null && String(id).trim() !== '') {
+        const byId = teamById(id);
+        if (byId) return byId;
+      }
+      const raw = String(name || '').trim();
+      if (!raw) return null;
+      const key = normalizeTeamKey(raw);
+      if (!key) return null;
+
+      let hit = teams.find((t) => normalizeTeamKey(t.name) === key);
+      if (hit) return hit;
+
+      hit = teams.find((t) => normalizeTeamKey(t.abbreviation) === key);
+      if (hit) return hit;
+
+      const starts = teams.filter((t) => {
+        const n = normalizeTeamKey(t.name);
+        return n.startsWith(key) || key.startsWith(n);
+      });
+      if (starts.length === 1) return starts[0];
+
+      const includes = teams.filter((t) => {
+        const n = normalizeTeamKey(t.name);
+        return n.includes(key) || key.includes(n);
+      });
+      if (includes.length === 1) return includes[0];
+
+      // Prefer shortest name among includes (e.g. "Miami" over longer conference strings)
+      if (includes.length > 1) {
+        includes.sort((a, b) => String(a.name).length - String(b.name).length);
+        const best = includes[0];
+        const bestKey = normalizeTeamKey(best.name);
+        if (bestKey === key || bestKey.startsWith(key) || key.startsWith(bestKey.split(' ')[0])) {
+          return best;
+        }
+      }
+      return null;
+    }
+
+    async function applyQueryPrefill() {
+      const params = new URLSearchParams(window.location.search || '');
+      if (![...params.keys()].length) return;
+
+      const fromPicks = params.get('from') === 'weeklypicks';
+      const back = document.getElementById('backToPicksLink');
+      if (back && fromPicks) back.hidden = false;
+
+      const awayName = params.get('away') || params.get('a') || '';
+      const homeName = params.get('home') || params.get('b') || '';
+      const awayId = params.get('awayId') || params.get('aId') || '';
+      const homeId = params.get('homeId') || params.get('bId') || '';
+      const venue = params.get('venue') || 'b_home';
+      const auto = params.get('auto') === '1' || params.get('auto') === 'true';
+
+      const teamA = resolveTeamFromQuery(awayName, awayId);
+      const teamB = resolveTeamFromQuery(homeName, homeId);
+
+      if (teamA) setSelectedTeam('a', teamA);
+      if (teamB) setSelectedTeam('b', teamB);
+
+      const venueEl = document.getElementById('venue');
+      if (venueEl && ['neutral', 'a_home', 'b_home'].includes(venue)) {
+        venueEl.value = venue;
+      }
+      updateTeamLabels();
+
+      if (auto && teamA && teamB && String(teamA.teamId) !== String(teamB.teamId)) {
+        await predict();
+      } else if ((awayName || homeName) && (!teamA || !teamB)) {
+        const placeholder = document.getElementById('resultPlaceholder');
+        if (placeholder) {
+          placeholder.hidden = false;
+          placeholder.innerHTML = `
+            <div class="matchup-empty-icon" aria-hidden="true">⚠️</div>
+            <h2 class="matchup-empty-title">Couldn’t match teams</h2>
+            <p class="matchup-empty-text">
+              ${!teamA ? escapeHtml(awayName || 'Away team') + ' not found. ' : ''}
+              ${!teamB ? escapeHtml(homeName || 'Home team') + ' not found. ' : ''}
+              Pick teams manually below.
+            </p>
+          `;
+        }
+      }
     }
 
     function teamLabel(t) {
@@ -542,7 +639,9 @@
       updateAdjTotals();
       bindTeamCombo('a');
       bindTeamCombo('b');
-      loadTeams().catch((err) => {
+      loadTeams()
+        .then(() => applyQueryPrefill())
+        .catch((err) => {
         const placeholder = document.getElementById('resultPlaceholder');
         placeholder.innerHTML = `
           <div class="matchup-empty-icon" aria-hidden="true">⚠️</div>

@@ -899,10 +899,34 @@ input:focus, select:focus {
 
 .pick-hint {
     display: none;
-    margin: 0.25rem 0 0;
+    margin: 0;
     font-size: 0.72rem;
     color: #f5deb3;
     opacity: 0.65;
+}
+
+.pick-game-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.35rem 0.75rem;
+    margin-top: 0.4rem;
+}
+
+.pick-predict-link {
+    margin-left: auto;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #ffe566;
+    text-decoration: none;
+    text-underline-offset: 2px;
+    white-space: nowrap;
+}
+
+.pick-predict-link:hover {
+    color: #ffd700;
+    text-decoration: underline;
 }
 
 .pick-game-row {
@@ -1011,9 +1035,20 @@ input:focus, select:focus {
 
 /* Mobile: single column, centered game rows */
 @media (max-width: 859px) {
+    .pick-game-actions {
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.35rem;
+    }
+
     .pick-hint {
         display: block;
         text-align: center;
+    }
+
+    .pick-predict-link {
+        margin-left: 0;
     }
 
     .pick-meta {

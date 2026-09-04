@@ -567,6 +567,19 @@
       return String(v ?? '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
+    /** Deep-link to matchup predictor with this card's teams pre-filled (home = B). */
+    function predictorHref(awayName, homeName, awayId, homeId) {
+      const params = new URLSearchParams();
+      if (awayName) params.set('away', String(awayName));
+      if (homeName) params.set('home', String(homeName));
+      if (awayId != null && awayId !== '') params.set('awayId', String(awayId));
+      if (homeId != null && homeId !== '') params.set('homeId', String(homeId));
+      params.set('venue', 'b_home');
+      params.set('auto', '1');
+      params.set('from', 'weeklypicks');
+      return 'predictor.html?' + params.toString();
+    }
+
     function normalizeCurrentWeekApi(w) {
       if (!w || typeof w !== 'object') return null;
       return {
@@ -819,7 +832,15 @@
             </div>
             ${liveScoreHtml}
             ${extraLine}
-            <span class="pick-hint">Tap a team to pick</span>
+            <div class="pick-game-actions">
+              <span class="pick-hint">Tap a team to pick</span>
+              <a
+                class="pick-predict-link"
+                href="${predictorHref(awayName, homeName, awayEspnId, homeEspnId).replace(/"/g, '&quot;')}"
+                target="_blank"
+                rel="noopener noreferrer"
+              >Predict matchup →</a>
+            </div>
             <input
               type="hidden"
               class="pick-value"

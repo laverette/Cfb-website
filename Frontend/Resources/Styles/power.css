@@ -628,9 +628,15 @@
   padding-top: 1rem;
   border-top: 1px solid rgba(255, 215, 0, 0.14);
   text-align: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem 1.25rem;
+  align-items: center;
+  justify-content: center;
 }
 
-.matchup-link-rankings {
+.matchup-link-rankings,
+.matchup-link-picks {
   color: #ffe566;
   font-weight: 700;
   font-size: 0.92rem;
@@ -639,9 +645,14 @@
   transition: color 0.15s ease, opacity 0.15s ease;
 }
 
-.matchup-link-rankings:hover {
+.matchup-link-rankings:hover,
+.matchup-link-picks:hover {
   color: #fff3a0;
   text-decoration: underline;
+}
+
+.matchup-link-picks[hidden] {
+  display: none !important;
 }
 
 /* Empty / loading state */
