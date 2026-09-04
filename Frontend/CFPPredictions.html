@@ -30,7 +30,7 @@
     <header class="cfp-hero">
       <p class="cfp-kicker">College Football Playoff</p>
       <h1 class="cfp-heading">Official Bracket</h1>
-      <p class="cfp-help">Search and pick all 12 seeds. When a matchup is filled, tap <strong>Advance</strong> to send a team forward, <strong>Switch</strong> to change the winner, or <strong>Clear</strong> to undo. Edit any seed anytime in its search box. Log in to save.</p>
+      <p class="cfp-help">Search and pick all 12 seeds. Tap an empty next-round slot to choose the winner from that matchup. Tap a filled team to change it. Log in to save.</p>
     </header>
 
     <div class="cfp-toolbar">
@@ -94,8 +94,8 @@
       <!-- CENTER: Championship -->
       <div class="cfp-col cfp-col-final">
         <div class="cfp-final-wrap">
-          <div class="cfp-champion" id="championBanner" hidden>
-            <span class="cfp-champion-label">Champion</span>
+          <div class="cfp-champion cfp-champion-pickable" id="championBanner" hidden>
+            <span class="cfp-champion-label" id="championLabel">Champion</span>
             <strong id="championName">—</strong>
           </div>
           <div class="cfp-round-label">National Championship</div>
@@ -155,6 +155,17 @@
       </div>
     </section>
   </main>
+
+  <div id="pickModal" class="cfp-pick-modal" hidden>
+    <div class="cfp-pick-modal-backdrop" data-close-pick></div>
+    <div class="cfp-pick-modal-card" role="dialog" aria-modal="true" aria-labelledby="pickModalTitle">
+      <button type="button" class="cfp-pick-modal-close" data-close-pick aria-label="Close">×</button>
+      <p class="cfp-pick-modal-kicker" id="pickModalKicker">Choose a winner</p>
+      <h2 id="pickModalTitle" class="cfp-pick-modal-title">Who advances?</h2>
+      <div class="cfp-pick-modal-choices" id="pickModalChoices"></div>
+      <button type="button" class="cfp-pick-modal-clear" id="pickModalClear" hidden>Clear pick</button>
+    </div>
+  </div>
 
   <div id="champModal" class="cfp-champ-modal" hidden>
     <div class="cfp-champ-modal-backdrop" data-close-champ></div>

@@ -50,9 +50,6 @@
   <div id="week11-picks" class="tab-content active">
     <div class="title-section">
       <h1 class="title" id="picksTabTitle">Weekly Picks</h1>
-      <div class="title-actions">
-        <button type="button" class="football-toggle-btn" id="footballToggleBtn" aria-pressed="false">Hide football</button>
-      </div>
     </div>
     
     <div class="week11-layout picks-layout-solo">
@@ -226,6 +223,20 @@
             <a href="index.html" class="form-nav-link picks-action-btn">Back to Main Site</a>
           </p>
         </form>
+
+        <div class="picks-page-utils" aria-label="Page options">
+          <button type="button" class="football-toggle-btn" id="footballToggleBtn" aria-pressed="false">Hide football</button>
+          <div class="picks-email-optin" id="picksEmailOptIn">
+            <button type="button" class="picks-email-optin-btn" id="emailRemindersBtn" aria-pressed="false">
+              Get email reminders
+            </button>
+            <p class="picks-email-optin-hint">
+              Reminder ~2 hours before picks lock if you haven’t submitted yet.
+            </p>
+            <p class="picks-email-optin-status" id="emailRemindersStatus" aria-live="polite"></p>
+          </div>
+        </div>
+
         <div id="results"></div>
       </div>
     </div>
@@ -987,6 +998,8 @@
     document.addEventListener('DOMContentLoaded', function() {
       syncPicksAuthState();
       initFootballToggle();
+      initBouncingFootball();
+      initEmailRemindersOptIn();
       initCorsoChat();
 
       // Phase 1: Load active week + games from backend DB.
@@ -1095,6 +1108,9 @@
       if (!btn) return;
       btn.setAttribute('aria-pressed', off ? 'true' : 'false');
       btn.textContent = off ? 'Show football' : 'Hide football';
+      if (window.__cfpFootballBounce && typeof window.__cfpFootballBounce.sync === 'function') {
+        window.__cfpFootballBounce.sync();
+      }
     }
 
     function initFootballToggle() {
@@ -1102,6 +1118,223 @@
       if (!btn) return;
       setFootballOff(isFootballOff());
       btn.addEventListener('click', () => setFootballOff(!isFootballOff()));
+    }
+
+    /** Physics bounce — reliable on real phones (CSS often freezes with Reduce Motion). */
+    function initBouncingFootball() {
+      const el = document.getElementById('bouncingFootball');
+      if (!el || el.dataset.bounceWired === '1') return;
+      el.dataset.bounceWired = '1';
+      el.classList.add('is-js-driven');
+
+      let x = 24;
+      let y = 96;
+      let vx = 1.35;
+      let vy = 1.1;
+      let rot = 0;
+      let raf = 0;
+      let last = 0;
+      let running = false;
+
+      const reduceMotion =
+        typeof window.matchMedia === 'function' &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const speedScale = reduceMotion ? 0.55 : 1;
+
+      function size() {
+        return {
+          w: el.offsetWidth || 32,
+          h: el.offsetHeight || 32,
+        };
+      }
+
+      function bounds() {
+        const s = size();
+        const vw = window.innerWidth || document.documentElement.clientWidth || 320;
+        const vh = window.innerHeight || document.documentElement.clientHeight || 568;
+        // Keep clear of bottom chrome / Corso FAB area
+        const padBottom = Math.min(120, Math.max(64, vh * 0.12));
+        return {
+          minX: 4,
+          minY: 56,
+          maxX: Math.max(8, vw - s.w - 4),
+          maxY: Math.max(64, vh - s.h - padBottom),
+        };
+      }
+
+      function place() {
+        el.style.transform =
+          'translate3d(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px,0) rotate(' + rot.toFixed(1) + 'deg)';
+      }
+
+      function tick(ts) {
+        if (!running) return;
+        if (!last) last = ts;
+        let dt = (ts - last) / 16.67;
+        last = ts;
+        if (dt > 3) dt = 3;
+
+        const b = bounds();
+        x += vx * speedScale * dt;
+        y += vy * speedScale * dt;
+        rot += (vx > 0 ? 1.6 : -1.6) * speedScale * dt;
+
+        if (x <= b.minX) {
+          x = b.minX;
+          vx = Math.abs(vx);
+        } else if (x >= b.maxX) {
+          x = b.maxX;
+          vx = -Math.abs(vx);
+        }
+        if (y <= b.minY) {
+          y = b.minY;
+          vy = Math.abs(vy);
+        } else if (y >= b.maxY) {
+          y = b.maxY;
+          vy = -Math.abs(vy);
+        }
+
+        place();
+        raf = requestAnimationFrame(tick);
+      }
+
+      function start() {
+        if (running || isFootballOff()) return;
+        running = true;
+        last = 0;
+        const b = bounds();
+        x = Math.min(Math.max(x, b.minX), b.maxX);
+        y = Math.min(Math.max(y, b.minY), b.maxY);
+        place();
+        raf = requestAnimationFrame(tick);
+      }
+
+      function stop() {
+        running = false;
+        last = 0;
+        if (raf) cancelAnimationFrame(raf);
+        raf = 0;
+      }
+
+      function sync() {
+        if (isFootballOff() || document.hidden) stop();
+        else start();
+      }
+
+      window.addEventListener('resize', function () {
+        const b = bounds();
+        x = Math.min(Math.max(x, b.minX), b.maxX);
+        y = Math.min(Math.max(y, b.minY), b.maxY);
+        place();
+      });
+      document.addEventListener('visibilitychange', sync);
+
+      // Randomize starting direction a bit
+      if (Math.random() > 0.5) vx *= -1;
+      if (Math.random() > 0.5) vy *= -1;
+
+      window.__cfpFootballBounce = { sync: sync, stop: stop, start: start };
+      sync();
+    }
+
+    function picksAuthHeaders() {
+      const token = window.AuthUI && AuthUI.getAuthToken && AuthUI.getAuthToken();
+      return token
+        ? { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }
+        : { 'Content-Type': 'application/json' };
+    }
+
+    function setEmailReminderUi(enabled) {
+      const btn = document.getElementById('emailRemindersBtn');
+      if (!btn) return;
+      btn.setAttribute('aria-pressed', enabled ? 'true' : 'false');
+      btn.dataset.enabled = enabled ? '1' : '0';
+      btn.textContent = enabled ? 'Email reminders on — tap to turn off' : 'Get email reminders';
+    }
+
+    async function initEmailRemindersOptIn() {
+      const btn = document.getElementById('emailRemindersBtn');
+      const status = document.getElementById('emailRemindersStatus');
+      if (!btn || btn.dataset.wired === '1') return;
+      btn.dataset.wired = '1';
+
+      async function refreshFromServer() {
+        const loggedIn = !!(window.AuthUI && AuthUI.isLoggedIn());
+        if (!loggedIn) {
+          btn.disabled = false;
+          setEmailReminderUi(false);
+          btn.textContent = 'Log in for email reminders';
+          if (status) {
+            status.innerHTML =
+              '<a href="login.html?redirect=weeklypicks.html">Log in</a> to opt in to pick reminders.';
+          }
+          return;
+        }
+
+        btn.disabled = true;
+        if (status) status.textContent = 'Loading reminder settings…';
+        try {
+          const resp = await fetch('/api/auth/settings', {
+            headers: { ...picksAuthHeaders(), accept: 'application/json' },
+          });
+          const data = await resp.json().catch(() => ({}));
+          if (!resp.ok) throw new Error(data.error || data.message || 'Failed (' + resp.status + ')');
+          const enabled = !!(data.settings && data.settings.emailNotifications);
+          setEmailReminderUi(enabled);
+          if (status) {
+            status.textContent = enabled
+              ? 'You’ll get a reminder if picks aren’t in yet.'
+              : 'Opt in to get a reminder before picks lock.';
+          }
+        } catch (_) {
+          setEmailReminderUi(false);
+          if (status) status.textContent = 'Could not load reminder settings.';
+        } finally {
+          btn.disabled = false;
+        }
+      }
+
+      window.refreshPicksEmailReminders = refreshFromServer;
+
+      btn.addEventListener('click', async function () {
+        const loggedIn = !!(window.AuthUI && AuthUI.isLoggedIn());
+        if (!loggedIn) {
+          window.location.href = 'login.html?redirect=weeklypicks.html';
+          return;
+        }
+
+        const next = btn.dataset.enabled !== '1';
+        btn.disabled = true;
+        if (status) status.textContent = 'Saving…';
+        try {
+          const resp = await fetch('/api/auth/settings', {
+            method: 'PATCH',
+            headers: { ...picksAuthHeaders(), accept: 'application/json' },
+            body: JSON.stringify({ emailNotifications: next }),
+          });
+          const data = await resp.json().catch(() => ({}));
+          if (!resp.ok) throw new Error(data.error || data.message || 'Failed (' + resp.status + ')');
+          setEmailReminderUi(next);
+          if (status) {
+            status.textContent = next
+              ? 'Pick reminders enabled.'
+              : 'Pick reminders turned off.';
+          }
+        } catch (err) {
+          if (status) status.textContent = err.message || 'Could not save settings.';
+        } finally {
+          btn.disabled = false;
+        }
+      });
+
+      await refreshFromServer();
+
+      document.addEventListener('auth:logout', function () {
+        refreshFromServer();
+      });
+      document.addEventListener('auth:invalid', function () {
+        refreshFromServer();
+      });
     }
 
     window.addEventListener('resize', scheduleFitPickMatchupFonts);
@@ -1119,6 +1352,9 @@
     window.addEventListener('storage', function (e) {
       if (e.key === 'authToken' || e.key === 'currentUser') {
         syncPicksAuthState();
+        if (typeof window.refreshPicksEmailReminders === 'function') {
+          window.refreshPicksEmailReminders();
+        }
       }
     });
 

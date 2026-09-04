@@ -351,13 +351,13 @@
     gap: 1rem;
   }
 
-  /* DOM order: rankings then nav — show poll first on mobile */
+  /* Explore nav first on mobile; poll below */
   .home-panel-nav {
-    order: 2;
+    order: 1;
   }
 
   .home-panel-rankings {
-    order: 1;
+    order: 2;
   }
 
   .home-feature-image-wrap {

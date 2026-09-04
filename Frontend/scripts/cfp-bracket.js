@@ -62,6 +62,7 @@
     activeTab: "bracket",
     lbLoaded: false,
     lastChampShown: null,
+    pickModalGameId: null,
   };
 
   function $(sel, root) {
@@ -251,16 +252,6 @@
     );
   }
 
-  function advanceBtnHtml() {
-    if (state.readonly) return "";
-    return (
-      '<button type="button" class="cfp-advance-btn" hidden>' +
-      '<span class="cfp-advance-btn-label">Advance</span>' +
-      '<span class="cfp-advance-btn-icon" aria-hidden="true">→</span>' +
-      "</button>"
-    );
-  }
-
   function renderSeedSlot(el) {
     var seed = Number(el.getAttribute("data-seed"));
     var value = state.teams[seed] || "";
@@ -279,8 +270,7 @@
       escapeHtml(value) +
       '">' +
       '<ul class="cfp-combo-list" hidden role="listbox"></ul>' +
-      "</div></div>" +
-      advanceBtnHtml();
+      "</div></div>";
     applySlotBrand(el, value);
     bindCombo(el.querySelector(".cfp-combo"), seed);
   }
@@ -291,7 +281,6 @@
     var name = entry && entry.name ? entry.name : "";
     var seed = entry && entry.seed != null ? entry.seed : "";
     var badge = seed !== "" && seed != null ? seed + "." : "·";
-    el.classList.toggle("is-clickable", false);
     el.innerHTML =
       '<span class="cfp-seed-badge">' +
       escapeHtml(String(badge)) +
@@ -301,8 +290,7 @@
       (name ? "" : " is-empty") +
       '">' +
       (name ? escapeHtml(name) : "TBD") +
-      "</span></div>" +
-      advanceBtnHtml();
+      "</span></div>";
     applySlotBrand(el, name);
   }
 
@@ -377,50 +365,58 @@
     });
   }
 
+  function gameAdvancesToSlot(slotId) {
+    var ids = Object.keys(GAMES);
+    for (var i = 0; i < ids.length; i++) {
+      if (GAMES[ids[i]].advancesTo === slotId) return ids[i];
+    }
+    return null;
+  }
+
+  function gameIsReady(gameId) {
+    var g = GAMES[gameId];
+    return Boolean(g && slotFilled(g.slots[0]) && slotFilled(g.slots[1]));
+  }
+
   function refreshMatchupReady() {
     $$(".cfp-pair[data-game]").forEach(function (pair) {
       var gameId = pair.getAttribute("data-game");
       var g = GAMES[gameId];
       if (!g) return;
-      var ready = slotFilled(g.slots[0]) && slotFilled(g.slots[1]);
+      var ready = gameIsReady(gameId);
       var currentPick = state.picks[gameId] || null;
       pair.classList.toggle("is-ready", ready && !state.readonly && !currentPick);
       pair.classList.toggle("is-decided", ready && Boolean(currentPick));
       $$(".cfp-slot", pair).forEach(function (el) {
         var sid = el.getAttribute("data-slot");
-        var canPick = ready && !state.readonly && sid && slotFilled(sid);
         var isWin = currentPick && sid === currentPick;
-        el.classList.toggle("is-pickable", canPick);
-        el.classList.toggle("is-loser", Boolean(canPick && currentPick && !isWin));
-        el.removeAttribute("title");
+        var isAdvance = el.classList.contains("cfp-advance");
+        var feederGame = isAdvance ? gameAdvancesToSlot(sid) : null;
+        var canFillFromFeeder =
+          isAdvance && feederGame && gameIsReady(feederGame) && !state.readonly;
+        var canEditSeed =
+          el.hasAttribute("data-seed") && !state.readonly && slotFilled(sid);
 
-        var btn = el.querySelector(".cfp-advance-btn");
-        if (!btn) return;
-        if (!canPick) {
-          btn.hidden = true;
-          btn.classList.remove("is-clear", "is-switch");
-          return;
-        }
-        btn.hidden = false;
-        var label = btn.querySelector(".cfp-advance-btn-label");
-        var icon = btn.querySelector(".cfp-advance-btn-icon");
-        if (isWin) {
-          btn.classList.add("is-clear");
-          btn.classList.remove("is-switch");
-          if (label) label.textContent = "Clear";
-          if (icon) icon.textContent = "×";
-          btn.setAttribute("aria-label", "Clear this pick");
-        } else if (currentPick) {
-          btn.classList.add("is-switch");
-          btn.classList.remove("is-clear");
-          if (label) label.textContent = "Switch";
-          if (icon) icon.textContent = "⇄";
-          btn.setAttribute("aria-label", "Switch winner to this team");
-        } else {
-          btn.classList.remove("is-clear", "is-switch");
-          if (label) label.textContent = "Advance";
-          if (icon) icon.textContent = "→";
-          btn.setAttribute("aria-label", "Advance this team to the next round");
+        el.classList.toggle("is-pickable", false);
+        el.classList.toggle(
+          "is-clickable",
+          Boolean(canFillFromFeeder || (isAdvance && slotFilled(sid) && !state.readonly))
+        );
+        el.classList.toggle("is-loser", Boolean(ready && currentPick && sid && !isWin && slotFilled(sid)));
+        el.removeAttribute("title");
+        el.removeAttribute("role");
+        el.removeAttribute("tabindex");
+
+        if (canFillFromFeeder && !slotFilled(sid)) {
+          el.setAttribute("title", "Tap to choose who advances");
+          el.setAttribute("role", "button");
+          el.setAttribute("tabindex", "0");
+        } else if (isAdvance && slotFilled(sid) && !state.readonly) {
+          el.setAttribute("title", "Tap to change this pick");
+          el.setAttribute("role", "button");
+          el.setAttribute("tabindex", "0");
+        } else if (canEditSeed) {
+          el.setAttribute("title", "Tap to change this team");
         }
       });
     });
@@ -429,15 +425,49 @@
   function refreshChampion() {
     var banner = $("championBanner");
     var nameEl = $("championName");
+    var labelEl = document.getElementById("championLabel");
     var winSlot = state.picks.champ;
     if (!banner || !nameEl) return;
+
+    var champsReady = gameIsReady("champ");
     if (winSlot && state.slots[winSlot] && state.slots[winSlot].name) {
       banner.hidden = false;
+      banner.classList.remove("is-empty-pick");
+      if (labelEl) labelEl.textContent = "Champion";
       nameEl.textContent = state.slots[winSlot].name;
+      applySlotBrand(banner, state.slots[winSlot].name);
+    } else if (champsReady && !state.readonly) {
+      banner.hidden = false;
+      banner.classList.add("is-empty-pick");
+      applySlotBrand(banner, "");
+      if (labelEl) labelEl.textContent = "National Championship";
+      nameEl.textContent = "Tap to pick champion";
     } else {
       banner.hidden = true;
+      banner.classList.remove("is-empty-pick");
+      applySlotBrand(banner, "");
       nameEl.textContent = "—";
       state.lastChampShown = null;
+    }
+    refreshChampionPickTarget();
+  }
+
+  function refreshChampionPickTarget() {
+    var banner = document.getElementById("championBanner");
+    if (!banner) return;
+    var canPick = !state.readonly && gameIsReady("champ");
+    banner.classList.toggle("is-clickable", canPick);
+    if (canPick) {
+      banner.setAttribute("role", "button");
+      banner.setAttribute("tabindex", "0");
+      banner.setAttribute(
+        "title",
+        state.picks.champ ? "Tap to change champion" : "Tap to pick champion"
+      );
+    } else {
+      banner.removeAttribute("role");
+      banner.removeAttribute("tabindex");
+      banner.removeAttribute("title");
     }
   }
 
@@ -545,7 +575,7 @@
         hideChampCelebration();
       }
       refreshAllSlots();
-      setStatus("Pick cleared — use Advance on a team to choose the winner.");
+      setStatus("Pick cleared — tap the next-round slot to choose again.");
       return;
     }
 
@@ -576,11 +606,7 @@
     } else if (switching) {
       setStatus("Winner switched. Later rounds using the old pick were reset.");
     } else {
-      setStatus(
-        g.advancesTo
-          ? "Winner advanced. Use Switch on the other team, or Clear on the winner."
-          : ""
-      );
+      setStatus(g.advancesTo ? "Winner advanced." : "");
     }
   }
 
@@ -715,30 +741,171 @@
     });
   }
 
-  function bindAdvanceClicks() {
-    $$(".cfp-pair[data-game]").forEach(function (pair) {
-      var gameId = pair.getAttribute("data-game");
-      pair.addEventListener("click", function (e) {
-        if (state.readonly) return;
-        var btn = e.target.closest(".cfp-advance-btn");
-        if (!btn || btn.hidden || !pair.contains(btn)) return;
-        e.preventDefault();
-        e.stopPropagation();
+  function roundLabelForGame(gameId) {
+    if (gameId.indexOf("fr") === 0) return "First Round";
+    if (gameId.indexOf("qf") === 0) return "Quarterfinals";
+    if (gameId.indexOf("sf") === 0) return "Semifinal";
+    if (gameId === "champ") return "National Championship";
+    return "Matchup";
+  }
 
-        var slotEl = btn.closest(".cfp-slot");
-        if (!slotEl) return;
-        var slotId = slotEl.getAttribute("data-slot");
-        if (!slotId) return;
+  function hidePickModal() {
+    var modal = document.getElementById("pickModal");
+    if (!modal) return;
+    modal.hidden = true;
+    document.body.classList.remove("cfp-modal-open");
+    state.pickModalGameId = null;
+  }
 
-        var g = GAMES[gameId];
-        var ready = g && slotFilled(g.slots[0]) && slotFilled(g.slots[1]);
-        if (!ready) {
-          setStatus("Fill both teams in this matchup first.");
+  function openPickModal(gameId) {
+    if (state.readonly) return;
+    var g = GAMES[gameId];
+    var modal = document.getElementById("pickModal");
+    var choices = document.getElementById("pickModalChoices");
+    var title = document.getElementById("pickModalTitle");
+    var kicker = document.getElementById("pickModalKicker");
+    var clearBtn = document.getElementById("pickModalClear");
+    if (!g || !modal || !choices) return;
+    if (!slotFilled(g.slots[0]) || !slotFilled(g.slots[1])) {
+      setStatus("Both teams in this matchup need to be set first.");
+      return;
+    }
+
+    state.pickModalGameId = gameId;
+    var current = state.picks[gameId] || null;
+    if (kicker) kicker.textContent = roundLabelForGame(gameId);
+    if (title) {
+      title.textContent =
+        gameId === "champ"
+          ? current
+            ? "Change national champion"
+            : "Who wins it all?"
+          : current
+            ? "Change who advances"
+            : "Who advances?";
+    }
+
+    choices.innerHTML = g.slots
+      .map(function (slotId) {
+        var entry = state.slots[slotId] || {};
+        var name = entry.name || "TBD";
+        var seed = entry.seed != null ? entry.seed + "." : "·";
+        var selected = current === slotId ? " is-selected" : "";
+        return (
+          '<button type="button" class="cfp-pick-choice' +
+          selected +
+          '" data-pick-slot="' +
+          escapeHtml(slotId) +
+          '">' +
+          '<span class="cfp-pick-choice-seed">' +
+          escapeHtml(String(seed)) +
+          "</span>" +
+          logoHtml(name) +
+          '<span class="cfp-pick-choice-name">' +
+          escapeHtml(name) +
+          "</span>" +
+          "</button>"
+        );
+      })
+      .join("");
+
+    if (clearBtn) {
+      clearBtn.hidden = !current;
+    }
+
+    modal.hidden = false;
+    document.body.classList.add("cfp-modal-open");
+  }
+
+  function bindPickModal() {
+    var modal = document.getElementById("pickModal");
+    if (!modal || modal.dataset.wired === "1") return;
+    modal.dataset.wired = "1";
+
+    modal.addEventListener("click", function (e) {
+      if (e.target.closest("[data-close-pick]")) {
+        hidePickModal();
+        return;
+      }
+      var choice = e.target.closest("[data-pick-slot]");
+      if (choice && state.pickModalGameId) {
+        var slotId = choice.getAttribute("data-pick-slot");
+        var gameId = state.pickModalGameId;
+        hidePickModal();
+        if (state.picks[gameId] === slotId) {
+          setStatus("Same team kept.");
           return;
         }
         pickWinner(gameId, slotId);
-      });
+        return;
+      }
+      if (e.target.id === "pickModalClear" || e.target.closest("#pickModalClear")) {
+        var clearGame = state.pickModalGameId;
+        if (!clearGame || !state.picks[clearGame]) return;
+        hidePickModal();
+        clearGameForward(clearGame);
+        if (clearGame === "champ") {
+          state.lastChampShown = null;
+          hideChampCelebration();
+        }
+        refreshAllSlots();
+        setStatus("Pick cleared — tap the slot to choose again.");
+      }
     });
+
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && modal && !modal.hidden) hidePickModal();
+    });
+  }
+
+  function bindAdvanceClicks() {
+    bindPickModal();
+
+    var bracket = document.getElementById("cfpBracket");
+    if (bracket && bracket.dataset.pickWired !== "1") {
+      bracket.dataset.pickWired = "1";
+      bracket.addEventListener("click", function (e) {
+        if (state.readonly) return;
+        if (e.target.closest(".cfp-combo")) return;
+
+        var slotEl = e.target.closest(".cfp-slot.cfp-advance");
+        if (!slotEl || !bracket.contains(slotEl)) return;
+        e.preventDefault();
+
+        var slotId = slotEl.getAttribute("data-slot");
+        var feeder =
+          slotEl.getAttribute("data-from") || gameAdvancesToSlot(slotId);
+        if (!feeder) return;
+
+        if (!gameIsReady(feeder)) {
+          setStatus("Fill both teams in the previous matchup first.");
+          return;
+        }
+        openPickModal(feeder);
+      });
+
+      bracket.addEventListener("keydown", function (e) {
+        if (e.key !== "Enter" && e.key !== " ") return;
+        var slotEl = e.target.closest(".cfp-slot.cfp-advance");
+        if (!slotEl) return;
+        e.preventDefault();
+        slotEl.click();
+      });
+    }
+
+    var banner = document.getElementById("championBanner");
+    if (banner && banner.dataset.pickWired !== "1") {
+      banner.dataset.pickWired = "1";
+      banner.addEventListener("click", function () {
+        if (state.readonly || !gameIsReady("champ")) return;
+        openPickModal("champ");
+      });
+      banner.addEventListener("keydown", function (e) {
+        if (e.key !== "Enter" && e.key !== " ") return;
+        e.preventDefault();
+        banner.click();
+      });
+    }
   }
 
   async function save() {
