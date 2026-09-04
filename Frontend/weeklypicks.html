@@ -50,6 +50,9 @@
   <div id="week11-picks" class="tab-content active">
     <div class="title-section">
       <h1 class="title" id="picksTabTitle">Weekly Picks</h1>
+      <div class="title-actions">
+        <button type="button" class="football-toggle-btn" id="footballToggleBtn" aria-pressed="false">Hide football</button>
+      </div>
     </div>
     
     <div class="week11-layout picks-layout-solo">
@@ -224,16 +227,24 @@
           </p>
         </form>
 
-        <div class="picks-page-utils" aria-label="Page options">
-          <button type="button" class="football-toggle-btn" id="footballToggleBtn" aria-pressed="false">Hide football</button>
-          <div class="picks-email-optin" id="picksEmailOptIn">
-            <button type="button" class="picks-email-optin-btn" id="emailRemindersBtn" aria-pressed="false">
-              Get email reminders
-            </button>
-            <p class="picks-email-optin-hint">
-              Reminder ~2 hours before picks lock if you haven’t submitted yet.
+        <div class="picks-reminders-card" id="picksEmailOptIn" aria-labelledby="picksRemindersTitle">
+          <div class="picks-reminders-copy">
+            <h2 class="picks-reminders-title" id="picksRemindersTitle">Email reminders</h2>
+            <p class="picks-reminders-lead">
+              Get a reminder about 2 hours before picks lock if you haven’t submitted yet.
             </p>
-            <p class="picks-email-optin-status" id="emailRemindersStatus" aria-live="polite"></p>
+            <p class="picks-reminders-status" id="emailRemindersStatus" aria-live="polite"></p>
+          </div>
+          <div class="picks-reminders-control">
+            <button
+              type="button"
+              class="picks-email-optin-btn"
+              id="emailRemindersBtn"
+              aria-pressed="false"
+              data-enabled="0"
+            >
+              Enable reminders
+            </button>
           </div>
         </div>
 
@@ -831,15 +842,17 @@
               ${spreads.pickem ? '<span class="betting-line team-spread">PK</span>' : ''}
             </div>
             ${liveScoreHtml}
-            ${extraLine}
-            <div class="pick-game-actions">
-              <span class="pick-hint">Tap a team to pick</span>
-              <a
-                class="pick-predict-link"
-                href="${predictorHref(awayName, homeName, awayEspnId, homeEspnId).replace(/"/g, '&quot;')}"
-                target="_blank"
-                rel="noopener noreferrer"
-              >Predict matchup →</a>
+            <div class="pick-game-foot">
+              ${extraLine}
+              <div class="pick-game-actions">
+                <span class="pick-hint">Tap a team to pick</span>
+                <a
+                  class="pick-predict-link"
+                  href="${predictorHref(awayName, homeName, awayEspnId, homeEspnId).replace(/"/g, '&quot;')}"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >Predict matchup →</a>
+              </div>
             </div>
             <input
               type="hidden"
@@ -1265,12 +1278,25 @@
         : { 'Content-Type': 'application/json' };
     }
 
-    function setEmailReminderUi(enabled) {
+    function setEmailReminderUi(enabled, opts) {
+      opts = opts || {};
       const btn = document.getElementById('emailRemindersBtn');
+      const card = document.getElementById('picksEmailOptIn');
       if (!btn) return;
+      const loggedIn = opts.loggedIn !== false;
       btn.setAttribute('aria-pressed', enabled ? 'true' : 'false');
       btn.dataset.enabled = enabled ? '1' : '0';
-      btn.textContent = enabled ? 'Email reminders on — tap to turn off' : 'Get email reminders';
+      btn.classList.toggle('is-on', !!enabled);
+      btn.classList.toggle('is-guest', !loggedIn);
+      if (!loggedIn) {
+        btn.textContent = 'Log in to enable';
+      } else {
+        btn.textContent = enabled ? 'Reminders on' : 'Enable reminders';
+      }
+      if (card) {
+        card.classList.toggle('is-enabled', !!enabled && loggedIn);
+        card.classList.toggle('is-guest', !loggedIn);
+      }
     }
 
     async function initEmailRemindersOptIn() {
@@ -1283,17 +1309,16 @@
         const loggedIn = !!(window.AuthUI && AuthUI.isLoggedIn());
         if (!loggedIn) {
           btn.disabled = false;
-          setEmailReminderUi(false);
-          btn.textContent = 'Log in for email reminders';
+          setEmailReminderUi(false, { loggedIn: false });
           if (status) {
             status.innerHTML =
-              '<a href="login.html?redirect=weeklypicks.html">Log in</a> to opt in to pick reminders.';
+              '<a href="login.html?redirect=weeklypicks.html">Sign in</a> to manage email reminders.';
           }
           return;
         }
 
         btn.disabled = true;
-        if (status) status.textContent = 'Loading reminder settings…';
+        if (status) status.textContent = 'Loading your preference…';
         try {
           const resp = await fetch('/api/auth/settings', {
             headers: { ...picksAuthHeaders(), accept: 'application/json' },
@@ -1301,14 +1326,14 @@
           const data = await resp.json().catch(() => ({}));
           if (!resp.ok) throw new Error(data.error || data.message || 'Failed (' + resp.status + ')');
           const enabled = !!(data.settings && data.settings.emailNotifications);
-          setEmailReminderUi(enabled);
+          setEmailReminderUi(enabled, { loggedIn: true });
           if (status) {
             status.textContent = enabled
-              ? 'You’ll get a reminder if picks aren’t in yet.'
-              : 'Opt in to get a reminder before picks lock.';
+              ? 'You’ll get an email if picks aren’t submitted before lock.'
+              : 'Reminders are off. Turn them on anytime.';
           }
         } catch (_) {
-          setEmailReminderUi(false);
+          setEmailReminderUi(false, { loggedIn: true });
           if (status) status.textContent = 'Could not load reminder settings.';
         } finally {
           btn.disabled = false;
@@ -1335,11 +1360,11 @@
           });
           const data = await resp.json().catch(() => ({}));
           if (!resp.ok) throw new Error(data.error || data.message || 'Failed (' + resp.status + ')');
-          setEmailReminderUi(next);
+          setEmailReminderUi(next, { loggedIn: true });
           if (status) {
             status.textContent = next
-              ? 'Pick reminders enabled.'
-              : 'Pick reminders turned off.';
+              ? 'Reminders enabled. We’ll email you before picks lock.'
+              : 'Reminders turned off.';
           }
         } catch (err) {
           if (status) status.textContent = err.message || 'Could not save settings.';
