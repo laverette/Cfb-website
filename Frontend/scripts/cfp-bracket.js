@@ -905,7 +905,11 @@
     if (bracketPanel) bracketPanel.hidden = state.activeTab !== "bracket";
     if (lbPanel) lbPanel.hidden = state.activeTab !== "leaderboard";
     if (actions) actions.hidden = state.activeTab !== "bracket" || state.readonly;
-    if (state.activeTab === "leaderboard") loadLeaderboard();
+    if (state.activeTab === "leaderboard") {
+      loadLeaderboard();
+    } else {
+      document.dispatchEvent(new CustomEvent("cfp:tab-bracket"));
+    }
   }
 
   async function loadLeaderboard() {
@@ -1019,6 +1023,72 @@
     });
   }
 
+  /** Keep the desktop-style bracket on narrow screens via an inner scroll viewport. */
+  function setupBracketScroll() {
+    var scroller = document.getElementById("cfpBracketScroll");
+    var bracket = document.getElementById("cfpBracket");
+    var hint = document.getElementById("bracketScrollHint");
+    if (!scroller || !bracket) return;
+
+    var mq = window.matchMedia("(max-width: 1100px)");
+    var hintHidden = false;
+
+    function needsScroll() {
+      return mq.matches && scroller.scrollWidth > scroller.clientWidth + 8;
+    }
+
+    function updateHint() {
+      if (!hint) return;
+      if (needsScroll() && !hintHidden) {
+        hint.hidden = false;
+      } else {
+        hint.hidden = true;
+      }
+    }
+
+    function centerChampionship() {
+      if (!mq.matches) return;
+      var finalCol = bracket.querySelector(".cfp-col-final");
+      if (!finalCol) return;
+      var target =
+        finalCol.offsetLeft + finalCol.offsetWidth / 2 - scroller.clientWidth / 2;
+      scroller.scrollLeft = Math.max(0, target);
+    }
+
+    function sync() {
+      updateHint();
+      centerChampionship();
+    }
+
+    function onUserScroll() {
+      if (!hint || hint.hidden || hintHidden) return;
+      hintHidden = true;
+      hint.hidden = true;
+    }
+
+    scroller.addEventListener("scroll", onUserScroll, { passive: true });
+    scroller.addEventListener("touchstart", onUserScroll, { passive: true });
+
+    if (mq.addEventListener) {
+      mq.addEventListener("change", sync);
+    } else if (mq.addListener) {
+      mq.addListener(sync);
+    }
+
+    window.addEventListener("resize", function () {
+      updateHint();
+    });
+
+    // After layout settles (fonts, images, auth banners)
+    requestAnimationFrame(function () {
+      sync();
+      setTimeout(sync, 120);
+    });
+
+    // Re-center when returning to the bracket tab from Browse
+    document.addEventListener("cfp:tab-bracket", sync);
+  }
+
   document.addEventListener("DOMContentLoaded", async function () {
     if (window.RecruitTeamBranding && window.RecruitTeamBranding.load) {
       await window.RecruitTeamBranding.load();
@@ -1027,6 +1097,7 @@
     bindAdvanceClicks();
     bindChampModal();
     bindTabs();
+    setupBracketScroll();
 
     var saveBtn = document.getElementById("saveBtn");
     var resetBtn = document.getElementById("resetBtn");
