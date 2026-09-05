@@ -32,6 +32,22 @@ function buildExplanation(prediction, params) {
     parts.push(`${a.name} and ${b.name} are essentially even in overall power.`);
   }
 
+  const talentPtsEdge = c.talentPoints;
+  if (Number.isFinite(talentPtsEdge) && Math.abs(talentPtsEdge) >= 1.5) {
+    const talentSide = sideName(talentPtsEdge, a, b);
+    if (talentSide) {
+      parts.push(
+        `${talentSide} holds a talent edge of about ${round(Math.abs(talentPtsEdge), 1)} points on the power scale.`
+      );
+    }
+  }
+
+  if (Number.isFinite(prediction.talentAdjustment) && Math.abs(prediction.talentAdjustment) >= 0.4) {
+    parts.push(
+      `Talent adds ${round(prediction.talentAdjustment, 1)} to the projected margin (power line ${prediction.powerSpreadLabel}).`
+    );
+  }
+
   const defEdge = sideName(c.defense, a, b);
   const offEdge = sideName(c.offense, a, b);
   if (Math.abs(c.defense) >= Math.abs(c.offense) && defEdge) {

@@ -9,14 +9,15 @@ Examples:
 - Average FBS → `0.0`
 - Weak FBS → negative
 
-**Matchup spreads always use raw power**, never the public 0–100 Power Score.
+**Matchup spreads** use raw power + home field, plus a residual **talent** boost (`matchupTalentWeight`) so large roster gaps still move the line early in the season. The power-only line is always retained as `powerSpreadLabel`.
 
 ```
-neutral_margin = TeamA.raw_power - TeamB.raw_power
-projected_margin = neutral_margin + venue_HFA + personnel_adjustments
+power_margin = TeamA.raw_power - TeamB.raw_power + venue_HFA + personnel
+talent_adj = ((talentA-50) - (talentB-50)) / powerScoreScale * matchupTalentWeight
+projected_margin = power_margin + talent_adj
 ```
 
-Positive projected margin → Team A favored.
+Positive projected margin → Team A favored. Display spread is always `Favorite -X.X`.
 
 **Power Score (0–100)** is display-only:
 

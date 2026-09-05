@@ -8,6 +8,13 @@ const MODEL_PARAMS = Object.freeze({
   /** Home-field advantage in points (home team). Calibrate historically. */
   homeFieldAdvantage: 2.5,
 
+  /**
+   * Extra matchup spread from talent gap (0–100 talent → points via powerScoreScale).
+   * Raw power already embeds some talent via the prior; this is a residual early-season boost
+   * so large talent gaps still move the displayed spread. 0 = power-only spreads.
+   */
+  matchupTalentWeight: 0.35,
+
   /** Recency: weight = exp(-recencyLambda * weeksAgo). Higher = faster decay. */
   recencyLambda: 0.12,
 
@@ -71,6 +78,8 @@ const MODEL_PARAMS = Object.freeze({
 
 const PARAM_DOCS = Object.freeze({
   homeFieldAdvantage: "Points added to home team in matchup projection. Needs historical calibration.",
+  matchupTalentWeight:
+    "Fraction of (talentA−talentB) in raw-power points added on top of the power line. Early-season lever.",
   recencyLambda: "Exponential decay rate for game age in weeks.",
   priorDecay: "How fast preseason prior fades as games accumulate.",
   efficiencyWeight: "Weight on opponent-adjusted efficiency power in final blend.",

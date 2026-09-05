@@ -213,7 +213,7 @@ describe("CFB Power Model V1", () => {
     );
   });
 
-  it("Test 9: Georgia +15 vs Alabama +10 neutral ≈ Georgia by 5", () => {
+  it("Test 9: Georgia +15 vs Alabama +10 neutral ≈ Georgia by 5 (power line)", () => {
     const uga = {
       teamId: 1,
       name: "Georgia",
@@ -234,9 +234,16 @@ describe("CFB Power Model V1", () => {
       talentRating: 88,
       sosRating: 4,
     };
-    const p = predictMatchup({ teamA: uga, teamB: bama, venue: "neutral" });
+    const p = predictMatchup({
+      teamA: uga,
+      teamB: bama,
+      venue: "neutral",
+      paramOverrides: { matchupTalentWeight: 0 },
+    });
     assert.ok(Math.abs(p.projectedMargin - 5) < 0.05);
+    assert.ok(Math.abs(p.powerMargin - 5) < 0.05);
     assert.equal(p.predictedWinner.name, "Georgia");
+    assert.equal(p.projectedSpreadLabel, "Georgia -5");
   });
 
   it("Test 10: Alabama home HFA=2.5 reduces Georgia edge from 5 to ~2.5", () => {
@@ -264,10 +271,45 @@ describe("CFB Power Model V1", () => {
       teamA: uga,
       teamB: bama,
       venue: "b_home",
-      paramOverrides: { homeFieldAdvantage: 2.5 },
+      paramOverrides: { homeFieldAdvantage: 2.5, matchupTalentWeight: 0 },
     });
     assert.ok(Math.abs(p.projectedMargin - 2.5) < 0.05);
     assert.equal(p.venueAdjustment, -2.5);
+  });
+
+  it("Test 10b: talent gap widens spread beyond power line", () => {
+    const elite = {
+      teamId: 1,
+      name: "Elite",
+      rawPower: 8,
+      offenseRating: 4,
+      defenseRating: 4,
+      specialTeamsRating: 0,
+      talentRating: 96,
+      sosRating: 0,
+    };
+    const mid = {
+      teamId: 2,
+      name: "Mid",
+      rawPower: 4,
+      offenseRating: 2,
+      defenseRating: 2,
+      specialTeamsRating: 0,
+      talentRating: 53,
+      sosRating: 0,
+    };
+    const p = predictMatchup({
+      teamA: elite,
+      teamB: mid,
+      venue: "a_home",
+      paramOverrides: { homeFieldAdvantage: 2.5, matchupTalentWeight: 0.35 },
+    });
+    // Power-only: 8-4+2.5 = 6.5
+    assert.ok(Math.abs(p.powerMargin - 6.5) < 0.05);
+    assert.equal(p.powerSpreadLabel, "Elite -6.5");
+    // Talent points: (96-50)/2.2 - (53-50)/2.2 ≈ 19.55; *0.35 ≈ 6.84
+    assert.ok(p.projectedMargin > p.powerMargin + 5);
+    assert.ok(p.projectedSpreadLabel.startsWith("Elite -"));
   });
 
   it("Test 11: win probabilities sum to ~100%", () => {

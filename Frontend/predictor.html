@@ -518,6 +518,21 @@
       return n > 0 ? 'is-pos' : 'is-neg';
     }
 
+    function formatSigned(value) {
+      const n = Number(value);
+      if (!Number.isFinite(n)) return String(value ?? '');
+      const rounded = Math.round(n * 100) / 100;
+      return `${rounded > 0 ? '+' : ''}${rounded}`;
+    }
+
+    function formatTalentCell(team) {
+      const score = Number(team.talentRating);
+      const pts = Number(team.talentPoints);
+      const scoreLabel = Number.isFinite(score) ? score.toFixed(0) : '—';
+      if (!Number.isFinite(pts)) return scoreLabel;
+      return `${scoreLabel} (${formatSigned(pts)})`;
+    }
+
     function renderComparisonRow(label, aVal, bVal, edge) {
       return `
         <div class="matchup-stat-row">
@@ -545,6 +560,11 @@
           <p class="matchup-result-eyebrow">Predicted winner</p>
           <h2 class="matchup-winner">${escapeHtml(p.predictedWinner.name)}</h2>
           <p class="matchup-spread-pill">${escapeHtml(p.projectedSpreadLabel)}</p>
+          ${
+            p.powerSpreadLabel && p.powerSpreadLabel !== p.projectedSpreadLabel
+              ? `<p class="matchup-power-line">Power line ${escapeHtml(p.powerSpreadLabel)}</p>`
+              : ''
+          }
         </div>
 
         <div class="matchup-prob-section">
@@ -575,14 +595,21 @@
           ${renderComparisonRow('Offense', a.offenseRating, b.offenseRating, c.offense)}
           ${renderComparisonRow('Defense', a.defenseRating, b.defenseRating, c.defense)}
           ${renderComparisonRow('Special teams', a.specialTeamsRating, b.specialTeamsRating, c.specialTeams)}
-          ${renderComparisonRow('Talent', a.talentRating, b.talentRating, c.talent)}
+          ${renderComparisonRow(
+            'Talent',
+            formatTalentCell(a),
+            formatTalentCell(b),
+            Number.isFinite(c.talentPoints) ? c.talentPoints : c.talent
+          )}
           ${renderComparisonRow('SOS', a.sosRating, b.sosRating, c.sos)}
         </div>
 
         <div class="matchup-meta-chips">
-          <span class="matchup-meta-chip">Neutral margin ${escapeHtml(p.neutralMargin)}</span>
-          <span class="matchup-meta-chip">Venue adj ${escapeHtml(p.venueAdjustment)}</span>
-          <span class="matchup-meta-chip">Projected margin ${escapeHtml(p.projectedMargin)}</span>
+          <span class="matchup-meta-chip">Spread ${escapeHtml(p.projectedSpreadLabel)}</span>
+          <span class="matchup-meta-chip">Power line ${escapeHtml(p.powerSpreadLabel || p.projectedSpreadLabel)}</span>
+          <span class="matchup-meta-chip">Talent adj ${escapeHtml(formatSigned(p.talentAdjustment))}</span>
+          <span class="matchup-meta-chip">Venue adj ${escapeHtml(formatSigned(p.venueAdjustment))}</span>
+          <span class="matchup-meta-chip">Projected margin ${escapeHtml(formatSigned(p.projectedMargin))}</span>
         </div>
       `;
     }

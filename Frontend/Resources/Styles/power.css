@@ -740,6 +740,13 @@
   box-shadow: 0 2px 10px rgba(255, 215, 0, 0.3);
 }
 
+.matchup-power-line {
+  margin: 0.45rem 0 0;
+  font-size: 0.82rem;
+  color: rgba(245, 222, 179, 0.72);
+  letter-spacing: 0.02em;
+}
+
 .matchup-prob-section {
   margin-top: 0.15rem;
 }

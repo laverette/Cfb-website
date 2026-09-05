@@ -1,5 +1,6 @@
 /**
- * Matchup predictor — spreads from RAW power only (never public 0–100 score).
+ * Matchup predictor — primary spread = power line + residual talent edge.
+ * Power-only line is always retained for comparison (never uses 0–100 Power Score).
  */
 
 const { getModelParams } = require("./config");
@@ -10,6 +11,17 @@ function winProbability(projectedMargin, tau) {
   const t = tau > 1e-6 ? tau : 8.5;
   const p = 1 / (1 + Math.exp(-projectedMargin / t));
   return clamp(p, 0.001, 0.999);
+}
+
+/** Map 0–100 talent score → points-above-average (same scale as raw power). */
+function talentToPoints(talentRating, params) {
+  const scale = params.powerScoreScale > 1e-6 ? params.powerScoreScale : 2.2;
+  return ((Number(talentRating) || 50) - 50) / scale;
+}
+
+function spreadLabel(favorite, margin) {
+  const mag = Math.abs(margin);
+  return `${favorite.name || favorite.teamId} -${round(mag, 1)}`;
 }
 
 /**
@@ -42,11 +54,26 @@ function predictMatchup({
   const persA = Number(personnelA) || 0;
   const persB = Number(personnelB) || 0;
 
-  const neutralMargin = rawA - rawB + persA - persB;
+  const talentPtsA = talentToPoints(teamA.talentRating, params);
+  const talentPtsB = talentToPoints(teamB.talentRating, params);
+  const talentEdge = talentPtsA - talentPtsB;
+  const talentWeight = Number(params.matchupTalentWeight);
+  const talentAdjustment =
+    Number.isFinite(talentWeight) && talentWeight !== 0 ? talentEdge * talentWeight : 0;
+
+  const powerNeutralMargin = rawA - rawB + persA - persB;
   let venueAdjustment = 0;
   if (venue === "a_home") venueAdjustment = params.homeFieldAdvantage;
   else if (venue === "b_home") venueAdjustment = -params.homeFieldAdvantage;
 
+  // Power-only line (what we used to show as the sole spread)
+  const powerMargin = powerNeutralMargin + venueAdjustment;
+  const powerFavA = powerMargin >= 0;
+  const powerFavorite = powerFavA ? teamA : teamB;
+  const powerSpreadLabel = spreadLabel(powerFavorite, powerMargin);
+
+  // Primary projected spread: power line + residual talent
+  const neutralMargin = powerNeutralMargin + talentAdjustment;
   const projectedMargin = neutralMargin + venueAdjustment;
   const pA = winProbability(projectedMargin, params.winProbTau);
   const pB = 1 - pA;
@@ -54,8 +81,7 @@ function predictMatchup({
   const aFavored = projectedMargin >= 0;
   const favorite = aFavored ? teamA : teamB;
   const spreadMagnitude = Math.abs(projectedMargin);
-  // Display spread from favorite perspective (favorite -X.X)
-  const projectedSpreadLabel = `${favorite.name || favorite.teamId} -${round(spreadMagnitude, 1)}`;
+  const projectedSpreadLabel = spreadLabel(favorite, projectedMargin);
 
   const result = {
     teamA: {
@@ -67,6 +93,7 @@ function predictMatchup({
       defenseRating: teamA.defenseRating,
       specialTeamsRating: teamA.specialTeamsRating,
       talentRating: teamA.talentRating,
+      talentPoints: round(talentPtsA, 2),
       sosRating: teamA.sosRating,
       record: teamA.record,
       winProbability: round(pA * 100, 1),
@@ -80,12 +107,18 @@ function predictMatchup({
       defenseRating: teamB.defenseRating,
       specialTeamsRating: teamB.specialTeamsRating,
       talentRating: teamB.talentRating,
+      talentPoints: round(talentPtsB, 2),
       sosRating: teamB.sosRating,
       record: teamB.record,
       winProbability: round(pB * 100, 1),
     },
     venue,
     homeFieldAdvantageParam: params.homeFieldAdvantage,
+    matchupTalentWeight: round(Number.isFinite(talentWeight) ? talentWeight : 0, 3),
+    talentAdjustment: round(talentAdjustment, 2),
+    powerNeutralMargin: round(powerNeutralMargin, 2),
+    powerMargin: round(powerMargin, 2),
+    powerSpreadLabel,
     neutralMargin: round(neutralMargin, 2),
     venueAdjustment: round(venueAdjustment, 2),
     projectedMargin: round(projectedMargin, 2),
@@ -106,6 +139,7 @@ function predictMatchup({
         2
       ),
       talent: round((Number(teamA.talentRating) || 0) - (Number(teamB.talentRating) || 0), 1),
+      talentPoints: round(talentEdge, 2),
       sos: round((Number(teamA.sosRating) || 0) - (Number(teamB.sosRating) || 0), 2),
     },
     explanation: "",
@@ -118,4 +152,5 @@ function predictMatchup({
 module.exports = {
   predictMatchup,
   winProbability,
+  talentToPoints,
 };
