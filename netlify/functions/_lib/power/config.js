@@ -16,12 +16,25 @@ const MODEL_PARAMS = Object.freeze({
   matchupTalentWeight: 0.35,
 
   /** Recency: weight = exp(-recencyLambda * weeksAgo). Higher = faster decay. */
-  recencyLambda: 0.12,
+  recencyLambda: 0.1,
 
-  /** Preseason prior weight decay: priorWeight = exp(-priorDecay * gamesPlayed). */
-  priorDecay: 0.35,
+  /**
+   * Treat the preseason prior as this many "virtual games" when blending with observed play.
+   * Week 1 with 5 → only ~17% of the rating comes from the single game (rest stays prior).
+   * Stops cupcake blowouts from vaulting G5 teams into the top 10 overnight.
+   */
+  priorPseudoGames: 5,
 
-  /** Blend of efficiency vs result/margin power (must sum conceptually with care). */
+  /**
+   * Opponent-adjusted OFF/DEF solve: prior unit ratings count as this many game-weights.
+   * Keeps one-game EPA spikes from producing Off +25 unit ratings.
+   */
+  oaPriorStrength: 4,
+
+  /** Legacy exponential prior fade (backup). Primary early-season control is priorPseudoGames. */
+  priorDecay: 0.12,
+
+  /** Blend of efficiency vs result/margin power within the *observed* share. */
   efficiencyWeight: 0.72,
   resultWeight: 0.28,
 
@@ -39,12 +52,12 @@ const MODEL_PARAMS = Object.freeze({
   specialTeamsWeight: 0.35,
 
   /** Talent contribution remaining in mid-blend (also in prior). */
-  talentInfluence: 0.31,
+  talentInfluence: 0.35,
 
   /** FCS handling */
-  fcsPositiveWeight: 0.28,
+  fcsPositiveWeight: 0.22,
   fcsNegativeWeight: 0.85,
-  fcsBlowoutCap: 17,
+  fcsBlowoutCap: 14,
 
   /** Soft margin transform for result component: sign(m)*log(1+|m|). */
   marginLogBase: Math.E,
@@ -70,20 +83,24 @@ const MODEL_PARAMS = Object.freeze({
   turnoverComponentWeight: 0.12,
 
   /** Preseason prior sub-weights (normalized internally). */
-  priorPrevSeasonWeight: 0.45,
-  priorTalentWeight: 0.3,
-  priorRecruitingWeight: 0.15,
-  priorReturningWeight: 0.1,
+  priorPrevSeasonWeight: 0.4,
+  priorTalentWeight: 0.38,
+  priorRecruitingWeight: 0.14,
+  priorReturningWeight: 0.08,
 });
 
 const PARAM_DOCS = Object.freeze({
   homeFieldAdvantage: "Points added to home team in matchup projection. Needs historical calibration.",
   matchupTalentWeight:
     "Fraction of (talentA−talentB) in raw-power points added on top of the power line. Early-season lever.",
+  priorPseudoGames:
+    "Virtual games assigned to the preseason prior. Higher = slower to trust early results.",
+  oaPriorStrength:
+    "Virtual game-weights for prior OFF/DEF inside the opponent-adjusted solve.",
   recencyLambda: "Exponential decay rate for game age in weeks.",
-  priorDecay: "How fast preseason prior fades as games accumulate.",
-  efficiencyWeight: "Weight on opponent-adjusted efficiency power in final blend.",
-  resultWeight: "Weight on soft-margin game-result power in final blend.",
+  priorDecay: "Legacy exponential prior fade; sample shrink via priorPseudoGames is primary.",
+  efficiencyWeight: "Weight on opponent-adjusted efficiency power in the observed blend.",
+  resultWeight: "Weight on soft-margin game-result power in the observed blend.",
   winProbTau: "Logistic scale for margin → win probability. Calibrate with Brier/log-loss.",
   powerScoreScale: "Maps raw points-above-average to 0–100 display score around 50.",
   fcsPositiveWeight: "Down-weights positive information from FBS-over-FCS games.",

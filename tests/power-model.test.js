@@ -382,6 +382,72 @@ describe("CFB Power Model V1", () => {
     );
   });
 
+  it("Week-1 cupcake blowout cannot vault a low-prior G5 over an elite unplayed team", () => {
+    const teams = [
+      team(1, "NotreDame", {
+        classification: "fbs",
+        prevSeasonPower: 16,
+        talentScore: 94,
+        recruitingScore: 92,
+        preseasonOffense: 10,
+        preseasonDefense: 8,
+      }),
+      team(2, "NorthTexas", {
+        classification: "fbs",
+        prevSeasonPower: 2,
+        talentScore: 50,
+        recruitingScore: 48,
+        preseasonOffense: 1,
+        preseasonDefense: 0,
+      }),
+      team(3, "Cupcake", {
+        classification: "fbs",
+        prevSeasonPower: -8,
+        talentScore: 40,
+        recruitingScore: 38,
+        preseasonOffense: -4,
+        preseasonDefense: -3,
+      }),
+      team(4, "Utah", {
+        classification: "fbs",
+        prevSeasonPower: 8,
+        talentScore: 62,
+        recruitingScore: 60,
+        preseasonOffense: 5,
+        preseasonDefense: 3,
+      }),
+      team(99, "FCSOpp", {
+        classification: "fcs",
+        prevSeasonPower: -20,
+        talentScore: 20,
+      }),
+    ];
+    const games = [
+      // G5 obliterates a weak FBS foe — old model put them top-10
+      game({ week: 1, homeId: 2, awayId: 3, homeScore: 66, awayScore: 10 }),
+      // Mid-major also looks elite vs FCS
+      game({ week: 1, homeId: 4, awayId: 99, homeScore: 63, awayScore: 0 }),
+    ];
+    const result = calculateRatings({ teams, games, season: 2026, asOfWeek: 1 });
+    const nd = result.teams.find((t) => t.teamId === 1);
+    const unt = result.teams.find((t) => t.teamId === 2);
+    const utah = result.teams.find((t) => t.teamId === 4);
+    assert.ok(nd && unt && utah);
+    assert.ok(
+      nd.rawPower > unt.rawPower,
+      `Elite prior should outrank Week-1 G5 blowout (ND ${nd.rawPower} vs UNT ${unt.rawPower})`
+    );
+    assert.ok(
+      nd.ranking < unt.ranking,
+      `ND rank ${nd.ranking} should be ahead of UNT ${unt.ranking}`
+    );
+    // Utah can improve but should not leapfrog ND after one FCS win
+    assert.ok(
+      nd.rawPower > utah.rawPower,
+      `ND should stay ahead of Utah after one FCS win (ND ${nd.rawPower} vs Utah ${utah.rawPower})`
+    );
+  });
+
   it("buildPreseasonPrior is finite", () => {
     const p = buildPreseasonPrior(
       team(1, "X", {

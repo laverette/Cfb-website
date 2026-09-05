@@ -83,16 +83,22 @@ function solveOpponentAdjusted({
     }
 
     maxDelta = 0;
+    const priorStr = Math.max(0, Number(params.oaPriorStrength) || 0);
     for (const id of teamIds) {
       const s = acc.get(id);
-      const nextOff =
-        s.offW > 0
-          ? (1 - lr) * (offense.get(id) || 0) + lr * (s.offSum / s.offW)
-          : offense.get(id) || 0;
-      const nextDef =
-        s.defW > 0
-          ? (1 - lr) * (defense.get(id) || 0) + lr * (s.defSum / s.defW)
-          : defense.get(id) || 0;
+      const priorO = priorOff.get(id) || 0;
+      const priorD = priorDef.get(id) || 0;
+      let targetOff = priorO;
+      let targetDef = priorD;
+      if (s.offW > 0) {
+        // Shrink one-game spikes toward preseason unit priors
+        targetOff = (s.offSum + priorStr * priorO) / (s.offW + priorStr);
+      }
+      if (s.defW > 0) {
+        targetDef = (s.defSum + priorStr * priorD) / (s.defW + priorStr);
+      }
+      const nextOff = (1 - lr) * (offense.get(id) || 0) + lr * targetOff;
+      const nextDef = (1 - lr) * (defense.get(id) || 0) + lr * targetDef;
       maxDelta = Math.max(
         maxDelta,
         Math.abs(nextOff - (offense.get(id) || 0)),
@@ -102,9 +108,13 @@ function solveOpponentAdjusted({
       defense.set(id, nextDef);
     }
 
-    // Re-center each iteration so network doesn't drift
-    const offMean = mean([...offense.values()]);
-    const defMean = mean([...defense.values()]);
+    // Re-center on FBS (or all) so network doesn't drift — prefer teams that exist in priors
+    const centerIds =
+      teamIds.filter((id) => priorOff.has(id) || priorDef.has(id)).length > 0
+        ? teamIds.filter((id) => priorOff.has(id) || priorDef.has(id))
+        : teamIds;
+    const offMean = mean(centerIds.map((id) => offense.get(id) || 0));
+    const defMean = mean(centerIds.map((id) => defense.get(id) || 0));
     for (const id of teamIds) {
       offense.set(id, (offense.get(id) || 0) - offMean);
       defense.set(id, (defense.get(id) || 0) - defMean);

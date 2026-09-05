@@ -46,10 +46,11 @@ Code lives under:
 
 | Component | Role |
 |-----------|------|
-| Opponent-adjusted offense/defense | Iterative network solve; performance vs opponent quality |
+| Opponent-adjusted offense/defense | Iterative network solve; performance vs opponent quality; **prior-anchored** so one game can't create Off +25 |
 | Soft margin / result blend | `sign(m)*log(1+|m|)` so blowouts don't dominate |
 | Recency | `exp(-λ * weeks_ago)` |
-| Preseason prior | Prev season + talent/recruiting/returning; decays with games played |
+| Preseason prior | Prev season + talent/recruiting/returning |
+| Early-season shrink | Prior counts as `priorPseudoGames` virtual games (default **5**) — Week 1 ≈ 17% observed |
 | Special teams | Small configurable contribution |
 | FCS handling | Positive FBS-over-FCS info down-weighted; bad FCS results still hurt |
 | Personnel adj | Manual point impacts (QB out, etc.) |

@@ -368,20 +368,28 @@ function calculateRatings(input) {
   const rawPower = new Map();
   for (const id of teamIds) {
     const gp = gamesPlayed.get(id) || 0;
-    const priorW = Math.exp(-(params.priorDecay || 0) * gp);
-    const prior = (priors.get(id) || 0) * priorW;
     const stContrib = (special.get(id) || 0) * params.specialTeamsWeight;
+    const pers = personnel.get(id) || 0;
+    const priorFull = priors.get(id) || 0;
     let blended;
     if (preseasonOnly) {
       // Preseason: overall prior already encodes SP+ + talent; add ST + personnel once
-      blended = (priors.get(id) || 0) + stContrib + (personnel.get(id) || 0);
+      blended = priorFull + stContrib + pers;
     } else {
-      blended =
+      // Bayesian-style shrink: prior counts as priorPseudoGames virtual contests.
+      // After 1 real game with pseudo=5 → ~17% observed, ~83% prior.
+      const pseudo = Math.max(0, Number(params.priorPseudoGames) || 0);
+      const sampleShare = gp / (gp + Math.max(pseudo, 1e-6));
+      const observed =
         params.efficiencyWeight * (efficiencyPower.get(id) || 0) +
-        params.resultWeight * (resultPower.get(id) || 0) +
+        params.resultWeight * (resultPower.get(id) || 0);
+      // Mild extra fade of leftover prior for teams that have played a lot
+      const priorFade = Math.exp(-(params.priorDecay || 0) * gp);
+      blended =
+        (1 - sampleShare) * priorFull * priorFade +
+        sampleShare * observed +
         stContrib +
-        prior +
-        (personnel.get(id) || 0);
+        pers;
     }
     rawPower.set(id, blended);
   }
@@ -438,10 +446,15 @@ function calculateRatings(input) {
       losses: l,
       record: `${w}-${l}`,
       gamesPlayed: gamesPlayed.get(id) || 0,
-      priorRemaining: round(
-        (priors.get(id) || 0) * Math.exp(-(params.priorDecay || 0) * (gamesPlayed.get(id) || 0)),
-        3
-      ),
+      priorRemaining: round((() => {
+        const gp = gamesPlayed.get(id) || 0;
+        const priorFull = priors.get(id) || 0;
+        if (preseasonOnly || gp <= 0) return priorFull;
+        const pseudo = Math.max(0, Number(params.priorPseudoGames) || 0);
+        const sampleShare = gp / (gp + Math.max(pseudo, 1e-6));
+        const priorFade = Math.exp(-(params.priorDecay || 0) * gp);
+        return (1 - sampleShare) * priorFull * priorFade;
+      })(), 3),
       personnelAdjustment: round(personnel.get(id) || 0, 3),
     };
   });
