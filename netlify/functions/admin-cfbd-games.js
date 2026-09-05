@@ -118,16 +118,16 @@ async function fetchRankBySchool({ headers, year, week, seasonType }) {
   return { map: new Map(), pollName: null, week: null };
 }
 
+/**
+ * Match poll school → game team name.
+ * Exact only (case-insensitive). Prefix soft-match is unsafe:
+ * "Miami" must not hit "Miami (OH)", "Oregon" must not hit "Oregon State".
+ */
 function lookupRank(rankBySchool, teamName) {
   if (!teamName) return null;
   const key = String(teamName).trim().toLowerCase();
+  if (!key) return null;
   if (rankBySchool.has(key)) return rankBySchool.get(key);
-  // Soft match: school sometimes shorter than game team string
-  for (const [school, rank] of rankBySchool.entries()) {
-    if (key === school || key.startsWith(school) || school.startsWith(key)) {
-      return rank;
-    }
-  }
   return null;
 }
 

@@ -2645,7 +2645,12 @@
       });
       const weekContext = {
         weekNumber: week.weekNumber ?? week.week_number ?? null,
-        seasonYear: week.seasonYear ?? week.season_year ?? null,
+        seasonYear:
+          week.seasonYear ??
+          week.season_year ??
+          (new Date().getMonth() === 0
+            ? new Date().getFullYear() - 1
+            : new Date().getFullYear()),
         games: ordered.slice(0, 20).map((g, i) => ({
           gameNumber: Number(g.gameNumber ?? g.game_number) || i + 1,
           away: g.awayTeamName || 'TBD',

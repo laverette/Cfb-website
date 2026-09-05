@@ -60,6 +60,26 @@ function formatTodayLabel() {
   }
 }
 
+/** CF season year: Aug–Dec = calendar year; Jan bowl month = previous year. */
+function currentCfSeasonYear(now = new Date()) {
+  const y = now.getFullYear();
+  const m = now.getMonth(); // 0 = Jan
+  return m === 0 ? y - 1 : y;
+}
+
+function resolveSeasonYear(weekContext) {
+  const raw = weekContext?.seasonYear ?? weekContext?.season_year;
+  const n = Number(raw);
+  if (Number.isFinite(n) && n >= 2000 && n <= 2100) return Math.trunc(n);
+  return currentCfSeasonYear();
+}
+
+function resolveWeekNumber(weekContext) {
+  const raw = weekContext?.weekNumber ?? weekContext?.week_number;
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? Math.trunc(n) : null;
+}
+
 function teamKey(name) {
   return String(name || "")
     .toLowerCase()
@@ -120,9 +140,8 @@ async function buildSeasonStorylineBrief(weekContext) {
   const apiKey = readCfbdKey();
   if (!apiKey) return null;
 
-  const seasonYear = Number(weekContext?.seasonYear);
-  const weekNumber = Number(weekContext?.weekNumber);
-  if (!Number.isFinite(seasonYear)) return null;
+  const seasonYear = resolveSeasonYear(weekContext);
+  const weekNumber = resolveWeekNumber(weekContext);
 
   const teams = collectSlateTeams(weekContext);
   if (!teams.length) return null;
@@ -215,10 +234,10 @@ async function buildSeasonStorylineBrief(weekContext) {
 
 function buildInstructions(weekContext, storylineBrief) {
   const today = formatTodayLabel();
-  const year = new Date().getFullYear();
-  const weekNumber = weekContext?.weekNumber ?? weekContext?.week_number ?? null;
-  const seasonYear =
-    weekContext?.seasonYear ?? weekContext?.season_year ?? year;
+  const weekNumber = resolveWeekNumber(weekContext);
+  const seasonYear = resolveSeasonYear(weekContext);
+  const prevYear = seasonYear - 1;
+  const seasonStart = `${seasonYear}-08-01`;
 
   const lines = [
     "You are Lee Corso on ESPN College GameDay — loud, folksy, funny, hyped, and decisive.",
@@ -231,7 +250,7 @@ function buildInstructions(weekContext, storylineBrief) {
     "2) Fresh fact/stat/result — last week's score, turnovers, a QB change, a skid, a revenge spot.",
     "3) Corso feel — weather, vibe, superstition, \"I feel it in my bones on this cold October evening.\" Make it vivid and tied to TODAY / this matchup, not generic.",
     "Never pick with empty filler like \"sharper outfit\", \"veteran leadership\", \"too much firepower\", \"I like their experience\", or \"they've got weapons.\"",
-    "If web_search / the season brief gives a juicy detail, USE IT in the first sentence. Don't bury it.",
+    `If web_search / the season brief gives a juicy ${seasonYear} detail, USE IT in the first sentence. Don't bury it.`,
     "Hype every pick — Corso is excited, not cautious. One mascot-head bit is great.",
     "",
     "VOICE (use naturally, not all at once):",
@@ -246,27 +265,33 @@ function buildInstructions(weekContext, storylineBrief) {
     "- Research with web_search silently; say only the hook that matters + the winner (optional score).",
     "",
     "GOOD:",
-    '"Not so fast — Florida\'s QB has been banged up since Week 1 and I\'m not trustin\' him in this spot. Put the elephant head on me: Alabama wins, 34-20. That\'s my pick!"',
-    '"I feel it in my bones on this chilly night in Fort Worth — the Frogs are due to pop. Horned Frog head goes on. TCU, 31-17!"',
+    `"Not so fast — Florida's QB has been banged up early in ${seasonYear} and I'm not trustin' him in this spot. Put the elephant head on me: Alabama wins, 34-20. That's my pick!"`,
+    `"I feel it in my bones on this chilly night in Fort Worth — the Frogs are due to pop. Horned Frog head goes on. TCU, 31-17!"`,
     "",
     "BAD:",
     '"TCU\'s been the sharper outfit and I\'m puttin\' on the Horned Frog head." (no real reason)',
+    `Citing ${prevYear} records, ${prevYear} coaches, or last year's injuries as if they are current.`,
     "Long dual-team injury essays. Repeating NOT SO FAST twice.",
     "",
-    `Today (Eastern): ${today}. Season in focus: ${seasonYear}.`,
+    `Today (Eastern): ${today}.`,
+    `THE CURRENT COLLEGE FOOTBALL SEASON IS ${seasonYear} (NOT ${prevYear}).`,
     weekNumber
       ? `This site's picks slate is Week ${weekNumber}, ${seasonYear}.`
       : `This site's picks slate is the ${seasonYear} season.`,
     "",
-    `CURRENT SEASON ONLY (${seasonYear}) — HARD RULE:`,
-    `- Use ONLY facts from the ${seasonYear} college football season (this year's games, this year's injuries/availability, this year's coaching staff, this year's roster/QB, this week's weather/vibe).`,
-    `- Do NOT cite prior seasons (${seasonYear - 1} or earlier), old national titles, past Heisman races, retired coaches, transferred/departed players from past years, or anything from training memory that is not confirmed as ${seasonYear}.`,
-    `- If web_search returns older-year articles or stale roster/injury info, IGNORE it. Prefer the SEASON-TO-DATE RESULTS brief + fresh ${seasonYear} search hits.`,
-    `- If you cannot verify a ${seasonYear} hook, do NOT invent fake injuries/stats from memory — fall back to a Corso FEEL tied to today's date/place/mascot, then pick.`,
+    `======= CURRENT SEASON ONLY (${seasonYear}) — NON-NEGOTIABLE =======`,
+    `- Facts you may use: ${seasonYear} games, ${seasonYear} injuries/availability, ${seasonYear} coaching staff, ${seasonYear} roster/QB, this week's weather/vibe, and the SEASON-TO-DATE RESULTS brief below.`,
+    `- FORBIDDEN: anything from ${prevYear} or earlier — ${prevYear} win-loss, ${prevYear} final rankings, transferred/departed ${prevYear} players, retired/fired ${prevYear} coaches, old titles, training-memory "last season" takes.`,
+    `- Web search will OFTEN return ${prevYear} articles early in ${seasonYear}. Those are STALE. Discard them even if they look recent or detailed.`,
+    `- Search queries MUST include "${seasonYear}" and prefer freshness filters like after:${seasonStart} when the tool allows query operators.`,
+    `- Example queries: "Alabama vs Florida ${seasonYear} preview", "Tennessee QB injury ${seasonYear}", "Ohio State ${seasonYear} depth chart".`,
+    `- Never say "${prevYear}" in your answer unless you are explicitly saying that old info does not apply (prefer not mentioning ${prevYear} at all).`,
+    `- If you cannot verify a ${seasonYear} hook from search or the brief, do NOT invent fake injuries/stats — fall back to a Corso FEEL tied to today's date/place/mascot, then pick.`,
+    "======= END HARD RULE =======",
     "",
     "RESEARCH (find the hook, don't dump the report):",
-    `Web_search the matchup / both teams for current ${seasonYear} injuries, QB status, and the one storyline that still matters this week. Include "${seasonYear}" in search queries.`,
-    `Use SEASON-TO-DATE RESULTS below for prior ${seasonYear} scores. Prefer search + that brief over training memory.`,
+    `Web_search the matchup / both teams for ${seasonYear}-only injuries, QB status, and the one storyline that still matters this week.`,
+    `Use SEASON-TO-DATE RESULTS below for prior ${seasonYear} scores. Prefer that brief + fresh ${seasonYear} search hits over training memory.`,
     "If nothing juicy turns up, invent a Corso FEEL tied to the date/place/mascot — still specific, still hyped — then pick.",
     "",
     "Use the OFFICIAL PICKS SLATE for Game 1 / Game 2 / etc. numbering.",
@@ -275,7 +300,7 @@ function buildInstructions(weekContext, storylineBrief) {
 
   const games = Array.isArray(weekContext?.games) ? weekContext.games : [];
   if (games.length) {
-    lines.push("", `OFFICIAL PICKS SLATE (${games.length} games):`);
+    lines.push("", `OFFICIAL PICKS SLATE (${games.length} games) — ${seasonYear}:`);
     const ordered = [...games].sort((a, b) => {
       const an = Number(a.gameNumber ?? a.game_number) || 0;
       const bn = Number(b.gameNumber ?? b.game_number) || 0;
@@ -293,6 +318,11 @@ function buildInstructions(weekContext, storylineBrief) {
 
   if (storylineBrief) {
     lines.push("", storylineBrief);
+  } else {
+    lines.push(
+      "",
+      `SEASON-TO-DATE RESULTS (${seasonYear}): none attached yet (early season or CFBD unavailable). Do NOT fill gaps with ${prevYear} data.`
+    );
   }
 
   return lines.join("\n");
@@ -310,18 +340,20 @@ function buildInputs(message, history, weekContext) {
     inputs.push({ role, content });
   }
 
-  const seasonYear =
-    weekContext?.seasonYear ?? weekContext?.season_year ?? new Date().getFullYear();
-  const weekNumber = weekContext?.weekNumber ?? weekContext?.week_number ?? null;
+  const seasonYear = resolveSeasonYear(weekContext);
+  const prevYear = seasonYear - 1;
+  const weekNumber = resolveWeekNumber(weekContext);
   const weekBit = weekNumber != null ? ` Week ${weekNumber}` : "";
+  const seasonStart = `${seasonYear}-08-01`;
 
   const userPrompt = [
     message,
     "",
     `(Lee Corso. Today is ${formatTodayLabel()}.`,
-    `Quietly web-search ${seasonYear}${weekBit} only — include "${seasonYear}" in queries.`,
-    `Use ONLY ${seasonYear} facts (injuries, QB status, this-season results, this-week storylines). Discard older seasons and stale training memory.`,
-    `If no verified ${seasonYear} hook, use a vivid Corso "feel it in my bones" line tied to tonight — do not invent old-year stats.`,
+    `Season is ${seasonYear}${weekBit} — NOT ${prevYear}.`,
+    `web_search queries MUST include "${seasonYear}" (and after:${seasonStart} when possible).`,
+    `Use ONLY verified ${seasonYear} facts. Discard every ${prevYear}-or-earlier hit even if it looks juicy.`,
+    `If no verified ${seasonYear} hook, use a vivid Corso "feel it in my bones" line — never recycle ${prevYear} records/injuries.`,
     "Answer in 2–4 short hyped sentences: open with that specific hook, then the clear pick. No generic \"sharper team\" talk, no reports.)",
   ].join(" ");
 
@@ -382,8 +414,8 @@ function sanitizeWeekContext(raw) {
   if (!raw || typeof raw !== "object") return null;
   const gamesIn = Array.isArray(raw.games) ? raw.games.slice(0, MAX_CONTEXT_GAMES) : [];
   return {
-    weekNumber: raw.weekNumber ?? raw.week_number ?? null,
-    seasonYear: raw.seasonYear ?? raw.season_year ?? null,
+    weekNumber: resolveWeekNumber(raw),
+    seasonYear: resolveSeasonYear(raw),
     games: gamesIn.map((g) => ({
       gameNumber: g.gameNumber ?? g.game_number ?? null,
       away: sanitizeText(g.away ?? g.awayTeamName, 80),
@@ -447,7 +479,7 @@ exports.handler = async (event) => {
         inputs: buildInputs(message, body.history, weekContext),
         tools: [{ type: "web_search" }],
         completion_args: {
-          temperature: 0.9,
+          temperature: 0.7,
           max_tokens: 280,
         },
       }),
