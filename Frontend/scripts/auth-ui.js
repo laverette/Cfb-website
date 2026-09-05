@@ -127,7 +127,18 @@
     var id = avatarIdForUser(user);
     var cls = className || "user-avatar";
     var wh = size || 40;
-    if (!id) {
+    var rawUrl =
+      (user && (user.avatarUrl || user.avatar_url)) != null
+        ? String(user.avatarUrl || user.avatar_url).trim()
+        : "";
+    var src = id ? avatarPngPath(id) : "";
+    if (!src && rawUrl && /^https?:\/\//i.test(rawUrl)) {
+      src = rawUrl;
+    } else if (!src && rawUrl && /\.(png|jpe?g|webp|svg)(\?|$)/i.test(rawUrl)) {
+      src = rawUrl;
+    }
+
+    if (!src) {
       var initial = (
         (user && (user.displayName || user.display_name || user.username)) ||
         "?"
@@ -152,12 +163,11 @@
         "</span>"
       );
     }
-    var png = avatarPngPath(id);
     return (
       '<img class="' +
       cls +
       '" src="' +
-      png +
+      src.replace(/"/g, "&quot;") +
       '" alt="" width="' +
       wh +
       '" height="' +

@@ -373,8 +373,9 @@
 .bama-matchup-wrap {
   display: flex;
   align-items: center;
-  gap: 0.65rem;
+  gap: 0.45rem;
   min-width: 0;
+  max-width: 100%;
 }
 
 .bama-team-logo {
@@ -389,7 +390,7 @@
 }
 
 .bama-match-logo-opp {
-  margin-left: auto;
+  margin-left: 0.15rem;
 }
 
 .bama-logo-fallback {
@@ -416,8 +417,11 @@
   font-weight: 700;
   letter-spacing: 0.01em;
   line-height: 1.1;
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .bama-matchup-loc {
@@ -430,30 +434,38 @@
 .bama-pick-row {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 0.65rem 0.85rem;
+  align-items: flex-end;
+  gap: 0.75rem 0.9rem;
   justify-content: flex-end;
 }
 
 .bama-wl {
   display: inline-flex;
+  align-items: stretch;
   padding: 3px;
-  border-radius: 8px;
+  border-radius: 10px;
   background: rgba(0, 0, 0, 0.28);
   border: 1px solid rgba(255, 255, 255, 0.08);
+  /* Align with score inputs (labels sit above the score fields) */
+  margin-bottom: 0;
+  height: calc(1.25rem + 0.7rem + 2px);
+  box-sizing: border-box;
 }
 
 .bama-wl-btn {
   border: 0;
   background: transparent;
   color: var(--sp-muted);
+  font-family: "Barlow Condensed", Impact, sans-serif;
   font-weight: 800;
-  font-size: 0.8rem;
+  font-size: 1.2rem;
   letter-spacing: 0.04em;
-  padding: 0.4rem 0.7rem;
-  border-radius: 6px;
+  min-width: 2.75rem;
+  padding: 0 0.85rem;
+  border-radius: 8px;
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease;
+  line-height: 1;
 }
 
 .bama-wl-btn[disabled] {
@@ -498,6 +510,8 @@
 
 .bama-score-pair input[type="number"] {
   width: 3.4rem;
+  height: calc(1.25rem + 0.7rem + 2px);
+  box-sizing: border-box;
   text-align: center;
   font-family: "Barlow Condensed", Impact, sans-serif;
   font-size: 1.25rem;
@@ -697,11 +711,11 @@ body.sp-leaderboard-view .bama-actions-spacer {
   }
 
   .bama-matchup-wrap {
-    gap: 0.5rem;
+    gap: 0.4rem;
   }
 
   .bama-match-logo-opp {
-    margin-left: 0;
+    margin-left: 0.1rem;
   }
 
   .bama-team-logo,
@@ -712,6 +726,21 @@ body.sp-leaderboard-view .bama-actions-spacer {
 
   .bama-pick-row {
     justify-content: flex-start;
+    align-items: flex-end;
+  }
+
+  .bama-wl {
+    height: calc(1.15rem + 0.7rem + 2px);
+  }
+
+  .bama-wl-btn {
+    min-width: 2.5rem;
+    font-size: 1.1rem;
+  }
+
+  .bama-score-pair input[type="number"] {
+    height: calc(1.15rem + 0.7rem + 2px);
+    font-size: 1.15rem;
   }
 
   .bama-control-bar {

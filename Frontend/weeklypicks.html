@@ -308,6 +308,9 @@
         <div class="corso-panel-head-text">
           <h2 id="corsoPanelTitle" class="corso-panel-title">Ask Coach Corso</h2>
           <p class="corso-panel-sub">Hot takes with season storylines baked in.</p>
+          <p class="corso-disclaimer" role="note">
+            Work in progress — some info may be outdated. Take picks with a grain of salt.
+          </p>
         </div>
         <button type="button" class="corso-panel-close" id="corsoPanelClose" aria-label="Close Coach Corso">×</button>
       </div>
@@ -2367,9 +2370,15 @@
 
     function playerAvatarHtml(entry, size) {
       if (window.AuthUI && typeof AuthUI.avatarImgHtml === 'function') {
-        return AuthUI.avatarImgHtml(entry, 'results-stand-avatar user-avatar', size || 28);
+        return AuthUI.avatarImgHtml(entry, 'results-stand-avatar user-avatar', size || 32);
       }
-      return '';
+      const name = String(entry?.displayName || entry?.username || '?');
+      const initial = name.trim().charAt(0).toUpperCase() || '?';
+      const url = entry?.avatarUrl || entry?.avatar_url || '';
+      if (url) {
+        return `<img class="results-stand-avatar user-avatar" src="${safeText(url)}" alt="" width="${size || 32}" height="${size || 32}" decoding="async">`;
+      }
+      return `<span class="results-stand-avatar user-avatar user-avatar--initial" aria-hidden="true">${safeText(initial)}</span>`;
     }
 
     function renderResultsLeaderboardList(containerId, entries, { emptyMessage } = {}) {
@@ -2398,10 +2407,12 @@
         return `
           <li class="results-stand-row">
             <span class="results-stand-rank ${rankClass}" aria-hidden="true">${rank}</span>
-            ${playerAvatarHtml(e, 28)}
             <div class="results-stand-player">
-              ${nameHtml}
-              <span class="results-stand-record">${record}</span>
+              ${playerAvatarHtml(e, 32)}
+              <div class="results-stand-player-copy">
+                ${nameHtml}
+                <span class="results-stand-record">${record}</span>
+              </div>
             </div>
             <div class="results-stand-stats">
               <span class="results-stand-acc">${pct}%</span>
@@ -2452,8 +2463,9 @@
       }
       if (leader) {
         highlights.push({
-          icon: '🏆',
+          icon: playerAvatarHtml(leader, 22) || '🏆',
           text: `${leader.displayName || leader.username} leads with ${recordLabel(leader)} (${Number(leader.accuracy || 0).toFixed(1)}%).`,
+          htmlIcon: true,
         });
       }
       if (totalPending > 0) {
@@ -2465,7 +2477,7 @@
 
       statsEl.innerHTML = highlights.map((h) => `
         <div class="stat-highlight">
-          <span class="stat-icon">${h.icon}</span>
+          <span class="stat-icon${h.htmlIcon ? ' is-avatar' : ''}">${h.htmlIcon ? h.icon : safeText(h.icon)}</span>
           <span class="stat-text">${safeText(h.text)}</span>
         </div>
       `).join('');

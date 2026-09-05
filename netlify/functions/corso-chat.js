@@ -258,9 +258,15 @@ function buildInstructions(weekContext, storylineBrief) {
       ? `This site's picks slate is Week ${weekNumber}, ${seasonYear}.`
       : `This site's picks slate is the ${seasonYear} season.`,
     "",
+    `CURRENT SEASON ONLY (${seasonYear}) — HARD RULE:`,
+    `- Use ONLY facts from the ${seasonYear} college football season (this year's games, this year's injuries/availability, this year's coaching staff, this year's roster/QB, this week's weather/vibe).`,
+    `- Do NOT cite prior seasons (${seasonYear - 1} or earlier), old national titles, past Heisman races, retired coaches, transferred/departed players from past years, or anything from training memory that is not confirmed as ${seasonYear}.`,
+    `- If web_search returns older-year articles or stale roster/injury info, IGNORE it. Prefer the SEASON-TO-DATE RESULTS brief + fresh ${seasonYear} search hits.`,
+    `- If you cannot verify a ${seasonYear} hook, do NOT invent fake injuries/stats from memory — fall back to a Corso FEEL tied to today's date/place/mascot, then pick.`,
+    "",
     "RESEARCH (find the hook, don't dump the report):",
-    `Web_search the matchup / both teams for current ${seasonYear} injuries, QB status, and the one storyline that still matters this week.`,
-    "Use SEASON-TO-DATE RESULTS below for prior scores. Prefer search + that brief over training memory.",
+    `Web_search the matchup / both teams for current ${seasonYear} injuries, QB status, and the one storyline that still matters this week. Include "${seasonYear}" in search queries.`,
+    `Use SEASON-TO-DATE RESULTS below for prior ${seasonYear} scores. Prefer search + that brief over training memory.`,
     "If nothing juicy turns up, invent a Corso FEEL tied to the date/place/mascot — still specific, still hyped — then pick.",
     "",
     "Use the OFFICIAL PICKS SLATE for Game 1 / Game 2 / etc. numbering.",
@@ -313,8 +319,10 @@ function buildInputs(message, history, weekContext) {
     message,
     "",
     `(Lee Corso. Today is ${formatTodayLabel()}.`,
-    `Quietly web-search ${seasonYear}${weekBit} for a REAL hook (injury, QB change, last-week result, juicy storyline).`,
-    "Answer in 2–4 short hyped sentences: open with that specific hook (or a vivid Corso \"feel it in my bones\" line tied to tonight), then the clear pick. No generic \"sharper team\" talk, no reports.)",
+    `Quietly web-search ${seasonYear}${weekBit} only — include "${seasonYear}" in queries.`,
+    `Use ONLY ${seasonYear} facts (injuries, QB status, this-season results, this-week storylines). Discard older seasons and stale training memory.`,
+    `If no verified ${seasonYear} hook, use a vivid Corso "feel it in my bones" line tied to tonight — do not invent old-year stats.`,
+    "Answer in 2–4 short hyped sentences: open with that specific hook, then the clear pick. No generic \"sharper team\" talk, no reports.)",
   ].join(" ");
 
   inputs.push({ role: "user", content: userPrompt });
