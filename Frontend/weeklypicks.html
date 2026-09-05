@@ -673,11 +673,110 @@
       setGamePick(row, '', '');
     }
 
+    /** localStorage draft — in-progress picks, not submitted to the server. */
+    function picksDraftUserKey() {
+      const u = (window.AuthUI && AuthUI.getCurrentUser && AuthUI.getCurrentUser()) || null;
+      if (u && (u.id != null || u.userId != null)) return String(u.id ?? u.userId);
+      if (u && (u.username || u.email)) return String(u.username || u.email).toLowerCase();
+      return 'guest';
+    }
+
+    function picksDraftStorageKey(weekId) {
+      const wid = weekId != null ? weekId : activeWeekId;
+      if (wid == null) return null;
+      return `weeklyPicksDraft:v1:${wid}:${picksDraftUserKey()}`;
+    }
+
+    function savePicksDraft() {
+      try {
+        const key = picksDraftStorageKey();
+        if (!key) return;
+        const snapshot = snapshotCurrentPicks();
+        if (!snapshot.size) {
+          localStorage.removeItem(key);
+          return;
+        }
+        const picks = [];
+        snapshot.forEach((pick, gameNumber) => {
+          picks.push({
+            gameNumber,
+            name: pick.name,
+            espnId: pick.espnId || '',
+          });
+        });
+        localStorage.setItem(
+          key,
+          JSON.stringify({
+            weekId: activeWeekId,
+            savedAt: Date.now(),
+            picks,
+          })
+        );
+      } catch (err) {
+        console.warn('Could not save picks draft:', err);
+      }
+    }
+
+    function loadPicksDraftMap() {
+      try {
+        const key = picksDraftStorageKey();
+        if (!key) return null;
+        const raw = localStorage.getItem(key);
+        if (!raw) return null;
+        const data = JSON.parse(raw);
+        if (!data || !Array.isArray(data.picks)) return null;
+        const map = new Map();
+        data.picks.forEach((p) => {
+          const n = Number(p.gameNumber ?? p.game_number);
+          const name = String(p.name || p.pickedTeamName || '').trim();
+          if (!Number.isFinite(n) || !name) return;
+          map.set(n, {
+            name,
+            espnId: p.espnId != null ? String(p.espnId) : '',
+          });
+        });
+        return map.size ? map : null;
+      } catch {
+        return null;
+      }
+    }
+
+    function clearPicksDraft(weekId) {
+      try {
+        const key = picksDraftStorageKey(weekId);
+        if (key) localStorage.removeItem(key);
+      } catch {
+        /* ignore */
+      }
+    }
+
+    /** Apply draft picks into empty rows only (won't overwrite live UI / server picks). */
+    function restorePicksDraft() {
+      const status = window.__PICKS_STATUS__ || {};
+      if (status.hasSubmitted) return;
+      const draft = loadPicksDraftMap();
+      if (!draft) return;
+      document.querySelectorAll('.pick-game-row').forEach((row) => {
+        const n = Number(row.getAttribute('data-game-number'));
+        const hidden = row.querySelector('.pick-value');
+        if (!Number.isFinite(n) || !hidden) return;
+        if (String(hidden.value || '').trim()) return;
+        const pick = draft.get(n);
+        if (!pick) return;
+        setGamePick(row, pick.name, pick.espnId);
+      });
+    }
+
     function wireTeamPickButtons() {
       const container = document.getElementById('dbWeekPicksContainer');
       if (!container || container.dataset.pickWired === '1') return;
       container.dataset.pickWired = '1';
       container.addEventListener('click', (e) => {
+        const predictLink = e.target.closest('.pick-predict-link');
+        if (predictLink && container.contains(predictLink)) {
+          savePicksDraft();
+        }
+
         const btn = e.target.closest('.team-pick-btn');
         if (!btn || !container.contains(btn)) return;
         if (btn.disabled) return;
@@ -687,13 +786,14 @@
         const already = btn.classList.contains('is-picked');
         if (already) {
           clearGamePick(row);
-          return;
+        } else {
+          setGamePick(
+            row,
+            btn.getAttribute('data-team-name') || '',
+            btn.getAttribute('data-team-espn-id') || ''
+          );
         }
-        setGamePick(
-          row,
-          btn.getAttribute('data-team-name') || '',
-          btn.getAttribute('data-team-espn-id') || ''
-        );
+        savePicksDraft();
       });
     }
 
@@ -874,6 +974,7 @@
       hideHardcodedGameRows();
       wireTeamPickButtons();
       restorePicksSnapshot(priorPicks);
+      restorePicksDraft();
       requestAnimationFrame(() => fitPickMatchupFonts(container));
 
       return true;
@@ -1045,8 +1146,11 @@
       loadActiveWeekAndGames();
       loadHeismanOddsPreview();
 
-      // Optional CFBD smoke test (kept for later; OFF in Phase 1)
-      // if (USE_CFBD_GAMES_FOR_WEEKLY_PICKS) { ... }
+      // Keep in-progress picks if the tab is backgrounded / user leaves for predictor
+      window.addEventListener('pagehide', savePicksDraft);
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') savePicksDraft();
+      });
     });
 
     function escapeHeismanHtml(s) {
@@ -1434,6 +1538,7 @@
             
             window.__PICKS_STATUS__ = result;
             if (result.hasSubmitted) {
+              clearPicksDraft();
               await showSavedPicksForWeek({
                 lastSubmitted: result.lastSubmitted,
                 canEdit: Boolean(result.canEdit) && !result.picksLocked,
@@ -1443,6 +1548,8 @@
               disableFormForAlreadySubmitted();
               hideLockedPicksForm();
               showPicksStatusBanner(result);
+            } else {
+              restorePicksDraft();
             }
           } catch (jsonError) {
             // Silently fail - API may not be available
@@ -2153,6 +2260,7 @@
           alert(result.message || result.error || 'Could not save picks. Try again.');
           return;
         }
+        clearPicksDraft();
         const stillOpen = !(result.locksAt && Date.now() >= new Date(result.locksAt).getTime());
         window.__PICKS_STATUS__ = {
           hasSubmitted: true,
