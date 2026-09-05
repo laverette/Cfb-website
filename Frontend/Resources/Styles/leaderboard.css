@@ -791,18 +791,19 @@
 
 .lb-week-card {
   margin-top: 1rem;
-  padding: 1rem;
+  padding: 0;
   border-radius: 12px;
   background: rgba(20, 16, 12, 0.4);
   border: 1px solid rgba(222, 184, 135, 0.2);
+  overflow: hidden;
 }
 
 .lb-week-head {
   display: flex;
   justify-content: space-between;
   gap: 0.75rem;
-  align-items: baseline;
-  margin-bottom: 0.75rem;
+  align-items: center;
+  margin-bottom: 0;
   flex-wrap: wrap;
 }
 
@@ -815,6 +816,67 @@
 .lb-week-head span {
   color: #deb887;
   font-weight: 700;
+}
+
+/* Collapsible sections (avatar picker, pick-history weeks) — closed by default */
+.lb-collapse {
+  margin: 0;
+}
+
+.lb-collapse > .lb-collapse-summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+  padding: 0.85rem 1rem;
+  user-select: none;
+}
+
+.lb-collapse > .lb-collapse-summary::-webkit-details-marker {
+  display: none;
+}
+
+.lb-collapse-title {
+  color: #ffd700;
+  font-weight: 800;
+  font-size: 1.15rem;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.lb-collapse-meta {
+  color: #deb887;
+  font-weight: 700;
+  font-size: 0.92rem;
+  margin-left: auto;
+}
+
+.lb-collapse-chevron {
+  color: #ffd700;
+  font-size: 0.75rem;
+  line-height: 1;
+  transition: transform 0.18s ease;
+  flex-shrink: 0;
+}
+
+.lb-collapse[open] > .lb-collapse-summary .lb-collapse-chevron {
+  transform: rotate(180deg);
+}
+
+.lb-collapse-body {
+  padding: 0 1rem 1rem;
+  border-top: 1px solid rgba(222, 184, 135, 0.14);
+  padding-top: 0.85rem;
+}
+
+.lb-week-card.lb-collapse > .lb-collapse-summary {
+  padding: 0.9rem 1rem;
+}
+
+.lb-week-card.lb-collapse > .lb-collapse-summary h3 {
+  flex: 1 1 auto;
 }
 
 .lb-pick-grid {

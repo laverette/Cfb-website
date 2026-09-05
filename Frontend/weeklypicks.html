@@ -251,24 +251,6 @@
         <div id="results"></div>
       </div>
     </div>
-    
-    <!-- Heisman odds board preview -->
-    <div class="heisman-preview-container" id="heismanOddsPreview" aria-labelledby="heismanPreviewTitle">
-      <div class="heisman-preview-header">
-        <h2 class="heisman-preview-title" id="heismanPreviewTitle">👑 Heisman Odds Board</h2>
-        <a href="list.html" class="heisman-view-all-link">View Full Rankings →</a>
-      </div>
-      <div class="heisman-preview-content">
-        <ol class="heisman-preview-list" id="heismanPreviewList">
-          <li class="heisman-preview-item heisman-preview-loading">
-            <span class="heisman-player-info">
-              <span class="heisman-player-name">Loading live odds…</span>
-              <span class="heisman-player-details">Top favorites from the board</span>
-            </span>
-          </li>
-        </ol>
-      </div>
-    </div>
   </div>
 
   <!-- Week 10 Results Tab -->
@@ -1144,7 +1126,6 @@
       // Live scores will be loaded automatically after games are loaded
       hideHardcodedGameRows();
       loadActiveWeekAndGames();
-      loadHeismanOddsPreview();
 
       // Keep in-progress picks if the tab is backgrounded / user leaves for predictor
       window.addEventListener('pagehide', savePicksDraft);
@@ -1152,83 +1133,6 @@
         if (document.visibilityState === 'hidden') savePicksDraft();
       });
     });
-
-    function escapeHeismanHtml(s) {
-      return String(s ?? '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-    }
-
-    async function loadHeismanOddsPreview() {
-      const list = document.getElementById('heismanPreviewList');
-      const title = document.getElementById('heismanPreviewTitle');
-      if (!list) return;
-      try {
-        const res = await fetch('/api/heisman?season=2026', {
-          headers: { accept: 'application/json' },
-        });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.error || res.statusText);
-
-        // If official winner is set, show final results styling/title
-        const winnerKey = data.result?.winnerPlayerKey || data.result?.winner_player_key;
-        if (title) {
-          title.textContent = winnerKey
-            ? '👑 Final Heisman Results'
-            : '👑 Heisman Odds Board';
-        }
-
-        const candidates = Array.isArray(data.board?.candidates)
-          ? data.board.candidates.slice(0, 4)
-          : [];
-        if (!candidates.length) {
-          list.innerHTML =
-            '<li class="heisman-preview-item heisman-preview-loading">' +
-            '<span class="heisman-player-info">' +
-            '<span class="heisman-player-name">Odds unavailable</span>' +
-            '<span class="heisman-player-details">Open the full board to try again</span>' +
-            '</span></li>';
-          return;
-        }
-
-        list.innerHTML = candidates
-          .map((c, i) => {
-            const rank = c.rank != null ? c.rank : i + 1;
-            const team =
-              c.teamAbbr ||
-              c.team ||
-              '';
-            const pos = c.position || '';
-            const odds = c.americanDisplay || '';
-            const detail = [team, pos, odds].filter(Boolean).join(' · ');
-            const headshot = c.headshot
-              ? `<img class="heisman-preview-headshot" src="${escapeHeismanHtml(c.headshot)}" alt="" loading="lazy" onerror="this.style.display='none'">`
-              : '';
-            const logo = c.teamLogo
-              ? `<img class="heisman-preview-team-logo" src="${escapeHeismanHtml(c.teamLogo)}" alt="" loading="lazy" onerror="this.style.display='none'">`
-              : '';
-            return (
-              `<li class="heisman-preview-item">` +
-              `<span class="heisman-rank">${escapeHeismanHtml(String(rank))}</span>` +
-              headshot +
-              `<span class="heisman-player-info">` +
-              `<span class="heisman-player-name">${escapeHeismanHtml(c.playerName || 'Player')}</span>` +
-              `<span class="heisman-player-details">${logo}${escapeHeismanHtml(detail)}</span>` +
-              `</span></li>`
-            );
-          })
-          .join('');
-      } catch (err) {
-        list.innerHTML =
-          '<li class="heisman-preview-item heisman-preview-loading">' +
-          '<span class="heisman-player-info">' +
-          '<span class="heisman-player-name">Couldn’t load odds</span>' +
-          `<span class="heisman-player-details">${escapeHeismanHtml(err.message || 'Try the full board')}</span>` +
-          '</span></li>';
-      }
-    }
 
     const FOOTBALL_OFF_KEY = 'weeklyPicksFootballOff';
 

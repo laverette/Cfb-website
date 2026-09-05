@@ -133,12 +133,20 @@
 
           ${isOwnProfile ? `
           <section class="section-card" id="avatarSettingsSection">
-            <h2 class="gold-heading" style="text-align:center;margin-bottom:0.75rem;">Your avatar</h2>
-            <p style="text-align:center;color:#d4b896;margin:0 0 1rem;font-size:0.92rem;">
-              Pick a new look anytime — changes show in the nav and on your profile.
-            </p>
-            <div class="avatar-picker-block" id="profileAvatarPickerHost"></div>
-            <p id="avatarSettingsStatus" style="text-align:center;margin:0.75rem 0 0;font-size:0.85rem;color:#bfa88a;min-height:1.2em;"></p>
+            <details class="lb-collapse">
+              <summary class="lb-collapse-summary">
+                <span class="lb-collapse-title">Your avatar</span>
+                <span class="lb-collapse-meta">Tap to change</span>
+                <span class="lb-collapse-chevron" aria-hidden="true">▼</span>
+              </summary>
+              <div class="lb-collapse-body">
+                <p style="text-align:center;color:#d4b896;margin:0 0 1rem;font-size:0.92rem;">
+                  Pick a new look anytime — changes show in the nav and on your profile.
+                </p>
+                <div class="avatar-picker-block" id="profileAvatarPickerHost"></div>
+                <p id="avatarSettingsStatus" style="text-align:center;margin:0.75rem 0 0;font-size:0.85rem;color:#bfa88a;min-height:1.2em;"></p>
+              </div>
+            </details>
           </section>
 
           <section class="section-card" id="accountSettingsSection">
@@ -286,21 +294,24 @@
             ${weeks.length === 0
               ? '<p class="lb-empty">No picks submitted yet.</p>'
               : weeks.map((w) => `
-                <article class="lb-week-card">
-                  <div class="lb-week-head">
+                <details class="lb-week-card lb-collapse">
+                  <summary class="lb-week-head lb-collapse-summary">
                     <h3>Week ${escapeHtml(w.weekNumber)} · ${escapeHtml(w.seasonYear)}</h3>
-                    <span>${record(w)} · ${pct(w)}</span>
+                    <span class="lb-collapse-meta">${record(w)} · ${pct(w)}</span>
+                    <span class="lb-collapse-chevron" aria-hidden="true">▼</span>
+                  </summary>
+                  <div class="lb-collapse-body">
+                    <div class="lb-pick-grid">
+                      ${(w.picks || []).map((p) => `
+                        <div class="lb-pick-chip ${pickResultClass(p)}">
+                          <span class="lb-pick-game">Game ${escapeHtml(p.gameNumber)}</span>
+                          <strong>${escapeHtml(p.pickedTeamName || '—')}</strong>
+                          <span class="lb-pick-result">${pickResultLabel(p)}</span>
+                        </div>
+                      `).join('')}
+                    </div>
                   </div>
-                  <div class="lb-pick-grid">
-                    ${(w.picks || []).map((p) => `
-                      <div class="lb-pick-chip ${pickResultClass(p)}">
-                        <span class="lb-pick-game">Game ${escapeHtml(p.gameNumber)}</span>
-                        <strong>${escapeHtml(p.pickedTeamName || '—')}</strong>
-                        <span class="lb-pick-result">${pickResultLabel(p)}</span>
-                      </div>
-                    `).join('')}
-                  </div>
-                </article>
+                </details>
               `).join('')}
           </section>
         `;
