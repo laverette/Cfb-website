@@ -2365,6 +2365,13 @@
       return `${w}-${l}`;
     }
 
+    function playerAvatarHtml(entry, size) {
+      if (window.AuthUI && typeof AuthUI.avatarImgHtml === 'function') {
+        return AuthUI.avatarImgHtml(entry, 'results-stand-avatar user-avatar', size || 28);
+      }
+      return '';
+    }
+
     function renderResultsLeaderboardList(containerId, entries, { emptyMessage } = {}) {
       const list = document.getElementById(containerId);
       if (!list) return;
@@ -2382,11 +2389,18 @@
         const pendingHtml = e.pendingPicks > 0
           ? `<span class="results-stand-pending">${safeText(e.pendingPicks)} pending</span>`
           : '';
+        const profileUrl = e.username
+          ? `user-profile.html?username=${encodeURIComponent(e.username)}`
+          : '';
+        const nameHtml = profileUrl
+          ? `<a class="results-stand-name" href="${safeText(profileUrl)}" title="${name}">${name}</a>`
+          : `<span class="results-stand-name" title="${name}">${name}</span>`;
         return `
           <li class="results-stand-row">
             <span class="results-stand-rank ${rankClass}" aria-hidden="true">${rank}</span>
+            ${playerAvatarHtml(e, 28)}
             <div class="results-stand-player">
-              <span class="results-stand-name" title="${name}">${name}</span>
+              ${nameHtml}
               <span class="results-stand-record">${record}</span>
             </div>
             <div class="results-stand-stats">

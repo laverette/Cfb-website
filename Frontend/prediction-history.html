@@ -142,6 +142,13 @@
       return `user-profile.html?id=${encodeURIComponent(user.userId || user.id)}`;
     }
 
+    function playerAvatarHtml(entry, className, size) {
+      if (window.AuthUI && typeof AuthUI.avatarImgHtml === 'function') {
+        return AuthUI.avatarImgHtml(entry, className || 'lb-row-avatar user-avatar', size || 32);
+      }
+      return '';
+    }
+
     function streakMeta(streak) {
       const n = Number(streak) || 0;
       if (n >= 5) return { emoji: '🔥🔥🔥', label: `${n} hot`, className: 'lb-temp-blazing', abs: n };
@@ -213,6 +220,7 @@
         return `
           <article class="lb-podium-card place-${place}">
             <div class="lb-podium-medal">${rankMedal(place)}</div>
+            ${playerAvatarHtml(e, 'lb-podium-avatar user-avatar', place === 1 ? 64 : 52)}
             <a class="lb-podium-name" href="${profileHref(e)}">${escapeHtml(e.displayName || e.username)}</a>
             <p class="lb-podium-record">${recordLabel(e)} · ${Number(e.accuracy || 0).toFixed(1)}%</p>
             <p class="lb-podium-streak ${meta.className}">${meta.emoji} ${meta.label}</p>
@@ -234,6 +242,7 @@
       document.getElementById('hotList').innerHTML = hot.length
         ? hot.map((e) => `
             <li>
+              ${playerAvatarHtml(e, 'lb-highlight-avatar user-avatar', 24)}
               <a href="${profileHref(e)}">${escapeHtml(e.displayName || e.username)}</a>
               <span class="lb-temp lb-temp-hot">🔥 ${e.currentStreak}</span>
             </li>`).join('')
@@ -241,6 +250,7 @@
       document.getElementById('coldList').innerHTML = cold.length
         ? cold.map((e) => `
             <li>
+              ${playerAvatarHtml(e, 'lb-highlight-avatar user-avatar', 24)}
               <a href="${profileHref(e)}">${escapeHtml(e.displayName || e.username)}</a>
               <span class="lb-temp lb-temp-cold">❄️ ${Math.abs(e.currentStreak)}</span>
             </li>`).join('')
@@ -309,8 +319,11 @@
                     <td class="lb-rank" data-label="#">${rankMedal(e.rank)}</td>
                     <td data-label="Player">
                       <a class="lb-player-link" href="${profileHref(e)}">
-                        <span class="lb-player-name">${escapeHtml(e.displayName || e.username)}</span>
-                        <span class="lb-player-user">@${escapeHtml(e.username)}</span>
+                        ${playerAvatarHtml(e, 'lb-row-avatar user-avatar', 30)}
+                        <span class="lb-player-text">
+                          <span class="lb-player-name">${escapeHtml(e.displayName || e.username)}</span>
+                          <span class="lb-player-user">@${escapeHtml(e.username)}</span>
+                        </span>
                       </a>
                       ${isMe ? '<span class="lb-you-pill">You</span>' : ''}
                     </td>

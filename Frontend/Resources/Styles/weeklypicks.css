@@ -4366,9 +4366,9 @@ select {
 
 .results-stand-row {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 0.65rem 0.85rem;
+  gap: 0.65rem 0.75rem;
   padding: 0.75rem 0.85rem;
   border-radius: 12px;
   background: linear-gradient(135deg, #3e2723, #4e342e);
@@ -4381,6 +4381,29 @@ select {
   transform: translateY(-2px);
   border-color: #ffd700;
   box-shadow: 0 6px 14px rgba(0, 0, 0, 0.35);
+}
+
+.results-stand-avatar,
+.results-stand-row .user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1.5px solid rgba(255, 215, 0, 0.5);
+  background: rgba(255, 255, 255, 0.95);
+  flex-shrink: 0;
+}
+
+.results-stand-row .user-avatar--initial {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #1e1e1e;
+  background: linear-gradient(135deg, #ffd700, #f0a500);
+  border-color: rgba(255, 215, 0, 0.65);
+  line-height: 1;
 }
 
 .results-stand-rank {
@@ -4427,6 +4450,13 @@ select {
   text-overflow: ellipsis;
   white-space: nowrap;
   min-width: 0;
+  text-decoration: none;
+}
+
+a.results-stand-name:hover {
+  color: #ffe566;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .results-stand-record {
@@ -4513,11 +4543,11 @@ select {
 
   #week10-results .results-stand-row {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-columns: auto auto minmax(0, 1fr);
     grid-template-areas:
-      'rank player'
-      'rank stats';
-    gap: 0.4rem 0.7rem;
+      'rank avatar player'
+      'rank avatar stats';
+    gap: 0.4rem 0.55rem;
     padding: 0.8rem 0.75rem;
     position: relative;
     z-index: 2;
@@ -4528,6 +4558,12 @@ select {
     align-self: center;
     width: 2.15rem;
     height: 2.15rem;
+  }
+
+  #week10-results .results-stand-avatar,
+  #week10-results .results-stand-row .user-avatar {
+    grid-area: avatar;
+    align-self: center;
   }
 
   #week10-results .results-stand-player {
@@ -4571,16 +4607,22 @@ select {
 
 @media (max-width: 520px) {
   .results-stand-row {
-    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-columns: auto auto minmax(0, 1fr);
     grid-template-areas:
-      'rank player'
-      'rank stats';
-    gap: 0.35rem 0.65rem;
+      'rank avatar player'
+      'rank avatar stats';
+    gap: 0.35rem 0.5rem;
     padding: 0.7rem 0.75rem;
   }
 
   .results-stand-rank {
     grid-area: rank;
+    align-self: center;
+  }
+
+  .results-stand-avatar,
+  .results-stand-row .user-avatar {
+    grid-area: avatar;
     align-self: center;
   }
 

@@ -1141,6 +1141,10 @@
               escapeHtml(champBrand.secondary || champBrand.primary) +
               ';"';
           }
+          var userAvatar =
+            window.AuthUI && typeof AuthUI.avatarImgHtml === "function"
+              ? AuthUI.avatarImgHtml(e, "cfp-gallery-avatar user-avatar", 32)
+              : "";
           return (
             '<a class="cfp-gallery-card" href="' +
             href +
@@ -1148,9 +1152,12 @@
             style +
             ">" +
             '<div class="cfp-gallery-top">' +
+            '<div class="cfp-gallery-user">' +
+            userAvatar +
             '<span class="cfp-gallery-name">' +
             escapeHtml(name) +
             "</span>" +
+            "</div>" +
             (e.isComplete
               ? '<span class="cfp-gallery-badge">Complete</span>'
               : '<span class="cfp-gallery-badge is-partial">In progress</span>') +

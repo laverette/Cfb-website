@@ -231,6 +231,36 @@
   margin-bottom: 0.35rem;
 }
 
+.lb-podium-avatar,
+.lb-podium-card .user-avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(255, 215, 0, 0.55);
+  background: rgba(255, 255, 255, 0.95);
+  margin: 0 auto 0.45rem;
+  display: block;
+}
+
+.lb-podium-card.place-1 .lb-podium-avatar,
+.lb-podium-card.place-1 .user-avatar {
+  width: 64px;
+  height: 64px;
+  border-width: 3px;
+  border-color: #ffd700;
+}
+
+.lb-podium-card .user-avatar--initial {
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: 1.15rem;
+  color: #1e1e1e;
+  background: linear-gradient(135deg, #ffd700, #f0a500);
+  line-height: 1;
+}
+
 .lb-podium-name {
   display: block;
   color: #ffd700;
@@ -312,9 +342,9 @@
 
 .lb-highlight-list li {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.55rem;
   padding: 0.4rem 0.55rem;
   border-radius: 10px;
   background: rgba(0, 0, 0, 0.22);
@@ -322,13 +352,40 @@
   font-weight: 700;
 }
 
+.lb-highlight-avatar,
+.lb-highlight-list .user-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid rgba(255, 215, 0, 0.45);
+  flex-shrink: 0;
+}
+
+.lb-highlight-list .user-avatar--initial {
+  display: grid;
+  place-items: center;
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: #1e1e1e;
+  background: linear-gradient(135deg, #ffd700, #f0a500);
+  line-height: 1;
+}
+
 .lb-highlight-list a {
   color: #f5deb3;
   text-decoration: none;
+  min-width: 0;
+  flex: 1;
 }
 
 .lb-highlight-list a:hover {
   color: #ffd700;
+}
+
+.lb-highlight-list .lb-temp {
+  margin-left: auto;
+  flex-shrink: 0;
 }
 
 .lb-highlight-empty {
@@ -483,10 +540,40 @@
 
 .lb-player-link {
   display: inline-flex;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: center;
   text-decoration: none;
   color: inherit;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.lb-row-avatar,
+.lb-player-link .user-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1.5px solid rgba(255, 215, 0, 0.45);
+  background: rgba(255, 255, 255, 0.95);
+  flex-shrink: 0;
+}
+
+.lb-player-link .user-avatar--initial {
+  display: grid;
+  place-items: center;
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: #1e1e1e;
+  background: linear-gradient(135deg, #ffd700, #f0a500);
+  line-height: 1;
+}
+
+.lb-player-text {
+  display: inline-flex;
+  flex-direction: column;
   gap: 0.1rem;
+  min-width: 0;
 }
 
 .lb-player-name {

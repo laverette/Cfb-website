@@ -809,6 +809,7 @@ async function getLeaderboard({ season, team, cfbdGameId = null, apiKey }) {
       userId: e.userId,
       username: e.username,
       displayName: e.displayName,
+      avatarUrl: e.avatarUrl,
       rank: e.rank,
       currentStreak: e.currentStreak,
       accuracy: e.accuracy,

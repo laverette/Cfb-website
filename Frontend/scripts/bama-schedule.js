@@ -861,13 +861,29 @@
     }
   }
 
-  function profileLink(username) {
+  function profileLink(entryOrUsername) {
+    var entry =
+      entryOrUsername && typeof entryOrUsername === "object"
+        ? entryOrUsername
+        : { username: entryOrUsername };
+    var username = entry.username || "";
+    var label = entry.displayName || entry.username || "Player";
+    var avatar =
+      window.AuthUI && typeof AuthUI.avatarImgHtml === "function"
+        ? AuthUI.avatarImgHtml(entry, "lb-row-avatar user-avatar", 28)
+        : "";
     return (
       '<a class="lb-player-link" href="user-profile.html?username=' +
       encodeURIComponent(username) +
       '">' +
-      escapeHtml(username) +
-      "</a>"
+      avatar +
+      '<span class="lb-player-text"><span class="lb-player-name">' +
+      escapeHtml(label) +
+      "</span>" +
+      (username
+        ? '<span class="lb-player-user">@' + escapeHtml(username) + "</span>"
+        : "") +
+      "</span></a>"
     );
   }
 
@@ -899,7 +915,7 @@
           e.rank +
           "</td>" +
           "<td>" +
-          profileLink(e.username) +
+          profileLink(e) +
           "</td>" +
           "<td>" +
           e.correctPicks +
@@ -954,7 +970,7 @@
           "<tr><td>" +
           e.rank +
           "</td><td>" +
-          profileLink(e.username) +
+          profileLink(e) +
           "</td><td>" +
           escapeHtml(pick) +
           "</td><td>" +
@@ -980,6 +996,10 @@
       top3
         .map(function (e, i) {
           var medal = ["🥇", "🥈", "🥉"][i] || "";
+          var avatar =
+            window.AuthUI && typeof AuthUI.avatarImgHtml === "function"
+              ? AuthUI.avatarImgHtml(e, "lb-podium-avatar user-avatar", i === 0 ? 56 : 44)
+              : "";
           return (
             '<div class="lb-podium-slot lb-podium-' +
             (i + 1) +
@@ -987,9 +1007,12 @@
             '<div class="lb-podium-medal">' +
             medal +
             "</div>" +
-            '<div class="lb-podium-name">' +
-            profileLink(e.username) +
-            "</div>" +
+            avatar +
+            '<div class="lb-podium-name"><a class="lb-podium-name-link" href="user-profile.html?username=' +
+            encodeURIComponent(e.username || "") +
+            '">' +
+            escapeHtml(e.displayName || e.username || "Player") +
+            "</a></div>" +
             '<div class="lb-podium-stat">' +
             e.correctPicks +
             " correct · " +
