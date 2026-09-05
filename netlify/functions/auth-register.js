@@ -56,6 +56,9 @@ exports.handler = async (event) => {
   const errors = [];
   if (username.length < 3) errors.push("Username must be at least 3 characters");
   if (username.length > 50) errors.push("Username must be at most 50 characters");
+  if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+    errors.push("Username may only contain letters, numbers, and underscores");
+  }
   if (!email || !email.includes("@")) errors.push("Valid email is required");
   if (password.length < 8) errors.push("Password must be at least 8 characters");
   if (!avatarId) errors.push(`Please choose an avatar (1–${AVATAR_COUNT})`);

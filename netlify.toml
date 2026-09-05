@@ -70,6 +70,16 @@
   status = 200
 
 [[redirects]]
+  from = "/api/auth/forgot-password"
+  to = "/.netlify/functions/auth-forgot-password"
+  status = 200
+
+[[redirects]]
+  from = "/api/auth/reset-password"
+  to = "/.netlify/functions/auth-reset-password"
+  status = 200
+
+[[redirects]]
   from = "/api/cron/pick-reminders"
   to = "/.netlify/functions/pick-reminders"
   status = 200

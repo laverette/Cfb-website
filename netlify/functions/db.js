@@ -175,7 +175,7 @@ async function findUserByUsernameOrEmail(usernameOrEmail) {
   const { data: byEmail, error: emailErr } = await supabase
     .from("users")
     .select(USER_COLS)
-    .eq("email", usernameOrEmail)
+    .ilike("email", usernameOrEmail)
     .maybeSingle();
   dbError(emailErr);
   return byEmail || null;
@@ -330,6 +330,116 @@ async function updateUserAvatar(userId, avatarUrl) {
     .single();
   dbError(error);
   return data || null;
+}
+
+async function updateUserPassword(userId, passwordHash) {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from("users")
+    .update({
+      password_hash: passwordHash,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", userId)
+    .select("id, username, email, display_name, avatar_url, bio, role, created_at")
+    .single();
+  dbError(error);
+  return data || null;
+}
+
+async function updateUsername(userId, username) {
+  const supabase = getSupabase();
+  const next = String(username || "").trim();
+  if (next.length < 3 || next.length > 50) {
+    const err = new Error("Invalid username length");
+    err.code = "INVALID_USERNAME";
+    throw err;
+  }
+  if (!/^[a-zA-Z0-9_]+$/.test(next)) {
+    const err = new Error("Username may only contain letters, numbers, and underscores");
+    err.code = "INVALID_USERNAME";
+    throw err;
+  }
+
+  const { data: existing, error: existErr } = await supabase
+    .from("users")
+    .select("id")
+    .eq("username", next)
+    .maybeSingle();
+  dbError(existErr);
+  if (existing && Number(existing.id) !== Number(userId)) {
+    const err = new Error("Username already exists");
+    err.code = "USER_EXISTS";
+    throw err;
+  }
+
+  const current = await findUserById(userId);
+  if (!current) return null;
+
+  const updates = {
+    username: next,
+    updated_at: new Date().toISOString(),
+  };
+  // Keep display name in sync when it still matched the old username
+  const oldDisplay = current.display_name != null ? String(current.display_name) : "";
+  if (!oldDisplay || oldDisplay === current.username) {
+    updates.display_name = next;
+  }
+
+  const { data, error } = await supabase
+    .from("users")
+    .update(updates)
+    .eq("id", userId)
+    .select("id, username, email, display_name, avatar_url, bio, role, created_at")
+    .single();
+  dbError(error);
+  return data || null;
+}
+
+async function createPasswordResetToken(userId, tokenHash, expiresAt) {
+  const supabase = getSupabase();
+  // Invalidate unused tokens for this user
+  await supabase
+    .from("password_reset_tokens")
+    .update({ used_at: new Date().toISOString() })
+    .eq("user_id", userId)
+    .is("used_at", null);
+
+  const { data, error } = await supabase
+    .from("password_reset_tokens")
+    .insert({
+      user_id: userId,
+      token_hash: tokenHash,
+      expires_at: expiresAt.toISOString(),
+    })
+    .select("id, user_id, expires_at")
+    .single();
+  dbError(error);
+  return data || null;
+}
+
+async function findValidPasswordResetToken(tokenHash) {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from("password_reset_tokens")
+    .select("id, user_id, token_hash, expires_at, used_at")
+    .eq("token_hash", tokenHash)
+    .is("used_at", null)
+    .maybeSingle();
+  dbError(error);
+  if (!data) return null;
+  const exp = new Date(data.expires_at).getTime();
+  if (!Number.isFinite(exp) || exp < Date.now()) return null;
+  return data;
+}
+
+async function markPasswordResetTokenUsed(tokenId) {
+  const supabase = getSupabase();
+  const { error } = await supabase
+    .from("password_reset_tokens")
+    .update({ used_at: new Date().toISOString() })
+    .eq("id", tokenId);
+  dbError(error);
 }
 
 async function listUsersForPickReminders(weekId) {
@@ -1017,6 +1127,11 @@ module.exports = {
   logUserLogin,
   registerUser,
   updateUserAvatar,
+  updateUserPassword,
+  updateUsername,
+  createPasswordResetToken,
+  findValidPasswordResetToken,
+  markPasswordResetTokenUsed,
   listUsersForPickReminders,
   recordPickReminderSent,
   getEffectiveWeekLockTime,

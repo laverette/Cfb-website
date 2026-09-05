@@ -125,10 +125,40 @@ function escapeHtml(value) {
     .replace(/"/g, "&quot;");
 }
 
+function buildPasswordResetEmail({ displayName, resetUrl, expiresMinutes = 60 }) {
+  const name = displayName || "there";
+  const mins = Number(expiresMinutes) || 60;
+  const subject = "Reset your CFB Predictions password";
+  const text = [
+    `Hi ${name},`,
+    "",
+    "We received a request to reset your password.",
+    `This link expires in ${mins} minutes:`,
+    resetUrl,
+    "",
+    "If you didn't ask for this, you can ignore this email.",
+  ].join("\n");
+
+  const html = `
+    <div style="font-family:Georgia,serif;max-width:520px;margin:0 auto;color:#1a1410;">
+      <p style="color:#8b6914;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;margin:0 0 8px;">Account</p>
+      <h1 style="font-size:22px;margin:0 0 12px;">Reset your password</h1>
+      <p style="line-height:1.5;">Hi ${escapeHtml(name)}, we received a request to reset your CFB Predictions password.</p>
+      <p style="margin:24px 0;">
+        <a href="${escapeHtml(resetUrl)}" style="display:inline-block;background:linear-gradient(135deg,#FFD700,#FFA000);color:#1a1410;text-decoration:none;font-weight:bold;padding:12px 22px;border-radius:999px;">Choose a new password</a>
+      </p>
+      <p style="font-size:13px;color:#666;line-height:1.5;">This link expires in ${mins} minutes. If you didn't request a reset, you can ignore this email.</p>
+    </div>
+  `.trim();
+
+  return { subject, html, text };
+}
+
 module.exports = {
   sendEmail,
   isEmailConfigured,
   siteBaseUrl,
   buildPickReminderEmail,
+  buildPasswordResetEmail,
   readFromEmail,
 };

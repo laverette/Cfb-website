@@ -141,6 +141,34 @@
             <p id="avatarSettingsStatus" style="text-align:center;margin:0.75rem 0 0;font-size:0.85rem;color:#bfa88a;min-height:1.2em;"></p>
           </section>
 
+          <section class="section-card" id="accountSettingsSection">
+            <h2 class="gold-heading" style="text-align:center;margin-bottom:0.75rem;">Account</h2>
+            <p style="text-align:center;color:#d4b896;margin:0 0 1.25rem;font-size:0.92rem;">
+              Change your username or password. Username links on leaderboards use @username.
+            </p>
+
+            <form id="usernameForm" style="max-width:420px;margin:0 auto 1.5rem;">
+              <label for="newUsername" style="display:block;margin-bottom:0.35rem;font-weight:700;">Username</label>
+              <input type="text" id="newUsername" class="form-control" value="${escapeHtml(user.username || '')}" minlength="3" maxlength="50" pattern="[A-Za-z0-9_]+" required autocomplete="username">
+              <p style="margin:0.35rem 0 0.75rem;font-size:0.8rem;color:#bfa88a;">Letters, numbers, and underscores only (3–50).</p>
+              <button type="submit" class="btn btn-gold" style="width:100%;">Save username</button>
+              <p id="usernameSettingsStatus" style="text-align:center;margin:0.65rem 0 0;font-size:0.85rem;color:#bfa88a;min-height:1.2em;"></p>
+            </form>
+
+            <hr style="border:0;border-top:1px solid rgba(141,110,99,0.45);margin:1.25rem 0;">
+
+            <form id="passwordForm" style="max-width:420px;margin:0 auto;">
+              <label for="currentPassword" style="display:block;margin-bottom:0.35rem;font-weight:700;">Current password</label>
+              <input type="password" id="currentPassword" class="form-control" required autocomplete="current-password" style="margin-bottom:0.75rem;">
+              <label for="newAccountPassword" style="display:block;margin-bottom:0.35rem;font-weight:700;">New password</label>
+              <input type="password" id="newAccountPassword" class="form-control" minlength="8" required autocomplete="new-password" style="margin-bottom:0.75rem;">
+              <label for="confirmAccountPassword" style="display:block;margin-bottom:0.35rem;font-weight:700;">Confirm new password</label>
+              <input type="password" id="confirmAccountPassword" class="form-control" minlength="8" required autocomplete="new-password" style="margin-bottom:0.85rem;">
+              <button type="submit" class="btn btn-gold" style="width:100%;">Update password</button>
+              <p id="passwordSettingsStatus" style="text-align:center;margin:0.65rem 0 0;font-size:0.85rem;color:#bfa88a;min-height:1.2em;"></p>
+            </form>
+          </section>
+
           <section class="section-card" id="reminderSettingsSection">
             <h2 class="gold-heading" style="text-align:center;margin-bottom:0.75rem;">Email reminders</h2>
             <p style="text-align:center;color:#d4b896;margin:0 0 1rem;font-size:0.92rem;">
@@ -279,6 +307,7 @@
 
         if (isOwnProfile) {
           wireAvatarSettings(user);
+          wireAccountSettings(user);
           wireReminderSettings();
         }
       } catch (err) {
@@ -303,6 +332,97 @@
         localStorage.setItem('currentUser', JSON.stringify(next));
         if (window.AuthUI && AuthUI.refreshFromStorage) AuthUI.refreshFromStorage();
       } catch (e) {}
+    }
+
+    function syncLocalSession(userPayload, token) {
+      try {
+        const prev = (window.AuthUI && AuthUI.getCurrentUser && AuthUI.getCurrentUser()) || {};
+        const next = Object.assign({}, prev, userPayload || {});
+        localStorage.setItem('currentUser', JSON.stringify(next));
+        if (token) localStorage.setItem('authToken', token);
+        if (window.AuthUI && AuthUI.refreshFromStorage) AuthUI.refreshFromStorage();
+      } catch (e) {}
+    }
+
+    function wireAccountSettings(user) {
+      const usernameForm = document.getElementById('usernameForm');
+      const passwordForm = document.getElementById('passwordForm');
+      const token = window.AuthUI && AuthUI.getAuthToken && AuthUI.getAuthToken();
+      if (!token) return;
+
+      if (usernameForm) {
+        usernameForm.addEventListener('submit', async function (e) {
+          e.preventDefault();
+          const status = document.getElementById('usernameSettingsStatus');
+          const username = String(document.getElementById('newUsername').value || '').trim();
+          if (!/^[A-Za-z0-9_]{3,50}$/.test(username)) {
+            if (status) status.textContent = 'Username must be 3–50 letters, numbers, or underscores.';
+            return;
+          }
+          if (status) status.textContent = 'Saving…';
+          try {
+            const resp = await fetch('/api/auth/profile', {
+              method: 'PATCH',
+              headers: { ...authHeaders(), accept: 'application/json' },
+              body: JSON.stringify({ username }),
+            });
+            const data = await resp.json().catch(() => ({}));
+            if (!resp.ok) throw new Error(data.message || data.error || `Failed (${resp.status})`);
+            syncLocalSession(data.user, data.token);
+            if (status) status.textContent = 'Username updated.';
+            if (data.user && data.user.username) {
+              window.history.replaceState(
+                {},
+                '',
+                `user-profile.html?username=${encodeURIComponent(data.user.username)}`
+              );
+              const subtitle = document.querySelector('.lb-subtitle');
+              if (subtitle) {
+                const joined = user.memberSince
+                  ? ` · joined ${new Date(user.memberSince).toLocaleDateString()}`
+                  : '';
+                subtitle.textContent = `@${data.user.username}${joined}`;
+              }
+              const title = document.querySelector('.lb-profile-hero .page-title');
+              if (title && data.user.displayName) title.textContent = data.user.displayName;
+            }
+          } catch (err) {
+            if (status) status.textContent = err.message || 'Could not update username.';
+          }
+        });
+      }
+
+      if (passwordForm) {
+        passwordForm.addEventListener('submit', async function (e) {
+          e.preventDefault();
+          const status = document.getElementById('passwordSettingsStatus');
+          const currentPassword = document.getElementById('currentPassword').value;
+          const newPassword = document.getElementById('newAccountPassword').value;
+          const confirm = document.getElementById('confirmAccountPassword').value;
+          if (newPassword.length < 8) {
+            if (status) status.textContent = 'New password must be at least 8 characters.';
+            return;
+          }
+          if (newPassword !== confirm) {
+            if (status) status.textContent = 'New passwords do not match.';
+            return;
+          }
+          if (status) status.textContent = 'Updating…';
+          try {
+            const resp = await fetch('/api/auth/profile', {
+              method: 'PATCH',
+              headers: { ...authHeaders(), accept: 'application/json' },
+              body: JSON.stringify({ currentPassword, newPassword }),
+            });
+            const data = await resp.json().catch(() => ({}));
+            if (!resp.ok) throw new Error(data.message || data.error || `Failed (${resp.status})`);
+            passwordForm.reset();
+            if (status) status.textContent = 'Password updated.';
+          } catch (err) {
+            if (status) status.textContent = err.message || 'Could not update password.';
+          }
+        });
+      }
     }
 
     function wireAvatarSettings(user) {
