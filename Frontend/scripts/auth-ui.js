@@ -116,27 +116,28 @@
     return AVATAR_DIR + "A" + id + ".svg";
   }
 
-  /** Prefer A#.png files. */
+  /** Prefer custom https avatar URLs; fall back to preset A#.png. */
   function avatarSrcForUser(user) {
+    if (!user) return null;
+    var rawUrl =
+      user.avatarUrl != null
+        ? String(user.avatarUrl).trim()
+        : user.avatar_url != null
+          ? String(user.avatar_url).trim()
+          : "";
+    if (rawUrl && /^https?:\/\//i.test(rawUrl)) return rawUrl;
+    if (rawUrl && /\.(png|jpe?g|webp|gif|svg)(\?|$)/i.test(rawUrl) && !parseAvatarId(rawUrl)) {
+      return rawUrl;
+    }
     var id = avatarIdForUser(user);
     if (!id) return null;
     return avatarPngPath(id);
   }
 
   function avatarImgHtml(user, className, size) {
-    var id = avatarIdForUser(user);
     var cls = className || "user-avatar";
     var wh = size || 40;
-    var rawUrl =
-      (user && (user.avatarUrl || user.avatar_url)) != null
-        ? String(user.avatarUrl || user.avatar_url).trim()
-        : "";
-    var src = id ? avatarPngPath(id) : "";
-    if (!src && rawUrl && /^https?:\/\//i.test(rawUrl)) {
-      src = rawUrl;
-    } else if (!src && rawUrl && /\.(png|jpe?g|webp|svg)(\?|$)/i.test(rawUrl)) {
-      src = rawUrl;
-    }
+    var src = avatarSrcForUser(user) || "";
 
     if (!src) {
       var initial = (

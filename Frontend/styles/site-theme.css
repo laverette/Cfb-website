@@ -672,6 +672,50 @@ img.lb-profile-avatar {
   margin: 0 0 0.75rem;
 }
 
+.avatar-upload-block {
+  margin-bottom: 1.1rem;
+}
+
+.avatar-upload-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.avatar-upload-btn {
+  min-width: 8.5rem;
+}
+
+.avatar-upload-filename {
+  color: #d4b896;
+  font-size: 0.82rem;
+  max-width: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.avatar-upload-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.35rem 0 1rem;
+  color: #bfa88a;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.avatar-upload-divider::before,
+.avatar-upload-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: rgba(141, 110, 99, 0.55);
+}
+
 .avatar-picker-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

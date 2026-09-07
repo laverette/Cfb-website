@@ -143,8 +143,18 @@
               </summary>
               <div class="lb-collapse-body">
                 <p style="text-align:center;color:#d4b896;margin:0 0 1rem;font-size:0.92rem;">
-                  Pick a new look anytime — changes show in the nav and on your profile.
+                  Upload your own photo or pick a preset — changes show in the nav and on your profile.
                 </p>
+                <div class="avatar-upload-block">
+                  <label class="avatar-picker-label" for="avatarUploadInput">Upload image</label>
+                  <p class="avatar-picker-hint">JPEG, PNG, or WebP · max 1 MB · square crops work best</p>
+                  <div class="avatar-upload-row">
+                    <input type="file" id="avatarUploadInput" accept="image/jpeg,image/png,image/webp" hidden>
+                    <button type="button" class="btn btn-gold avatar-upload-btn" id="avatarUploadBtn">Choose photo</button>
+                    <span class="avatar-upload-filename" id="avatarUploadFilename"></span>
+                  </div>
+                </div>
+                <p class="avatar-upload-divider"><span>or choose a preset</span></p>
                 <div class="avatar-picker-block" id="profileAvatarPickerHost"></div>
                 <p id="avatarSettingsStatus" style="text-align:center;margin:0.75rem 0 0;font-size:0.85rem;color:#bfa88a;min-height:1.2em;"></p>
               </div>
@@ -438,9 +448,71 @@
       }
     }
 
+    function applyAvatarToHero(userPayload) {
+      const hero = document.querySelector('.lb-profile-hero-top');
+      if (!hero || !userPayload || !window.AuthUI) return;
+      const slot = hero.querySelector('.lb-profile-avatar, .user-avatar, .user-avatar--initial');
+      const html = AuthUI.avatarImgHtml(userPayload, 'lb-profile-avatar user-avatar', 72);
+      if (slot) {
+        slot.outerHTML = html;
+      } else {
+        const wrap = document.createElement('div');
+        wrap.innerHTML = html;
+        if (wrap.firstChild) hero.insertBefore(wrap.firstChild, hero.firstChild);
+      }
+    }
+
+    function readFileAsDataUrl(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = () => reject(new Error('Could not read that file'));
+        reader.readAsDataURL(file);
+      });
+    }
+
+    /** Downscale large photos client-side before upload (max edge 512px, JPEG). */
+    function resizeImageForAvatar(file) {
+      return new Promise(async (resolve, reject) => {
+        try {
+          const dataUrl = await readFileAsDataUrl(file);
+          const img = new Image();
+          img.onload = () => {
+            const maxEdge = 512;
+            let { width, height } = img;
+            if (width > maxEdge || height > maxEdge) {
+              const scale = maxEdge / Math.max(width, height);
+              width = Math.round(width * scale);
+              height = Math.round(height * scale);
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+              reject(new Error('Could not process image'));
+              return;
+            }
+            ctx.drawImage(img, 0, 0, width, height);
+            const mime = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
+            const quality = mime === 'image/jpeg' ? 0.88 : undefined;
+            const out = canvas.toDataURL(mime, quality);
+            resolve({ dataUrl: out, mimeType: mime });
+          };
+          img.onerror = () => reject(new Error('Could not load that image'));
+          img.src = dataUrl;
+        } catch (err) {
+          reject(err);
+        }
+      });
+    }
+
     function wireAvatarSettings(user) {
       const host = document.getElementById('profileAvatarPickerHost');
       const status = document.getElementById('avatarSettingsStatus');
+      const uploadBtn = document.getElementById('avatarUploadBtn');
+      const uploadInput = document.getElementById('avatarUploadInput');
+      const filenameEl = document.getElementById('avatarUploadFilename');
       if (!host || !window.AuthUI || !AuthUI.buildAvatarPickerHtml) return;
 
       const token = AuthUI.getAuthToken && AuthUI.getAuthToken();
@@ -471,18 +543,8 @@
           const data = await resp.json().catch(() => ({}));
           if (!resp.ok) throw new Error(data.error || data.message || `Failed (${resp.status})`);
           syncLocalUserAvatar(data.user || { avatarUrl: AuthUI.avatarPngPath(avatarId), avatarId });
-          const hero = document.querySelector('.lb-profile-hero-top');
-          if (hero && data.user) {
-            const slot = hero.querySelector('.lb-profile-avatar, .user-avatar, .user-avatar--initial');
-            const html = AuthUI.avatarImgHtml(data.user, 'lb-profile-avatar user-avatar', 72);
-            if (slot) {
-              slot.outerHTML = html;
-            } else {
-              const wrap = document.createElement('div');
-              wrap.innerHTML = html;
-              hero.insertBefore(wrap.firstChild, hero.firstChild);
-            }
-          }
+          applyAvatarToHero(data.user);
+          if (filenameEl) filenameEl.textContent = '';
           if (status) status.textContent = 'Avatar updated.';
         } catch (err) {
           if (status) status.textContent = err.message || 'Could not save avatar.';
@@ -490,6 +552,57 @@
           saving = false;
         }
       });
+
+      if (uploadBtn && uploadInput) {
+        uploadBtn.addEventListener('click', () => uploadInput.click());
+        uploadInput.addEventListener('change', async () => {
+          const file = uploadInput.files && uploadInput.files[0];
+          uploadInput.value = '';
+          if (!file) return;
+          if (saving) return;
+
+          const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+          if (!allowed.includes(file.type)) {
+            if (status) status.textContent = 'Use a JPEG, PNG, or WebP image.';
+            return;
+          }
+          if (file.size > 5 * 1024 * 1024) {
+            if (status) status.textContent = 'Image is too large (try under 5 MB).';
+            return;
+          }
+
+          saving = true;
+          if (filenameEl) filenameEl.textContent = file.name;
+          if (status) status.textContent = 'Uploading…';
+          try {
+            const prepared = await resizeImageForAvatar(file);
+            const resp = await fetch('/api/auth/avatar', {
+              method: 'POST',
+              headers: { ...authHeaders(), accept: 'application/json' },
+              body: JSON.stringify({
+                imageBase64: prepared.dataUrl,
+                mimeType: prepared.mimeType,
+              }),
+            });
+            const data = await resp.json().catch(() => ({}));
+            if (!resp.ok) throw new Error(data.message || data.error || `Failed (${resp.status})`);
+            syncLocalUserAvatar(data.user || { avatarUrl: data.avatarUrl });
+            applyAvatarToHero(data.user || { avatarUrl: data.avatarUrl });
+            if (grid) {
+              grid.querySelectorAll('.avatar-pick-option').forEach((btn) => {
+                btn.classList.remove('is-selected');
+                btn.setAttribute('aria-checked', 'false');
+              });
+            }
+            if (hidden) hidden.value = '';
+            if (status) status.textContent = 'Custom avatar uploaded.';
+          } catch (err) {
+            if (status) status.textContent = err.message || 'Could not upload avatar.';
+          } finally {
+            saving = false;
+          }
+        });
+      }
     }
 
     async function wireReminderSettings() {

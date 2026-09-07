@@ -65,6 +65,11 @@
   status = 200
 
 [[redirects]]
+  from = "/api/auth/avatar"
+  to = "/.netlify/functions/auth-avatar-upload"
+  status = 200
+
+[[redirects]]
   from = "/api/auth/settings"
   to = "/.netlify/functions/auth-settings"
   status = 200
