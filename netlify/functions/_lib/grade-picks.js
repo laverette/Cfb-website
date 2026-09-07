@@ -141,7 +141,44 @@ function normalizeEspnEvent(evt) {
   };
 }
 
-async function fetchLiveScoresForWeek(week) {
+function liveScoreKey(g) {
+  if (g?.awayEspnId && g?.homeEspnId) return `e:${g.awayEspnId}:${g.homeEspnId}`;
+  if (g?.id) return `c:${g.id}`;
+  return `n:${normName(g?.awayTeam)}@${normName(g?.homeTeam)}`;
+}
+
+function preferLiveScore(a, b) {
+  if (!a) return b;
+  if (!b) return a;
+  const score = (g) => {
+    const period = Number(g.period);
+    const hasPoints = g.awayPoints != null || g.homePoints != null;
+    const inPlay =
+      g.completed ||
+      g.statusState === "in" ||
+      (Number.isFinite(period) && period > 0);
+    return (g.completed ? 16 : 0) + (inPlay && hasPoints ? 8 : 0) + (hasPoints ? 4 : 0);
+  };
+  return score(b) > score(a) ? b : a;
+}
+
+function ymdEtFromIso(iso) {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (!Number.isFinite(d.getTime())) return null;
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(d);
+  const y = parts.find((p) => p.type === "year")?.value;
+  const m = parts.find((p) => p.type === "month")?.value;
+  const day = parts.find((p) => p.type === "day")?.value;
+  return y && m && day ? `${y}${m}${day}` : null;
+}
+
+async function fetchLiveScoresForWeek(week, games = []) {
   if (!week) return [];
   const season = Number(week.season_year);
   const weekNum = Number(week.week_number);
@@ -149,48 +186,99 @@ async function fetchLiveScoresForWeek(week) {
 
   const push = (g) => {
     if (!g) return;
-    const key =
-      g.awayEspnId && g.homeEspnId
-        ? `e:${g.awayEspnId}:${g.homeEspnId}`
-        : g.id
-          ? `c:${g.id}`
-          : `n:${normName(g.awayTeam)}@${normName(g.homeTeam)}`;
-    byKey.set(key, g);
+    const key = liveScoreKey(g);
+    byKey.set(key, preferLiveScore(byKey.get(key), g));
   };
 
-  try {
-    const data = await fetchJson(`${ESPN_SB}?groups=80&limit=300`);
-    (Array.isArray(data?.events) ? data.events : []).forEach((evt) => {
-      push(normalizeEspnEvent(evt));
-    });
-  } catch (err) {
-    console.warn("grade-picks espn:", err.message || err);
-  }
+  const dates = new Set();
+  (games || []).forEach((g) => {
+    const ymd = ymdEtFromIso(g.game_date || g.gameDate);
+    if (ymd) dates.add(ymd);
+  });
+  const dateList = [...dates].slice(0, 7);
+  const espnUrls = [
+    `${ESPN_SB}?groups=80&limit=300`,
+    ...dateList.map((date) => `${ESPN_SB}?dates=${encodeURIComponent(date)}&groups=80&limit=300`),
+  ];
+
+  await Promise.all(
+    espnUrls.map(async (url) => {
+      try {
+        const data = await fetchJson(url);
+        (Array.isArray(data?.events) ? data.events : []).forEach((evt) => {
+          push(normalizeEspnEvent(evt));
+        });
+      } catch (err) {
+        console.warn("grade-picks espn:", err.message || err, url);
+      }
+    })
+  );
 
   const key = readCfbdKey();
   if (key && Number.isFinite(season) && Number.isFinite(weekNum)) {
     const headers = { Authorization: `Bearer ${key}` };
-    try {
-      const games = await fetchJson(
-        `${CFBD_BASE}/games?year=${season}&week=${weekNum}&seasonType=regular`,
-        headers
-      );
-      (Array.isArray(games) ? games : []).forEach((g) => {
-        push({
-          id: g.id != null ? Number(g.id) : null,
-          awayTeam: g.awayTeam || g.away_team,
-          homeTeam: g.homeTeam || g.home_team,
-          awayEspnId: toInt(g.awayId ?? g.away_id),
-          homeEspnId: toInt(g.homeId ?? g.home_id),
-          awayPoints: toInt(g.awayPoints ?? g.away_points),
-          homePoints: toInt(g.homePoints ?? g.home_points),
-          completed: Boolean(g.completed),
-          statusRaw: g.completed ? "final" : g.status || "",
+    const weekCandidates = [
+      ...new Set(
+        [weekNum - 1, weekNum, weekNum + 1].filter((w) => Number.isFinite(w) && w >= 0)
+      ),
+    ];
+    for (const w of weekCandidates) {
+      try {
+        const cfbdGames = await fetchJson(
+          `${CFBD_BASE}/games?year=${season}&week=${w}&seasonType=regular`,
+          headers
+        );
+        (Array.isArray(cfbdGames) ? cfbdGames : []).forEach((g) => {
+          push({
+            id: g.id != null ? Number(g.id) : null,
+            awayTeam: g.awayTeam || g.away_team,
+            homeTeam: g.homeTeam || g.home_team,
+            awayEspnId: toInt(g.awayId ?? g.away_id),
+            homeEspnId: toInt(g.homeId ?? g.home_id),
+            awayPoints: toInt(g.awayPoints ?? g.away_points),
+            homePoints: toInt(g.homePoints ?? g.home_points),
+            completed: Boolean(g.completed),
+            statusRaw: g.completed ? "final" : g.status || "",
+          });
         });
-      });
-    } catch (err) {
-      console.warn("grade-picks cfbd:", err.message || err);
+      } catch (err) {
+        console.warn("grade-picks cfbd:", err.message || err);
+      }
     }
+
+    // Direct lookups for slate games still missing a live row.
+    const missing = (games || []).filter((g) => {
+      if (g.is_completed) return false;
+      const cfbdId = toInt(g.cfbd_game_id);
+      if (!cfbdId) return false;
+      return !findLiveForGame(g, Array.from(byKey.values()));
+    });
+    await Promise.all(
+      missing.slice(0, 12).map(async (g) => {
+        const cfbdId = toInt(g.cfbd_game_id);
+        try {
+          const rows = await fetchJson(
+            `${CFBD_BASE}/games?id=${encodeURIComponent(cfbdId)}`,
+            headers
+          );
+          const row = Array.isArray(rows) ? rows[0] : rows;
+          if (!row) return;
+          push({
+            id: row.id != null ? Number(row.id) : cfbdId,
+            awayTeam: row.awayTeam || row.away_team,
+            homeTeam: row.homeTeam || row.home_team,
+            awayEspnId: toInt(row.awayId ?? row.away_id),
+            homeEspnId: toInt(row.homeId ?? row.home_id),
+            awayPoints: toInt(row.awayPoints ?? row.away_points),
+            homePoints: toInt(row.homePoints ?? row.home_points),
+            completed: Boolean(row.completed),
+            statusRaw: row.completed ? "final" : row.status || "",
+          });
+        } catch (err) {
+          console.warn("grade-picks cfbd id:", cfbdId, err.message || err);
+        }
+      })
+    );
   }
 
   return Array.from(byKey.values());
@@ -372,7 +460,7 @@ async function syncWeekGrades(weekId, liveScores = null) {
       .eq("id", weekId)
       .maybeSingle();
     dbError(weekErr);
-    scores = await fetchLiveScoresForWeek(weekRow);
+    scores = await fetchLiveScoresForWeek(weekRow, games);
   }
 
   let picksUpdated = 0;

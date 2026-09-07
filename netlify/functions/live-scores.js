@@ -129,12 +129,45 @@ function normalizeEspnEvent(evt) {
   };
 }
 
+function liveScoreKey(g) {
+  if (g?.awayEspnId && g?.homeEspnId) return `e:${g.awayEspnId}:${g.homeEspnId}`;
+  if (g?.id) return `c:${g.id}`;
+  return `n:${normName(g?.awayTeam)}@${normName(g?.homeTeam)}`;
+}
+
+/** Prefer finals / in-progress scores over stale pregame stubs from the other source. */
+function preferLiveScore(a, b) {
+  if (!a) return b;
+  if (!b) return a;
+  const score = (g) => {
+    const period = Number(g.period);
+    const hasPoints = g.awayPoints != null || g.homePoints != null;
+    const inPlay =
+      g.completed ||
+      g.statusState === "in" ||
+      (Number.isFinite(period) && period > 0) ||
+      /final|in_progress|live|halftime/i.test(String(g.statusRaw || ""));
+    return (
+      (g.completed ? 16 : 0) +
+      (inPlay && hasPoints ? 8 : 0) +
+      (hasPoints ? 4 : 0) +
+      (Number.isFinite(period) && period > 0 ? 2 : 0) +
+      (g.source === "espn" ? 1 : 0)
+    );
+  };
+  return score(b) > score(a) ? b : a;
+}
+
 async function fetchEspnScores(dates) {
   const byKey = new Map();
-  // Current board + at most 2 date boards, in parallel (avoid slow serial loops).
+  // Current board + every unique slate date (weeks often span 3+ days).
+  const uniqueDates = [...new Set((dates || []).filter((d) => /^\d{8}$/.test(String(d))))].slice(
+    0,
+    7
+  );
   const urls = [
     `${ESPN_SB}?groups=80&limit=300`,
-    ...(dates || []).slice(0, 2).map(
+    ...uniqueDates.map(
       (date) =>
         `${ESPN_SB}?dates=${encodeURIComponent(date)}&groups=80&limit=300`
     ),
@@ -148,11 +181,8 @@ async function fetchEspnScores(dates) {
         events.forEach((evt) => {
           const g = normalizeEspnEvent(evt);
           if (!g) return;
-          const key =
-            g.awayEspnId && g.homeEspnId
-              ? `espn:${g.awayEspnId}:${g.homeEspnId}`
-              : `name:${String(g.awayTeam).toLowerCase()}@${String(g.homeTeam).toLowerCase()}`;
-          byKey.set(key, g);
+          const key = liveScoreKey(g);
+          byKey.set(key, preferLiveScore(byKey.get(key), g));
         });
       } catch (err) {
         console.warn("espn scoreboard", err.status || err.message, url);
@@ -254,37 +284,17 @@ exports.handler = async (event) => {
       }),
     ]);
 
-    // Prefer ESPN rows (true live scores); keep CFBD for id/name fallbacks
-    const merged = [];
-    const seen = new Set();
-
+    // Merge ESPN + CFBD; prefer completed / better score rows (do not let a
+    // stale ESPN stub block a CFBD final — that left late games ungraded).
+    const byKey = new Map();
     const push = (g) => {
       if (!g) return;
-      const key =
-        g.awayEspnId && g.homeEspnId
-          ? `e:${g.awayEspnId}:${g.homeEspnId}`
-          : g.id
-            ? `c:${g.id}`
-            : `n:${normName(g.awayTeam)}@${normName(g.homeTeam)}`;
-      if (seen.has(key)) return;
-      seen.add(key);
-      merged.push(g);
+      const key = liveScoreKey(g);
+      byKey.set(key, preferLiveScore(byKey.get(key), g));
     };
-
     espn.forEach(push);
-    cfbd.forEach((g) => {
-      const hasEspn = espn.some(
-        (e) =>
-          (e.awayEspnId &&
-            e.homeEspnId &&
-            e.awayEspnId === g.awayEspnId &&
-            e.homeEspnId === g.homeEspnId) ||
-          (normName(e.awayTeam) === normName(g.awayTeam) &&
-            normName(e.homeTeam) === normName(g.homeTeam) &&
-            (e.awayPoints != null || e.homePoints != null))
-      );
-      if (!hasEspn) push(g);
-    });
+    cfbd.forEach(push);
+    const merged = Array.from(byKey.values());
 
     scheduleGradeFromLiveGames(merged);
 

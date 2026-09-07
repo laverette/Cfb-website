@@ -1819,9 +1819,12 @@
           || savedPicks.find((p) => Number(p.gameId ?? p.game_id) === Number(game?.id))
         : null;
       if (saved) {
+        const isCorrectRaw = saved.isCorrect ?? saved.is_correct;
         return {
           name: String(saved.pickedTeamName ?? saved.picked_team_name ?? ''),
           espnId: Number(saved.pickedTeamEspnId ?? saved.picked_team_espn_id),
+          isCorrect:
+            isCorrectRaw === true || isCorrectRaw === false ? Boolean(isCorrectRaw) : null,
         };
       }
       const hidden = form && form.querySelector(`input.pick-value[name="game${gameNumber}"]`);
@@ -1840,45 +1843,52 @@
     }
 
     function pickResultForShare(game, pick, liveGame) {
-      if (!liveGame || !pick) return { state: 'pending', label: 'Your pick' };
-      const status = getGameStatus(liveGame);
-      if (status.kind === 'scheduled') return { state: 'pending', label: 'Your pick' };
+      if (liveGame && pick) {
+        const status = getGameStatus(liveGame);
+        if (status.kind !== 'scheduled') {
+          const awayScore = toScoreInt(liveGame.awayPoints);
+          const homeScore = toScoreInt(liveGame.homePoints);
+          const pickedEspn = Number(pick.espnId);
+          const awayEspn = Number(game?.awayTeamEspnId);
+          const homeEspn = Number(game?.homeTeamEspnId);
+          const pickedAway =
+            Number.isFinite(pickedEspn) && pickedEspn === awayEspn
+              ? true
+              : Number.isFinite(pickedEspn) && pickedEspn === homeEspn
+                ? false
+                : String(pick.name || '') === String(game?.awayTeamName || '');
+          const pickedHome = !pickedAway;
 
-      const awayScore = toScoreInt(liveGame.awayPoints);
-      const homeScore = toScoreInt(liveGame.homePoints);
-      const pickedEspn = Number(pick.espnId);
-      const awayEspn = Number(game?.awayTeamEspnId);
-      const homeEspn = Number(game?.homeTeamEspnId);
-      const pickedAway =
-        Number.isFinite(pickedEspn) && pickedEspn === awayEspn
-          ? true
-          : Number.isFinite(pickedEspn) && pickedEspn === homeEspn
-            ? false
-            : String(pick.name || '') === String(game?.awayTeamName || '');
-      const pickedHome = !pickedAway;
+          if (status.kind === 'live') {
+            if (awayScore == null || homeScore == null || awayScore === homeScore) {
+              return { state: 'live', label: 'LIVE' };
+            }
+            const leading =
+              (pickedAway && awayScore > homeScore) || (pickedHome && homeScore > awayScore);
+            return {
+              state: leading ? 'leading' : 'trailing',
+              label: leading ? 'Leading' : 'Trailing',
+            };
+          }
 
-      if (status.kind === 'live') {
-        if (awayScore == null || homeScore == null || awayScore === homeScore) {
-          return { state: 'live', label: 'LIVE' };
+          // final from live scores
+          if (awayScore == null || homeScore == null || awayScore === homeScore) {
+            return { state: 'final', label: 'Final' };
+          }
+          const won =
+            (pickedAway && awayScore > homeScore) || (pickedHome && homeScore > awayScore);
+          return {
+            state: won ? 'correct' : 'wrong',
+            label: won ? 'Correct' : 'Wrong',
+          };
         }
-        const leading =
-          (pickedAway && awayScore > homeScore) || (pickedHome && homeScore > awayScore);
-        return {
-          state: leading ? 'leading' : 'trailing',
-          label: leading ? 'Leading' : 'Trailing',
-        };
       }
 
-      // final
-      if (awayScore == null || homeScore == null || awayScore === homeScore) {
-        return { state: 'final', label: 'Final' };
-      }
-      const won =
-        (pickedAway && awayScore > homeScore) || (pickedHome && homeScore > awayScore);
-      return {
-        state: won ? 'correct' : 'wrong',
-        label: won ? 'Correct' : 'Wrong',
-      };
+      // Fallback when live boards drop finished games: use graded pick / DB flags.
+      if (pick?.isCorrect === true) return { state: 'correct', label: 'Correct' };
+      if (pick?.isCorrect === false) return { state: 'wrong', label: 'Wrong' };
+      if (game?.isCompleted || game?.is_completed) return { state: 'final', label: 'Final' };
+      return { state: 'pending', label: 'Your pick' };
     }
 
     function buildPicksShareCardHtml({
@@ -1916,11 +1926,19 @@
         const pickLogo = awayIsPick ? awayLogo : homeIsPick ? homeLogo : resolveTeamLogo('', pickedEspnId);
 
         const liveGame = findLiveGameForPick(scores, game);
-        const status = liveGame ? getGameStatus(liveGame) : { kind: 'scheduled', label: '' };
+        let status = liveGame ? getGameStatus(liveGame) : { kind: 'scheduled', label: '' };
         const awayScore = liveGame ? toScoreInt(liveGame.awayPoints) : null;
         const homeScore = liveGame ? toScoreInt(liveGame.homePoints) : null;
-        const showScores = status.kind === 'live' || status.kind === 'final';
         const result = pickResultForShare(game, pick, liveGame);
+        // Graded picks still count as final when live boards no longer list the game.
+        if (
+          (result.state === 'correct' || result.state === 'wrong') &&
+          status.kind !== 'live' &&
+          status.kind !== 'final'
+        ) {
+          status = { kind: 'final', label: 'FINAL' };
+        }
+        const showScores = status.kind === 'live' || (status.kind === 'final' && liveGame);
 
         if (result.state === 'correct') correctCount += 1;
         if (result.state === 'wrong') wrongCount += 1;
@@ -3097,17 +3115,14 @@
       const tryUrls = [
         'https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?groups=80&limit=300',
       ];
-      // First paint: one request. Enrichment can add today's date board.
       if (!currentOnly) {
-        if (todayEt) {
+        const dateList = [...new Set((dates || []).filter(Boolean))].slice(0, 7);
+        if (!dateList.includes(todayEt) && todayEt) dateList.push(todayEt);
+        dateList.forEach((d) => {
           tryUrls.push(
-            `https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=${todayEt}&groups=80&limit=300`
+            `https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=${encodeURIComponent(d)}&groups=80&limit=300`
           );
-        } else if (dates && dates[0]) {
-          tryUrls.push(
-            `https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=${encodeURIComponent(dates[0])}&groups=80&limit=300`
-          );
-        }
+        });
       }
 
       await Promise.all(
@@ -3179,7 +3194,7 @@
     async function fetchLiveScoresApi(dates) {
       try {
         const url = new URL('/api/live-scores', window.location.origin);
-        if (dates.length) url.searchParams.set('dates', dates.slice(0, 2).join(','));
+        if (dates.length) url.searchParams.set('dates', dates.slice(0, 7).join(','));
         const weekNumber = activeWeekMeta?.weekNumber ?? activeWeekMeta?.week_number;
         const seasonYear = activeWeekMeta?.seasonYear ?? activeWeekMeta?.season_year;
         if (seasonYear) url.searchParams.set('season', String(seasonYear));
