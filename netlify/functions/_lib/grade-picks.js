@@ -40,9 +40,18 @@ function normName(s) {
 
 function resolveWinner(game, homePoints, awayPoints) {
   if (homePoints == null || awayPoints == null) return null;
-  if (homePoints === awayPoints) return null;
+  if (homePoints === awayPoints) {
+    return {
+      isTie: true,
+      winningEspnId: null,
+      winningName: null,
+      homePoints,
+      awayPoints,
+    };
+  }
   if (homePoints > awayPoints) {
     return {
+      isTie: false,
       winningEspnId: Number(game.home_team_espn_id),
       winningName: game.home_team_name,
       homePoints,
@@ -50,6 +59,7 @@ function resolveWinner(game, homePoints, awayPoints) {
     };
   }
   return {
+    isTie: false,
     winningEspnId: Number(game.away_team_espn_id),
     winningName: game.away_team_name,
     homePoints,
@@ -301,11 +311,12 @@ async function loadGameResult(gameId) {
 }
 
 async function applyGameFinal(game, homePoints, awayPoints) {
-  const winner = resolveWinner(game, homePoints, awayPoints);
-  if (!winner || !Number.isFinite(winner.winningEspnId)) return { graded: 0 };
+  const outcome = resolveWinner(game, homePoints, awayPoints);
+  if (!outcome) return { graded: 0 };
 
   const supabase = getSupabase();
   const now = new Date().toISOString();
+  const isTie = Boolean(outcome.isTie);
 
   if (!game.is_completed) {
     const { error: gameErr } = await supabase
@@ -318,10 +329,10 @@ async function applyGameFinal(game, homePoints, awayPoints) {
   const { error: resultErr } = await supabase.from("game_results").upsert(
     {
       game_id: game.id,
-      home_team_score: winner.homePoints,
-      away_team_score: winner.awayPoints,
-      winning_team_espn_id: winner.winningEspnId,
-      winning_team_name: winner.winningName,
+      home_team_score: outcome.homePoints,
+      away_team_score: outcome.awayPoints,
+      winning_team_espn_id: isTie ? null : outcome.winningEspnId,
+      winning_team_name: isTie ? null : outcome.winningName,
       game_finalized_at: now,
     },
     { onConflict: "game_id" }
@@ -331,18 +342,21 @@ async function applyGameFinal(game, homePoints, awayPoints) {
   const picks = await selectAllPages(() =>
     supabase
       .from("user_picks")
-      .select("id, user_id, picked_team_espn_id, is_correct")
+      .select("id, user_id, picked_team_espn_id, is_correct, is_tie")
       .eq("game_id", game.id)
   );
 
   let graded = 0;
   const affectedUsers = new Set();
   for (const pick of picks) {
-    const isCorrect = Number(pick.picked_team_espn_id) === winner.winningEspnId;
-    if (pick.is_correct === isCorrect) continue;
+    const isCorrect = isTie
+      ? null
+      : Number(pick.picked_team_espn_id) === Number(outcome.winningEspnId);
+    const pickIsTie = isTie;
+    if (pick.is_correct === isCorrect && Boolean(pick.is_tie) === pickIsTie) continue;
     const { error } = await supabase
       .from("user_picks")
-      .update({ is_correct: isCorrect })
+      .update({ is_correct: isCorrect, is_tie: pickIsTie })
       .eq("id", pick.id);
     dbError(error);
     graded += 1;
@@ -357,7 +371,7 @@ async function rebuildWeeklyUserStats(weekId) {
   const picks = await selectAllPages(() =>
     supabase
       .from("user_picks")
-      .select("user_id, is_correct")
+      .select("user_id, is_correct, is_tie")
       .eq("week_id", weekId)
   );
 
@@ -365,19 +379,20 @@ async function rebuildWeeklyUserStats(weekId) {
   for (const pick of picks) {
     const uid = Number(pick.user_id);
     if (!byUser.has(uid)) {
-      byUser.set(uid, { total: 0, correct: 0, incorrect: 0, pending: 0 });
+      byUser.set(uid, { total: 0, correct: 0, incorrect: 0, tied: 0, pending: 0 });
     }
     const bucket = byUser.get(uid);
     bucket.total += 1;
-    if (pick.is_correct === true) bucket.correct += 1;
+    if (pick.is_tie) bucket.tied += 1;
+    else if (pick.is_correct === true) bucket.correct += 1;
     else if (pick.is_correct === false) bucket.incorrect += 1;
     else bucket.pending += 1;
   }
 
   const now = new Date().toISOString();
   for (const [userId, stats] of byUser.entries()) {
-    const graded = stats.correct + stats.incorrect;
-    const accuracy = graded > 0 ? Math.round((stats.correct / graded) * 10000) / 100 : 0;
+    const decided = stats.correct + stats.incorrect;
+    const accuracy = decided > 0 ? Math.round((stats.correct / decided) * 10000) / 100 : 0;
     const { error } = await supabase.from("weekly_user_stats").upsert(
       {
         user_id: userId,
@@ -385,6 +400,7 @@ async function rebuildWeeklyUserStats(weekId) {
         total_picks: stats.total,
         correct_picks: stats.correct,
         incorrect_picks: stats.incorrect,
+        tied_picks: stats.tied,
         accuracy,
         updated_at: now,
       },
@@ -400,7 +416,7 @@ async function rebuildUserProfiles(userIds) {
   const picks = await selectAllPages(() =>
     supabase
       .from("user_picks")
-      .select("user_id, is_correct, submitted_at")
+      .select("user_id, is_correct, is_tie, submitted_at")
       .in("user_id", userIds)
   );
 
@@ -412,9 +428,14 @@ async function rebuildUserProfiles(userIds) {
     const uid = Number(pick.user_id);
     const bucket = byUser.get(uid);
     if (!bucket) continue;
-    addPickToBucket(bucket, pick.is_correct, {
-      submittedAt: pick.submitted_at ? new Date(pick.submitted_at).getTime() : 0,
-    });
+    addPickToBucket(
+      bucket,
+      pick.is_correct,
+      {
+        submittedAt: pick.submitted_at ? new Date(pick.submitted_at).getTime() : 0,
+      },
+      Boolean(pick.is_tie)
+    );
   }
 
   const now = new Date().toISOString();

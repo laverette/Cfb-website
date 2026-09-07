@@ -44,7 +44,7 @@
     }
 
     function record(bucket) {
-      return `${bucket?.correctPicks || 0}-${bucket?.incorrectPicks || 0}`;
+      return `${bucket?.correctPicks || 0}-${bucket?.incorrectPicks || 0}-${bucket?.tiedPicks || 0}`;
     }
 
     function pct(bucket) {
@@ -52,12 +52,14 @@
     }
 
     function pickResultClass(pick) {
+      if (pick.isTie) return 'is-tie';
       if (pick.isCorrect === true) return 'is-correct';
       if (pick.isCorrect === false) return 'is-wrong';
       return 'is-pending';
     }
 
     function pickResultLabel(pick) {
+      if (pick.isTie) return 'Tie';
       if (pick.isCorrect === true) return 'Correct';
       if (pick.isCorrect === false) return 'Wrong';
       return 'Pending';

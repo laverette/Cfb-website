@@ -536,7 +536,7 @@ async function getUserPicksForWeek(userId, weekId) {
   const { data, error } = await supabase
     .from("user_picks")
     .select(
-      "id, game_id, week_id, picked_team_espn_id, picked_team_name, is_correct, submitted_at, games ( game_number, home_team_name, away_team_name, home_team_espn_id, away_team_espn_id )"
+      "id, game_id, week_id, picked_team_espn_id, picked_team_name, is_correct, is_tie, submitted_at, games ( game_number, home_team_name, away_team_name, home_team_espn_id, away_team_espn_id )"
     )
     .eq("user_id", userId)
     .eq("week_id", weekId);
@@ -552,6 +552,7 @@ async function getUserPicksForWeek(userId, weekId) {
         pickedTeamEspnId: row.picked_team_espn_id,
         pickedTeamName: row.picked_team_name,
         isCorrect: row.is_correct,
+        isTie: Boolean(row.is_tie),
         submittedAt: row.submitted_at,
         homeTeamName: g.home_team_name,
         awayTeamName: g.away_team_name,
@@ -701,6 +702,7 @@ function emptyPickBucket() {
     gradedPicks: 0,
     correctPicks: 0,
     incorrectPicks: 0,
+    tiedPicks: 0,
     pendingPicks: 0,
     accuracy: 0,
     currentStreak: 0,
@@ -712,9 +714,14 @@ function emptyPickBucket() {
 }
 
 function finalizeBucket(bucket) {
-  const graded = Number(bucket.gradedPicks) || 0;
+  const decided = (Number(bucket.correctPicks) || 0) + (Number(bucket.incorrectPicks) || 0);
   const correct = Number(bucket.correctPicks) || 0;
-  bucket.accuracy = graded > 0 ? Math.round((correct / graded) * 10000) / 100 : 0;
+  // Ties are pushes — accuracy is wins / (wins + losses).
+  bucket.accuracy = decided > 0 ? Math.round((correct / decided) * 10000) / 100 : 0;
+  bucket.gradedPicks =
+    (Number(bucket.correctPicks) || 0) +
+    (Number(bucket.incorrectPicks) || 0) +
+    (Number(bucket.tiedPicks) || 0);
 
   const chrono = Array.isArray(bucket._gradedChrono) ? bucket._gradedChrono : [];
   chrono.sort((a, b) => {
@@ -728,6 +735,7 @@ function finalizeBucket(bucket) {
   let worst = 0;
   let run = 0;
   for (const pick of chrono) {
+    if (pick.outcome === "tie") continue; // ties neither extend nor break streaks
     if (pick.correct) {
       run = run > 0 ? run + 1 : 1;
       if (run > best) best = run;
@@ -738,11 +746,12 @@ function finalizeBucket(bucket) {
   }
 
   let current = 0;
-  if (chrono.length) {
-    const last = chrono[chrono.length - 1].correct;
+  const streakChrono = chrono.filter((p) => p.outcome !== "tie");
+  if (streakChrono.length) {
+    const last = streakChrono[streakChrono.length - 1].correct;
     current = last ? 1 : -1;
-    for (let i = chrono.length - 2; i >= 0; i -= 1) {
-      if (chrono[i].correct !== last) break;
+    for (let i = streakChrono.length - 2; i >= 0; i -= 1) {
+      if (streakChrono[i].correct !== last) break;
       current += last ? 1 : -1;
     }
   }
@@ -750,24 +759,32 @@ function finalizeBucket(bucket) {
   bucket.currentStreak = current;
   bucket.bestStreak = best;
   bucket.worstStreak = Math.abs(worst);
-  bucket.recentForm = chrono.slice(-5).map((p) => (p.correct ? "W" : "L"));
+  bucket.recentForm = chrono.slice(-5).map((p) => {
+    if (p.outcome === "tie") return "T";
+    return p.correct ? "W" : "L";
+  });
   delete bucket._gradedChrono;
   return bucket;
 }
 
-function addPickToBucket(bucket, isCorrect, meta = null) {
+function addPickToBucket(bucket, isCorrect, meta = null, isTie = false) {
   bucket.totalPicks += 1;
+  if (isTie) {
+    bucket.tiedPicks += 1;
+    if (meta) {
+      bucket._gradedChrono.push({ ...meta, correct: null, outcome: "tie" });
+    }
+    return;
+  }
   if (isCorrect === true) {
-    bucket.gradedPicks += 1;
     bucket.correctPicks += 1;
     if (meta) {
-      bucket._gradedChrono.push({ ...meta, correct: true });
+      bucket._gradedChrono.push({ ...meta, correct: true, outcome: "win" });
     }
   } else if (isCorrect === false) {
-    bucket.gradedPicks += 1;
     bucket.incorrectPicks += 1;
     if (meta) {
-      bucket._gradedChrono.push({ ...meta, correct: false });
+      bucket._gradedChrono.push({ ...meta, correct: false, outcome: "loss" });
     }
   } else {
     bucket.pendingPicks += 1;
@@ -880,7 +897,7 @@ async function getLeaderboard({ scope = "all", year = null, weekId = null } = {}
     supabase
       .from("user_picks")
       .select(
-        "user_id, is_correct, week_id, submitted_at, weeks ( season_year, week_number ), games ( game_number )"
+        "user_id, is_correct, is_tie, week_id, submitted_at, weeks ( season_year, week_number ), games ( game_number )"
       )
   );
 
@@ -907,7 +924,7 @@ async function getLeaderboard({ scope = "all", year = null, weekId = null } = {}
       weekNumber: pick.weeks?.week_number != null ? Number(pick.weeks.week_number) : 0,
       gameNumber: pick.games?.game_number != null ? Number(pick.games.game_number) : 0,
       submittedAt: pick.submitted_at ? new Date(pick.submitted_at).getTime() : 0,
-    });
+    }, Boolean(pick.is_tie));
   }
 
   const entries = rankRows(
@@ -952,7 +969,7 @@ async function getLeaderboard({ scope = "all", year = null, weekId = null } = {}
     entries,
     highlights: { hottest, coldest },
     viewerHint:
-      "Ranked by correct picks, then accuracy. 🔥 Hot and ❄️ cold streaks are consecutive graded picks.",
+      "Ranked by correct picks, then accuracy. Ties are pushes (W-L-T). 🔥 Hot and ❄️ cold streaks skip ties.",
   };
 }
 
@@ -992,7 +1009,7 @@ async function getPublicUserProfile({ userId = null, username = null } = {}) {
     supabase
       .from("user_picks")
       .select(
-        "id, game_id, week_id, picked_team_espn_id, picked_team_name, is_correct, submitted_at, weeks ( id, week_number, season_year ), games ( game_number, home_team_name, away_team_name, home_team_espn_id, away_team_espn_id, is_completed )"
+        "id, game_id, week_id, picked_team_espn_id, picked_team_name, is_correct, is_tie, submitted_at, weeks ( id, week_number, season_year ), games ( game_number, home_team_name, away_team_name, home_team_espn_id, away_team_espn_id, is_completed )"
       )
       .eq("user_id", user.id)
       .order("submitted_at", { ascending: false })
@@ -1013,11 +1030,11 @@ async function getPublicUserProfile({ userId = null, username = null } = {}) {
       submittedAt: pick.submitted_at ? new Date(pick.submitted_at).getTime() : 0,
     };
 
-    addPickToBucket(allTime, pick.is_correct, pickMeta);
+    addPickToBucket(allTime, pick.is_correct, pickMeta, Boolean(pick.is_tie));
 
     if (seasonYear != null) {
       if (!bySeason.has(seasonYear)) bySeason.set(seasonYear, emptyPickBucket());
-      addPickToBucket(bySeason.get(seasonYear), pick.is_correct, pickMeta);
+      addPickToBucket(bySeason.get(seasonYear), pick.is_correct, pickMeta, Boolean(pick.is_tie));
     }
 
     if (weekId != null) {
@@ -1032,7 +1049,7 @@ async function getPublicUserProfile({ userId = null, username = null } = {}) {
         });
       }
       const weekBucket = byWeek.get(weekId);
-      addPickToBucket(weekBucket, pick.is_correct, pickMeta);
+      addPickToBucket(weekBucket, pick.is_correct, pickMeta, Boolean(pick.is_tie));
       if (
         pick.submitted_at &&
         (!weekBucket.submittedAt ||
@@ -1047,6 +1064,7 @@ async function getPublicUserProfile({ userId = null, username = null } = {}) {
         homeTeamName: pick.games?.home_team_name ?? null,
         awayTeamName: pick.games?.away_team_name ?? null,
         isCorrect: pick.is_correct,
+        isTie: Boolean(pick.is_tie),
         isCompleted: Boolean(pick.games?.is_completed),
       });
     }

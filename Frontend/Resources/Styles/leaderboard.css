@@ -933,6 +933,14 @@
   opacity: 0.8;
 }
 
+.lb-pick-chip.is-tie {
+  border-color: rgba(212, 184, 150, 0.5);
+}
+
+.lb-pick-chip.is-tie .lb-pick-result {
+  color: #d4b896;
+}
+
 @media (max-width: 900px) {
   .lb-table th:nth-child(7),
   .lb-table td:nth-child(7),

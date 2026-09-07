@@ -129,7 +129,8 @@
     function recordLabel(entry) {
       const w = entry.correctPicks || 0;
       const l = entry.incorrectPicks || 0;
-      return `${w}-${l}`;
+      const t = entry.tiedPicks || 0;
+      return `${w}-${l}-${t}`;
     }
 
     function currentUser() {
@@ -377,12 +378,12 @@
       document.getElementById('myStatsGrid').innerHTML = `
         <div class="lb-stat">
           <span class="lb-stat-label">All-time</span>
-          <strong>${a.correctPicks || 0}-${a.incorrectPicks || 0}</strong>
+          <strong>${a.correctPicks || 0}-${a.incorrectPicks || 0}-${a.tiedPicks || 0}</strong>
           <span>${Number(a.accuracy || 0).toFixed(1)}%</span>
         </div>
         <div class="lb-stat">
           <span class="lb-stat-label">This season</span>
-          <strong>${s.correctPicks || 0}-${s.incorrectPicks || 0}</strong>
+          <strong>${s.correctPicks || 0}-${s.incorrectPicks || 0}-${s.tiedPicks || 0}</strong>
           <span>${Number(s.accuracy || 0).toFixed(1)}%</span>
         </div>
         <div class="lb-stat lb-stat-streak">
