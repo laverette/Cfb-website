@@ -4483,6 +4483,24 @@ select {
   min-width: 0;
 }
 
+a.results-stand-avatar-link {
+  display: inline-flex;
+  flex-shrink: 0;
+  border-radius: 50%;
+  line-height: 0;
+  text-decoration: none;
+  color: inherit;
+}
+
+a.results-stand-avatar-link:hover .results-stand-avatar,
+a.results-stand-avatar-link:focus-visible .results-stand-avatar {
+  box-shadow: 0 0 0 2px #ffd700;
+}
+
+a.results-stand-avatar-link:focus-visible {
+  outline: none;
+}
+
 .results-stand-player-copy {
   display: flex;
   flex-direction: column;

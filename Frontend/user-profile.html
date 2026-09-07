@@ -120,9 +120,11 @@
         root.innerHTML = `
           <header class="section-card lb-profile-hero">
             <div class="lb-profile-hero-top">
-              ${window.AuthUI && AuthUI.avatarImgHtml
-                ? AuthUI.avatarImgHtml(user, "lb-profile-avatar user-avatar", 72)
-                : ""}
+              <button type="button" class="profile-avatar-zoom-btn" id="profileAvatarZoomBtn" aria-label="Enlarge profile picture">
+                ${window.AuthUI && AuthUI.avatarImgHtml
+                  ? AuthUI.avatarImgHtml(user, "lb-profile-avatar user-avatar", 72)
+                  : ""}
+              </button>
               <div>
                 <p class="lb-eyebrow">Player profile</p>
                 <h1 class="page-title" style="margin-bottom:0.2rem;">${escapeHtml(user.displayName || user.username)}</h1>
@@ -333,6 +335,7 @@
           wireAccountSettings(user);
           wireReminderSettings();
         }
+        wireProfileAvatarLightbox(user);
       } catch (err) {
         root.innerHTML = `
           <div class="section-card" style="text-align:center;">
@@ -449,10 +452,17 @@
     }
 
     function applyAvatarToHero(userPayload) {
+      const btn = document.getElementById('profileAvatarZoomBtn');
       const hero = document.querySelector('.lb-profile-hero-top');
-      if (!hero || !userPayload || !window.AuthUI) return;
-      const slot = hero.querySelector('.lb-profile-avatar, .user-avatar, .user-avatar--initial');
+      if (!userPayload || !window.AuthUI) return;
       const html = AuthUI.avatarImgHtml(userPayload, 'lb-profile-avatar user-avatar', 72);
+      if (btn) {
+        btn.innerHTML = html;
+        btn.dataset.avatarSrc = (AuthUI.avatarSrcForUser && AuthUI.avatarSrcForUser(userPayload)) || '';
+        return;
+      }
+      if (!hero) return;
+      const slot = hero.querySelector('.lb-profile-avatar, .user-avatar, .user-avatar--initial');
       if (slot) {
         slot.outerHTML = html;
       } else {
@@ -460,6 +470,73 @@
         wrap.innerHTML = html;
         if (wrap.firstChild) hero.insertBefore(wrap.firstChild, hero.firstChild);
       }
+    }
+
+    function ensureAvatarLightbox() {
+      let overlay = document.getElementById('profileAvatarLightbox');
+      if (overlay) return overlay;
+      overlay = document.createElement('div');
+      overlay.id = 'profileAvatarLightbox';
+      overlay.className = 'profile-avatar-lightbox';
+      overlay.hidden = true;
+      overlay.setAttribute('role', 'dialog');
+      overlay.setAttribute('aria-modal', 'true');
+      overlay.setAttribute('aria-label', 'Enlarged profile picture');
+      overlay.innerHTML = `
+        <button type="button" class="profile-avatar-lightbox-backdrop" aria-label="Close"></button>
+        <div class="profile-avatar-lightbox-panel">
+          <img class="profile-avatar-lightbox-img" alt="" decoding="async">
+          <div class="profile-avatar-lightbox-initial" hidden aria-hidden="true"></div>
+          <button type="button" class="profile-avatar-lightbox-close" aria-label="Close">×</button>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+
+      const close = () => {
+        overlay.hidden = true;
+        document.body.classList.remove('avatar-lightbox-open');
+      };
+      overlay.querySelector('.profile-avatar-lightbox-backdrop').addEventListener('click', close);
+      overlay.querySelector('.profile-avatar-lightbox-close').addEventListener('click', close);
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !overlay.hidden) close();
+      });
+      return overlay;
+    }
+
+    function openProfileAvatarLightbox() {
+      const btn = document.getElementById('profileAvatarZoomBtn');
+      const overlay = ensureAvatarLightbox();
+      const img = overlay.querySelector('.profile-avatar-lightbox-img');
+      const initialEl = overlay.querySelector('.profile-avatar-lightbox-initial');
+      const src = (btn && btn.dataset.avatarSrc) || '';
+      if (src) {
+        img.hidden = false;
+        img.src = src;
+        initialEl.hidden = true;
+        initialEl.textContent = '';
+      } else {
+        const initial = (btn && btn.dataset.avatarInitial) || '?';
+        img.hidden = true;
+        img.removeAttribute('src');
+        initialEl.hidden = false;
+        initialEl.textContent = initial;
+      }
+      overlay.hidden = false;
+      document.body.classList.add('avatar-lightbox-open');
+    }
+
+    function wireProfileAvatarLightbox(user) {
+      const btn = document.getElementById('profileAvatarZoomBtn');
+      if (!btn) return;
+      const src =
+        (window.AuthUI && AuthUI.avatarSrcForUser && AuthUI.avatarSrcForUser(user)) || '';
+      const name = String(user?.displayName || user?.username || '?');
+      btn.dataset.avatarSrc = src;
+      btn.dataset.avatarInitial = name.trim().charAt(0).toUpperCase() || '?';
+      if (btn.dataset.lightboxWired === '1') return;
+      btn.dataset.lightboxWired = '1';
+      btn.addEventListener('click', openProfileAvatarLightbox);
     }
 
     function readFileAsDataUrl(file) {

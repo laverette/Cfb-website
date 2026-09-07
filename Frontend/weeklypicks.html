@@ -2444,11 +2444,15 @@
         const nameHtml = profileUrl
           ? `<a class="results-stand-name" href="${safeText(profileUrl)}" title="${name}">${name}</a>`
           : `<span class="results-stand-name" title="${name}">${name}</span>`;
+        const avatarInner = playerAvatarHtml(e, 32);
+        const avatarHtml = profileUrl
+          ? `<a class="results-stand-avatar-link" href="${safeText(profileUrl)}" title="${name} profile" aria-label="${name} profile">${avatarInner}</a>`
+          : avatarInner;
         return `
           <li class="results-stand-row">
             <span class="results-stand-rank ${rankClass}" aria-hidden="true">${rank}</span>
             <div class="results-stand-player">
-              ${playerAvatarHtml(e, 32)}
+              ${avatarHtml}
               <div class="results-stand-player-copy">
                 ${nameHtml}
                 <span class="results-stand-record">${record}</span>
