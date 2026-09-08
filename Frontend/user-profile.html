@@ -65,6 +65,118 @@
       return 'Pending';
     }
 
+    /** Favorite = side implied by betting_line (neg = home favorite). */
+    function favoriteEspnIdFromPick(p) {
+      const line = Number(p?.bettingLine);
+      if (!Number.isFinite(line) || line === 0) return null;
+      const home = Number(p?.homeTeamEspnId);
+      const away = Number(p?.awayTeamEspnId);
+      if (!Number.isFinite(home) || !Number.isFinite(away)) return null;
+      return line < 0 ? home : away;
+    }
+
+    function buildSeasonStory(displayName, stats, weeks) {
+      const name = String(displayName || 'This picker').trim() || 'This picker';
+      const season = stats?.thisSeason || {};
+      const allTime = stats?.allTime || {};
+      const seasonYear = season.seasonYear || new Date().getFullYear();
+      const graded = Number(season.correctPicks || 0) + Number(season.incorrectPicks || 0) + Number(season.tiedPicks || 0);
+      const pending = Number(season.pendingPicks || 0);
+      const paragraphs = [];
+
+      if (graded === 0 && pending === 0) {
+        return [
+          `${escapeHtml(name)} is still waiting for the first pick of ${seasonYear}. The story starts when the slate locks.`,
+        ];
+      }
+
+      const w = Number(season.correctPicks || 0);
+      const l = Number(season.incorrectPicks || 0);
+      const t = Number(season.tiedPicks || 0);
+      const acc = Number(season.accuracy || 0);
+      let opener = `${escapeHtml(name)} is ${w}-${l}${t ? `-${t}` : ''} in ${seasonYear}`;
+      if (graded > 0) {
+        if (acc >= 70) opener += ` — cooking at ${acc.toFixed(1)}% accuracy.`;
+        else if (acc >= 55) opener += `, sitting pretty at ${acc.toFixed(1)}%.`;
+        else if (acc >= 45) opener += `, grinding through a ${acc.toFixed(1)}% season.`;
+        else opener += ` — the board has been rough (${acc.toFixed(1)}%).`;
+      } else {
+        opener += ' with graded results still loading in.';
+      }
+      paragraphs.push(opener);
+
+      const seasonWeeks = (Array.isArray(weeks) ? weeks : []).filter(
+        (wk) => Number(wk.seasonYear) === Number(seasonYear)
+      );
+      const scoredWeeks = seasonWeeks.filter(
+        (wk) => Number(wk.correctPicks || 0) + Number(wk.incorrectPicks || 0) + Number(wk.tiedPicks || 0) > 0
+      );
+      if (scoredWeeks.length) {
+        const scoreOf = (wk) =>
+          Number(wk.correctPicks || 0) - Number(wk.incorrectPicks || 0) + Number(wk.accuracy || 0) / 1000;
+        const best = [...scoredWeeks].sort((a, b) => scoreOf(b) - scoreOf(a))[0];
+        const worst = [...scoredWeeks].sort((a, b) => scoreOf(a) - scoreOf(b))[0];
+        paragraphs.push(
+          `Best chapter: Week ${escapeHtml(best.weekNumber)} (${record(best)}, ${pct(best)}). ` +
+            (best.weekId !== worst.weekId
+              ? `Rough patch: Week ${escapeHtml(worst.weekNumber)} went ${record(worst)}.`
+              : 'Only one graded week so far — plot twist pending.')
+        );
+      }
+
+      const streak = Number(allTime.currentStreak || 0);
+      const bestStreak = Number(allTime.bestStreak || 0);
+      if (streak >= 3) {
+        paragraphs.push(`On a ${streak}-pick heater right now (best ever: ${bestStreak}). Do not fade the hot hand.`);
+      } else if (streak <= -3) {
+        paragraphs.push(`Ice cold at ${Math.abs(streak)} wrong in a row — the thaw has to start somewhere (career best streak: ${bestStreak}).`);
+      } else if (bestStreak >= 5) {
+        paragraphs.push(`Career heater peaked at ${bestStreak} correct in a row. The legend lives.`);
+      }
+
+      const teamCounts = new Map();
+      let chalk = 0;
+      let dog = 0;
+      for (const wk of seasonWeeks) {
+        for (const p of wk.picks || []) {
+          const team = String(p.pickedTeamName || '').trim();
+          if (team) teamCounts.set(team, (teamCounts.get(team) || 0) + 1);
+          const fav = favoriteEspnIdFromPick(p);
+          const picked = Number(p.pickedTeamEspnId);
+          if (fav != null && Number.isFinite(picked)) {
+            if (picked === fav) chalk += 1;
+            else dog += 1;
+          }
+        }
+      }
+      const topTeams = [...teamCounts.entries()]
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+        .slice(0, 3);
+      if (topTeams.length) {
+        const list = topTeams
+          .map(([t, n]) => `${escapeHtml(t)} (${n})`)
+          .join(', ');
+        paragraphs.push(`Most trusted jerseys this season: ${list}.`);
+      }
+      const linePicks = chalk + dog;
+      if (linePicks >= 5) {
+        const chalkPct = Math.round((chalk / linePicks) * 100);
+        if (chalkPct >= 65) {
+          paragraphs.push(`Lean check: ${chalkPct}% chalk — respect the favorites.`);
+        } else if (chalkPct <= 40) {
+          paragraphs.push(`Lean check: fading the lines hard (${100 - chalkPct}% underdogs). Upset energy.`);
+        } else {
+          paragraphs.push(`Lean check: balanced board (${chalkPct}% favorites / ${100 - chalkPct}% dogs).`);
+        }
+      }
+
+      if (pending > 0) {
+        paragraphs.push(`${pending} pick${pending === 1 ? '' : 's'} still pending — the season story is not done writing itself.`);
+      }
+
+      return paragraphs;
+    }
+
     async function loadProfile() {
       const root = document.getElementById('profileRoot');
       const params = new URLSearchParams(window.location.search);
@@ -233,6 +345,15 @@
                 </ul>
               </div>
             ` : ''}
+          </section>
+
+          <section class="section-card season-story">
+            <h2 class="gold-heading" style="text-align:center;">Season story</h2>
+            <div class="season-story-body">
+              ${buildSeasonStory(user.displayName || user.username, stats, weeks)
+                .map((p) => `<p class="season-story-p">${p}</p>`)
+                .join('')}
+            </div>
           </section>
 
           ${slates.map((slate) => {

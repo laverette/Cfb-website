@@ -847,8 +847,14 @@ async function resolveLeaderboardSeasonYear(requestedYear) {
  * scope: 'all' | 'season' | 'year' | 'week'
  * year: used for season/year scopes
  * weekId: used for week scope
+ * userIds: optional whitelist (private leagues)
  */
-async function getLeaderboard({ scope = "all", year = null, weekId = null } = {}) {
+async function getLeaderboard({
+  scope = "all",
+  year = null,
+  weekId = null,
+  userIds = null,
+} = {}) {
   const supabase = getSupabase();
   const users = await listPublicUsers();
   const seasons = await listSeasonYears();
@@ -857,6 +863,11 @@ async function getLeaderboard({ scope = "all", year = null, weekId = null } = {}
     currentWeek && currentWeek.season_year != null
       ? Number(currentWeek.season_year)
       : seasons[0] ?? new Date().getFullYear();
+
+  const memberFilter =
+    Array.isArray(userIds) && userIds.length
+      ? new Set(userIds.map((id) => Number(id)).filter((n) => Number.isFinite(n) && n > 0))
+      : null;
 
   let filterYear = null;
   let filterWeekId = null;
@@ -903,8 +914,10 @@ async function getLeaderboard({ scope = "all", year = null, weekId = null } = {}
 
   const byUser = new Map();
   for (const u of users) {
-    byUser.set(Number(u.id), {
-      userId: Number(u.id),
+    const uid = Number(u.id);
+    if (memberFilter && !memberFilter.has(uid)) continue;
+    byUser.set(uid, {
+      userId: uid,
       username: u.username,
       displayName: u.displayName,
       avatarUrl: u.avatarUrl,
@@ -919,17 +932,22 @@ async function getLeaderboard({ scope = "all", year = null, weekId = null } = {}
     const pickWeekId = pick.week_id != null ? Number(pick.week_id) : null;
     if (filterYear != null && seasonYear !== filterYear) continue;
     if (filterWeekId != null && pickWeekId !== filterWeekId) continue;
-    addPickToBucket(byUser.get(uid), pick.is_correct, {
-      seasonYear,
-      weekNumber: pick.weeks?.week_number != null ? Number(pick.weeks.week_number) : 0,
-      gameNumber: pick.games?.game_number != null ? Number(pick.games.game_number) : 0,
-      submittedAt: pick.submitted_at ? new Date(pick.submitted_at).getTime() : 0,
-    }, Boolean(pick.is_tie));
+    addPickToBucket(
+      byUser.get(uid),
+      pick.is_correct,
+      {
+        seasonYear,
+        weekNumber: pick.weeks?.week_number != null ? Number(pick.weeks.week_number) : 0,
+        gameNumber: pick.games?.game_number != null ? Number(pick.games.game_number) : 0,
+        submittedAt: pick.submitted_at ? new Date(pick.submitted_at).getTime() : 0,
+      },
+      Boolean(pick.is_tie)
+    );
   }
 
   const entries = rankRows(
     [...byUser.values()].map((row) => finalizeBucket(row))
-  );
+  ).filter((e) => !memberFilter || e.totalPicks > 0);
 
   const withStreaks = entries.filter((e) => e.gradedPicks > 0);
   const hottest = [...withStreaks]
@@ -1009,7 +1027,7 @@ async function getPublicUserProfile({ userId = null, username = null } = {}) {
     supabase
       .from("user_picks")
       .select(
-        "id, game_id, week_id, picked_team_espn_id, picked_team_name, is_correct, is_tie, submitted_at, weeks ( id, week_number, season_year ), games ( game_number, home_team_name, away_team_name, home_team_espn_id, away_team_espn_id, is_completed )"
+        "id, game_id, week_id, picked_team_espn_id, picked_team_name, is_correct, is_tie, submitted_at, weeks ( id, week_number, season_year ), games ( game_number, home_team_name, away_team_name, home_team_espn_id, away_team_espn_id, betting_line, is_completed )"
       )
       .eq("user_id", user.id)
       .order("submitted_at", { ascending: false })
@@ -1057,12 +1075,20 @@ async function getPublicUserProfile({ userId = null, username = null } = {}) {
       ) {
         weekBucket.submittedAt = pick.submitted_at;
       }
+      const lineRaw = pick.games?.betting_line;
+      const bettingLine =
+        lineRaw != null && lineRaw !== "" && Number.isFinite(Number(lineRaw))
+          ? Number(lineRaw)
+          : null;
       weekBucket.picks.push({
         gameNumber: pick.games?.game_number ?? null,
         pickedTeamName: pick.picked_team_name,
         pickedTeamEspnId: pick.picked_team_espn_id,
         homeTeamName: pick.games?.home_team_name ?? null,
         awayTeamName: pick.games?.away_team_name ?? null,
+        homeTeamEspnId: pick.games?.home_team_espn_id ?? null,
+        awayTeamEspnId: pick.games?.away_team_espn_id ?? null,
+        bettingLine,
         isCorrect: pick.is_correct,
         isTie: Boolean(pick.is_tie),
         isCompleted: Boolean(pick.games?.is_completed),
@@ -1161,6 +1187,7 @@ module.exports = {
   getLeaderboard,
   getPublicUserProfile,
   listSeasonYears,
+  listPublicUsers,
   emptyPickBucket,
   finalizeBucket,
   addPickToBucket,

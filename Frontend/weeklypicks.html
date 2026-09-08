@@ -280,6 +280,27 @@
         <div class="analysis-stats" id="resultsAnalysisStats"></div>
       </div>
     </div>
+
+    <div class="awards-container" id="resultsAwardsContainer" hidden>
+      <div class="awards-head">
+        <h3 class="analysis-title" id="awardsTitle">🏅 Weekly Awards</h3>
+        <a class="btn btn-brown btn-sm" href="leagues.html">Private leagues</a>
+      </div>
+      <div class="awards-grid" id="resultsAwardsGrid"></div>
+      <p class="awards-empty" id="resultsAwardsEmpty" hidden></p>
+    </div>
+
+    <div class="h2h-panel section-card" id="h2hPanel" hidden>
+      <div class="h2h-panel-head">
+        <h3 class="gold-heading" style="margin:0;" id="h2hPanelTitle">Head to head</h3>
+        <button type="button" class="btn btn-brown btn-sm" id="h2hCloseBtn">Close</button>
+      </div>
+      <div id="h2hCardHost"></div>
+      <div class="h2h-actions">
+        <button type="button" class="screenshot-button" id="h2hScreenshotBtn">Save image</button>
+        <p class="screenshot-note">Share your board vs a friend.</p>
+      </div>
+    </div>
   </div>
 
   <!-- Coach Corso floating chat (available while making picks) -->
@@ -1121,6 +1142,7 @@
       initBouncingFootball();
       initEmailRemindersOptIn();
       initCorsoChat();
+      wireH2hPanel();
 
       // Phase 1: Load active week + games from backend DB.
       // Live scores will be loaded automatically after games are loaded
@@ -2448,6 +2470,14 @@
         const avatarHtml = profileUrl
           ? `<a class="results-stand-avatar-link" href="${safeText(profileUrl)}" title="${name} profile" aria-label="${name} profile">${avatarInner}</a>`
           : avatarInner;
+        const canCompare =
+          Boolean(e.username) &&
+          Boolean(localStorage.getItem('authToken')) &&
+          String(e.username).toLowerCase() !==
+            String((currentUser && (currentUser.username || '')) || '').toLowerCase();
+        const compareHtml = canCompare
+          ? `<button type="button" class="results-stand-compare" data-opponent="${safeText(e.username)}" title="Compare picks">Compare</button>`
+          : '';
         return `
           <li class="results-stand-row">
             <span class="results-stand-rank ${rankClass}" aria-hidden="true">${rank}</span>
@@ -2461,10 +2491,18 @@
             <div class="results-stand-stats">
               <span class="results-stand-acc">${pct}%</span>
               ${pendingHtml}
+              ${compareHtml}
             </div>
           </li>
         `;
       }).join('');
+
+      list.querySelectorAll('.results-stand-compare').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const opponent = btn.getAttribute('data-opponent');
+          if (opponent) openHeadToHead(opponent);
+        });
+      });
     }
 
     function renderResultsAnalysis(weekBoard) {
@@ -2678,11 +2716,241 @@
           emptyMessage: 'No graded picks yet.',
         });
         renderResultsAnalysis(weekBoard);
+        loadWeeklyAwards(weekId);
       } catch (err) {
         console.warn('loadResultsLeaderboards:', err);
         weekList.innerHTML = `<li class="results-stand-empty">${safeText(err.message || 'Could not load standings')}</li>`;
         allList.innerHTML = '<li class="results-stand-empty">Could not load standings</li>';
       }
+    }
+
+    async function loadWeeklyAwards(weekId) {
+      const container = document.getElementById('resultsAwardsContainer');
+      const grid = document.getElementById('resultsAwardsGrid');
+      const empty = document.getElementById('resultsAwardsEmpty');
+      const title = document.getElementById('awardsTitle');
+      if (!container || !grid) return;
+      try {
+        const params = new URLSearchParams();
+        if (weekId) params.set('weekId', String(weekId));
+        const resp = await fetch(`/api/awards/week?${params}`, {
+          headers: { accept: 'application/json' },
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok) throw new Error(data.error || 'Failed');
+        if (title && data.weekLabel) {
+          title.textContent = `🏅 ${data.weekLabel} Awards`;
+        }
+        const awards = data.awards || [];
+        if (!awards.length) {
+          grid.innerHTML = '';
+          if (empty) {
+            empty.hidden = false;
+            empty.textContent = data.message || 'Awards unlock as games finalize.';
+          }
+          container.hidden = false;
+          return;
+        }
+        if (empty) empty.hidden = true;
+        grid.innerHTML = awards.map((a) => {
+          const winners = (a.winners || []).map((w) => {
+            const profileUrl = w.username
+              ? `user-profile.html?username=${encodeURIComponent(w.username)}`
+              : '';
+            const name = safeText(w.displayName || w.username || 'Player');
+            const nameHtml = profileUrl
+              ? `<a href="${safeText(profileUrl)}">${name}</a>`
+              : name;
+            const av = playerAvatarHtml(w, 28);
+            return `
+              <div class="award-winner">
+                ${profileUrl ? `<a class="results-stand-avatar-link" href="${safeText(profileUrl)}">${av}</a>` : av}
+                <div>
+                  <div class="award-winner-name">${nameHtml}</div>
+                  <div class="award-winner-detail">${safeText(w.value || '')}${w.detail ? ` · ${safeText(w.detail)}` : ''}</div>
+                </div>
+              </div>
+            `;
+          }).join('');
+          return `
+            <article class="award-card">
+              <div class="award-card-top">
+                <span class="award-icon" aria-hidden="true">${safeText(a.icon || '🏅')}</span>
+                <h4 class="award-title">${safeText(a.title || 'Award')}</h4>
+              </div>
+              <p class="award-headline">${safeText(a.headline || '')}</p>
+              <div class="award-winners">${winners}</div>
+            </article>
+          `;
+        }).join('');
+        container.hidden = false;
+      } catch (err) {
+        console.warn('loadWeeklyAwards:', err);
+        container.hidden = true;
+      }
+    }
+
+    function h2hRecordLabel(bucket) {
+      if (!bucket) return '0-0-0';
+      return `${bucket.correctPicks || 0}-${bucket.incorrectPicks || 0}-${bucket.tiedPicks || 0}`;
+    }
+
+    function h2hPickState(pick) {
+      if (!pick) return { state: 'pending', label: '—' };
+      if (pick.isTie) return { state: 'tie', label: 'Tie' };
+      if (pick.isCorrect === true) return { state: 'correct', label: '✓' };
+      if (pick.isCorrect === false) return { state: 'wrong', label: '✗' };
+      return { state: 'pending', label: 'Pending' };
+    }
+
+    function buildH2hCardHtml(data) {
+      const week = shareWeekLabel();
+      const viewer = data.viewer || {};
+      const opponent = data.opponent || {};
+      const gamesHtml = (data.games || []).map((g) => {
+        const v = h2hPickState(g.viewer);
+        const o = h2hPickState(g.opponent);
+        return `
+          <div class="h2h-game">
+            <div class="h2h-game-matchup">Game ${safeText(g.gameNumber)} · ${safeText(g.awayTeamName)} @ ${safeText(g.homeTeamName)}</div>
+            <div class="h2h-game-picks">
+              <div class="h2h-pick is-${safeText(v.state)}">
+                <span>${safeText(g.viewer?.pickedTeamName || '—')}</span>
+                <em>${safeText(v.label)}</em>
+              </div>
+              <div class="h2h-pick is-${safeText(o.state)}">
+                <span>${safeText(g.opponent?.pickedTeamName || '—')}</span>
+                <em>${safeText(o.label)}</em>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      return `
+        <div class="h2h-share-card" id="h2hShareCard">
+          <p class="picks-share-brand">Head to Head</p>
+          <p class="picks-share-week-badge">${safeText(week.weekPart)}${week.yearPart ? safeText(week.yearPart) : ''}</p>
+          <div class="h2h-names">
+            <div class="h2h-player">
+              ${playerAvatarHtml(viewer, 48)}
+              <strong>${safeText(viewer.displayName || viewer.username || 'You')}</strong>
+              <span>${safeText(h2hRecordLabel(data.viewerRecord))}</span>
+            </div>
+            <div class="h2h-vs">VS</div>
+            <div class="h2h-player">
+              ${playerAvatarHtml(opponent, 48)}
+              <strong>${safeText(opponent.displayName || opponent.username || 'Them')}</strong>
+              <span>${safeText(h2hRecordLabel(data.opponentRecord))}</span>
+            </div>
+          </div>
+          <div class="h2h-games">${gamesHtml}</div>
+        </div>
+      `;
+    }
+
+    async function openHeadToHead(opponentUsername) {
+      const panel = document.getElementById('h2hPanel');
+      const host = document.getElementById('h2hCardHost');
+      const title = document.getElementById('h2hPanelTitle');
+      if (!panel || !host) return;
+      if (!localStorage.getItem('authToken')) {
+        alert('Log in to compare picks.');
+        return;
+      }
+      panel.hidden = false;
+      host.innerHTML = '<p class="screenshot-note">Loading head-to-head…</p>';
+      if (title) title.textContent = `You vs ${opponentUsername}`;
+      try {
+        const params = new URLSearchParams({
+          opponentUsername: String(opponentUsername),
+        });
+        if (activeWeekId) params.set('weekId', String(activeWeekId));
+        const resp = await fetch(`/api/picks/h2h?${params}`, {
+          headers: { ...authHeaders(), accept: 'application/json' },
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok) throw new Error(data.message || data.error || `Failed (${resp.status})`);
+        host.innerHTML = buildH2hCardHtml(data);
+        panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } catch (err) {
+        host.innerHTML = `<p class="screenshot-note">${safeText(err.message || 'Could not compare')}</p>`;
+      }
+    }
+
+    function takeH2hScreenshot() {
+      const ensure = () => captureElementScreenshot('h2hShareCard', 'h2h');
+      if (typeof html2canvas === 'undefined') {
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+        script.onload = ensure;
+        document.head.appendChild(script);
+      } else {
+        ensure();
+      }
+    }
+
+    async function captureElementScreenshot(elementId, filePrefix) {
+      const source = document.getElementById(elementId);
+      if (!source) {
+        alert('Nothing to save yet.');
+        return;
+      }
+      const week = shareWeekLabel();
+      const tempContainer = document.createElement('div');
+      tempContainer.style.position = 'fixed';
+      tempContainer.style.left = '-10000px';
+      tempContainer.style.top = '0';
+      tempContainer.style.width = '900px';
+      tempContainer.style.background = '#1a1410';
+      tempContainer.style.zIndex = '-1';
+      const clone = source.cloneNode(true);
+      clone.classList.add('is-capture');
+      clone.style.width = '900px';
+      clone.style.maxWidth = '900px';
+      clone.style.margin = '0';
+      tempContainer.appendChild(clone);
+      document.body.appendChild(tempContainer);
+      try {
+        await waitForShareImages(clone);
+        const canvas = await html2canvas(clone, {
+          backgroundColor: '#1a1410',
+          scale: 2,
+          useCORS: true,
+          allowTaint: false,
+          scrollX: 0,
+          scrollY: 0,
+          width: 900,
+          logging: false,
+        });
+        const fileName = `${filePrefix || 'card'}-${week.fileSlug}-${new Date().toISOString().split('T')[0]}.png`;
+        canvas.toBlob((blob) => {
+          if (!blob) return;
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = fileName;
+          a.click();
+          URL.revokeObjectURL(url);
+        }, 'image/png');
+      } catch (err) {
+        console.warn('screenshot:', err);
+        alert('Could not save image.');
+      } finally {
+        tempContainer.remove();
+      }
+    }
+
+    function wireH2hPanel() {
+      const closeBtn = document.getElementById('h2hCloseBtn');
+      const shotBtn = document.getElementById('h2hScreenshotBtn');
+      if (closeBtn) {
+        closeBtn.addEventListener('click', () => {
+          const panel = document.getElementById('h2hPanel');
+          if (panel) panel.hidden = true;
+        });
+      }
+      if (shotBtn) shotBtn.addEventListener('click', takeH2hScreenshot);
     }
 
     function startResultsLeaderboardRefresh() {

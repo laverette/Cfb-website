@@ -17,6 +17,7 @@
       label: "📅 Picks & Predictions",
       items: [
         { href: "weeklypicks.html", label: "📅 Weekly Picks" },
+        { href: "leagues.html", label: "👥 Private Leagues" },
         { href: "bama.html", label: "📅 Schedule Predictions" },
         { href: "prediction-history.html", label: "🏆 Leaderboards" },
         { href: "predictor.html", label: "🎯 Matchup Predictor" },

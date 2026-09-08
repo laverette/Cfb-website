@@ -100,6 +100,26 @@
   status = 200
 
 [[redirects]]
+  from = "/api/awards/week"
+  to = "/.netlify/functions/awards-week"
+  status = 200
+
+[[redirects]]
+  from = "/api/picks/h2h"
+  to = "/.netlify/functions/picks-h2h"
+  status = 200
+
+[[redirects]]
+  from = "/api/leagues"
+  to = "/.netlify/functions/leagues"
+  status = 200
+
+[[redirects]]
+  from = "/api/leagues/*"
+  to = "/.netlify/functions/leagues?path=:splat"
+  status = 200
+
+[[redirects]]
   from = "/api/users/public"
   to = "/.netlify/functions/user-public-profile"
   status = 200

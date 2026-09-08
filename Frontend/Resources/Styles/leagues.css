@@ -1,0 +1,125 @@
+.leagues-page .leagues-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+}
+
+.leagues-label {
+  display: block;
+  font-weight: 700;
+  margin-bottom: 0.35rem;
+  color: #f5deb3;
+}
+
+.leagues-status {
+  text-align: center;
+  margin: 0.65rem 0 0;
+  min-height: 1.2em;
+  font-size: 0.85rem;
+  color: #bfa88a;
+}
+
+.leagues-list {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.leagues-empty {
+  text-align: center;
+  color: #bfa88a;
+  margin: 0.5rem 0;
+}
+
+.leagues-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  width: 100%;
+  text-align: left;
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  border: 1px solid #8d6e63;
+  background: rgba(62, 39, 35, 0.55);
+  color: #f5deb3;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.leagues-card:hover {
+  border-color: #ffd700;
+  background: rgba(62, 39, 35, 0.85);
+}
+
+.leagues-card-name {
+  font-weight: 800;
+  font-size: 1.05rem;
+  color: #ffd700;
+}
+
+.leagues-card-meta {
+  font-size: 0.82rem;
+  color: #d4b896;
+}
+
+.leagues-detail-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.leagues-invite {
+  margin: 0.35rem 0 0;
+  color: #ffd700;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.leagues-scope-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-bottom: 0.85rem;
+}
+
+.leagues-standings {
+  margin: 0 0 1.25rem;
+  padding: 0;
+  list-style: none;
+}
+
+.leagues-members-title {
+  color: #ffd700;
+  font-size: 1rem;
+  margin: 0 0 0.65rem;
+}
+
+.leagues-members {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.leagues-members a {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: #f5deb3;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.leagues-members a:hover {
+  color: #ffd700;
+}
+
+.leagues-members em {
+  font-style: normal;
+  font-size: 0.72rem;
+  color: #bfa88a;
+  margin-left: 0.25rem;
+}

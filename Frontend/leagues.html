@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Private Leagues</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <link rel="stylesheet" href="styles/site-theme.css">
+  <link rel="stylesheet" href="Resources/Styles/leaderboard.css">
+  <link rel="stylesheet" href="Resources/Styles/leagues.css">
+</head>
+<body>
+  <nav class="navbar weeklypicks-navbar site-nav">
+    <div class="container-fluid">
+      <div class="navbar-content-weekly site-nav-inner">
+        <button class="hamburger-menu-btn" onclick="toggleMenu()" aria-label="Menu" aria-expanded="false" aria-controls="dropdownMenu">
+          <span></span><span></span><span></span>
+        </button>
+        <div class="dropdown-menu" id="dropdownMenu"></div>
+        <h1 class="site-title">Private Leagues</h1>
+        <div id="auth-nav" class="navbar-auth-cluster"></div>
+      </div>
+    </div>
+  </nav>
+  <div class="menu-overlay" id="menuOverlay" onclick="closeMenu()"></div>
+
+  <main class="container page-shell lb-page leagues-page">
+    <header class="lb-header">
+      <p class="lb-eyebrow">Play with friends</p>
+      <h1 class="page-title">Private Leagues</h1>
+      <p class="lb-subtitle">Create a group, share the invite code, and compete on a private leaderboard.</p>
+    </header>
+
+    <div id="leaguesAuthGate" class="section-card" hidden>
+      <p style="text-align:center;margin:0;">Log in to create or join a private league.</p>
+      <p style="text-align:center;margin:1rem 0 0;">
+        <a class="btn btn-gold" href="login.html">Log in</a>
+      </p>
+    </div>
+
+    <div id="leaguesApp" hidden>
+      <div class="leagues-actions-grid">
+        <section class="section-card">
+          <h2 class="gold-heading" style="text-align:center;margin-bottom:0.75rem;">Create a league</h2>
+          <form id="createLeagueForm">
+            <label for="leagueName" class="leagues-label">League name</label>
+            <input id="leagueName" class="form-control" maxlength="60" minlength="2" required placeholder="e.g. Office Pool">
+            <button type="submit" class="btn btn-gold" style="width:100%;margin-top:0.85rem;">Create</button>
+            <p id="createLeagueStatus" class="leagues-status"></p>
+          </form>
+        </section>
+        <section class="section-card">
+          <h2 class="gold-heading" style="text-align:center;margin-bottom:0.75rem;">Join with code</h2>
+          <form id="joinLeagueForm">
+            <label for="inviteCode" class="leagues-label">Invite code</label>
+            <input id="inviteCode" class="form-control" maxlength="12" required placeholder="ABC1234" style="text-transform:uppercase;">
+            <button type="submit" class="btn btn-gold" style="width:100%;margin-top:0.85rem;">Join</button>
+            <p id="joinLeagueStatus" class="leagues-status"></p>
+          </form>
+        </section>
+      </div>
+
+      <section class="section-card" style="margin-top:1.25rem;">
+        <h2 class="gold-heading" style="text-align:center;margin-bottom:0.75rem;">Your leagues</h2>
+        <div id="myLeaguesList" class="leagues-list">
+          <p class="leagues-empty">Loading…</p>
+        </div>
+      </section>
+
+      <section class="section-card" id="leagueDetailSection" hidden style="margin-top:1.25rem;">
+        <div class="leagues-detail-head">
+          <div>
+            <p class="lb-eyebrow" id="leagueDetailEyebrow">League</p>
+            <h2 class="gold-heading" id="leagueDetailName" style="margin:0;">—</h2>
+            <p class="leagues-invite" id="leagueDetailInvite"></p>
+          </div>
+          <button type="button" class="btn btn-brown btn-sm" id="closeLeagueDetail">Close</button>
+        </div>
+        <div class="leagues-scope-tabs" role="tablist">
+          <button type="button" class="lb-tab active" data-scope="week">This week</button>
+          <button type="button" class="lb-tab" data-scope="season">Season</button>
+          <button type="button" class="lb-tab" data-scope="all">All time</button>
+        </div>
+        <ol class="results-standings-list leagues-standings" id="leagueStandingsList">
+          <li class="results-stand-empty">Loading standings…</li>
+        </ol>
+        <h3 class="leagues-members-title">Members</h3>
+        <ul class="leagues-members" id="leagueMembersList"></ul>
+      </section>
+    </div>
+
+    <div class="lb-footer-links">
+      <a href="weeklypicks.html" class="btn btn-brown">Weekly Picks</a>
+      <a href="prediction-history.html" class="btn btn-brown">Leaderboards</a>
+    </div>
+  </main>
+
+  <script src="scripts/auth-ui.js"></script>
+  <script>
+    function escapeHtml(text) {
+      return String(text ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function authHeaders() {
+      const token = window.AuthUI && AuthUI.getAuthToken && AuthUI.getAuthToken();
+      return {
+        accept: 'application/json',
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: 'Bearer ' + token } : {}),
+      };
+    }
+
+    function recordLabel(entry) {
+      return `${entry.correctPicks || 0}-${entry.incorrectPicks || 0}-${entry.tiedPicks || 0}`;
+    }
+
+    function avatarHtml(entry, size) {
+      if (window.AuthUI && AuthUI.avatarImgHtml) {
+        return AuthUI.avatarImgHtml(entry, 'results-stand-avatar user-avatar', size || 32);
+      }
+      return '';
+    }
+
+    let activeLeagueId = null;
+    let activeScope = 'week';
+    let currentWeekId = null;
+
+    async function fetchCurrentWeekId() {
+      try {
+        const resp = await fetch('/api/picks/current-week', { headers: { accept: 'application/json' } });
+        if (!resp.ok) return null;
+        const data = await resp.json().catch(() => ({}));
+        return data.id != null ? Number(data.id) : null;
+      } catch {
+        return null;
+      }
+    }
+
+    async function loadMyLeagues() {
+      const list = document.getElementById('myLeaguesList');
+      const resp = await fetch('/api/leagues/mine', { headers: authHeaders() });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(data.message || data.error || 'Failed to load leagues');
+      const leagues = data.leagues || [];
+      if (!leagues.length) {
+        list.innerHTML = '<p class="leagues-empty">No leagues yet — create one or join with a code.</p>';
+        return;
+      }
+      list.innerHTML = leagues.map((l) => `
+        <button type="button" class="leagues-card" data-league-id="${escapeHtml(l.id)}">
+          <span class="leagues-card-name">${escapeHtml(l.name)}</span>
+          <span class="leagues-card-meta">${escapeHtml(l.memberCount)} member${l.memberCount === 1 ? '' : 's'} · ${escapeHtml(l.seasonYear)}${l.isOwner ? ' · Owner' : ''}</span>
+        </button>
+      `).join('');
+      list.querySelectorAll('[data-league-id]').forEach((btn) => {
+        btn.addEventListener('click', () => openLeague(Number(btn.getAttribute('data-league-id'))));
+      });
+    }
+
+    async function openLeague(leagueId) {
+      activeLeagueId = leagueId;
+      const section = document.getElementById('leagueDetailSection');
+      section.hidden = false;
+      section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+      const detailResp = await fetch(`/api/leagues/detail?id=${encodeURIComponent(leagueId)}`, {
+        headers: authHeaders(),
+      });
+      const detail = await detailResp.json().catch(() => ({}));
+      if (!detailResp.ok) {
+        alert(detail.message || detail.error || 'Could not load league');
+        return;
+      }
+
+      document.getElementById('leagueDetailName').textContent = detail.league?.name || 'League';
+      document.getElementById('leagueDetailEyebrow').textContent =
+        `Season ${detail.league?.seasonYear || '—'}`;
+      document.getElementById('leagueDetailInvite').textContent =
+        detail.league?.inviteCode
+          ? `Invite code: ${detail.league.inviteCode}`
+          : '';
+
+      const members = detail.members || [];
+      document.getElementById('leagueMembersList').innerHTML = members.map((m) => `
+        <li>
+          <a href="user-profile.html?username=${encodeURIComponent(m.username || '')}">
+            ${avatarHtml(m, 28)}
+            <span>${escapeHtml(m.displayName || m.username)}</span>
+            ${m.isOwner ? '<em>owner</em>' : ''}
+          </a>
+        </li>
+      `).join('');
+
+      await loadLeagueStandings();
+    }
+
+    async function loadLeagueStandings() {
+      if (!activeLeagueId) return;
+      const list = document.getElementById('leagueStandingsList');
+      list.innerHTML = '<li class="results-stand-empty">Loading standings…</li>';
+      const params = new URLSearchParams({
+        id: String(activeLeagueId),
+        scope: activeScope,
+      });
+      if (activeScope === 'week' && currentWeekId) {
+        params.set('weekId', String(currentWeekId));
+      }
+      const resp = await fetch(`/api/leagues/leaderboard?${params}`, {
+        headers: authHeaders(),
+      });
+      const board = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        list.innerHTML = `<li class="results-stand-empty">${escapeHtml(board.message || board.error || 'Failed')}</li>`;
+        return;
+      }
+      const rows = (board.entries || []).filter((e) => e.totalPicks > 0);
+      if (!rows.length) {
+        list.innerHTML = '<li class="results-stand-empty">No picks in this league for this scope yet.</li>';
+        return;
+      }
+      list.innerHTML = rows.map((e, index) => {
+        const name = escapeHtml(e.displayName || e.username || 'Player');
+        const profileUrl = e.username
+          ? `user-profile.html?username=${encodeURIComponent(e.username)}`
+          : '#';
+        return `
+          <li class="results-stand-row">
+            <span class="results-stand-rank" aria-hidden="true">${index + 1}</span>
+            <div class="results-stand-player">
+              <a class="results-stand-avatar-link" href="${profileUrl}">${avatarHtml(e, 32)}</a>
+              <div class="results-stand-player-copy">
+                <a class="results-stand-name" href="${profileUrl}">${name}</a>
+                <span class="results-stand-record">${escapeHtml(recordLabel(e))}</span>
+              </div>
+            </div>
+            <div class="results-stand-stats">
+              <span class="results-stand-acc">${Number(e.accuracy || 0).toFixed(1)}%</span>
+            </div>
+          </li>
+        `;
+      }).join('');
+    }
+
+    function wireForms() {
+      document.getElementById('createLeagueForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const status = document.getElementById('createLeagueStatus');
+        const name = document.getElementById('leagueName').value.trim();
+        status.textContent = 'Creating…';
+        try {
+          const resp = await fetch('/api/leagues', {
+            method: 'POST',
+            headers: authHeaders(),
+            body: JSON.stringify({ name }),
+          });
+          const data = await resp.json().catch(() => ({}));
+          if (!resp.ok) throw new Error(data.message || data.error || 'Failed');
+          status.textContent = `Created! Invite code: ${data.league?.inviteCode || '—'}`;
+          document.getElementById('leagueName').value = '';
+          await loadMyLeagues();
+          if (data.league?.id) openLeague(data.league.id);
+        } catch (err) {
+          status.textContent = err.message || 'Could not create league';
+        }
+      });
+
+      document.getElementById('joinLeagueForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const status = document.getElementById('joinLeagueStatus');
+        const code = document.getElementById('inviteCode').value.trim();
+        status.textContent = 'Joining…';
+        try {
+          const resp = await fetch('/api/leagues/join', {
+            method: 'POST',
+            headers: authHeaders(),
+            body: JSON.stringify({ code }),
+          });
+          const data = await resp.json().catch(() => ({}));
+          if (!resp.ok) throw new Error(data.message || data.error || 'Failed');
+          status.textContent = `Joined ${data.league?.name || 'league'}!`;
+          document.getElementById('inviteCode').value = '';
+          await loadMyLeagues();
+          if (data.league?.id) openLeague(data.league.id);
+        } catch (err) {
+          status.textContent = err.message || 'Could not join';
+        }
+      });
+
+      document.getElementById('closeLeagueDetail').addEventListener('click', () => {
+        document.getElementById('leagueDetailSection').hidden = true;
+        activeLeagueId = null;
+      });
+
+      document.querySelectorAll('.leagues-scope-tabs .lb-tab').forEach((tab) => {
+        tab.addEventListener('click', () => {
+          document.querySelectorAll('.leagues-scope-tabs .lb-tab').forEach((t) => {
+            t.classList.toggle('active', t === tab);
+            t.setAttribute('aria-selected', t === tab ? 'true' : 'false');
+          });
+          activeScope = tab.getAttribute('data-scope') || 'week';
+          loadLeagueStandings();
+        });
+      });
+    }
+
+    async function init() {
+      const token = window.AuthUI && AuthUI.getAuthToken && AuthUI.getAuthToken();
+      if (!token) {
+        document.getElementById('leaguesAuthGate').hidden = false;
+        return;
+      }
+      document.getElementById('leaguesApp').hidden = false;
+      wireForms();
+      currentWeekId = await fetchCurrentWeekId();
+      try {
+        await loadMyLeagues();
+      } catch (err) {
+        document.getElementById('myLeaguesList').innerHTML =
+          `<p class="leagues-empty">${escapeHtml(err.message || 'Could not load leagues')}</p>`;
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>
