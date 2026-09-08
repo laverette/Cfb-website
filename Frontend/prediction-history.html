@@ -55,16 +55,22 @@
 
     <section id="podiumSection" class="lb-podium" hidden></section>
 
-    <section id="highlightsSection" class="lb-highlights" hidden>
-      <div class="lb-highlight-card lb-highlight-hot">
-        <h3>🔥 On Fire</h3>
-        <ul id="hotList" class="lb-highlight-list"></ul>
+    <details id="highlightsSection" class="lb-streaks-panel" hidden>
+      <summary class="lb-streaks-summary">
+        <span>🔥 Streaks</span>
+        <span class="lb-streaks-meta">On Fire &amp; Ice Cold</span>
+      </summary>
+      <div class="lb-highlights">
+        <div class="lb-highlight-card lb-highlight-hot">
+          <h3>🔥 On Fire</h3>
+          <ul id="hotList" class="lb-highlight-list"></ul>
+        </div>
+        <div class="lb-highlight-card lb-highlight-cold">
+          <h3>❄️ Ice Cold</h3>
+          <ul id="coldList" class="lb-highlight-list"></ul>
+        </div>
       </div>
-      <div class="lb-highlight-card lb-highlight-cold">
-        <h3>❄️ Ice Cold</h3>
-        <ul id="coldList" class="lb-highlight-list"></ul>
-      </div>
-    </section>
+    </details>
 
     <section class="section-card lb-board-card">
       <div class="lb-board-head">
@@ -75,7 +81,7 @@
         <div class="lb-board-tools">
           <label class="lb-search-wrap">
             <span class="visually-hidden">Search players</span>
-            <input id="playerSearch" type="search" class="lb-search" placeholder="Search players…" autocomplete="off">
+            <input id="playerSearch" type="search" class="lb-search" placeholder="Search…" autocomplete="off">
           </label>
           <label class="lb-sort-wrap">
             <span class="visually-hidden">Sort by</span>
@@ -90,14 +96,17 @@
         </div>
       </div>
 
-      <div class="lb-legend" aria-label="Streak legend">
-        <span><span class="lb-temp lb-temp-blazing">🔥🔥🔥</span> 5+ hot</span>
-        <span><span class="lb-temp lb-temp-hot">🔥</span> 3–4 hot</span>
-        <span><span class="lb-temp lb-temp-warm">🌡️</span> 1–2 warm</span>
-        <span><span class="lb-temp lb-temp-cool">😐</span> even</span>
-        <span><span class="lb-temp lb-temp-cold">❄️</span> 3–4 cold</span>
-        <span><span class="lb-temp lb-temp-frozen">🧊</span> 5+ cold</span>
-      </div>
+      <details class="lb-legend-panel">
+        <summary class="lb-legend-summary">Streak legend</summary>
+        <div class="lb-legend" aria-label="Streak legend">
+          <span><span class="lb-temp lb-temp-blazing">🔥🔥🔥</span> 5+ hot</span>
+          <span><span class="lb-temp lb-temp-hot">🔥</span> 3–4 hot</span>
+          <span><span class="lb-temp lb-temp-warm">🌡️</span> 1–2 warm</span>
+          <span><span class="lb-temp lb-temp-cool">😐</span> even</span>
+          <span><span class="lb-temp lb-temp-cold">❄️</span> 3–4 cold</span>
+          <span><span class="lb-temp lb-temp-frozen">🧊</span> 5+ cold</span>
+        </div>
+      </details>
 
       <div id="boardBody" class="lb-board-body">
         <p class="lb-loading">Loading leaderboard…</p>
@@ -176,9 +185,10 @@
 
     function accuracyBar(pct) {
       const value = Math.max(0, Math.min(100, Number(pct) || 0));
+      const label = isMobileLb() ? `${Math.round(value)}%` : `${value.toFixed(1)}%`;
       return `
         <div class="lb-acc">
-          <span class="lb-acc-num">${value.toFixed(1)}%</span>
+          <span class="lb-acc-num">${label}</span>
           <span class="lb-acc-track" aria-hidden="true"><span class="lb-acc-fill" style="width:${value}%"></span></span>
         </div>
       `;
@@ -231,6 +241,31 @@
       }).join('');
     }
 
+    function isMobileLb() {
+      return window.matchMedia('(max-width: 700px)').matches;
+    }
+
+    function syncLbMobileCollapses(force) {
+      const streaks = document.getElementById('highlightsSection');
+      const legend = document.querySelector('.lb-legend-panel');
+      const mobile = isMobileLb();
+      const mode = mobile ? 'mobile' : 'desktop';
+      if (streaks && !streaks.hidden) {
+        if (force || streaks.dataset.lbMode !== mode) {
+          if (mobile) streaks.removeAttribute('open');
+          else streaks.setAttribute('open', '');
+          streaks.dataset.lbMode = mode;
+        }
+      }
+      if (legend) {
+        if (force || legend.dataset.lbMode !== mode) {
+          if (mobile) legend.removeAttribute('open');
+          else legend.setAttribute('open', '');
+          legend.dataset.lbMode = mode;
+        }
+      }
+    }
+
     function renderHighlights(highlights) {
       const section = document.getElementById('highlightsSection');
       const hot = (highlights && highlights.hottest) || [];
@@ -240,22 +275,25 @@
         return;
       }
       section.hidden = false;
-      document.getElementById('hotList').innerHTML = hot.length
-        ? hot.map((e) => `
+      const hotShown = isMobileLb() ? hot.slice(0, 3) : hot;
+      const coldShown = isMobileLb() ? cold.slice(0, 3) : cold;
+      document.getElementById('hotList').innerHTML = hotShown.length
+        ? hotShown.map((e) => `
             <li>
               ${playerAvatarHtml(e, 'lb-highlight-avatar user-avatar', 24)}
               <a href="${profileHref(e)}">${escapeHtml(e.displayName || e.username)}</a>
               <span class="lb-temp lb-temp-hot">🔥 ${e.currentStreak}</span>
             </li>`).join('')
         : '<li class="lb-highlight-empty">No 3+ hot streaks yet</li>';
-      document.getElementById('coldList').innerHTML = cold.length
-        ? cold.map((e) => `
+      document.getElementById('coldList').innerHTML = coldShown.length
+        ? coldShown.map((e) => `
             <li>
               ${playerAvatarHtml(e, 'lb-highlight-avatar user-avatar', 24)}
               <a href="${profileHref(e)}">${escapeHtml(e.displayName || e.username)}</a>
               <span class="lb-temp lb-temp-cold">❄️ ${Math.abs(e.currentStreak)}</span>
             </li>`).join('')
         : '<li class="lb-highlight-empty">Nobody iced… yet</li>';
+      syncLbMobileCollapses();
     }
 
     function sortedFilteredEntries() {
@@ -327,6 +365,9 @@
                         </span>
                       </a>
                       ${isMe ? '<span class="lb-you-pill">You</span>' : ''}
+                      ${Math.abs(Number(e.currentStreak) || 0) >= 3
+                        ? `<span class="lb-streak-inline ${temp.className}" title="${escapeHtml(temp.label)}">${temp.emoji}${temp.abs}</span>`
+                        : ''}
                     </td>
                     <td class="lb-record" data-label="Record">${recordLabel(e)}</td>
                     <td class="lb-pct" data-label="Pct">${accuracyBar(e.accuracy)}</td>
@@ -459,7 +500,14 @@
     document.getElementById('playerSearch').addEventListener('input', renderTable);
     document.getElementById('sortSelect').addEventListener('change', renderTable);
 
-    document.addEventListener('DOMContentLoaded', loadActiveBoard);
+    window.addEventListener('resize', () => {
+      syncLbMobileCollapses();
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+      syncLbMobileCollapses();
+      loadActiveBoard();
+    });
   </script>
   <script>
     function closeMenu() {
