@@ -3383,6 +3383,9 @@
 
     function datesForLiveScores() {
       const dates = new Set();
+      const addYmd = (ymd) => {
+        if (ymd && /^\d{8}$/.test(ymd)) dates.add(ymd);
+      };
       const addIso = (iso) => {
         if (!iso) return;
         const d = new Date(iso);
@@ -3396,10 +3399,19 @@
         const y = parts.find((p) => p.type === 'year')?.value;
         const m = parts.find((p) => p.type === 'month')?.value;
         const day = parts.find((p) => p.type === 'day')?.value;
-        if (y && m && day) dates.add(`${y}${m}${day}`);
+        if (y && m && day) addYmd(`${y}${m}${day}`);
+      };
+      const addIsoWithNeighbors = (iso) => {
+        if (!iso) return;
+        const d = new Date(iso);
+        if (!Number.isFinite(d.getTime())) return;
+        addIso(d.toISOString());
+        // Delayed Monday/night games can finalize on the next ESPN date board.
+        addIso(new Date(d.getTime() + 24 * 60 * 60 * 1000).toISOString());
+        addIso(new Date(d.getTime() - 24 * 60 * 60 * 1000).toISOString());
       };
 
-      (cachedDbGames || []).forEach((g) => addIso(g.gameDate || g.game_date));
+      (cachedDbGames || []).forEach((g) => addIsoWithNeighbors(g.gameDate || g.game_date));
       addIso(new Date().toISOString());
       if (activeWeekMeta) {
         addIso(activeWeekMeta.startDate || activeWeekMeta.start_date);

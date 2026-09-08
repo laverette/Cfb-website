@@ -201,9 +201,28 @@ async function fetchLiveScoresForWeek(week, games = []) {
   };
 
   const dates = new Set();
+  const addYmd = (ymd) => {
+    if (ymd && /^\d{8}$/.test(ymd)) dates.add(ymd);
+  };
+  const addAdjacentEtDays = (ymd) => {
+    if (!ymd || !/^\d{8}$/.test(ymd)) return;
+    addYmd(ymd);
+    // Late / delayed games can land on ESPN's next calendar day board.
+    try {
+      const y = Number(ymd.slice(0, 4));
+      const m = Number(ymd.slice(4, 6));
+      const d = Number(ymd.slice(6, 8));
+      const base = new Date(Date.UTC(y, m - 1, d, 16, 0, 0)); // noon-ish ET
+      const next = new Date(base.getTime() + 24 * 60 * 60 * 1000);
+      const prev = new Date(base.getTime() - 24 * 60 * 60 * 1000);
+      addYmd(ymdEtFromIso(next.toISOString()));
+      addYmd(ymdEtFromIso(prev.toISOString()));
+    } catch {
+      /* ignore */
+    }
+  };
   (games || []).forEach((g) => {
-    const ymd = ymdEtFromIso(g.game_date || g.gameDate);
-    if (ymd) dates.add(ymd);
+    addAdjacentEtDays(ymdEtFromIso(g.game_date || g.gameDate));
   });
   const dateList = [...dates].slice(0, 7);
   const espnUrls = [
@@ -472,16 +491,37 @@ async function syncWeekGrades(weekId, liveScores = null) {
   const games = await loadGamesByWeek(weekId);
   if (!games.length) return { weekId, gamesGraded: 0, picksUpdated: 0 };
 
-  let scores = liveScores;
+  const supabase = getSupabase();
+  const { data: weekRow, error: weekErr } = await supabase
+    .from("weeks")
+    .select("id, week_number, season_year")
+    .eq("id", weekId)
+    .maybeSingle();
+  dbError(weekErr);
+
+  let scores = Array.isArray(liveScores) ? [...liveScores] : null;
   if (!scores) {
-    const supabase = getSupabase();
-    const { data: weekRow, error: weekErr } = await supabase
-      .from("weeks")
-      .select("id, week_number, season_year")
-      .eq("id", weekId)
-      .maybeSingle();
-    dbError(weekErr);
     scores = await fetchLiveScoresForWeek(weekRow, games);
+  } else {
+    // Live payloads from /api/live-scores are often weekend-heavy. Incomplete
+    // slate games (Monday night, delayed finals) may be missing — fill those.
+    const incomplete = games.filter((g) => !g.is_completed);
+    const missing = incomplete.filter((g) => {
+      const live = findLiveForGame(g, scores);
+      return !live || extractFinalFromLive(live) == null;
+    });
+    if (missing.length) {
+      const extra = await fetchLiveScoresForWeek(weekRow, missing);
+      const byKey = new Map();
+      const push = (g) => {
+        if (!g) return;
+        const key = liveScoreKey(g);
+        byKey.set(key, preferLiveScore(byKey.get(key), g));
+      };
+      scores.forEach(push);
+      (extra || []).forEach(push);
+      scores = Array.from(byKey.values());
+    }
   }
 
   let picksUpdated = 0;
