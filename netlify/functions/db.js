@@ -490,7 +490,7 @@ async function recordPickReminderSent(userId, weekId) {
 
 function getEffectiveWeekLockTime(games, now = new Date()) {
   const lock = weekLockFromGames(games, now);
-  return lock.wouldLockAt || lock.locksAt || null;
+  return lock.locksAt || null;
 }
 
 async function getWeekEffectiveLockTime(weekId) {
@@ -572,7 +572,7 @@ function alreadySubmittedError() {
 function picksLockedError(locksAt) {
   const err = new Error(
     locksAt
-      ? `Picks are locked. The first game started ${locksAt}.`
+      ? `Picks are locked as of ${locksAt}.`
       : "Picks are locked for this week."
   );
   err.code = "PICKS_LOCKED";
@@ -580,9 +580,21 @@ function picksLockedError(locksAt) {
   return err;
 }
 
-/** TEMP: turn first-kickoff lock off so weekly picks stay editable. Set false to restore. */
-const WEEKLY_PICKS_TIME_LOCK_DISABLED = true;
+/** Picks stay open until 30 minutes after the first Saturday kickoff (ET). */
+const WEEKLY_PICKS_LOCK_AFTER_MS = 30 * 60 * 1000;
 
+function isSaturdayInEastern(date) {
+  const weekday = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    weekday: "short",
+  }).format(date);
+  return weekday === "Sat";
+}
+
+/**
+ * Lock = first Saturday kickoff (America/New_York) + 30 minutes.
+ * If the slate has no Saturday games, fall back to earliest kickoff + 30 minutes.
+ */
 function weekLockFromGames(games, now = new Date()) {
   const dates = (games || [])
     .map((g) => g.game_date)
@@ -590,15 +602,11 @@ function weekLockFromGames(games, now = new Date()) {
     .map((d) => new Date(d))
     .filter((d) => Number.isFinite(d.getTime()))
     .sort((a, b) => a.getTime() - b.getTime());
-  const locksAt = dates.length ? dates[0].toISOString() : null;
-  if (WEEKLY_PICKS_TIME_LOCK_DISABLED) {
-    return {
-      picksLocked: false,
-      locksAt: null,
-      lockDisabled: true,
-      wouldLockAt: locksAt,
-    };
-  }
+  const saturday = dates.find((d) => isSaturdayInEastern(d));
+  const anchor = saturday || dates[0] || null;
+  const locksAt = anchor
+    ? new Date(anchor.getTime() + WEEKLY_PICKS_LOCK_AFTER_MS).toISOString()
+    : null;
   return {
     picksLocked: Boolean(locksAt && now.getTime() >= new Date(locksAt).getTime()),
     locksAt,

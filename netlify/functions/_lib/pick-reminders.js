@@ -19,7 +19,7 @@ const {
   buildPickReminderEmail,
 } = require("./email");
 
-/** Send when first kickoff is this many ms away (default: 2 hours). */
+/** Send when lock time is this many ms away (default: 2 hours before lock). */
 const REMINDER_WINDOW_MS = Number(process.env.PICK_REMINDER_HOURS_BEFORE || 2) * 60 * 60 * 1000;
 
 function weekLabel(week) {
@@ -123,10 +123,11 @@ async function runPickReminders({
     const displayName = user.display_name || user.username || "Player";
     const mail = buildPickReminderEmail({
       displayName,
-      weekLabel: testTo ? `[TEST] ${label}` : label,
+      weekLabel: label,
       locksAt: locksAt || new Date(Date.now() + REMINDER_WINDOW_MS).toISOString(),
       picksUrl,
       settingsUrl,
+      isTest: Boolean(testTo),
     });
 
     if (dryRun) {
@@ -137,7 +138,7 @@ async function runPickReminders({
     try {
       await sendEmail({
         to: user.email,
-        subject: testTo ? `[TEST] ${mail.subject}` : mail.subject,
+        subject: mail.subject,
         html: mail.html,
         text: mail.text,
       });

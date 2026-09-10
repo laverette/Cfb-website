@@ -231,7 +231,7 @@
           <div class="picks-reminders-copy">
             <h2 class="picks-reminders-title" id="picksRemindersTitle">Email reminders</h2>
             <p class="picks-reminders-lead">
-              Get a reminder about 2 hours before picks lock if you haven’t submitted yet.
+              Get a reminder about 2 hours before picks lock (30 min after Saturday’s first kickoff) if you haven’t submitted yet.
             </p>
             <p class="picks-reminders-status" id="emailRemindersStatus" aria-live="polite"></p>
           </div>
@@ -1542,14 +1542,14 @@
       let body = '';
       if (status.picksLocked && status.hasSubmitted) {
         title = 'Picks locked';
-        body = `Your Week ${weekNumber} picks are locked because the first game has started.`;
+        body = `Your Week ${weekNumber} picks are locked — the Saturday lock deadline has passed.`;
       } else if (status.picksLocked) {
         title = 'Picks locked';
-        body = 'The first game of the week has started, so new picks are closed.';
+        body = 'Picks locked 30 minutes after Saturday’s first kickoff — new submissions are closed.';
       } else if (status.hasSubmitted) {
         title = 'Picks saved';
         body = lockLabel
-          ? `You can change these until the first kickoff (${lockLabel}).`
+          ? `You can change these until ${lockLabel} (30 min after Saturday’s first kickoff).`
           : 'You can still change these picks anytime for now.';
       }
       messageDiv.innerHTML = `
@@ -1675,7 +1675,7 @@
         editBtn.addEventListener('click', async function () {
           const status = window.__PICKS_STATUS__ || {};
           if (status.picksLocked || status.canEdit === false) {
-            alert('Picks are locked. The first game of the week has started.');
+            alert('Picks are locked. The Saturday lock deadline has passed.');
             return;
           }
           try {
@@ -2043,7 +2043,7 @@
       const editBlock = canEdit
         ? `
             <button id="editPicksBtn" class="screenshot-button edit-picks-button" type="button">Edit Picks</button>
-            <p class="screenshot-note">${lockLabel ? `You can edit until first kickoff (${safeText(lockLabel)}).` : 'You can still edit these picks.'}</p>
+            <p class="screenshot-note">${lockLabel ? `You can edit until ${safeText(lockLabel)} (30 min after Saturday’s first kickoff).` : 'You can still edit these picks.'}</p>
           `
         : `
             <p class="screenshot-note">Picks are locked for this week.</p>
@@ -2206,7 +2206,7 @@
             locksAt: result.locksAt,
             lastSubmitted: window.__PICKS_STATUS__.lastSubmitted,
           });
-          alert(result.message || 'Picks are locked. The first game has started.');
+          alert(result.message || 'Picks are locked. The Saturday lock deadline has passed.');
           return;
         }
         if (!response.ok) {
