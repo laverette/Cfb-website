@@ -1,6 +1,9 @@
 /**
  * Scheduled: send pick-deadline reminder emails.
  * Also callable manually with ?secret=CRON_SECRET for testing.
+ *
+ * Test a single inbox (does not email anyone else):
+ *   /api/cron/pick-reminders?secret=CRON_SECRET&to=you@example.com&force=1
  */
 const { json } = require("./_http");
 const { runPickReminders } = require("./_lib/pick-reminders");
@@ -25,12 +28,13 @@ exports.handler = async (event) => {
     return json(401, { error: "Unauthorized" });
   }
 
-  const dryRun =
-    event.queryStringParameters?.dryRun === "1" ||
-    event.queryStringParameters?.dryRun === "true";
+  const qs = event.queryStringParameters || {};
+  const dryRun = qs.dryRun === "1" || qs.dryRun === "true";
+  const force = qs.force === "1" || qs.force === "true";
+  const toEmail = qs.to || qs.email || null;
 
   try {
-    const result = await runPickReminders({ dryRun });
+    const result = await runPickReminders({ dryRun, force, toEmail });
     console.log("pick-reminders:", JSON.stringify(result));
     return json(200, result);
   } catch (err) {

@@ -1,5 +1,8 @@
 /**
  * Send pick-deadline reminder emails to opted-in users who haven't submitted.
+ *
+ * Test one recipient (never blasts everyone):
+ *   GET /api/cron/pick-reminders?secret=CRON_SECRET&to=you@example.com&force=1
  */
 const {
   loadCurrentWeek,
@@ -7,6 +10,7 @@ const {
   getEffectiveWeekLockTime,
   listUsersForPickReminders,
   recordPickReminderSent,
+  findUserByUsernameOrEmail,
 } = require("../db");
 const {
   sendEmail,
@@ -35,7 +39,17 @@ function withinReminderWindow(locksAt, now = new Date()) {
   return msUntil > 0 && msUntil <= REMINDER_WINDOW_MS;
 }
 
-async function runPickReminders({ dryRun = false } = {}) {
+function normalizeTestEmail(value) {
+  const email = String(value || "").trim().toLowerCase();
+  if (!email || !email.includes("@")) return null;
+  return email;
+}
+
+async function runPickReminders({
+  dryRun = false,
+  toEmail = null,
+  force = false,
+} = {}) {
   if (!isEmailConfigured()) {
     return {
       ok: false,
@@ -56,7 +70,10 @@ async function runPickReminders({ dryRun = false } = {}) {
   }
 
   const locksAt = getEffectiveWeekLockTime(games);
-  if (!withinReminderWindow(locksAt)) {
+  const testTo = normalizeTestEmail(toEmail);
+  const forceSend = Boolean(force) || Boolean(testTo);
+
+  if (!forceSend && !withinReminderWindow(locksAt)) {
     return {
       ok: true,
       skipped: true,
@@ -66,7 +83,30 @@ async function runPickReminders({ dryRun = false } = {}) {
     };
   }
 
-  const candidates = await listUsersForPickReminders(week.id);
+  let candidates = [];
+  if (testTo) {
+    const user = await findUserByUsernameOrEmail(testTo);
+    if (!user || !user.email) {
+      return {
+        ok: false,
+        skipped: true,
+        reason: "test_recipient_not_found",
+        to: testTo,
+        sent: 0,
+      };
+    }
+    candidates = [
+      {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        display_name: user.display_name,
+      },
+    ];
+  } else {
+    candidates = await listUsersForPickReminders(week.id);
+  }
+
   if (!candidates.length) {
     return { ok: true, skipped: true, reason: "no_recipients", locksAt, sent: 0 };
   }
@@ -83,8 +123,8 @@ async function runPickReminders({ dryRun = false } = {}) {
     const displayName = user.display_name || user.username || "Player";
     const mail = buildPickReminderEmail({
       displayName,
-      weekLabel: label,
-      locksAt,
+      weekLabel: testTo ? `[TEST] ${label}` : label,
+      locksAt: locksAt || new Date(Date.now() + REMINDER_WINDOW_MS).toISOString(),
       picksUrl,
       settingsUrl,
     });
@@ -97,11 +137,14 @@ async function runPickReminders({ dryRun = false } = {}) {
     try {
       await sendEmail({
         to: user.email,
-        subject: mail.subject,
+        subject: testTo ? `[TEST] ${mail.subject}` : mail.subject,
         html: mail.html,
         text: mail.text,
       });
-      await recordPickReminderSent(user.id, week.id);
+      // Don't mark test sends in pick_reminder_log — keeps the real cron eligible.
+      if (!testTo) {
+        await recordPickReminderSent(user.id, week.id);
+      }
       sent += 1;
     } catch (err) {
       console.error("pick-reminder send failed", user.id, err.message || err);
@@ -114,6 +157,9 @@ async function runPickReminders({ dryRun = false } = {}) {
     weekId: week.id,
     weekLabel: label,
     locksAt,
+    test: Boolean(testTo),
+    to: testTo || undefined,
+    force: forceSend,
     candidates: candidates.length,
     sent,
     errors: errors.length ? errors : undefined,
