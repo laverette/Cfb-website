@@ -1,5 +1,9 @@
 /**
  * Compute weekly pick awards from graded picks + betting lines.
+ *
+ * Soft spread: a dominant board (e.g. 12-0) should still win the majority of
+ * awards, but not every specialty. Excess wins are handed to the next-best
+ * eligible player for that category.
  */
 const {
   getSupabase,
@@ -37,6 +41,118 @@ function playerSnippet(row) {
 function pickBest(candidates, compare) {
   if (!candidates.length) return null;
   return [...candidates].sort(compare)[0];
+}
+
+function displayOf(p) {
+  return p?.displayName || p?.username || "Player";
+}
+
+function uidOf(p) {
+  return p?.userId != null ? Number(p.userId) : null;
+}
+
+/** Lower = strip first when someone is over the majority cap. Perfect never strips. */
+const AWARD_STRIP_PRIORITY = {
+  upset_king: 10,
+  chalkiest: 20,
+  clutch: 30,
+  on_fire: 40,
+  top_dog: 50,
+  ice_cold: 60,
+  perfect: 1000,
+};
+
+function majorityCap(positiveAwardCount) {
+  if (positiveAwardCount <= 1) return positiveAwardCount;
+  // Keep a true majority (e.g. 5 → 3, 6 → 4, 4 → 3).
+  return Math.floor(positiveAwardCount / 2) + 1;
+}
+
+function buildAward(id, title, icon, winners, headline) {
+  return { id, title, icon, winners, headline };
+}
+
+/**
+ * Soft-spread: if any user wins more than `cap` positive awards, reassign their
+ * lowest-priority awards to the next-best candidate for that category.
+ */
+function spreadAwards(awards, { candidatesByAward, cap }) {
+  const positive = awards.filter((a) => a.id !== "ice_cold");
+  const maxKeep = Math.max(1, Number(cap) || majorityCap(positive.length));
+
+  const countWins = () => {
+    const map = new Map();
+    for (const a of awards) {
+      if (a.id === "ice_cold") continue;
+      for (const w of a.winners || []) {
+        const id = uidOf(w);
+        if (id == null) continue;
+        map.set(id, (map.get(id) || 0) + 1);
+      }
+    }
+    return map;
+  };
+
+  const winnerIds = (award) =>
+    new Set((award.winners || []).map(uidOf).filter((id) => id != null));
+
+  // Reassign until nobody exceeds the majority cap (or we run out of alternatives).
+  for (let guard = 0; guard < 24; guard += 1) {
+    const wins = countWins();
+    const over = [...wins.entries()]
+      .filter(([, n]) => n > maxKeep)
+      .sort((a, b) => b[1] - a[1]);
+    if (!over.length) break;
+
+    const [overUserId] = over[0];
+    const stripCandidates = awards
+      .filter((a) => a.id !== "perfect" && a.id !== "ice_cold")
+      .filter((a) => winnerIds(a).has(overUserId))
+      .sort(
+        (a, b) =>
+          (AWARD_STRIP_PRIORITY[a.id] || 0) - (AWARD_STRIP_PRIORITY[b.id] || 0)
+      );
+
+    let reassigned = false;
+    for (const award of stripCandidates) {
+      if ((wins.get(overUserId) || 0) <= maxKeep) break;
+      const compare = candidatesByAward[award.id]?.compare;
+      const pool = candidatesByAward[award.id]?.pool || [];
+      if (!compare || !pool.length) continue;
+
+      const next = pickBest(
+        pool.filter((p) => {
+          const id = uidOf(p);
+          if (id == null || id === overUserId) return false;
+          // Prefer people under the cap; allow anyone else if needed.
+          return true;
+        }),
+        (a, b) => {
+          const wa = wins.get(uidOf(a)) || 0;
+          const wb = wins.get(uidOf(b)) || 0;
+          // Prefer players who still have room under the majority cap.
+          const roomA = wa < maxKeep ? 0 : 1;
+          const roomB = wb < maxKeep ? 0 : 1;
+          if (roomA !== roomB) return roomA - roomB;
+          return compare(a, b);
+        }
+      );
+      if (!next) continue;
+
+      const built = candidatesByAward[award.id].build(next);
+      if (!built) continue;
+      award.winners = built.winners;
+      award.headline = built.headline;
+      wins.set(overUserId, (wins.get(overUserId) || 1) - 1);
+      const nid = uidOf(next);
+      if (nid != null) wins.set(nid, (wins.get(nid) || 0) + 1);
+      reassigned = true;
+      break;
+    }
+    if (!reassigned) break;
+  }
+
+  return awards;
 }
 
 async function getWeekAwards(weekIdInput = null) {
@@ -138,7 +254,6 @@ async function getWeekAwards(weekIdInput = null) {
     }
   }
 
-  // Clutch = last 3 game numbers
   const clutchGames = new Set();
   for (let n = maxGameNumber; n >= 1 && clutchGames.size < 3; n -= 1) {
     clutchGames.add(n);
@@ -167,6 +282,7 @@ async function getWeekAwards(weekIdInput = null) {
   }
 
   const awards = [];
+  const candidatesByAward = {};
 
   const perfect = gradedPlayers.filter(
     (p) => p.incorrectPicks === 0 && p.correctPicks > 0
@@ -178,113 +294,134 @@ async function getWeekAwards(weekIdInput = null) {
         b.correctPicks - a.correctPicks ||
         String(a.username || "").localeCompare(String(b.username || ""))
     );
-    awards.push({
-      id: "perfect",
-      title: "Perfect Week",
-      icon: "✨",
-      winners: perfect.map((p) =>
+    awards.push(
+      buildAward(
+        "perfect",
+        "Perfect Week",
+        "✨",
+        perfect.map((p) =>
+          playerSnippet({
+            ...p,
+            value: `${p.correctPicks}-${p.incorrectPicks}-${p.tiedPicks}`,
+            detail: "No losses",
+          })
+        ),
+        perfect.length === 1
+          ? `${displayOf(best)} is perfect`
+          : `${perfect.length} perfect boards`
+      )
+    );
+  }
+
+  const topDogCompare = (a, b) =>
+    b.correctPicks - a.correctPicks ||
+    b.accuracy - a.accuracy ||
+    String(a.username || "").localeCompare(String(b.username || ""));
+  const topDog = pickBest(gradedPlayers, topDogCompare);
+  candidatesByAward.top_dog = {
+    pool: gradedPlayers,
+    compare: topDogCompare,
+    build: (p) => ({
+      winners: [
         playerSnippet({
           ...p,
           value: `${p.correctPicks}-${p.incorrectPicks}-${p.tiedPicks}`,
-          detail: "No losses",
-        })
-      ),
-      headline: perfect.length === 1
-        ? `${best.displayName || best.username} is perfect`
-        : `${perfect.length} perfect boards`,
-    });
-  }
-
-  const topDog = pickBest(
-    gradedPlayers,
-    (a, b) =>
-      b.correctPicks - a.correctPicks ||
-      b.accuracy - a.accuracy ||
-      String(a.username || "").localeCompare(String(b.username || ""))
-  );
-  if (topDog) {
-    awards.push({
-      id: "top_dog",
-      title: "Top Dog",
-      icon: "🏆",
-      winners: [
-        playerSnippet({
-          ...topDog,
-          value: `${topDog.correctPicks}-${topDog.incorrectPicks}-${topDog.tiedPicks}`,
-          detail: `${Number(topDog.accuracy || 0).toFixed(1)}%`,
+          detail: `${Number(p.accuracy || 0).toFixed(1)}%`,
         }),
       ],
-      headline: `${topDog.displayName || topDog.username} leads the board`,
-    });
+      headline: `${displayOf(p)} leads the board`,
+    }),
+  };
+  // Skip Top Dog when Perfect Week already crowns the same lone leader (redundant).
+  const topDogRedundant =
+    perfect.length === 1 &&
+    topDog &&
+    uidOf(perfect[0]) === uidOf(topDog);
+  if (topDog && !topDogRedundant) {
+    awards.push(
+      buildAward(
+        "top_dog",
+        "Top Dog",
+        "🏆",
+        candidatesByAward.top_dog.build(topDog).winners,
+        candidatesByAward.top_dog.build(topDog).headline
+      )
+    );
   }
 
-  const chalkiest = pickBest(
-    gradedPlayers.filter((p) => p.chalkCorrect > 0),
-    (a, b) =>
-      b.chalkCorrect - a.chalkCorrect ||
-      b.correctPicks - a.correctPicks ||
-      String(a.username || "").localeCompare(String(b.username || ""))
-  );
-  if (chalkiest) {
-    awards.push({
-      id: "chalkiest",
-      title: "Chalkiest",
-      icon: "📋",
+  const chalkCompare = (a, b) =>
+    b.chalkCorrect - a.chalkCorrect ||
+    b.correctPicks - a.correctPicks ||
+    String(a.username || "").localeCompare(String(b.username || ""));
+  const chalkPool = gradedPlayers.filter((p) => p.chalkCorrect > 0);
+  const chalkiest = pickBest(chalkPool, chalkCompare);
+  candidatesByAward.chalkiest = {
+    pool: chalkPool,
+    compare: chalkCompare,
+    build: (p) => ({
       winners: [
         playerSnippet({
-          ...chalkiest,
-          value: String(chalkiest.chalkCorrect),
+          ...p,
+          value: String(p.chalkCorrect),
           detail: "correct favorites",
         }),
       ],
-      headline: `${chalkiest.displayName || chalkiest.username} rode the chalk`,
-    });
+      headline: `${displayOf(p)} rode the chalk`,
+    }),
+  };
+  if (chalkiest) {
+    const built = candidatesByAward.chalkiest.build(chalkiest);
+    awards.push(buildAward("chalkiest", "Chalkiest", "📋", built.winners, built.headline));
   }
 
-  const upsetKing = pickBest(
-    gradedPlayers.filter((p) => p.upsetCorrect > 0),
-    (a, b) =>
-      b.upsetCorrect - a.upsetCorrect ||
-      b.correctPicks - a.correctPicks ||
-      String(a.username || "").localeCompare(String(b.username || ""))
-  );
-  if (upsetKing) {
-    awards.push({
-      id: "upset_king",
-      title: "Upset King",
-      icon: "⚡",
+  const upsetCompare = (a, b) =>
+    b.upsetCorrect - a.upsetCorrect ||
+    b.correctPicks - a.correctPicks ||
+    String(a.username || "").localeCompare(String(b.username || ""));
+  const upsetPool = gradedPlayers.filter((p) => p.upsetCorrect > 0);
+  const upsetKing = pickBest(upsetPool, upsetCompare);
+  candidatesByAward.upset_king = {
+    pool: upsetPool,
+    compare: upsetCompare,
+    build: (p) => ({
       winners: [
         playerSnippet({
-          ...upsetKing,
-          value: String(upsetKing.upsetCorrect),
+          ...p,
+          value: String(p.upsetCorrect),
           detail: "correct underdogs",
         }),
       ],
-      headline: `${upsetKing.displayName || upsetKing.username} nailed the dogs`,
-    });
+      headline: `${displayOf(p)} nailed the dogs`,
+    }),
+  };
+  if (upsetKing) {
+    const built = candidatesByAward.upset_king.build(upsetKing);
+    awards.push(buildAward("upset_king", "Upset King", "⚡", built.winners, built.headline));
   }
 
-  const onFire = pickBest(
-    gradedPlayers.filter((p) => p.currentStreak >= 3),
-    (a, b) =>
-      b.currentStreak - a.currentStreak ||
-      b.accuracy - a.accuracy ||
-      String(a.username || "").localeCompare(String(b.username || ""))
-  );
-  if (onFire) {
-    awards.push({
-      id: "on_fire",
-      title: "On Fire",
-      icon: "🔥",
+  const fireCompare = (a, b) =>
+    b.currentStreak - a.currentStreak ||
+    b.accuracy - a.accuracy ||
+    String(a.username || "").localeCompare(String(b.username || ""));
+  const firePool = gradedPlayers.filter((p) => p.currentStreak >= 3);
+  const onFire = pickBest(firePool, fireCompare);
+  candidatesByAward.on_fire = {
+    pool: firePool,
+    compare: fireCompare,
+    build: (p) => ({
       winners: [
         playerSnippet({
-          ...onFire,
-          value: String(onFire.currentStreak),
+          ...p,
+          value: String(p.currentStreak),
           detail: "pick streak",
         }),
       ],
-      headline: `${onFire.displayName || onFire.username} is heating up`,
-    });
+      headline: `${displayOf(p)} is heating up`,
+    }),
+  };
+  if (onFire) {
+    const built = candidatesByAward.on_fire.build(onFire);
+    awards.push(buildAward("on_fire", "On Fire", "🔥", built.winners, built.headline));
   }
 
   const iceCold = pickBest(
@@ -295,43 +432,53 @@ async function getWeekAwards(weekIdInput = null) {
       String(a.username || "").localeCompare(String(b.username || ""))
   );
   if (iceCold) {
-    awards.push({
-      id: "ice_cold",
-      title: "Ice Cold",
-      icon: "❄️",
-      winners: [
-        playerSnippet({
-          ...iceCold,
-          value: String(Math.abs(iceCold.currentStreak)),
-          detail: "wrong in a row",
-        }),
-      ],
-      headline: `${iceCold.displayName || iceCold.username} needs a thaw`,
-    });
+    awards.push(
+      buildAward(
+        "ice_cold",
+        "Ice Cold",
+        "❄️",
+        [
+          playerSnippet({
+            ...iceCold,
+            value: String(Math.abs(iceCold.currentStreak)),
+            detail: "wrong in a row",
+          }),
+        ],
+        `${displayOf(iceCold)} needs a thaw`
+      )
+    );
   }
 
-  const clutch = pickBest(
-    gradedPlayers.filter((p) => p.clutchGraded > 0),
-    (a, b) =>
-      b.clutchCorrect - a.clutchCorrect ||
-      b.clutchGraded - a.clutchGraded ||
-      String(a.username || "").localeCompare(String(b.username || ""))
-  );
-  if (clutch && clutch.clutchCorrect > 0) {
-    awards.push({
-      id: "clutch",
-      title: "Clutch",
-      icon: "🎯",
+  const clutchCompare = (a, b) =>
+    b.clutchCorrect - a.clutchCorrect ||
+    b.clutchGraded - a.clutchGraded ||
+    String(a.username || "").localeCompare(String(b.username || ""));
+  const clutchPool = gradedPlayers.filter((p) => p.clutchGraded > 0 && p.clutchCorrect > 0);
+  const clutch = pickBest(clutchPool, clutchCompare);
+  candidatesByAward.clutch = {
+    pool: clutchPool,
+    compare: clutchCompare,
+    build: (p) => ({
       winners: [
         playerSnippet({
-          ...clutch,
-          value: `${clutch.clutchCorrect}/${clutch.clutchGraded}`,
+          ...p,
+          value: `${p.clutchCorrect}/${p.clutchGraded}`,
           detail: "late games",
         }),
       ],
-      headline: `${clutch.displayName || clutch.username} owned the nightcap`,
-    });
+      headline: `${displayOf(p)} owned the nightcap`,
+    }),
+  };
+  if (clutch) {
+    const built = candidatesByAward.clutch.build(clutch);
+    awards.push(buildAward("clutch", "Clutch", "🎯", built.winners, built.headline));
   }
+
+  const positiveCount = awards.filter((a) => a.id !== "ice_cold").length;
+  spreadAwards(awards, {
+    candidatesByAward,
+    cap: majorityCap(positiveCount),
+  });
 
   return {
     weekId,
@@ -340,4 +487,4 @@ async function getWeekAwards(weekIdInput = null) {
   };
 }
 
-module.exports = { getWeekAwards, favoriteEspnId };
+module.exports = { getWeekAwards, favoriteEspnId, majorityCap };

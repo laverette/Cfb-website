@@ -2553,9 +2553,15 @@
             (a.accuracy || 0) - (b.accuracy || 0) ||
             (a.correctPicks || 0) - (b.correctPicks || 0)
         )[0];
+      const featuredIds = new Set();
+      if (leader?.userId != null) featuredIds.add(Number(leader.userId));
       const hot = [...entries]
-        .filter((e) => (e.currentStreak || 0) >= 3)
-        .sort((a, b) => (b.currentStreak || 0) - (a.currentStreak || 0))[0];
+        .filter((e) => (e.currentStreak || 0) >= 3 && !featuredIds.has(Number(e.userId)))
+        .sort((a, b) => (b.currentStreak || 0) - (a.currentStreak || 0))[0]
+        || [...entries]
+          .filter((e) => (e.currentStreak || 0) >= 3)
+          .sort((a, b) => (b.currentStreak || 0) - (a.currentStreak || 0))[0];
+      if (hot?.userId != null) featuredIds.add(Number(hot.userId));
       const cold = [...entries]
         .filter((e) => (e.currentStreak || 0) <= -3)
         .sort((a, b) => (a.currentStreak || 0) - (b.currentStreak || 0))[0];
@@ -2597,7 +2603,17 @@
           text: `${totalTied} pick${totalTied === 1 ? '' : 's'} pushed on ties — ties don't count for or against accuracy.`,
         });
       }
-      if (leader) {
+      const leaderIsLonePerfect =
+        perfect.length === 1 &&
+        leader &&
+        Number(perfect[0].userId) === Number(leader.userId);
+      if (leaderIsLonePerfect) {
+        highlights.push({
+          icon: playerAvatarHtml(leader, 22) || '✨',
+          text: `${leader.displayName || leader.username} runs the table at ${recordLabel(leader)} (100%).`,
+          htmlIcon: true,
+        });
+      } else if (leader) {
         highlights.push({
           icon: playerAvatarHtml(leader, 22) || '🏆',
           text: `${leader.displayName || leader.username} leads with ${recordLabel(leader)} (${Number(leader.accuracy || 0).toFixed(1)}%).`,
@@ -2612,11 +2628,11 @@
             gap <= 0
               ? `${leader.displayName || leader.username} and ${runnerUp.displayName || runnerUp.username} are tied at the top.`
               : gap === 1
-                ? `Only 1 correct pick separates ${leader.displayName || leader.username} and ${runnerUp.displayName || runnerUp.username}.`
-                : `${leader.displayName || leader.username} leads ${runnerUp.displayName || runnerUp.username} by ${gap} correct picks.`,
+                ? `${runnerUp.displayName || runnerUp.username} is only 1 correct pick behind ${leader.displayName || leader.username}.`
+                : `${runnerUp.displayName || runnerUp.username} sits ${gap} correct picks behind the lead.`,
         });
       }
-      if (perfect.length) {
+      if (perfect.length && !leaderIsLonePerfect) {
         highlights.push({
           icon: '✨',
           text:
@@ -2630,7 +2646,7 @@
           text: `${undefeated.length} undefeated player${undefeated.length === 1 ? '' : 's'} after accounting for ties.`,
         });
       }
-      if (hot) {
+      if (hot && !(leader && Number(hot.userId) === Number(leader.userId))) {
         highlights.push({
           icon: '🔥',
           text: `${hot.displayName || hot.username} is on a ${hot.currentStreak}-pick heater.`,
