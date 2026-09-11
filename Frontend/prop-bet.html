@@ -32,15 +32,31 @@
       <p class="power-eyebrow">Player props</p>
       <h1 class="power-title">Prop Bet Evaluator</h1>
       <p class="power-subtitle">
-        Search a player, enter the sportsbook line, and we’ll compare it to season averages adjusted for this week’s opponent.
+        Live sportsbook lines graded by our model’s hit probability — plus a manual builder for any leg.
       </p>
     </header>
+
+    <section class="matchup-panel prop-board-panel" aria-labelledby="propBoardTitle">
+      <div class="matchup-panel-head prop-board-head">
+        <div>
+          <h2 id="propBoardTitle" class="matchup-panel-title">This week’s board</h2>
+          <p class="matchup-panel-lead" id="propBoardLead">
+            Loading sportsbook props and model hit odds…
+          </p>
+        </div>
+        <button type="button" class="btn btn-brown btn-sm" id="propBoardRefresh">Refresh</button>
+      </div>
+      <div id="propBoardStatus" class="prop-board-status" hidden></div>
+      <div id="propBoard" class="prop-board-list">
+        <p class="prop-loading">Fetching weekly props…</p>
+      </div>
+    </section>
 
     <div class="prop-grid">
       <section class="matchup-panel matchup-panel-form" aria-labelledby="propFormTitle">
         <div class="matchup-panel-head">
           <h2 id="propFormTitle" class="matchup-panel-title">Build a leg</h2>
-          <p class="matchup-panel-lead">Single-leg v1 — over / under lean from averages + opponent strength.</p>
+          <p class="matchup-panel-lead">Manual entry — season averages + opponent strength → hit %.</p>
         </div>
 
         <form class="matchup-form" id="propForm" onsubmit="return false;">
@@ -81,6 +97,31 @@
                 step="0.5"
                 inputmode="decimal"
                 placeholder="e.g. 224.5"
+              >
+            </label>
+          </div>
+
+          <div class="prop-form-row">
+            <label class="power-field">
+              <span>Over price <em class="prop-optional">(optional)</em></span>
+              <input
+                id="propOverPrice"
+                class="site-select matchup-select"
+                type="number"
+                step="1"
+                inputmode="numeric"
+                placeholder="e.g. -115"
+              >
+            </label>
+            <label class="power-field">
+              <span>Under price <em class="prop-optional">(optional)</em></span>
+              <input
+                id="propUnderPrice"
+                class="site-select matchup-select"
+                type="number"
+                step="1"
+                inputmode="numeric"
+                placeholder="e.g. -105"
               >
             </label>
           </div>

@@ -2,7 +2,7 @@
   publish = "Frontend"
   functions = "netlify/functions"
 
-[functions."bama-schedule"]
+[functions."prop-eval"]
   timeout = 26
 
 [functions."bama-schedule-leaderboard"]

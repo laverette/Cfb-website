@@ -29,6 +29,22 @@
     return "Toss-up";
   }
 
+  function pct(p) {
+    if (p == null || !Number.isFinite(Number(p))) return "—";
+    return `${Math.round(Number(p) * 100)}%`;
+  }
+
+  function american(n) {
+    if (n == null || !Number.isFinite(Number(n))) return "—";
+    const v = Number(n);
+    return v > 0 ? `+${v}` : String(v);
+  }
+
+  function starsHtml(n) {
+    const s = Math.max(0, Math.min(3, Number(n) || 0));
+    return "★".repeat(s) + "☆".repeat(3 - s);
+  }
+
   async function apiGet(params) {
     const url = new URL("/api/prop-eval", window.location.origin);
     Object.entries(params).forEach(([k, v]) => {
@@ -346,6 +362,34 @@
         </p>
       </div>
 
+      ${
+        data.grade
+          ? `<div class="prop-prob-row">
+              <div class="prop-metric">
+                <span class="prop-metric-label">Model P(Over)</span>
+                <div class="prop-metric-value">${escapeHtml(pct(data.grade.pOver))}</div>
+              </div>
+              <div class="prop-metric">
+                <span class="prop-metric-label">Model P(Under)</span>
+                <div class="prop-metric-value">${escapeHtml(pct(data.grade.pUnder))}</div>
+              </div>
+              <div class="prop-metric">
+                <span class="prop-metric-label">Market edge</span>
+                <div class="prop-metric-value">${
+                  data.grade.probEdgePct != null
+                    ? escapeHtml(`${data.grade.probEdgePct >= 0 ? "+" : ""}${data.grade.probEdgePct}%`)
+                    : "—"
+                }</div>
+              </div>
+            </div>
+            ${
+              data.grade.label
+                ? `<p class="prop-prob-label">${escapeHtml(data.grade.label)}</p>`
+                : ""
+            }`
+          : ""
+      }
+
       <div class="prop-metrics">
         <div class="prop-metric">
           <span class="prop-metric-label">Line</span>
@@ -423,6 +467,8 @@
         line,
         opponent: oppName,
         season: SEASON,
+        overPrice: document.getElementById("propOverPrice")?.value || "",
+        underPrice: document.getElementById("propUnderPrice")?.value || "",
       });
       renderResult(data);
     } catch (err) {
@@ -434,12 +480,117 @@
     }
   }
 
+  function renderBoard(data) {
+    const host = document.getElementById("propBoard");
+    const lead = document.getElementById("propBoardLead");
+    const status = document.getElementById("propBoardStatus");
+    if (!host) return;
+
+    if (lead) {
+      const weekBit =
+        data.week?.weekNumber != null
+          ? `Week ${data.week.weekNumber}${data.week.seasonYear ? ` · ${data.week.seasonYear}` : ""}`
+          : "Upcoming NCAAF";
+      lead.textContent = `${weekBit} · ${data.propCount || 0} props graded${
+        data.cached ? " (cached)" : ""
+      }`;
+    }
+
+    if (status) {
+      const notes = [];
+      if (Array.isArray(data.warnings)) notes.push(...data.warnings);
+      if (data.quota?.remaining != null) {
+        notes.push(`Odds API credits left: ${data.quota.remaining}`);
+      }
+      if (notes.length) {
+        status.hidden = false;
+        status.textContent = notes.join(" · ");
+      } else {
+        status.hidden = true;
+        status.textContent = "";
+      }
+    }
+
+    const rows = Array.isArray(data.props) ? data.props : [];
+    if (!rows.length) {
+      host.innerHTML =
+        '<p class="prop-board-empty">No graded props yet. Check ODDS_API_KEY or try Refresh.</p>';
+      return;
+    }
+
+    host.innerHTML = rows
+      .map((p) => {
+        const g = p.grade || {};
+        const side = g.side || p.lean || "tossup";
+        const edge =
+          g.probEdgePct != null
+            ? `${g.probEdgePct >= 0 ? "+" : ""}${g.probEdgePct}%`
+            : "—";
+        return `
+        <article class="prop-board-card">
+          <div class="prop-board-card-top">
+            <div>
+              <p class="prop-board-player">${escapeHtml(p.playerName)}</p>
+              <p class="prop-board-sub">${escapeHtml(
+                [p.playerTeam, p.position, p.statLabel].filter(Boolean).join(" · ")
+              )}</p>
+              <p class="prop-board-matchup">${escapeHtml(p.awayTeam || "")} @ ${escapeHtml(
+                p.homeTeam || ""
+              )}</p>
+            </div>
+            <div class="prop-board-edge is-${escapeHtml(side)}">
+              <span class="prop-board-edge-label">${escapeHtml(leanLabel(side))}</span>
+              <span class="prop-board-edge-val">${escapeHtml(edge)}</span>
+              <span class="prop-board-stars" aria-label="${escapeHtml(String(g.stars || 0))} star edge">${escapeHtml(
+                starsHtml(g.stars)
+              )}</span>
+            </div>
+          </div>
+          <div class="prop-board-metrics">
+            <div><span>Line</span><strong>${escapeHtml(fmt(p.line, 1))}</strong></div>
+            <div><span>Proj</span><strong>${escapeHtml(fmt(p.expected, 1))}</strong></div>
+            <div><span>P(Over)</span><strong>${escapeHtml(pct(g.pOver))}</strong></div>
+            <div><span>Mkt Over</span><strong>${escapeHtml(pct(g.impliedOver))}</strong></div>
+            <div><span>Book</span><strong>${escapeHtml(p.bookmaker || "—")}</strong></div>
+            <div><span>Odds</span><strong>${escapeHtml(american(p.overPrice))} / ${escapeHtml(
+              american(p.underPrice)
+            )}</strong></div>
+          </div>
+        </article>`;
+      })
+      .join("");
+  }
+
+  async function loadBoard(force) {
+    const host = document.getElementById("propBoard");
+    if (host) host.innerHTML = '<p class="prop-loading">Fetching weekly props…</p>';
+    try {
+      const data = await apiGet({
+        action: "board",
+        season: SEASON,
+        force: force ? "1" : "",
+      });
+      renderBoard(data);
+    } catch (err) {
+      if (host) {
+        const needsKey = err.body?.code === "ODDS_API_NOT_CONFIGURED" || /ODDS_API_KEY/i.test(err.message);
+        host.innerHTML = needsKey
+          ? `<p class="prop-error">Add <code>ODDS_API_KEY</code> in Netlify (from theoddsapi.com) to load this week’s prop board. Manual evaluator below still works.</p>`
+          : `<p class="prop-error">${escapeHtml(err.message)}</p>`;
+      }
+      const lead = document.getElementById("propBoardLead");
+      if (lead) lead.textContent = "Board unavailable";
+    }
+  }
+
   document.addEventListener("DOMContentLoaded", async () => {
     bindPlayerCombo();
     bindOpponentCombo();
     document.getElementById("propStat")?.addEventListener("change", setEvaluateEnabled);
     document.getElementById("propLine")?.addEventListener("input", setEvaluateEnabled);
     document.getElementById("evaluateBtn")?.addEventListener("click", evaluate);
+    document.getElementById("propBoardRefresh")?.addEventListener("click", () => loadBoard(true));
     await loadTeams();
+    loadBoard(false);
   });
 })();

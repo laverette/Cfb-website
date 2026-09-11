@@ -1,7 +1,8 @@
 /**
- * GET /api/prop-eval?action=search&q=...
- * GET /api/prop-eval?action=evaluate&playerId=&stat=&line=&team=&opponent=&season=
- * GET /api/prop-eval?action=stats&playerId=&team=&season=  (available props for player)
+ * GET /api/prop-eval?action=search|stats|catalog|evaluate|board
+ *
+ * board — weekly Odds API props + model hit probabilities (needs ODDS_API_KEY)
+ * evaluate — optional overPrice/underPrice for market-implied comparison
  */
 const { json } = require("./_http");
 const store = require("./_lib/power/store");
@@ -12,6 +13,9 @@ const {
   loadOverviewWithFallback,
   listAvailableStats,
 } = require("./_lib/prop-eval");
+const { buildProbGrade, modelHitProbabilities } = require("./_lib/prop-prob");
+const { buildWeeklyPropBoard } = require("./_lib/prop-board");
+const { isOddsApiConfigured } = require("./_lib/odds-api");
 
 function readCfbdKey() {
   return (process.env.CFBD_API_KEY && String(process.env.CFBD_API_KEY).trim()) || "";
@@ -31,6 +35,37 @@ async function loadPowerTeams(season) {
   }
 }
 
+function attachProbabilities(result, q = {}) {
+  const overPrice = q.overPrice != null && q.overPrice !== "" ? q.overPrice : null;
+  const underPrice = q.underPrice != null && q.underPrice !== "" ? q.underPrice : null;
+  const modelOnly = modelHitProbabilities(result.expected, result.line, result.stat?.id);
+  const grade =
+    overPrice != null || underPrice != null
+      ? buildProbGrade({
+          expected: result.expected,
+          line: result.line,
+          statId: result.stat?.id,
+          lean: result.lean,
+          overPrice,
+          underPrice,
+        })
+      : {
+          pOver: modelOnly.pOver,
+          pUnder: modelOnly.pUnder,
+          scale: modelOnly.scale,
+          impliedOver: null,
+          impliedUnder: null,
+          side: result.lean === "tossup" ? (modelOnly.pOver >= 0.5 ? "over" : "under") : result.lean,
+          modelProb: null,
+          marketProb: null,
+          probEdge: null,
+          probEdgePct: null,
+          stars: 0,
+          label: null,
+        };
+  return { ...result, grade };
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod && event.httpMethod !== "GET") {
     return json(405, { error: "Method not allowed" });
@@ -43,8 +78,9 @@ exports.handler = async (event) => {
     return json(503, { error: "CFBD_API_KEY not configured" });
   }
 
+  const isBoard = action === "board";
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 22_000);
+  const timeout = setTimeout(() => controller.abort(), isBoard ? 25_000 : 22_000);
   const signal = controller.signal;
 
   try {
@@ -95,6 +131,32 @@ exports.handler = async (event) => {
       });
     }
 
+    if (action === "board") {
+      if (!isOddsApiConfigured()) {
+        return json(503, {
+          error:
+            "ODDS_API_KEY is not configured. Add a The Odds API key in Netlify to load weekly prop lines.",
+          code: "ODDS_API_NOT_CONFIGURED",
+        });
+      }
+      const season = Number(q.season || q.year) || new Date().getFullYear();
+      const powerTeams = await loadPowerTeams(season);
+      const board = await buildWeeklyPropBoard({
+        season,
+        apiKey,
+        powerTeams,
+        signal,
+        force: q.force === "1" || q.refresh === "1",
+        maxEvents: Math.min(10, Number(q.maxEvents) || 8),
+        maxProps: Math.min(40, Number(q.maxProps) || 28),
+      });
+      return json(200, board, {
+        "cache-control": board.cached
+          ? "public, max-age=60, s-maxage=120"
+          : "public, max-age=30, s-maxage=60",
+      });
+    }
+
     // evaluate (default)
     const playerId = String(q.playerId || q.id || "").trim();
     const stat = String(q.stat || q.statId || "").trim();
@@ -119,7 +181,7 @@ exports.handler = async (event) => {
       signal,
     });
 
-    return json(200, result, {
+    return json(200, attachProbabilities(result, q), {
       "cache-control": "public, max-age=30, s-maxage=60",
     });
   } catch (err) {
@@ -127,6 +189,9 @@ exports.handler = async (event) => {
       return json(504, { error: "Timed out evaluating prop" });
     }
     console.error("prop-eval:", err);
+    if (err.code === "ODDS_API_NOT_CONFIGURED") {
+      return json(503, { error: err.message, code: err.code });
+    }
     const status =
       err.code === "BAD_STAT" || err.code === "BAD_LINE"
         ? 400

@@ -579,7 +579,7 @@ async function evaluateProp({
     confidence: verdict.confidence,
     availableStats: listAvailableStats(overview),
     disclaimer:
-      "Educational model only — not betting advice. Early-season props blend prior-year pace when the sample is thin.",
+      "Educational model only — not betting advice. Early-season props blend prior-year pace when the sample is thin. Hit % is a model estimate vs the line, not a guarantee.",
   };
 }
 
