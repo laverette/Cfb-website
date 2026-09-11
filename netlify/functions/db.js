@@ -832,12 +832,58 @@ async function listPublicUsers() {
 
 async function listSeasonYears() {
   const supabase = getSupabase();
-  const rows = await selectAllPages(() =>
-    supabase.from("weeks").select("season_year").order("season_year", { ascending: false })
-  );
-  const years = [...new Set(rows.map((r) => Number(r.season_year)).filter(Number.isFinite))];
+  const [weekRows, histRows] = await Promise.all([
+    selectAllPages(() =>
+      supabase.from("weeks").select("season_year").order("season_year", { ascending: false })
+    ),
+    selectAllPages(() =>
+      supabase
+        .from("historical_season_records")
+        .select("season_year")
+        .order("season_year", { ascending: false })
+    ).catch(() => []),
+  ]);
+  const years = [
+    ...new Set(
+      [...weekRows, ...histRows]
+        .map((r) => Number(r.season_year))
+        .filter(Number.isFinite)
+    ),
+  ];
   years.sort((a, b) => b - a);
   return years;
+}
+
+async function loadHistoricalSeasonRecords({ userId = null, seasonYear = null } = {}) {
+  const supabase = getSupabase();
+  try {
+    return await selectAllPages(() => {
+      let query = supabase
+        .from("historical_season_records")
+        .select("user_id, season_year, correct_picks, incorrect_picks, tied_picks, notes");
+      if (userId != null && Number.isFinite(Number(userId))) {
+        query = query.eq("user_id", Number(userId));
+      }
+      if (seasonYear != null && Number.isFinite(Number(seasonYear))) {
+        query = query.eq("season_year", Number(seasonYear));
+      }
+      return query;
+    });
+  } catch {
+    return [];
+  }
+}
+
+/** Add aggregate W-L (no pick chronology / streaks) from a historical season row. */
+function applyHistoricalCounts(bucket, row) {
+  if (!bucket || !row) return;
+  const wins = Math.max(0, Number(row.correct_picks ?? row.correctPicks) || 0);
+  const losses = Math.max(0, Number(row.incorrect_picks ?? row.incorrectPicks) || 0);
+  const ties = Math.max(0, Number(row.tied_picks ?? row.tiedPicks) || 0);
+  bucket.correctPicks += wins;
+  bucket.incorrectPicks += losses;
+  bucket.tiedPicks += ties;
+  bucket.totalPicks += wins + losses + ties;
 }
 
 async function resolveLeaderboardSeasonYear(requestedYear) {
@@ -951,6 +997,20 @@ async function getLeaderboard({
       },
       Boolean(pick.is_tie)
     );
+  }
+
+  // Fold prior-season aggregates (no individual picks) into all / season / year boards.
+  if (filterWeekId == null) {
+    const hist = await loadHistoricalSeasonRecords(
+      filterYear != null ? { seasonYear: filterYear } : {}
+    );
+    for (const row of hist) {
+      const uid = Number(row.user_id);
+      if (!byUser.has(uid)) continue;
+      const seasonYear = Number(row.season_year);
+      if (filterYear != null && seasonYear !== filterYear) continue;
+      applyHistoricalCounts(byUser.get(uid), row);
+    }
   }
 
   const entries = rankRows(
@@ -1104,6 +1164,16 @@ async function getPublicUserProfile({ userId = null, username = null } = {}) {
     }
   }
 
+  const historical = await loadHistoricalSeasonRecords({ userId: user.id });
+  for (const row of historical) {
+    const seasonYear = Number(row.season_year);
+    applyHistoricalCounts(allTime, row);
+    if (Number.isFinite(seasonYear)) {
+      if (!bySeason.has(seasonYear)) bySeason.set(seasonYear, emptyPickBucket());
+      applyHistoricalCounts(bySeason.get(seasonYear), row);
+    }
+  }
+
   finalizeBucket(allTime);
   const seasons = [...bySeason.entries()]
     .map(([seasonYear, bucket]) => ({
@@ -1196,6 +1266,8 @@ module.exports = {
   getPublicUserProfile,
   listSeasonYears,
   listPublicUsers,
+  loadHistoricalSeasonRecords,
+  applyHistoricalCounts,
   emptyPickBucket,
   finalizeBucket,
   addPickToBucket,
