@@ -149,6 +149,37 @@ async function loadCurrentWeek() {
   return w ? mapWeekRow(w) : null;
 }
 
+/** Prior slate: same season week_number - 1, else last week of previous season. */
+async function loadPreviousWeek(relativeTo = null) {
+  const current = relativeTo || (await loadCurrentWeek());
+  if (!current) return null;
+  const weekNumber = Number(current.week_number ?? current.weekNumber);
+  const seasonYear = Number(current.season_year ?? current.seasonYear);
+  if (!Number.isFinite(weekNumber) || !Number.isFinite(seasonYear)) return null;
+
+  const supabase = getSupabase();
+  if (weekNumber > 1) {
+    const { data, error } = await supabase
+      .from("weeks")
+      .select("id, week_number, season_year, start_date, end_date, is_completed")
+      .eq("season_year", seasonYear)
+      .eq("week_number", weekNumber - 1)
+      .maybeSingle();
+    dbError(error);
+    return data ? mapWeekRow(data) : null;
+  }
+
+  const { data, error } = await supabase
+    .from("weeks")
+    .select("id, week_number, season_year, start_date, end_date, is_completed")
+    .eq("season_year", seasonYear - 1)
+    .order("week_number", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  dbError(error);
+  return data ? mapWeekRow(data) : null;
+}
+
 async function loadGamesByWeek(weekId) {
   const supabase = getSupabase();
   const { data: gameRows, error } = await supabase
@@ -1239,6 +1270,7 @@ module.exports = {
   selectAllPages,
   getSupabaseConfig,
   loadCurrentWeek,
+  loadPreviousWeek,
   loadGamesByWeek,
   findUserByUsernameOrEmail,
   findUserById,

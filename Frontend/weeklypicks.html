@@ -266,9 +266,15 @@
           <li class="results-stand-empty">Loading standings…</li>
         </ol>
       </section>
-      <section class="results-standings-board" aria-labelledby="allTimeBoardTitle">
-        <h3 class="results-standings-title" id="allTimeBoardTitle">🏆 All Time</h3>
-        <ol class="results-standings-list" id="allTimeLeaderboardList">
+      <section class="results-standings-board" aria-labelledby="lastWeekBoardTitle">
+        <h3 class="results-standings-title" id="lastWeekBoardTitle">🏆 Last Week</h3>
+        <ol class="results-standings-list" id="lastWeekLeaderboardList">
+          <li class="results-stand-empty">Loading standings…</li>
+        </ol>
+      </section>
+      <section class="results-standings-board" aria-labelledby="seasonBoardTitle">
+        <h3 class="results-standings-title" id="seasonBoardTitle">🏆 This Season</h3>
+        <ol class="results-standings-list" id="seasonLeaderboardList">
           <li class="results-stand-empty">Loading standings…</li>
         </ol>
       </section>
@@ -284,7 +290,6 @@
     <div class="awards-container" id="resultsAwardsContainer" hidden>
       <div class="awards-head">
         <h3 class="analysis-title" id="awardsTitle">🏅 Weekly Awards</h3>
-        <a class="btn btn-brown btn-sm" href="leagues.html">Private leagues</a>
       </div>
       <div class="awards-grid" id="resultsAwardsGrid"></div>
       <p class="awards-empty" id="resultsAwardsEmpty" hidden></p>
@@ -365,7 +370,8 @@
     // -------------------------------------------------------------------------
     const FALLBACK_WEEK_ID = 14; // Only used if Netlify picks API cannot provide an active week
     let activeWeekId = null;
-    let activeWeekMeta = null; // { weekNumber, seasonYear, startDate, endDate, isCompleted }
+    let activeWeekMeta = null; // { weekNumber, seasonYear, startDate, endDate, isCompleted, previousWeek }
+    let activePreviousWeekId = null;
 
     async function cfbdProxyRequest(path, params = {}) {
       const url = new URL('/.netlify/functions/cfbd', window.location.origin);
@@ -599,6 +605,18 @@
 
     function normalizeCurrentWeekApi(w) {
       if (!w || typeof w !== 'object') return null;
+      const prevRaw = w.previousWeek ?? w.previous_week ?? null;
+      const previousWeek =
+        prevRaw && typeof prevRaw === 'object'
+          ? {
+              id: prevRaw.id,
+              weekNumber: prevRaw.weekNumber ?? prevRaw.week_number,
+              seasonYear: prevRaw.seasonYear ?? prevRaw.season_year,
+              startDate: prevRaw.startDate ?? prevRaw.start_date,
+              endDate: prevRaw.endDate ?? prevRaw.end_date,
+              isCompleted: !!(prevRaw.isCompleted ?? prevRaw.is_completed),
+            }
+          : null;
       return {
         id: w.id,
         weekNumber: w.weekNumber ?? w.week_number,
@@ -606,6 +624,7 @@
         startDate: w.startDate ?? w.start_date,
         endDate: w.endDate ?? w.end_date,
         isCompleted: !!(w.isCompleted ?? w.is_completed),
+        previousWeek,
       };
     }
 
@@ -775,7 +794,7 @@
       if (!container || container.dataset.pickWired === '1') return;
       container.dataset.pickWired = '1';
       container.addEventListener('click', (e) => {
-        const predictLink = e.target.closest('.pick-predict-link');
+        const predictLink = e.target.closest('.pick-analyze-btn, .pick-predict-link');
         if (predictLink && container.contains(predictLink)) {
           savePicksDraft();
         }
@@ -926,8 +945,15 @@
         return `
           <div class="pick-game-row" data-game-number="${gameNumber}">
             <div class="pick-game-top">
-              <span class="games">Game ${gameNumber}</span>
+              <span class="game">Game ${gameNumber}</span>
               ${liveScoreHtml ? '' : formatStatusBadge(isCompleted)}
+              <a
+                class="pick-analyze-btn"
+                href="${predictorHref(awayName, homeName, awayEspnId, homeEspnId).replace(/"/g, '&quot;')}"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Open matchup model for this game"
+              >Analyze</a>
             </div>
             <div class="team-row pick-matchup">
               ${teamPickButtonHtml({
@@ -948,18 +974,7 @@
               ${spreads.pickem ? '<span class="betting-line team-spread">PK</span>' : ''}
             </div>
             ${liveScoreHtml}
-            <div class="pick-game-foot">
-              ${extraLine}
-              <div class="pick-game-actions">
-                <span class="pick-hint">Tap a team to pick</span>
-                <a
-                  class="pick-predict-link"
-                  href="${predictorHref(awayName, homeName, awayEspnId, homeEspnId).replace(/"/g, '&quot;')}"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >Predict matchup →</a>
-              </div>
-            </div>
+            ${extraLine}
             <input
               type="hidden"
               class="pick-value"
@@ -996,6 +1011,7 @@
         if (resp.status === 404) {
           activeWeekId = null;
           activeWeekMeta = null;
+          activePreviousWeekId = null;
           showNoActiveWeekMessage();
           return;
         }
@@ -1006,6 +1022,7 @@
         const week = normalizeCurrentWeekApi(weekRaw);
         activeWeekId = week?.id ?? null;
         activeWeekMeta = week;
+        activePreviousWeekId = week?.previousWeek?.id ?? null;
 
         if (!activeWeekId) {
           showNoActiveWeekMessage();
@@ -2693,50 +2710,87 @@
 
     async function loadResultsLeaderboards({ quiet = false } = {}) {
       const weekList = document.getElementById('weekLeaderboardList');
-      const allList = document.getElementById('allTimeLeaderboardList');
-      if (!weekList || !allList) return;
+      const lastWeekList = document.getElementById('lastWeekLeaderboardList');
+      const seasonList = document.getElementById('seasonLeaderboardList');
+      if (!weekList || !lastWeekList || !seasonList) return;
 
       if (!quiet) {
         weekList.innerHTML = '<li class="results-stand-empty">Loading standings…</li>';
-        allList.innerHTML = '<li class="results-stand-empty">Loading standings…</li>';
+        lastWeekList.innerHTML = '<li class="results-stand-empty">Loading standings…</li>';
+        seasonList.innerHTML = '<li class="results-stand-empty">Loading standings…</li>';
       }
 
       try {
         const weekId = activeWeekId;
-        const [weekBoard, allBoard] = await Promise.all([
+        const prevWeekId =
+          activePreviousWeekId ||
+          activeWeekMeta?.previousWeek?.id ||
+          null;
+
+        const fetches = [
           fetchResultsLeaderboard('week', weekId),
-          fetchResultsLeaderboard('all'),
-        ]);
+          fetchResultsLeaderboard('season'),
+        ];
+        if (prevWeekId) fetches.splice(1, 0, fetchResultsLeaderboard('week', prevWeekId));
+
+        const boards = await Promise.all(fetches);
+        const weekBoard = boards[0];
+        const lastWeekBoard = prevWeekId ? boards[1] : null;
+        const seasonBoard = prevWeekId ? boards[2] : boards[1];
 
         const weekTitle = document.getElementById('weekBoardTitle');
         if (weekTitle && weekBoard.scopeLabel) {
           weekTitle.textContent = `🏆 ${weekBoard.scopeLabel}`;
         }
+        const lastWeekTitle = document.getElementById('lastWeekBoardTitle');
+        if (lastWeekTitle) {
+          lastWeekTitle.textContent = lastWeekBoard?.scopeLabel
+            ? `🏆 Last · ${lastWeekBoard.scopeLabel}`
+            : '🏆 Last Week';
+        }
+        const seasonTitle = document.getElementById('seasonBoardTitle');
+        if (seasonTitle && seasonBoard.scopeLabel) {
+          seasonTitle.textContent = `🏆 ${seasonBoard.scopeLabel}`;
+        }
 
-        const weekRows = [...(weekBoard.entries || [])]
-          .filter((e) => e.totalPicks > 0)
-          .sort((a, b) => {
-            if (b.correctPicks !== a.correctPicks) return b.correctPicks - a.correctPicks;
-            if (b.accuracy !== a.accuracy) return b.accuracy - a.accuracy;
-            return (a.rank || 999) - (b.rank || 999);
-          });
+        const sortWeekRows = (entries) =>
+          [...(entries || [])]
+            .filter((e) => e.totalPicks > 0)
+            .sort((a, b) => {
+              if (b.correctPicks !== a.correctPicks) return b.correctPicks - a.correctPicks;
+              if (b.accuracy !== a.accuracy) return b.accuracy - a.accuracy;
+              return (a.rank || 999) - (b.rank || 999);
+            });
 
-        const allRows = [...(allBoard.entries || [])]
-          .filter((e) => e.gradedPicks > 0)
+        const seasonRows = [...(seasonBoard.entries || [])]
+          .filter((e) => e.gradedPicks > 0 || e.totalPicks > 0)
           .sort((a, b) => (a.rank || 999) - (b.rank || 999));
 
-        renderResultsLeaderboardList('weekLeaderboardList', weekRows, {
+        renderResultsLeaderboardList('weekLeaderboardList', sortWeekRows(weekBoard.entries), {
           emptyMessage: 'No picks submitted yet this week.',
         });
-        renderResultsLeaderboardList('allTimeLeaderboardList', allRows, {
-          emptyMessage: 'No graded picks yet.',
+
+        if (lastWeekBoard) {
+          renderResultsLeaderboardList(
+            'lastWeekLeaderboardList',
+            sortWeekRows(lastWeekBoard.entries),
+            { emptyMessage: 'No picks from last week.' }
+          );
+        } else {
+          lastWeekList.innerHTML =
+            '<li class="results-stand-empty">No previous week yet this season.</li>';
+        }
+
+        renderResultsLeaderboardList('seasonLeaderboardList', seasonRows, {
+          emptyMessage: 'No graded picks yet this season.',
         });
         renderResultsAnalysis(weekBoard);
         loadWeeklyAwards(weekId);
       } catch (err) {
         console.warn('loadResultsLeaderboards:', err);
         weekList.innerHTML = `<li class="results-stand-empty">${safeText(err.message || 'Could not load standings')}</li>`;
-        allList.innerHTML = '<li class="results-stand-empty">Could not load standings</li>';
+        lastWeekList.innerHTML = '<li class="results-stand-empty">Could not load standings</li>';
+        seasonList.innerHTML = '<li class="results-stand-empty">Could not load standings</li>';
       }
     }
 

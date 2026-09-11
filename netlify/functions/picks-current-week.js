@@ -1,4 +1,4 @@
-const { loadCurrentWeek } = require("./db");
+const { loadCurrentWeek, loadPreviousWeek } = require("./db");
 
 function json(statusCode, body, extraHeaders = {}) {
   return {
@@ -9,6 +9,18 @@ function json(statusCode, body, extraHeaders = {}) {
       ...extraHeaders,
     },
     body: JSON.stringify(body),
+  };
+}
+
+function weekPayload(w) {
+  if (!w) return null;
+  return {
+    id: w.id,
+    week_number: w.week_number,
+    season_year: w.season_year,
+    start_date: w.start_date,
+    end_date: w.end_date,
+    is_completed: Boolean(w.is_completed),
   };
 }
 
@@ -23,13 +35,11 @@ exports.handler = async (event) => {
       return json(404, { error: "No active week set" });
     }
 
+    const previous = await loadPreviousWeek(w);
+
     return json(200, {
-      id: w.id,
-      week_number: w.week_number,
-      season_year: w.season_year,
-      start_date: w.start_date,
-      end_date: w.end_date,
-      is_completed: Boolean(w.is_completed),
+      ...weekPayload(w),
+      previous_week: weekPayload(previous),
     });
   } catch (err) {
     console.error("picks-current-week:", err);
