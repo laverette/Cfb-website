@@ -1019,7 +1019,7 @@ input:focus, select:focus {
     display: flex;
     flex-wrap: nowrap;
     justify-content: center;
-    align-items: center;
+    align-items: stretch;
     gap: 5px;
     width: 100%;
     --pick-chip-fs: 0.86rem;
@@ -1030,19 +1030,25 @@ input:focus, select:focus {
     font-size: var(--pick-chip-fs);
     gap: 4px;
     border-radius: 8px;
-    flex: 0 0 auto;
+    flex: 1 1 0;
+    min-width: 0;
     justify-content: center;
-    white-space: nowrap;
+    align-self: stretch;
+    box-sizing: border-box;
 }
 
 .pick-matchup .team-pick-name {
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     line-height: 1.15;
+    min-width: 0;
 }
 
 .pick-matchup .pick-at {
     flex: 0 0 auto;
     margin: 0;
+    align-self: center;
 }
 
 .pick-matchup .team-logo {
@@ -1057,6 +1063,19 @@ input:focus, select:focus {
     margin: 0 0 0 2px;
     flex-shrink: 0;
     white-space: nowrap;
+    min-width: 2.75em;
+    text-align: center;
+    box-sizing: border-box;
+}
+
+.pick-matchup .team-spread--empty {
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.pick-matchup .team-spread:hover {
+    transform: none;
+    box-shadow: 0 1px 3px rgba(255, 215, 0, 0.3);
 }
 
 #dbWeekPicksContainer {
@@ -1105,13 +1124,13 @@ input:focus, select:focus {
     }
 
     .pick-meta {
-        text-align: left;
+        text-align: center;
         font-size: 0.68rem;
         opacity: 0.72;
-        padding: 0;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        padding: 0 0.25rem;
+        white-space: normal;
+        overflow: visible;
+        text-overflow: unset;
     }
 
     .pick-game-top {
@@ -1164,6 +1183,7 @@ input:focus, select:focus {
     .pick-matchup .team-spread {
         font-size: 0.65rem;
         padding: 1px 4px;
+        min-width: 2.6em;
     }
 
     .pick-matchup .pick-at {
@@ -3946,8 +3966,17 @@ label {
 input,
 select,
 #submit,
+.picks-action-btn,
 .form-nav-link {
     font: inherit;
+}
+
+#submit,
+.picks-action-btn,
+.form-nav-link {
+    font-weight: 700;
+    font-family: inherit;
+    -webkit-font-smoothing: antialiased;
 }
 
 input,
@@ -5096,6 +5125,7 @@ a.results-stand-name:hover {
   .picks-form-actions #submit {
     padding: 0.55rem 0.75rem;
     font-size: 0.9rem;
+    font-weight: 700;
   }
 
   .picks-reminders-card {

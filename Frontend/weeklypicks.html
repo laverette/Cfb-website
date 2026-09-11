@@ -582,7 +582,10 @@
     }
 
     function spreadChipHtml(spreadText) {
-      if (!spreadText) return '';
+      // Always render a chip slot so favorite/underdog buttons stay the same size.
+      if (!spreadText) {
+        return '<span class="betting-line team-spread team-spread--empty" aria-hidden="true">-0.0</span>';
+      }
       return `<span class="betting-line team-spread">${safeText(spreadText)}</span>`;
     }
 
@@ -952,8 +955,8 @@
                 href="${predictorHref(awayName, homeName, awayEspnId, homeEspnId).replace(/"/g, '&quot;')}"
                 target="_blank"
                 rel="noopener noreferrer"
-                title="Open matchup model for this game"
-              >Analyze</a>
+                title="Open matchup predictor for this game"
+              >Predict matchup</a>
             </div>
             <div class="team-row pick-matchup">
               ${teamPickButtonHtml({
