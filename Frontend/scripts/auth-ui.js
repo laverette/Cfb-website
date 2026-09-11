@@ -520,9 +520,129 @@
     AVATAR_COUNT: AVATAR_COUNT,
   };
 
+  function mountSiteFeedback() {
+    if (document.getElementById("siteFeedbackRoot")) return;
+    if (basenameOnly(window.location.pathname) === "admin.html") return;
+
+    var root = document.createElement("div");
+    root.id = "siteFeedbackRoot";
+    root.className = "site-feedback-root";
+    root.innerHTML =
+      '<footer class="site-feedback-bar">' +
+      '<button type="button" class="site-feedback-link" id="siteFeedbackOpen">Send feedback</button>' +
+      "</footer>" +
+      '<div class="site-feedback-modal" id="siteFeedbackModal" hidden>' +
+      '<button type="button" class="site-feedback-backdrop" id="siteFeedbackClose" aria-label="Close"></button>' +
+      '<div class="site-feedback-dialog" role="dialog" aria-modal="true" aria-labelledby="siteFeedbackTitle">' +
+      '<div class="site-feedback-dialog-head">' +
+      '<h2 id="siteFeedbackTitle">Send feedback</h2>' +
+      '<button type="button" class="site-feedback-x" id="siteFeedbackX" aria-label="Close">×</button>' +
+      "</div>" +
+      '<p class="site-feedback-lead">Bugs, ideas, or anything that feels off — short notes are fine.</p>' +
+      '<label class="site-feedback-label" for="siteFeedbackMessage">Message</label>' +
+      '<textarea id="siteFeedbackMessage" class="site-feedback-input" rows="4" maxlength="4000" placeholder="What’s on your mind?"></textarea>' +
+      '<label class="site-feedback-label" for="siteFeedbackEmail">Email <span>(optional)</span></label>' +
+      '<input id="siteFeedbackEmail" class="site-feedback-input" type="email" autocomplete="email" placeholder="so we can reply">' +
+      '<p class="site-feedback-status" id="siteFeedbackStatus" hidden></p>' +
+      '<div class="site-feedback-actions">' +
+      '<button type="button" class="btn btn-brown site-feedback-cancel" id="siteFeedbackCancel">Cancel</button>' +
+      '<button type="button" class="btn btn-gold" id="siteFeedbackSend">Send</button>' +
+      "</div></div></div>";
+    document.body.appendChild(root);
+
+    var modal = document.getElementById("siteFeedbackModal");
+    var statusEl = document.getElementById("siteFeedbackStatus");
+    var messageEl = document.getElementById("siteFeedbackMessage");
+    var emailEl = document.getElementById("siteFeedbackEmail");
+    var sendBtn = document.getElementById("siteFeedbackSend");
+
+    function openModal() {
+      var user = parseUser();
+      if (user && user.email && emailEl && !emailEl.value) {
+        emailEl.value = String(user.email);
+      }
+      if (statusEl) {
+        statusEl.hidden = true;
+        statusEl.textContent = "";
+        statusEl.classList.remove("is-error", "is-ok");
+      }
+      modal.hidden = false;
+      document.body.classList.add("site-feedback-open");
+      if (messageEl) messageEl.focus();
+    }
+
+    function closeModal() {
+      modal.hidden = true;
+      document.body.classList.remove("site-feedback-open");
+    }
+
+    function setStatus(text, ok) {
+      if (!statusEl) return;
+      statusEl.hidden = !text;
+      statusEl.textContent = text || "";
+      statusEl.classList.toggle("is-ok", !!ok);
+      statusEl.classList.toggle("is-error", !ok && !!text);
+    }
+
+    document.getElementById("siteFeedbackOpen").addEventListener("click", openModal);
+    document.getElementById("siteFeedbackClose").addEventListener("click", closeModal);
+    document.getElementById("siteFeedbackX").addEventListener("click", closeModal);
+    document.getElementById("siteFeedbackCancel").addEventListener("click", closeModal);
+
+    sendBtn.addEventListener("click", function () {
+      var message = (messageEl && messageEl.value ? messageEl.value : "").trim();
+      var email = (emailEl && emailEl.value ? emailEl.value : "").trim();
+      if (message.length < 8) {
+        setStatus("Add a short sentence so we know what to look at.", false);
+        return;
+      }
+      sendBtn.disabled = true;
+      setStatus("Sending…", true);
+      var headers = { "Content-Type": "application/json", Accept: "application/json" };
+      var token = localStorage.getItem(STORAGE_TOKEN);
+      if (token) headers.Authorization = "Bearer " + token;
+      fetch("/api/feedback", {
+        method: "POST",
+        headers: headers,
+        body: JSON.stringify({
+          message: message,
+          email: email || undefined,
+          page: window.location.pathname + (window.location.search || ""),
+        }),
+      })
+        .then(function (res) {
+          return res.json().catch(function () {
+            return {};
+          }).then(function (data) {
+            return { ok: res.ok, data: data };
+          });
+        })
+        .then(function (result) {
+          if (!result.ok) {
+            setStatus(
+              (result.data && (result.data.error || result.data.message)) ||
+                "Could not send. Try again later.",
+              false
+            );
+            return;
+          }
+          setStatus("Thanks — feedback sent.", true);
+          if (messageEl) messageEl.value = "";
+          setTimeout(closeModal, 900);
+        })
+        .catch(function () {
+          setStatus("Could not send. Check your connection and try again.", false);
+        })
+        .finally(function () {
+          sendBtn.disabled = false;
+        });
+    });
+  }
+
   function onReady() {
     refreshAll();
     maybeValidateToken();
+    mountSiteFeedback();
   }
 
   if (document.readyState === "loading") {

@@ -19,7 +19,7 @@ function readFeedbackTo() {
     const m = from.match(/<([^>]+)>/) || [null, from];
     return String(m[1] || from).trim();
   }
-  return "";
+  return "loganaverette10@gmail.com";
 }
 
 function escapeHtml(s) {

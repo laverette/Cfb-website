@@ -576,7 +576,7 @@
       if (line == null || line === '') return { away: '', home: '', pickem: false };
       const n = Number(line);
       if (!Number.isFinite(n)) return { away: '', home: '', pickem: false };
-      if (n === 0) return { away: '', home: '', pickem: true };
+      if (n === 0) return { away: 'PK', home: 'PK', pickem: true };
       if (n < 0) return { away: '', home: String(n), pickem: false };
       return { away: `-${n}`, home: '', pickem: false };
     }
@@ -668,7 +668,8 @@
           aria-pressed="false"
           aria-label="Pick ${safeText(name)}"
         >
-          ${logo}<span class="team-pick-name">${safeText(name)}</span>${spread}
+          <span class="team-pick-main">${logo}<span class="team-pick-name">${safeText(name)}</span></span>
+          ${spread}
         </button>
       `;
     }
@@ -974,7 +975,6 @@
                 spreadText: spreads.home,
                 side: 'home',
               })}
-              ${spreads.pickem ? '<span class="betting-line team-spread">PK</span>' : ''}
             </div>
             ${liveScoreHtml}
             ${extraLine}

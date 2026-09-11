@@ -28,7 +28,7 @@ function isEmailConfigured() {
   return Boolean(readResendKey() && readFromEmail());
 }
 
-async function sendEmail({ to, subject, html, text }) {
+async function sendEmail({ to, subject, html, text, replyTo }) {
   const apiKey = readResendKey();
   const from = readFromEmail();
   if (!apiKey || !from) {
@@ -42,19 +42,24 @@ async function sendEmail({ to, subject, html, text }) {
     throw err;
   }
 
+  const payload = {
+    from,
+    to: [String(to).trim()],
+    subject: String(subject || "").trim(),
+    html: html || undefined,
+    text: text || undefined,
+  };
+  if (replyTo && String(replyTo).includes("@")) {
+    payload.reply_to = String(replyTo).trim();
+  }
+
   const resp = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      from,
-      to: [String(to).trim()],
-      subject: String(subject || "").trim(),
-      html: html || undefined,
-      text: text || undefined,
-    }),
+    body: JSON.stringify(payload),
   });
 
   const body = await resp.json().catch(() => ({}));
