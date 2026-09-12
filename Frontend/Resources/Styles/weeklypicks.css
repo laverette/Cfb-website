@@ -969,10 +969,15 @@ input:focus, select:focus {
 
 .pick-game-row {
     margin: 0;
-    padding: 0.65rem 0.75rem 0.7rem;
-    background: rgba(30, 22, 18, 0.72);
-    border: 1px solid rgba(245, 222, 179, 0.16);
-    border-radius: 12px;
+    padding: 0.5rem 0.65rem 0.55rem;
+    background:
+      linear-gradient(165deg, rgba(78, 52, 46, 0.55) 0%, rgba(30, 22, 18, 0.88) 55%),
+      rgba(30, 22, 18, 0.85);
+    border: 1px solid rgba(245, 222, 179, 0.28);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 215, 0, 0.08),
+      0 2px 10px rgba(0, 0, 0, 0.22);
+    border-radius: 11px;
     min-width: 0;
     height: 100%;
     display: flex;
@@ -984,11 +989,12 @@ input:focus, select:focus {
     display: flex;
     align-items: center;
     gap: 0.4rem;
-    margin-bottom: 0.35rem;
+    margin-bottom: 0.28rem;
+    min-height: 1.4rem;
 }
 
 .pick-game-top .games {
-    font-size: 0.78rem;
+    font-size: 0.72rem;
     padding: 2px 8px;
     margin-right: 0;
 }
@@ -996,9 +1002,9 @@ input:focus, select:focus {
 .pick-meta {
     color: #f5deb3;
     opacity: 0.78;
-    margin: 0.45rem 0 0;
+    margin: 0.35rem 0 0;
     padding: 0 0.25rem;
-    font-size: 0.75rem;
+    font-size: 0.72rem;
     line-height: 1.25;
     text-align: center;
     width: 100%;
@@ -1006,8 +1012,13 @@ input:focus, select:focus {
 }
 
 .pick-game-row.has-pick {
-    border-color: rgba(255, 215, 0, 0.4);
-    background: rgba(62, 39, 35, 0.58);
+    border-color: rgba(255, 215, 0, 0.55);
+    background:
+      linear-gradient(165deg, rgba(95, 70, 30, 0.45) 0%, rgba(50, 34, 28, 0.9) 60%),
+      rgba(62, 39, 35, 0.7);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 215, 0, 0.14),
+      0 2px 12px rgba(0, 0, 0, 0.28);
 }
 
 .pick-game-row.has-pick .pick-hint {
@@ -1019,36 +1030,30 @@ input:focus, select:focus {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
     align-items: stretch;
-    gap: 0.35rem;
+    gap: 0.28rem;
     width: 100%;
-    --pick-chip-fs: 0.84rem;
+    --pick-chip-fs: 0.82rem;
 }
 
 .pick-matchup .team-pick-btn {
     width: 100%;
     min-width: 0;
-    min-height: 3.15rem;
-    padding: 0.35rem 0.4rem;
+    min-height: 2.35rem;
+    padding: 0.32rem 0.45rem;
     font-size: var(--pick-chip-fs);
-    gap: 0.2rem;
-    border-radius: 10px;
+    gap: 0.28rem;
+    border-radius: 9px;
     flex: unset;
     display: inline-flex;
-    flex-direction: column;
+    flex-direction: row;
     align-items: center;
     justify-content: center;
     align-self: stretch;
     box-sizing: border-box;
-    white-space: normal;
-}
-
-.pick-matchup .team-pick-main {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
-    max-width: 100%;
-    min-width: 0;
+    white-space: nowrap;
+    background:
+      linear-gradient(180deg, rgba(245, 222, 179, 0.14) 0%, rgba(222, 184, 135, 0.08) 100%);
+    border-color: rgba(245, 222, 179, 0.34);
 }
 
 .pick-matchup .team-pick-name {
@@ -1057,15 +1062,16 @@ input:focus, select:focus {
     text-overflow: ellipsis;
     line-height: 1.15;
     min-width: 0;
-    max-width: 100%;
+    flex: 0 1 auto;
 }
 
 .pick-matchup .pick-at {
     margin: 0;
     align-self: center;
-    opacity: 0.7;
-    font-size: 0.8rem;
-    font-weight: 700;
+    opacity: 0.75;
+    font-size: 0.78rem;
+    font-weight: 800;
+    color: #f5deb3;
 }
 
 .pick-matchup .team-logo {
@@ -1075,22 +1081,16 @@ input:focus, select:focus {
 }
 
 .pick-matchup .team-spread {
-    font-size: 0.68em;
-    padding: 1px 5px;
-    margin: 0;
+    font-size: 0.72em;
+    padding: 2px 6px;
+    margin: 0 0 0 0.1rem;
     flex-shrink: 0;
     white-space: nowrap;
-    min-width: 2.6em;
-    min-height: 1.15em;
     line-height: 1.15;
     text-align: center;
     box-sizing: border-box;
-    border-radius: 999px;
-}
-
-.pick-matchup .team-spread--empty {
-    visibility: hidden;
-    pointer-events: none;
+    border-radius: 6px;
+    letter-spacing: 0.01em;
 }
 
 .pick-matchup .team-spread:hover {
@@ -1155,36 +1155,38 @@ input:focus, select:focus {
 
     .pick-game-top {
         justify-content: flex-start;
-        margin-bottom: 0.2rem;
+        margin-bottom: 0.18rem;
         min-height: 0;
     }
 
     .pick-game-top .games {
-        display: none;
+        display: inline-block;
+        font-size: 0.66rem;
+        padding: 1px 7px;
     }
 
     .pick-game-row {
-        padding: 0.45rem 0.55rem 0.5rem;
+        padding: 0.4rem 0.5rem 0.42rem;
         border-radius: 9px;
     }
 
     .pick-game-foot {
-        padding-top: 0.3rem;
-        gap: 0.2rem;
+        padding-top: 0.28rem;
+        gap: 0.15rem;
     }
 
     .pick-matchup {
-        --pick-chip-fs: 0.78rem;
-        gap: 0.3rem;
+        --pick-chip-fs: 0.76rem;
+        gap: 0.22rem;
         justify-content: unset;
         margin-left: 0;
         margin-right: 0;
     }
 
     .pick-matchup .team-pick-btn {
-        padding: 0.32rem 0.35rem;
-        gap: 0.15rem;
-        min-height: 3rem;
+        padding: 0.28rem 0.32rem;
+        gap: 0.22rem;
+        min-height: 2.15rem;
         flex: unset;
         width: 100%;
         min-width: 0;
@@ -1197,20 +1199,21 @@ input:focus, select:focus {
     }
 
     .pick-matchup .team-logo {
-        width: 16px;
-        height: 16px;
+        width: 15px;
+        height: 15px;
         flex-shrink: 0;
     }
 
     .pick-matchup .team-spread {
-        font-size: 0.62rem;
-        padding: 1px 4px;
-        min-width: 2.4em;
+        font-size: 0.64rem;
+        padding: 1px 5px;
+        margin-left: 0;
+        border-radius: 5px;
     }
 
     .pick-matchup .pick-at {
-        font-size: 0.72rem;
-        opacity: 0.65;
+        font-size: 0.7rem;
+        opacity: 0.7;
     }
 }
 
