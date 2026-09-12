@@ -952,21 +952,25 @@ input:focus, select:focus {
 }
 
 .pick-analyze-btn {
-    margin-left: auto;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 0.22rem 0.65rem;
-    font-size: 0.68rem;
+    margin: 0.4rem auto 0;
+    padding: 0.28rem 0.75rem;
+    font-size: 0.72rem;
     font-weight: 700;
     letter-spacing: 0.01em;
     line-height: 1.2;
     text-decoration: none;
+    text-align: center;
     color: #f0e0c0;
     background: rgba(0, 0, 0, 0.28);
     border: 1px solid rgba(245, 222, 179, 0.32);
     border-radius: 999px;
     white-space: nowrap;
+    width: fit-content;
+    max-width: 100%;
+    align-self: center;
     transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
 }
 
@@ -1176,9 +1180,9 @@ input:focus, select:focus {
     .pick-game-top {
         display: flex;
         align-items: center;
-        justify-content: space-between;
+        justify-content: flex-start;
         gap: 0.45rem;
-        margin-bottom: 0.4rem;
+        margin-bottom: 0.35rem;
         min-height: 0;
     }
 
@@ -1190,35 +1194,36 @@ input:focus, select:focus {
     }
 
     .pick-analyze-btn {
-        margin-left: auto;
-        flex: 1 1 auto;
-        max-width: 12.5rem;
-        min-height: 2.5rem;
-        padding: 0.45rem 0.75rem;
-        font-size: 0.8rem;
-        font-weight: 800;
+        margin: 0.45rem auto 0.1rem;
+        flex: none;
+        max-width: none;
+        min-height: 2rem;
+        padding: 0.35rem 0.85rem;
+        font-size: 0.72rem;
+        font-weight: 700;
         letter-spacing: 0.01em;
-        border-radius: 10px;
-        border-width: 1.5px;
+        border-radius: 999px;
+        border-width: 1px;
         color: #ffe566;
-        background: rgba(255, 215, 0, 0.12);
-        border-color: rgba(255, 215, 0, 0.55);
+        background: rgba(255, 215, 0, 0.1);
+        border-color: rgba(255, 215, 0, 0.45);
         -webkit-tap-highlight-color: transparent;
         touch-action: manipulation;
     }
 
     .pick-analyze-btn:active {
-        background: rgba(255, 215, 0, 0.22);
+        background: rgba(255, 215, 0, 0.2);
         color: #ffd700;
     }
 
     .pick-predict-link {
-        margin-left: auto;
-        font-size: 0.8rem;
-        min-height: 2.5rem;
+        margin: 0.35rem auto 0;
+        font-size: 0.72rem;
+        min-height: 2rem;
         display: inline-flex;
         align-items: center;
-        padding: 0.35rem 0.55rem;
+        justify-content: center;
+        padding: 0.3rem 0.65rem;
     }
 
     .pick-meta {

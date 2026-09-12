@@ -949,13 +949,6 @@
             <div class="pick-game-top">
               <span class="games">Game ${gameNumber}</span>
               ${liveScoreHtml ? '' : formatStatusBadge(isCompleted)}
-              <a
-                class="pick-analyze-btn"
-                href="${predictorHref(awayName, homeName, awayEspnId, homeEspnId).replace(/"/g, '&quot;')}"
-                target="_blank"
-                rel="noopener noreferrer"
-                title="Open matchup predictor for this game"
-              >Predict matchup</a>
             </div>
             <div class="team-row pick-matchup">
               ${teamPickButtonHtml({
@@ -974,6 +967,13 @@
                 side: 'home',
               })}
             </div>
+            <a
+              class="pick-analyze-btn"
+              href="${predictorHref(awayName, homeName, awayEspnId, homeEspnId).replace(/"/g, '&quot;')}"
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Open matchup predictor for this game"
+            >Predict matchup</a>
             ${liveScoreHtml}
             ${extraLine}
             <input
