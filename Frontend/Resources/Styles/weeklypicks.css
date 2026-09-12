@@ -1122,28 +1122,6 @@ input:focus, select:focus {
     width: 18px;
     height: 18px;
     flex-shrink: 0;
-    margin: 0;
-    padding: 2px;
-    box-sizing: content-box;
-    object-fit: contain;
-    border-radius: 5px;
-    /* Light plate so dark logos (A&M, etc.) stay readable on brown chips */
-    background: rgba(255, 248, 235, 0.95);
-    box-shadow:
-      0 0 0 1px rgba(255, 255, 255, 0.28),
-      0 1px 2px rgba(0, 0, 0, 0.28);
-}
-
-.pick-matchup .team-pick-btn.is-picked .team-logo,
-.pick-matchup .team-pick-btn[aria-pressed="true"] .team-logo {
-    background: #fff8eb;
-    box-shadow:
-      0 0 0 1px rgba(30, 30, 30, 0.12),
-      0 1px 2px rgba(0, 0, 0, 0.2);
-}
-
-.pick-matchup .team-logo:hover {
-    transform: none;
 }
 
 .pick-matchup .team-spread {
@@ -1299,8 +1277,6 @@ input:focus, select:focus {
         width: 18px;
         height: 18px;
         flex-shrink: 0;
-        padding: 2px;
-        border-radius: 5px;
     }
 
     .pick-matchup .team-spread {
