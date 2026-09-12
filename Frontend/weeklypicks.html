@@ -806,16 +806,14 @@
         e.preventDefault();
         const row = btn.closest('.pick-game-row');
         if (!row) return;
-        const already = btn.classList.contains('is-picked');
-        if (already) {
-          clearGamePick(row);
-        } else {
-          setGamePick(
-            row,
-            btn.getAttribute('data-team-name') || '',
-            btn.getAttribute('data-team-espn-id') || ''
-          );
-        }
+        // Keep selection sticky: re-tapping the same team does nothing.
+        // Switching to the other team moves the gold highlight.
+        if (btn.classList.contains('is-picked')) return;
+        setGamePick(
+          row,
+          btn.getAttribute('data-team-name') || '',
+          btn.getAttribute('data-team-espn-id') || ''
+        );
         savePicksDraft();
       });
     }
