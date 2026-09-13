@@ -2448,6 +2448,45 @@
       return `${w}-${l}-${t}`;
     }
 
+    function displayPlayerName(entry) {
+      return entry?.displayName || entry?.username || 'Player';
+    }
+
+    /** "A", "A and B", "A, B, and C" */
+    function formatNameList(entries) {
+      const names = (entries || []).map(displayPlayerName).filter(Boolean);
+      if (!names.length) return 'Players';
+      if (names.length === 1) return names[0];
+      if (names.length === 2) return `${names[0]} and ${names[1]}`;
+      return `${names.slice(0, -1).join(', ')}, and ${names[names.length - 1]}`;
+    }
+
+    function sameBoardStanding(a, b) {
+      return (
+        (a.correctPicks || 0) === (b.correctPicks || 0) &&
+        (a.incorrectPicks || 0) === (b.incorrectPicks || 0) &&
+        (a.tiedPicks || 0) === (b.tiedPicks || 0) &&
+        Number(a.accuracy || 0) === Number(b.accuracy || 0)
+      );
+    }
+
+    function tiedLeaders(ranked) {
+      if (!ranked.length) return [];
+      const lead = ranked[0];
+      return ranked.filter((e) => sameBoardStanding(e, lead));
+    }
+
+    function tiedOnMetric(entries, scoreFn, { preferHigher = true } = {}) {
+      const list = (entries || []).filter((e) => e != null);
+      if (!list.length) return [];
+      let best = scoreFn(list[0]);
+      for (const e of list) {
+        const s = scoreFn(e);
+        if (preferHigher ? s > best : s < best) best = s;
+      }
+      return list.filter((e) => scoreFn(e) === best);
+    }
+
     function playerAvatarHtml(entry, size) {
       if (window.AuthUI && typeof AuthUI.avatarImgHtml === 'function') {
         return AuthUI.avatarImgHtml(entry, 'results-stand-avatar user-avatar', size || 32);
@@ -2554,35 +2593,30 @@
         .sort(
           (a, b) =>
             (b.correctPicks || 0) - (a.correctPicks || 0) ||
-            (b.accuracy || 0) - (a.accuracy || 0)
+            (b.accuracy || 0) - (a.accuracy || 0) ||
+            (a.incorrectPicks || 0) - (b.incorrectPicks || 0)
         );
-      const leader = ranked[0] || null;
-      const runnerUp = ranked[1] || null;
+      const leaders = tiedLeaders(ranked);
+      const leader = leaders[0] || null;
       const perfect = ranked.filter(
         (e) => (e.incorrectPicks || 0) === 0 && (e.correctPicks || 0) > 0
       );
       const undefeated = ranked.filter(
         (e) => (e.incorrectPicks || 0) === 0 && ((e.correctPicks || 0) + (e.tiedPicks || 0)) > 0
       );
-      const toughest = [...ranked]
-        .filter((e) => (e.correctPicks || 0) + (e.incorrectPicks || 0) > 0)
-        .sort(
-          (a, b) =>
-            (a.accuracy || 0) - (b.accuracy || 0) ||
-            (a.correctPicks || 0) - (b.correctPicks || 0)
-        )[0];
-      const featuredIds = new Set();
-      if (leader?.userId != null) featuredIds.add(Number(leader.userId));
-      const hot = [...entries]
-        .filter((e) => (e.currentStreak || 0) >= 3 && !featuredIds.has(Number(e.userId)))
-        .sort((a, b) => (b.currentStreak || 0) - (a.currentStreak || 0))[0]
-        || [...entries]
-          .filter((e) => (e.currentStreak || 0) >= 3)
-          .sort((a, b) => (b.currentStreak || 0) - (a.currentStreak || 0))[0];
-      if (hot?.userId != null) featuredIds.add(Number(hot.userId));
-      const cold = [...entries]
-        .filter((e) => (e.currentStreak || 0) <= -3)
-        .sort((a, b) => (a.currentStreak || 0) - (b.currentStreak || 0))[0];
+      const roughPool = ranked.filter(
+        (e) => (e.correctPicks || 0) + (e.incorrectPicks || 0) > 0
+      );
+      const toughestGroup = tiedOnMetric(
+        roughPool,
+        (e) => Number(e.accuracy || 0) * 1000 + (e.correctPicks || 0),
+        { preferHigher: false }
+      ).filter((e) => !leaders.some((l) => Number(l.userId) === Number(e.userId)));
+      const featuredIds = new Set(leaders.map((e) => Number(e.userId)).filter((id) => Number.isFinite(id)));
+      const hotPool = entries.filter((e) => (e.currentStreak || 0) >= 3);
+      const hotGroup = tiedOnMetric(hotPool, (e) => e.currentStreak || 0, { preferHigher: true });
+      const coldPool = entries.filter((e) => (e.currentStreak || 0) <= -3);
+      const coldGroup = tiedOnMetric(coldPool, (e) => e.currentStreak || 0, { preferHigher: false });
       const slateGames = Array.isArray(window.__DB_GAMES__) ? window.__DB_GAMES__.length : 0;
       const gamesFinal = slateGames
         ? Math.max(
@@ -2621,42 +2655,62 @@
           text: `${totalTied} pick${totalTied === 1 ? '' : 's'} pushed on ties — ties don't count for or against accuracy.`,
         });
       }
-      const leaderIsLonePerfect =
-        perfect.length === 1 &&
-        leader &&
-        Number(perfect[0].userId) === Number(leader.userId);
-      if (leaderIsLonePerfect) {
+
+      const leadersAreAllPerfect =
+        leaders.length > 0 &&
+        leaders.every((l) => (l.incorrectPicks || 0) === 0 && (l.correctPicks || 0) > 0) &&
+        perfect.length === leaders.length;
+
+      if (leadersAreAllPerfect) {
         highlights.push({
-          icon: playerAvatarHtml(leader, 22) || '✨',
-          text: `${leader.displayName || leader.username} runs the table at ${recordLabel(leader)} (100%).`,
-          htmlIcon: true,
+          icon: leaders.length === 1 ? playerAvatarHtml(leader, 22) || '✨' : '✨',
+          text:
+            leaders.length === 1
+              ? `${displayPlayerName(leader)} runs the table at ${recordLabel(leader)} (100%).`
+              : `${formatNameList(leaders)} share a perfect ${recordLabel(leader)} (100%).`,
+          htmlIcon: leaders.length === 1,
         });
-      } else if (leader) {
+      } else if (leaders.length === 1) {
         highlights.push({
           icon: playerAvatarHtml(leader, 22) || '🏆',
-          text: `${leader.displayName || leader.username} leads with ${recordLabel(leader)} (${Number(leader.accuracy || 0).toFixed(1)}%).`,
+          text: `${displayPlayerName(leader)} leads with ${recordLabel(leader)} (${Number(leader.accuracy || 0).toFixed(1)}%).`,
           htmlIcon: true,
         });
-      }
-      if (leader && runnerUp) {
-        const gap = (leader.correctPicks || 0) - (runnerUp.correctPicks || 0);
+      } else if (leaders.length > 1) {
         highlights.push({
-          icon: '🏁',
-          text:
-            gap <= 0
-              ? `${leader.displayName || leader.username} and ${runnerUp.displayName || runnerUp.username} are tied at the top.`
-              : gap === 1
-                ? `${runnerUp.displayName || runnerUp.username} is only 1 correct pick behind ${leader.displayName || leader.username}.`
-                : `${runnerUp.displayName || runnerUp.username} sits ${gap} correct picks behind the lead.`,
+          icon: '🏆',
+          text: `${formatNameList(leaders)} are tied atop the board at ${recordLabel(leader)} (${Number(leader.accuracy || 0).toFixed(1)}%).`,
         });
       }
-      if (perfect.length && !leaderIsLonePerfect) {
+
+      if (leaders.length === 1 && ranked.length > 1) {
+        const chaseGroup = tiedLeaders(ranked.slice(leaders.length));
+        const chase = chaseGroup[0];
+        if (chase) {
+          const gap = (leader.correctPicks || 0) - (chase.correctPicks || 0);
+          if (gap > 0) {
+            highlights.push({
+              icon: '🏁',
+              text:
+                chaseGroup.length === 1
+                  ? gap === 1
+                    ? `${displayPlayerName(chase)} is only 1 correct pick behind ${displayPlayerName(leader)}.`
+                    : `${displayPlayerName(chase)} sits ${gap} correct picks behind the lead.`
+                  : gap === 1
+                    ? `${formatNameList(chaseGroup)} are only 1 correct pick behind the lead.`
+                    : `${formatNameList(chaseGroup)} sit ${gap} correct picks behind the lead.`,
+            });
+          }
+        }
+      }
+
+      if (perfect.length && !leadersAreAllPerfect) {
         highlights.push({
           icon: '✨',
           text:
             perfect.length === 1
-              ? `${perfect[0].displayName || perfect[0].username} is still perfect — no losses this week.`
-              : `${perfect.length} players are still perfect (no losses) this week.`,
+              ? `${displayPlayerName(perfect[0])} is still perfect — no losses this week.`
+              : `${formatNameList(perfect)} are still perfect (no losses) this week.`,
         });
       } else if (undefeated.length && undefeated.length !== perfect.length) {
         highlights.push({
@@ -2664,22 +2718,39 @@
           text: `${undefeated.length} undefeated player${undefeated.length === 1 ? '' : 's'} after accounting for ties.`,
         });
       }
-      if (hot && !(leader && Number(hot.userId) === Number(leader.userId))) {
+
+      const hotOutsideLead = hotGroup.filter((e) => !featuredIds.has(Number(e.userId)));
+      const hotShow = hotOutsideLead.length ? hotOutsideLead : hotGroup;
+      if (hotShow.length && !(leaders.length === 1 && hotShow.length === 1 && Number(hotShow[0].userId) === Number(leader.userId))) {
+        const streak = hotShow[0].currentStreak;
         highlights.push({
           icon: '🔥',
-          text: `${hot.displayName || hot.username} is on a ${hot.currentStreak}-pick heater.`,
+          text:
+            hotShow.length === 1
+              ? `${displayPlayerName(hotShow[0])} is on a ${streak}-pick heater.`
+              : `${formatNameList(hotShow)} are on ${streak}-pick heaters.`,
         });
       }
-      if (cold) {
+
+      if (coldGroup.length) {
+        const streak = Math.abs(coldGroup[0].currentStreak);
         highlights.push({
           icon: '❄️',
-          text: `${cold.displayName || cold.username} is cold — ${Math.abs(cold.currentStreak)} wrong in a row.`,
+          text:
+            coldGroup.length === 1
+              ? `${displayPlayerName(coldGroup[0])} is cold — ${streak} wrong in a row.`
+              : `${formatNameList(coldGroup)} are cold — ${streak} wrong in a row.`,
         });
       }
-      if (toughest && leader && toughest.userId !== leader.userId) {
+
+      if (toughestGroup.length) {
+        const sample = toughestGroup[0];
         highlights.push({
           icon: '😬',
-          text: `Roughest board so far: ${toughest.displayName || toughest.username} at ${recordLabel(toughest)} (${Number(toughest.accuracy || 0).toFixed(1)}%).`,
+          text:
+            toughestGroup.length === 1
+              ? `Roughest board so far: ${displayPlayerName(sample)} at ${recordLabel(sample)} (${Number(sample.accuracy || 0).toFixed(1)}%).`
+              : `Roughest boards so far: ${formatNameList(toughestGroup)} at ${recordLabel(sample)} (${Number(sample.accuracy || 0).toFixed(1)}%).`,
         });
       }
       if (totalPending > 0) {

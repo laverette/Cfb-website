@@ -353,6 +353,9 @@
               ${entries.map((e) => {
                 const isMe = myId != null && Number(e.userId) === myId;
                 const temp = streakMeta(e.currentStreak);
+                const streakN = Number(e.currentStreak) || 0;
+                const streakInline =
+                  streakN === 0 ? 'Even' : streakN > 0 ? `+${streakN}` : String(streakN);
                 return `
                   <tr class="${isMe ? 'is-me' : ''} ${temp.className}-row">
                     <td class="lb-rank" data-label="#">${rankMedal(e.rank)}</td>
@@ -362,9 +365,7 @@
                         <span class="lb-player-text">
                           <span class="lb-player-name">${escapeHtml(e.displayName || e.username)}${isMe ? ' <em class="lb-you-inline">(you)</em>' : ''}</span>
                           <span class="lb-player-user">@${escapeHtml(e.username)}</span>
-                          ${Math.abs(Number(e.currentStreak) || 0) >= 3
-                            ? `<span class="lb-streak-inline ${temp.className}" title="${escapeHtml(temp.label)}">${temp.compact} ${temp.abs}</span>`
-                            : ''}
+                          <span class="lb-streak-inline ${temp.className}" title="${escapeHtml(temp.label)}">${temp.compact} ${streakInline}</span>
                         </span>
                       </a>
                       ${isMe ? '<span class="lb-you-pill">You</span>' : ''}
