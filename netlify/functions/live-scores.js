@@ -130,9 +130,18 @@ function normalizeEspnEvent(evt) {
 }
 
 function liveScoreKey(g) {
-  if (g?.awayEspnId && g?.homeEspnId) return `e:${g.awayEspnId}:${g.homeEspnId}`;
+  const a = normName(g?.awayTeam);
+  const h = normName(g?.homeTeam);
+  if (a && h) {
+    return a < h ? `n:${a}|${h}` : `n:${h}|${a}`;
+  }
+  if (g?.awayEspnId && g?.homeEspnId) {
+    const ae = Number(g.awayEspnId);
+    const he = Number(g.homeEspnId);
+    return ae < he ? `e:${ae}:${he}` : `e:${he}:${ae}`;
+  }
   if (g?.id) return `c:${g.id}`;
-  return `n:${normName(g?.awayTeam)}@${normName(g?.homeTeam)}`;
+  return `n:${a}@${h}`;
 }
 
 /** Prefer finals / in-progress scores over stale pregame stubs from the other source. */
@@ -296,7 +305,16 @@ exports.handler = async (event) => {
     cfbd.forEach(push);
     const merged = Array.from(byKey.values());
 
-    scheduleGradeFromLiveGames(merged);
+    // Grade finals before the response returns so Netlify doesn't freeze the work.
+    // Keep a soft time budget so the scores API stays snappy.
+    try {
+      await Promise.race([
+        scheduleGradeFromLiveGames(merged),
+        new Promise((resolve) => setTimeout(resolve, 8_000)),
+      ]);
+    } catch (err) {
+      console.warn("live-scores grade:", err.message || err);
+    }
 
     return json(
       200,

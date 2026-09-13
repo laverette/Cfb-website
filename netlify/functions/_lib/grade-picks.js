@@ -31,13 +31,6 @@ function toInt(v) {
   return Number.isFinite(n) ? n : null;
 }
 
-function normName(s) {
-  return String(s || "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
-}
-
 function resolveWinner(game, homePoints, awayPoints) {
   if (homePoints == null || awayPoints == null) return null;
   if (homePoints === awayPoints) {
@@ -67,8 +60,37 @@ function resolveWinner(game, homePoints, awayPoints) {
   };
 }
 
+function normName(s) {
+  return String(s || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+/** Fuzzy school-name match (same idea as weekly picks UI). */
+function teamsMatchName(a, b) {
+  const x = normName(a);
+  const y = normName(b);
+  if (!x || !y) return false;
+  if (x === y) return true;
+  if (x.startsWith(y) || y.startsWith(x)) return true;
+  const strip = (s) =>
+    s
+      .replace(/\b(university|univ|state|st|tech|college|of|the)\b/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  const xs = strip(x);
+  const ys = strip(y);
+  if (xs && ys && (xs === ys || xs.startsWith(ys) || ys.startsWith(xs))) return true;
+  return false;
+}
+
+/**
+ * Match a slate game to a live score row.
+ * Returns { swapped } when live home/away is flipped vs our slate (neutral sites, etc).
+ */
 function matchLiveScoreToGame(game, live) {
-  if (!game || !live) return false;
+  if (!game || !live) return null;
   const homeId = Number(game.home_team_espn_id);
   const awayId = Number(game.away_team_espn_id);
   const liveHome = toInt(live.homeEspnId ?? live.home_espn_id);
@@ -77,36 +99,84 @@ function matchLiveScoreToGame(game, live) {
     Number.isFinite(homeId) &&
     Number.isFinite(awayId) &&
     Number.isFinite(liveHome) &&
-    Number.isFinite(liveAway) &&
-    homeId === liveHome &&
-    awayId === liveAway
+    Number.isFinite(liveAway)
   ) {
-    return true;
+    if (homeId === liveHome && awayId === liveAway) return { swapped: false };
+    if (homeId === liveAway && awayId === liveHome) return { swapped: true };
   }
   const cfbdId = game.cfbd_game_id != null ? Number(game.cfbd_game_id) : null;
   const liveId = live.id != null ? Number(live.id) : null;
-  if (Number.isFinite(cfbdId) && Number.isFinite(liveId) && cfbdId === liveId) {
-    return true;
+  // CFBD game ids only — never treat ESPN event ids as CFBD ids.
+  if (
+    Number.isFinite(cfbdId) &&
+    Number.isFinite(liveId) &&
+    cfbdId === liveId &&
+    live.source !== "espn"
+  ) {
+    return { swapped: false };
   }
-  const gHome = normName(game.home_team_name);
-  const gAway = normName(game.away_team_name);
-  const lHome = normName(live.homeTeam ?? live.home_team);
-  const lAway = normName(live.awayTeam ?? live.away_team);
-  return Boolean(gHome && gAway && gHome === lHome && gAway === lAway);
+  const gHome = game.home_team_name;
+  const gAway = game.away_team_name;
+  const lHome = live.homeTeam ?? live.home_team;
+  const lAway = live.awayTeam ?? live.away_team;
+  if (teamsMatchName(gHome, lHome) && teamsMatchName(gAway, lAway)) {
+    return { swapped: false };
+  }
+  if (teamsMatchName(gHome, lAway) && teamsMatchName(gAway, lHome)) {
+    return { swapped: true };
+  }
+  return null;
 }
 
 function extractFinalFromLive(live) {
   if (!live) return null;
+  const statusRaw = String(live.statusRaw || live.status_raw || "");
+  const statusState = String(live.statusState || live.status_state || "").toLowerCase();
   const completed = Boolean(
     live.completed ||
-      /final/i.test(String(live.statusRaw || live.status_raw || "")) ||
-      String(live.statusState || live.status_state || "").toLowerCase() === "post"
+      /final/i.test(statusRaw) ||
+      statusState === "post" ||
+      /status_final|final\/ot|final\/2ot/i.test(statusRaw)
   );
   if (!completed) return null;
   const homePoints = toInt(live.homePoints ?? live.home_points);
   const awayPoints = toInt(live.awayPoints ?? live.away_points);
   if (homePoints == null || awayPoints == null) return null;
   return { homePoints, awayPoints, completed: true };
+}
+
+/** Orient live scores to our slate's home/away; prefer finals over stubs. */
+function findLiveForGame(game, liveScores) {
+  if (!Array.isArray(liveScores) || !game) return null;
+  let best = null;
+  let bestSwapped = false;
+  for (const ls of liveScores) {
+    const match = matchLiveScoreToGame(game, ls);
+    if (!match) continue;
+    const cand = preferLiveScore(best, ls);
+    if (cand === ls) {
+      best = ls;
+      bestSwapped = Boolean(match.swapped);
+    } else if (cand === best && best === ls) {
+      bestSwapped = Boolean(match.swapped);
+    }
+  }
+  if (!best) return null;
+  return { live: best, swapped: bestSwapped };
+}
+
+function finalFromMatched(match) {
+  if (!match?.live) return null;
+  const final = extractFinalFromLive(match.live);
+  if (!final) return null;
+  if (match.swapped) {
+    return {
+      homePoints: final.awayPoints,
+      awayPoints: final.homePoints,
+      completed: true,
+    };
+  }
+  return final;
 }
 
 async function fetchJson(url, headers = {}) {
@@ -139,6 +209,7 @@ function normalizeEspnEvent(evt) {
     statusState === "post" || /final/i.test(statusName) || /final/i.test(detail);
   return {
     id: evt.id != null ? Number(evt.id) : null,
+    source: "espn",
     awayTeam: away.team?.location || away.team?.displayName || null,
     homeTeam: home.team?.location || home.team?.displayName || null,
     awayEspnId: toInt(away.team?.id ?? away.id),
@@ -152,9 +223,20 @@ function normalizeEspnEvent(evt) {
 }
 
 function liveScoreKey(g) {
-  if (g?.awayEspnId && g?.homeEspnId) return `e:${g.awayEspnId}:${g.homeEspnId}`;
+  // Unordered name key so ESPN + CFBD rows for the same game compete in preferLiveScore
+  // (team id systems differ — CFBD ids are stored in our espn_id columns).
+  const a = normName(g?.awayTeam ?? g?.away_team);
+  const h = normName(g?.homeTeam ?? g?.home_team);
+  if (a && h) {
+    return a < h ? `n:${a}|${h}` : `n:${h}|${a}`;
+  }
+  const ae = toInt(g?.awayEspnId ?? g?.away_espn_id);
+  const he = toInt(g?.homeEspnId ?? g?.home_espn_id);
+  if (ae && he) {
+    return ae < he ? `e:${ae}:${he}` : `e:${he}:${ae}`;
+  }
   if (g?.id) return `c:${g.id}`;
-  return `n:${normName(g?.awayTeam)}@${normName(g?.homeTeam)}`;
+  return `n:${a}@${h}`;
 }
 
 function preferLiveScore(a, b) {
@@ -260,6 +342,7 @@ async function fetchLiveScoresForWeek(week, games = []) {
         (Array.isArray(cfbdGames) ? cfbdGames : []).forEach((g) => {
           push({
             id: g.id != null ? Number(g.id) : null,
+            source: "cfbd",
             awayTeam: g.awayTeam || g.away_team,
             homeTeam: g.homeTeam || g.home_team,
             awayEspnId: toInt(g.awayId ?? g.away_id),
@@ -275,15 +358,16 @@ async function fetchLiveScoresForWeek(week, games = []) {
       }
     }
 
-    // Direct lookups for slate games still missing a live row.
-    const missing = (games || []).filter((g) => {
+    // Direct CFBD id lookups when we still lack a *final* (not just any live stub).
+    const scoresNow = () => Array.from(byKey.values());
+    const missingFinal = (games || []).filter((g) => {
       if (g.is_completed) return false;
       const cfbdId = toInt(g.cfbd_game_id);
       if (!cfbdId) return false;
-      return !findLiveForGame(g, Array.from(byKey.values()));
+      return finalFromMatched(findLiveForGame(g, scoresNow())) == null;
     });
     await Promise.all(
-      missing.slice(0, 12).map(async (g) => {
+      missingFinal.slice(0, 24).map(async (g) => {
         const cfbdId = toInt(g.cfbd_game_id);
         try {
           const rows = await fetchJson(
@@ -294,6 +378,7 @@ async function fetchLiveScoresForWeek(week, games = []) {
           if (!row) return;
           push({
             id: row.id != null ? Number(row.id) : cfbdId,
+            source: "cfbd",
             awayTeam: row.awayTeam || row.away_team,
             homeTeam: row.homeTeam || row.home_team,
             awayEspnId: toInt(row.awayId ?? row.away_id),
@@ -311,11 +396,6 @@ async function fetchLiveScoresForWeek(week, games = []) {
   }
 
   return Array.from(byKey.values());
-}
-
-function findLiveForGame(game, liveScores) {
-  if (!Array.isArray(liveScores)) return null;
-  return liveScores.find((ls) => matchLiveScoreToGame(game, ls)) || null;
 }
 
 async function loadGameResult(gameId) {
@@ -507,8 +587,7 @@ async function syncWeekGrades(weekId, liveScores = null) {
     // slate games (Monday night, delayed finals) may be missing — fill those.
     const incomplete = games.filter((g) => !g.is_completed);
     const missing = incomplete.filter((g) => {
-      const live = findLiveForGame(g, scores);
-      return !live || extractFinalFromLive(live) == null;
+      return finalFromMatched(findLiveForGame(g, scores)) == null;
     });
     if (missing.length) {
       const extra = await fetchLiveScoresForWeek(weekRow, missing);
@@ -531,8 +610,8 @@ async function syncWeekGrades(weekId, liveScores = null) {
     let homePoints = null;
     let awayPoints = null;
 
-    const live = findLiveForGame(game, scores);
-    const final = extractFinalFromLive(live);
+    const matched = findLiveForGame(game, scores);
+    const final = finalFromMatched(matched);
     if (final) {
       homePoints = final.homePoints;
       awayPoints = final.awayPoints;
