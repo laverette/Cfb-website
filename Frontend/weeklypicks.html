@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Weekly Picks</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
   <link rel="stylesheet" href="styles/site-theme.css">
@@ -40,11 +40,14 @@
   </nav>
   <div class="menu-overlay" id="menuOverlay" onclick="closeMenu()"></div>
 
-  <header class="picks-page-header hub-chrome">
+  <div class="hub-shell">
+  <div class="hub-switch-dock">
     <div class="picks-mode-switch hub-switch" role="tablist" aria-label="Weekly picks views">
       <button type="button" class="tab-button picks-mode-btn active" id="tabPicksBtn" role="tab" aria-selected="true" onclick="openTab(event, 'week11-picks')">Picks</button>
       <button type="button" class="tab-button picks-mode-btn" id="tabResultsBtn" role="tab" aria-selected="false" onclick="openTab(event, 'week10-results')">Results</button>
     </div>
+  </div>
+  <header class="picks-page-header hub-chrome">
     <div class="hub-weekbar">
       <div class="hub-week-copy">
         <p class="hub-week-kicker">Make your board, then check the scoreboard</p>
@@ -62,6 +65,7 @@
       </div>
     </div>
   </header>
+  </div>
 
   <!-- Week 11 Picks Tab -->
   <div id="week11-picks" class="tab-content active">
@@ -611,6 +615,18 @@
       });
       if (found) {
         try { sessionStorage.setItem('weeklyPicksResultsPanel', name); } catch (_) {}
+      }
+    }
+
+    function syncHubStickyOffset() {
+      const nav = document.querySelector('.weeklypicks-navbar, .site-nav');
+      const dock = document.querySelector('.hub-switch-dock');
+      const root = document.documentElement;
+      if (nav) {
+        root.style.setProperty('--hub-nav-h', Math.round(nav.getBoundingClientRect().height) + 'px');
+      }
+      if (dock) {
+        root.style.setProperty('--hub-switch-h', Math.round(dock.getBoundingClientRect().height) + 'px');
       }
     }
 
@@ -1297,6 +1313,12 @@
       wireH2hPanel();
       wireResultsWeekToggle();
       initResultsSubnav();
+      syncHubStickyOffset();
+      window.addEventListener('resize', syncHubStickyOffset);
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', syncHubStickyOffset);
+        window.visualViewport.addEventListener('scroll', syncHubStickyOffset);
+      }
 
       // Phase 1: Load active week + games from backend DB.
       // Live scores will be loaded automatically after games are loaded
@@ -3577,10 +3599,16 @@
       document.body.classList.toggle('weekly-picks-view', tabName !== 'week10-results');
       if (tabName === 'week10-results') {
         const chrome = document.querySelector('.hub-chrome');
+        const shell = document.querySelector('.hub-shell');
         if (chrome) chrome.classList.add('is-results');
-      } else if (document.querySelector('.hub-chrome')) {
-        document.querySelector('.hub-chrome').classList.remove('is-results');
+        if (shell) shell.classList.add('is-results');
+      } else {
+        const chrome = document.querySelector('.hub-chrome');
+        const shell = document.querySelector('.hub-shell');
+        if (chrome) chrome.classList.remove('is-results');
+        if (shell) shell.classList.remove('is-results');
       }
+      requestAnimationFrame(syncHubStickyOffset);
       const kicker = document.querySelector('.hub-week-kicker');
       if (kicker) {
         kicker.textContent = tabName === 'week10-results'

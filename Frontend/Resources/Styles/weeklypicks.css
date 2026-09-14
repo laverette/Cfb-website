@@ -4443,7 +4443,7 @@ select {
 
     .dropdown-menu {
         position: fixed;
-        top: 4.25rem;
+        top: calc(var(--hub-nav-h, 4.25rem) + 0.35rem);
         left: 0.75rem;
         width: min(82vw, 300px);
         max-height: min(85vh, calc(100dvh - 5rem), calc(100vh - 5rem));

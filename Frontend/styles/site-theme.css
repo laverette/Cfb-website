@@ -1047,9 +1047,10 @@ a.navbar-user-name:focus-visible {
 @media (max-width: 768px) {
   .site-nav,
   .weeklypicks-navbar {
+    position: -webkit-sticky;
     position: sticky;
     top: 0;
-    padding: 0.5rem 0.65rem;
+    padding: max(0.5rem, env(safe-area-inset-top, 0px)) 0.65rem 0.5rem;
     overflow: visible;
   }
 
@@ -1114,7 +1115,7 @@ a.navbar-user-name:focus-visible {
 
   .dropdown-menu {
     position: fixed;
-    top: 4.25rem;
+    top: calc(var(--hub-nav-h, 4.25rem) + 0.35rem);
     left: 0.75rem;
     width: min(82vw, 300px);
     max-height: min(85vh, calc(100dvh - 5rem), calc(100vh - 5rem));

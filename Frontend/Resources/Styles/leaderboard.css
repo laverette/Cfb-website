@@ -135,8 +135,10 @@
   font: inherit;
   font-weight: 700;
   padding: 0.5rem 0.85rem;
+  min-height: 44px;
   border-radius: 999px;
   cursor: pointer;
+  touch-action: manipulation;
   transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
 }
 
@@ -434,8 +436,10 @@
   font-size: 0.82rem;
   font-weight: 800;
   padding: 0.4rem 0.75rem;
+  min-height: 44px;
   border-radius: 999px;
   cursor: pointer;
+  touch-action: manipulation;
 }
 
 .lb-jump-me:hover {
@@ -455,6 +459,7 @@
   border-radius: 999px;
   padding: 0.5rem 0.9rem;
   font: inherit;
+  font-size: 1rem;
   font-weight: 600;
 }
 
