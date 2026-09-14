@@ -7,6 +7,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
   <link rel="stylesheet" href="styles/site-theme.css">
   <link rel="stylesheet" href="Resources/Styles/leaderboard.css">
+  <link rel="stylesheet" href="styles/picks-hub.css">
 </head>
 <body>
   <nav class="navbar weeklypicks-navbar site-nav">
@@ -25,9 +26,9 @@
 
   <main class="container page-shell lb-page">
     <header class="lb-header">
-      <p class="lb-eyebrow lb-eyebrow-pulse">Season standings</p>
-      <h1 class="page-title">🏆 Leaderboards</h1>
-      <p class="lb-subtitle">Chase the crown, ride the 🔥 streaks, and tap a name for their full profile.</p>
+      <p class="lb-eyebrow lb-eyebrow-pulse">Who’s winning the room</p>
+      <h1 class="page-title">Leaderboards</h1>
+      <p class="lb-subtitle">This week first, then the long game. Tap a name for their profile, or jump to your row.</p>
     </header>
 
     <section id="myStatsCard" class="section-card lb-my-stats" hidden>
@@ -43,10 +44,11 @@
     </section>
 
     <div class="lb-tabs" role="tablist" aria-label="Leaderboard scopes">
-      <button type="button" class="lb-tab active" data-scope="all" role="tab" aria-selected="true">All Time</button>
-      <button type="button" class="lb-tab" data-scope="year" role="tab" aria-selected="false">Yearly</button>
-      <button type="button" class="lb-tab" data-scope="season" role="tab" aria-selected="false">This Season</button>
+      <button type="button" class="lb-tab" data-scope="week" id="lbThisWeekTab" role="tab" aria-selected="false" hidden>This Week</button>
       <button type="button" class="lb-tab" data-scope="lastweek" id="lbLastWeekTab" role="tab" aria-selected="false" hidden>Last Week</button>
+      <button type="button" class="lb-tab active" data-scope="season" role="tab" aria-selected="true">This Season</button>
+      <button type="button" class="lb-tab" data-scope="year" role="tab" aria-selected="false">Yearly</button>
+      <button type="button" class="lb-tab" data-scope="all" role="tab" aria-selected="false">All Time</button>
     </div>
 
     <div class="lb-year-row" id="yearRow" hidden>
@@ -76,10 +78,11 @@
     <section class="section-card lb-board-card">
       <div class="lb-board-head">
         <div>
-          <h2 id="boardTitle" class="gold-heading" style="margin:0;">All Time</h2>
+          <h2 id="boardTitle" class="gold-heading" style="margin:0;">This Season</h2>
           <p id="boardHint" class="lb-hint"></p>
         </div>
         <div class="lb-board-tools">
+          <button type="button" class="lb-jump-me" id="jumpToMeBtn">Find me</button>
           <label class="lb-search-wrap">
             <span class="visually-hidden">Search players</span>
             <input id="playerSearch" type="search" class="lb-search" placeholder="Search…" autocomplete="off">
@@ -121,9 +124,11 @@
 
   <script src="scripts/auth-ui.js"></script>
   <script>
-    let activeScope = 'all';
+    let activeScope = 'season';
     let availableYears = [];
     let currentSeasonYear = null;
+    let currentWeekId = null;
+    let currentWeekLabel = 'This Week';
     let previousWeekId = null;
     let previousWeekLabel = 'Last Week';
     let boardCache = {};
@@ -222,10 +227,19 @@
         const resp = await fetch('/api/picks/current-week', { headers: { accept: 'application/json' } });
         if (!resp.ok) return;
         const week = await resp.json().catch(() => ({}));
+        currentWeekId = week && week.id != null ? Number(week.id) : null;
+        if (week && (week.weekNumber != null || week.week_number != null)) {
+          currentWeekLabel = `Week ${week.weekNumber ?? week.week_number}`;
+        }
         const prev = week.previousWeek || week.previous_week || null;
         previousWeekId = prev && prev.id != null ? Number(prev.id) : null;
         if (prev && (prev.weekNumber != null || prev.week_number != null)) {
           previousWeekLabel = `Week ${prev.weekNumber ?? prev.week_number}`;
+        }
+        const thisTab = document.getElementById('lbThisWeekTab');
+        if (thisTab && currentWeekId) {
+          thisTab.hidden = false;
+          thisTab.textContent = currentWeekLabel;
         }
         const lastTab = document.getElementById('lbLastWeekTab');
         if (lastTab && previousWeekId) {
@@ -233,6 +247,7 @@
           lastTab.textContent = previousWeekLabel;
         }
       } catch {
+        currentWeekId = null;
         previousWeekId = null;
       }
     }
@@ -479,10 +494,18 @@
         const year = activeScope === 'year'
           ? Number(document.getElementById('yearSelect').value) || currentSeasonYear
           : null;
-        const apiScope = activeScope === 'lastweek' ? 'week' : activeScope;
-        const weekId = activeScope === 'lastweek' ? previousWeekId : null;
+        const apiScope = (activeScope === 'lastweek' || activeScope === 'week') ? 'week' : activeScope;
+        const weekId = activeScope === 'lastweek'
+          ? previousWeekId
+          : activeScope === 'week'
+            ? currentWeekId
+            : null;
         if (activeScope === 'lastweek' && !weekId) {
           body.innerHTML = '<p class="lb-empty">No previous week yet this season.</p>';
+          return;
+        }
+        if (activeScope === 'week' && !weekId) {
+          body.innerHTML = '<p class="lb-empty">No active week yet.</p>';
           return;
         }
         const data = await fetchBoard(apiScope, year, weekId);
@@ -537,20 +560,49 @@
 
     function applyScopeFromUrl() {
       const scope = String(new URLSearchParams(window.location.search).get('scope') || '').toLowerCase();
-      const allowed = new Set(['all', 'year', 'season', 'lastweek']);
-      if (!allowed.has(scope)) return;
+      const allowed = new Set(['all', 'year', 'season', 'lastweek', 'week']);
+      if (!allowed.has(scope)) return false;
       activeScope = scope;
       document.querySelectorAll('.lb-tab').forEach((btn) => {
         const on = (btn.getAttribute('data-scope') || '') === scope;
         btn.classList.toggle('active', on);
         btn.setAttribute('aria-selected', on ? 'true' : 'false');
       });
+      return true;
     }
+
+    function syncActiveTab() {
+      document.querySelectorAll('.lb-tab').forEach((btn) => {
+        const on = (btn.getAttribute('data-scope') || '') === activeScope;
+        btn.classList.toggle('active', on);
+        btn.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+    }
+
+    function jumpToMe() {
+      const row = document.querySelector('.lb-table tr.is-me');
+      const btn = document.getElementById('jumpToMeBtn');
+      if (!row) {
+        if (btn) btn.textContent = 'You are not on this board';
+        setTimeout(() => { if (btn) btn.textContent = 'Find me'; }, 1800);
+        return;
+      }
+      row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      row.classList.remove('is-flash');
+      void row.offsetWidth;
+      row.classList.add('is-flash');
+    }
+
+    document.getElementById('jumpToMeBtn').addEventListener('click', jumpToMe);
 
     document.addEventListener('DOMContentLoaded', async () => {
       syncLbMobileCollapses();
-      applyScopeFromUrl();
+      const fromUrl = applyScopeFromUrl();
       await loadWeekMeta();
+      if (!fromUrl) {
+        activeScope = currentWeekId ? 'week' : 'season';
+        syncActiveTab();
+      }
       loadActiveBoard();
     });
   </script>

@@ -7,6 +7,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
   <link rel="stylesheet" href="styles/site-theme.css">
   <link rel="stylesheet" href="Resources/Styles/weeklypicks.css">
+  <link rel="stylesheet" href="styles/picks-hub.css">
 </head>
 <body>
   <script>
@@ -39,20 +40,33 @@
   </nav>
   <div class="menu-overlay" id="menuOverlay" onclick="closeMenu()"></div>
 
-  <header class="picks-page-header">
-    <div class="picks-mode-switch" role="tablist" aria-label="Weekly picks views">
+  <header class="picks-page-header hub-chrome">
+    <div class="picks-mode-switch hub-switch" role="tablist" aria-label="Weekly picks views">
       <button type="button" class="tab-button picks-mode-btn active" id="tabPicksBtn" role="tab" aria-selected="true" onclick="openTab(event, 'week11-picks')">Picks</button>
       <button type="button" class="tab-button picks-mode-btn" id="tabResultsBtn" role="tab" aria-selected="false" onclick="openTab(event, 'week10-results')">Results</button>
+    </div>
+    <div class="hub-weekbar">
+      <div class="hub-week-copy">
+        <p class="hub-week-kicker">Make your board, then check the scoreboard</p>
+        <h2 class="hub-week-title" id="hubWeekLabel">This week</h2>
+        <p class="hub-week-status" id="hubLockLabel"></p>
+      </div>
+      <div class="hub-week-tools">
+        <div class="hub-progress" id="hubProgress" hidden>
+          <span class="hub-progress-label" id="hubProgressLabel">0 of 12 picked</span>
+          <div class="hub-progress-track" aria-hidden="true">
+            <span class="hub-progress-fill" id="hubProgressFill"></span>
+          </div>
+        </div>
+        <button type="button" class="football-toggle-btn" id="footballToggleBtn" aria-pressed="false">Hide football</button>
+      </div>
     </div>
   </header>
 
   <!-- Week 11 Picks Tab -->
   <div id="week11-picks" class="tab-content active">
-    <div class="title-section">
+    <div class="title-section hub-sr-only">
       <h1 class="title" id="picksTabTitle">Weekly Picks</h1>
-      <div class="title-actions">
-        <button type="button" class="football-toggle-btn" id="footballToggleBtn" aria-pressed="false">Hide football</button>
-      </div>
     </div>
     
     <div class="week11-layout picks-layout-solo">
@@ -220,10 +234,9 @@
           </p>
           </div>
              
-          <p class="picks-form-actions">
-            <button id="submit" type="submit" class="form-nav-link picks-action-btn">Submit Predictions</button>
-            <a href="prediction-history.html" class="form-nav-link picks-action-btn">View Leaderboards</a>
-            <a href="index.html" class="form-nav-link picks-action-btn">Back to Main Site</a>
+          <p class="picks-form-actions hub-sticky-actions">
+            <button id="submit" type="submit" class="form-nav-link picks-action-btn">Submit picks</button>
+            <a href="prediction-history.html" class="hub-text-link">Open leaderboards</a>
           </p>
         </form>
 
@@ -254,48 +267,50 @@
   </div>
 
   <!-- Week 10 Results Tab -->
-  <div id="week10-results" class="tab-content">
-    <div class="title-section">
+  <div id="week10-results" class="tab-content hub-scoreboard">
+    <div class="title-section hub-sr-only">
       <h1 class="title" id="resultsTabTitle">Weekly Results</h1>
     </div>
 
-    <div class="results-week-toggle" id="resultsWeekToggle" role="tablist" aria-label="Results week" hidden>
-      <button type="button" class="results-week-btn active" id="resultsThisWeekBtn" data-recap-week="current" role="tab" aria-selected="true">This Week</button>
-      <button type="button" class="results-week-btn" id="resultsLastWeekBtn" data-recap-week="previous" role="tab" aria-selected="false">Last Week</button>
+    <div class="hub-subnav" id="resultsSubnav" role="tablist" aria-label="Results sections">
+      <button type="button" class="hub-subnav-btn active" data-results-panel="board" role="tab" aria-selected="true">My board</button>
+      <button type="button" class="hub-subnav-btn" data-results-panel="league" role="tab" aria-selected="false">League</button>
+      <button type="button" class="hub-subnav-btn" data-results-panel="awards" role="tab" aria-selected="false">Awards</button>
     </div>
 
-    <div id="resultsRecapHost" class="results-recap-host">
-      <p class="results-recap-loading">Loading your results…</p>
-    </div>
-    
-    <div class="results-standings-grid">
-      <section class="results-standings-board" aria-labelledby="weekBoardTitle">
-        <h3 class="results-standings-title" id="weekBoardTitle">🏆 This Week</h3>
-        <ol class="results-standings-list" id="weekLeaderboardList">
-          <li class="results-stand-empty">Loading standings…</li>
-        </ol>
-        <p class="results-lb-link">
-          <a href="prediction-history.html">See full leaderboard →</a>
-        </p>
-      </section>
-    </div>
+    <div class="hub-panel is-active" id="resultsPanelBoard" data-results-panel="board">
+      <div class="results-week-toggle" id="resultsWeekToggle" role="tablist" aria-label="Results week" hidden>
+        <button type="button" class="results-week-btn active" id="resultsThisWeekBtn" data-recap-week="current" role="tab" aria-selected="true">This Week</button>
+        <button type="button" class="results-week-btn" id="resultsLastWeekBtn" data-recap-week="previous" role="tab" aria-selected="false">Last Week</button>
+      </div>
 
-    <div class="analysis-container" id="resultsAnalysisContainer" hidden>
-      <h3 class="analysis-title" id="analysisTitle">📊 Weekly Analysis</h3>
-      <div class="analysis-content">
-        <div class="analysis-stats" id="resultsAnalysisStats"></div>
+      <div id="resultsRecapHost" class="results-recap-host">
+        <p class="results-recap-loading">Loading your results…</p>
       </div>
     </div>
 
-    <div class="awards-container" id="resultsAwardsContainer" hidden>
-      <div class="awards-head">
-        <h3 class="analysis-title" id="awardsTitle">🏅 Weekly Awards</h3>
+    <div class="hub-panel" id="resultsPanelLeague" data-results-panel="league" hidden>
+      <div class="results-standings-grid">
+        <section class="results-standings-board" aria-labelledby="weekBoardTitle">
+          <h3 class="results-standings-title" id="weekBoardTitle">🏆 This Week</h3>
+          <p class="hub-panel-hint">Tap Compare to stack boards. Open Leaderboards for season records.</p>
+          <ol class="results-standings-list" id="weekLeaderboardList">
+            <li class="results-stand-empty">Loading standings…</li>
+          </ol>
+          <p class="results-lb-link">
+            <a href="prediction-history.html?scope=week">See full leaderboard →</a>
+          </p>
+        </section>
       </div>
-      <div class="awards-grid" id="resultsAwardsGrid"></div>
-      <p class="awards-empty" id="resultsAwardsEmpty" hidden></p>
-    </div>
 
-    <div class="h2h-panel section-card" id="h2hPanel" hidden>
+      <div class="analysis-container" id="resultsAnalysisContainer" hidden>
+        <h3 class="analysis-title" id="analysisTitle">📊 Weekly Analysis</h3>
+        <div class="analysis-content">
+          <div class="analysis-stats" id="resultsAnalysisStats"></div>
+        </div>
+      </div>
+
+      <div class="h2h-panel section-card" id="h2hPanel" hidden>
       <div class="h2h-panel-head">
         <h3 class="gold-heading" style="margin:0;" id="h2hPanelTitle">Head to head</h3>
         <button type="button" class="btn btn-brown btn-sm" id="h2hCloseBtn">Close</button>
@@ -304,6 +319,17 @@
       <div class="h2h-actions">
         <button type="button" class="screenshot-button" id="h2hScreenshotBtn">Save image</button>
         <p class="screenshot-note">Share your board vs a friend.</p>
+      </div>
+    </div>
+    </div>
+
+    <div class="hub-panel" id="resultsPanelAwards" data-results-panel="awards" hidden>
+      <div class="awards-container" id="resultsAwardsContainer" hidden>
+        <div class="awards-head">
+          <h3 class="analysis-title" id="awardsTitle">🏅 Weekly Awards</h3>
+        </div>
+        <div class="awards-grid" id="resultsAwardsGrid"></div>
+        <p class="awards-empty" id="resultsAwardsEmpty" hidden></p>
       </div>
     </div>
   </div>
@@ -488,6 +514,9 @@
       if (!meta || typeof meta !== 'object') return;
       const { weekPart, yearPart } = weekLabelParts(meta);
 
+      const hubWeek = document.getElementById('hubWeekLabel');
+      if (hubWeek) hubWeek.textContent = `${weekPart}${yearPart}`;
+
       const picksTitle = document.getElementById('picksTabTitle') || document.querySelector('#week11-picks .title');
       if (picksTitle) picksTitle.textContent = `${weekPart} Picks${yearPart}`;
 
@@ -516,6 +545,87 @@
           : 'Last Week';
       }
       if (typeof syncResultsWeekToggle === 'function') syncResultsWeekToggle();
+      syncHubLockLabel();
+    }
+
+    function updateHubProgress() {
+      const wrap = document.getElementById('hubProgress');
+      const label = document.getElementById('hubProgressLabel');
+      const fill = document.getElementById('hubProgressFill');
+      const rows = document.querySelectorAll('#dbWeekPicksContainer .pick-game-row');
+      const total = rows.length;
+      if (!wrap || !label || !fill) return;
+      if (!total || document.body.classList.contains('picks-results-open') || document.body.classList.contains('weekly-results-view')) {
+        wrap.hidden = true;
+        return;
+      }
+      const picked = document.querySelectorAll('#dbWeekPicksContainer .pick-game-row.has-pick').length;
+      wrap.hidden = false;
+      wrap.classList.toggle('is-complete', picked >= total);
+      label.textContent = picked >= total ? 'Board complete' : `${picked} of ${total} picked`;
+      fill.style.width = `${Math.round((picked / total) * 100)}%`;
+      const submitBtn = document.getElementById('submit');
+      if (submitBtn && submitBtn.style.display !== 'none') {
+        submitBtn.textContent = picked >= total ? 'Submit picks' : `Submit ${picked}/${total}`;
+      }
+    }
+
+    function syncHubLockLabel() {
+      const el = document.getElementById('hubLockLabel');
+      if (!el) return;
+      const status = window.__PICKS_STATUS__ || {};
+      if (document.body.classList.contains('weekly-results-view')) {
+        el.classList.remove('is-locked');
+        el.textContent = 'My board is your recap. League is this week’s standings.';
+        return;
+      }
+      if (status.picksLocked) {
+        el.textContent = 'Picks are locked · open Results to see your board';
+        el.classList.add('is-locked');
+        return;
+      }
+      el.classList.remove('is-locked');
+      if (status.locksAt) {
+        el.textContent = `Locks ${formatGameDate(status.locksAt)}`;
+      } else if (status.hasSubmitted) {
+        el.textContent = 'Picks are in. You can still edit until lock.';
+      } else {
+        el.textContent = 'Tap a team to pick it. You can change anytime until lock.';
+      }
+    }
+
+    function setResultsPanel(name) {
+      const panels = document.querySelectorAll('#week10-results .hub-panel');
+      const buttons = document.querySelectorAll('#resultsSubnav .hub-subnav-btn');
+      let found = false;
+      panels.forEach((panel) => {
+        const on = panel.getAttribute('data-results-panel') === name;
+        panel.classList.toggle('is-active', on);
+        panel.hidden = !on;
+        if (on) found = true;
+      });
+      buttons.forEach((btn) => {
+        const on = btn.getAttribute('data-results-panel') === name;
+        btn.classList.toggle('active', on);
+        btn.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+      if (found) {
+        try { sessionStorage.setItem('weeklyPicksResultsPanel', name); } catch (_) {}
+      }
+    }
+
+    function initResultsSubnav() {
+      const nav = document.getElementById('resultsSubnav');
+      if (!nav || nav.dataset.wired === '1') return;
+      nav.dataset.wired = '1';
+      nav.addEventListener('click', (e) => {
+        const btn = e.target.closest('.hub-subnav-btn');
+        if (!btn) return;
+        setResultsPanel(btn.getAttribute('data-results-panel') || 'board');
+      });
+      let saved = 'board';
+      try { saved = sessionStorage.getItem('weeklyPicksResultsPanel') || 'board'; } catch (_) {}
+      setResultsPanel(saved === 'league' || saved === 'awards' || saved === 'board' ? saved : 'board');
     }
 
     function showDbPicksContainer() {
@@ -705,6 +815,7 @@
         else hidden.removeAttribute('data-team-espn-id');
       }
       row.classList.toggle('has-pick', Boolean(name));
+      updateHubProgress();
     }
 
     function clearGamePick(row) {
@@ -1010,6 +1121,7 @@
       restorePicksSnapshot(priorPicks);
       restorePicksDraft();
       requestAnimationFrame(() => fitPickMatchupFonts(container));
+      updateHubProgress();
 
       return true;
     }
@@ -1077,6 +1189,8 @@
         } catch {
           /* ignore */
         }
+        syncHubLockLabel();
+        updateHubProgress();
         const resultsTab = document.getElementById('week10-results');
         if (resultsTab && resultsTab.classList.contains('active')) {
           loadResultsLeaderboards({ quiet: true });
@@ -1182,6 +1296,7 @@
       initCorsoChat();
       wireH2hPanel();
       wireResultsWeekToggle();
+      initResultsSubnav();
 
       // Phase 1: Load active week + games from backend DB.
       // Live scores will be loaded automatically after games are loaded
@@ -1532,6 +1647,8 @@
             } else {
               restorePicksDraft();
             }
+            syncHubLockLabel();
+            updateHubProgress();
           } catch (jsonError) {
             // Silently fail - API may not be available
           }
@@ -2744,16 +2861,19 @@
         const avatarHtml = profileUrl
           ? `<a class="results-stand-avatar-link" href="${safeText(profileUrl)}" title="${name} profile" aria-label="${name} profile">${avatarInner}</a>`
           : avatarInner;
+        const meName = String((currentUser && (currentUser.username || '')) || '').toLowerCase();
+        const isMe = Boolean(meName && String(e.username || '').toLowerCase() === meName);
         const canCompare =
           Boolean(e.username) &&
           Boolean(localStorage.getItem('authToken')) &&
-          String(e.username).toLowerCase() !==
-            String((currentUser && (currentUser.username || '')) || '').toLowerCase();
+          !isMe;
         const compareHtml = canCompare
           ? `<button type="button" class="results-stand-compare" data-opponent="${safeText(e.username)}" title="Compare picks">Compare</button>`
-          : '';
+          : isMe
+            ? `<span class="hub-you-pill">You</span>`
+            : '';
         return `
-          <li class="results-stand-row">
+          <li class="results-stand-row${isMe ? ' is-me' : ''}${canCompare ? ' is-comparable' : ''}"${canCompare ? ` data-opponent="${safeText(e.username)}"` : ''}>
             <span class="results-stand-rank ${rankClass}" aria-hidden="true">${rank}</span>
             <div class="results-stand-player">
               ${avatarHtml}
@@ -2772,8 +2892,16 @@
       }).join('');
 
       list.querySelectorAll('.results-stand-compare').forEach((btn) => {
-        btn.addEventListener('click', () => {
+        btn.addEventListener('click', (evt) => {
+          evt.stopPropagation();
           const opponent = btn.getAttribute('data-opponent');
+          if (opponent) openHeadToHead(opponent);
+        });
+      });
+      list.querySelectorAll('.results-stand-row.is-comparable').forEach((row) => {
+        row.addEventListener('click', (evt) => {
+          if (evt.target.closest('a, button')) return;
+          const opponent = row.getAttribute('data-opponent');
           if (opponent) openHeadToHead(opponent);
         });
       });
@@ -3295,7 +3423,11 @@
         alert('Log in to compare picks.');
         return;
       }
+      setResultsPanel('league');
       panel.hidden = false;
+      requestAnimationFrame(() => {
+        panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
       host.innerHTML = '<p class="screenshot-note">Loading head-to-head…</p>';
       if (title) title.textContent = `You vs ${opponentUsername}`;
       try {
@@ -3443,6 +3575,20 @@
       }
       document.body.classList.toggle('weekly-results-view', tabName === 'week10-results');
       document.body.classList.toggle('weekly-picks-view', tabName !== 'week10-results');
+      if (tabName === 'week10-results') {
+        const chrome = document.querySelector('.hub-chrome');
+        if (chrome) chrome.classList.add('is-results');
+      } else if (document.querySelector('.hub-chrome')) {
+        document.querySelector('.hub-chrome').classList.remove('is-results');
+      }
+      const kicker = document.querySelector('.hub-week-kicker');
+      if (kicker) {
+        kicker.textContent = tabName === 'week10-results'
+          ? 'Your board, the league, and the hardware'
+          : 'Make your board, then check the scoreboard';
+      }
+      updateHubProgress();
+      syncHubLockLabel();
       if (window.__cfpFootballBounce && typeof window.__cfpFootballBounce.sync === 'function') {
         window.__cfpFootballBounce.sync();
       }

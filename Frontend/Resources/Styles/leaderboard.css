@@ -134,7 +134,7 @@
   color: #f5deb3;
   font: inherit;
   font-weight: 700;
-  padding: 0.55rem 1.1rem;
+  padding: 0.5rem 0.85rem;
   border-radius: 999px;
   cursor: pointer;
   transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
@@ -425,6 +425,23 @@
   justify-content: flex-end;
 }
 
+.lb-jump-me {
+  appearance: none;
+  border: 1px solid #ffd700;
+  background: rgba(255, 215, 0, 0.12);
+  color: #ffd700;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 800;
+  padding: 0.4rem 0.75rem;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.lb-jump-me:hover {
+  background: rgba(255, 215, 0, 0.22);
+}
+
 .lb-search,
 .lb-sort {
   min-width: 10rem;
@@ -516,6 +533,15 @@
 .lb-table tr.is-me {
   background: rgba(255, 215, 0, 0.1);
   box-shadow: inset 3px 0 0 #ffd700;
+}
+
+.lb-table tr.is-me.is-flash {
+  animation: lb-me-flash 1.1s ease;
+}
+
+@keyframes lb-me-flash {
+  0%, 100% { background: rgba(255, 215, 0, 0.1); }
+  35% { background: rgba(255, 215, 0, 0.38); }
 }
 
 .lb-table tr.lb-temp-blazing-row {
