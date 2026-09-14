@@ -10,7 +10,8 @@ const {
   teamsLikelyMatch,
   DEFAULT_PROP_MARKETS,
 } = require("./odds-api");
-const { searchPlayers, evaluateProp, STAT_DEFS } = require("./prop-eval");
+const { searchPlayers } = require("./prop-eval");
+const { evaluateProp, createClient, PROP_DEFINITIONS } = require("./prop-lab");
 const { buildProbGrade } = require("./prop-prob");
 
 const BOARD_CACHE = globalThis.__cfb_prop_board_cache || { at: 0, payload: null };
@@ -165,8 +166,9 @@ async function buildWeeklyPropBoard({
 
   const playerCache = new Map();
   const seasonYear = Number(season) || new Date().getFullYear();
+  const cfbd = createClient(apiKey, { signal });
 
-  const graded = await mapPool(selected, 3, async (row) => {
+  const graded = await mapPool(selected, 2, async (row) => {
     try {
       const player = await resolvePlayerId(row.playerName, [row.homeTeam, row.awayTeam], {
         apiKey,
@@ -191,21 +193,25 @@ async function buildWeeklyPropBoard({
         name: player.name || row.playerName,
         statId: row.statId,
         line: row.line,
+        side: "more",
         opponent,
         season: seasonYear,
         apiKey,
         powerTeams,
         signal,
+        cfbd,
       });
       const grade = buildProbGrade({
-        expected: model.expected,
+        expected: model.projection,
         line: row.line,
         statId: row.statId,
-        lean: model.lean,
+        lean: model.pMore >= 0.5 ? "over" : "under",
         overPrice: row.overPrice,
         underPrice: row.underPrice,
       });
-      const def = STAT_DEFS.find((d) => d.id === row.statId);
+      grade.pOver = model.pMore;
+      grade.pUnder = model.pLess;
+      const def = PROP_DEFINITIONS.find((d) => d.id === row.statId);
       return {
         eventId: row.eventId,
         commenceTime: row.commenceTime,
@@ -221,9 +227,10 @@ async function buildWeeklyPropBoard({
         bookmaker: row.bookmaker,
         overPrice: row.overPrice,
         underPrice: row.underPrice,
-        expected: model.expected,
-        lean: model.lean,
+        expected: model.projection,
+        lean: model.pMore >= 0.5 ? "over" : "under",
         confidence: model.confidence,
+        propScore: model.propScore,
         edgePts: model.edge,
         opponent: model.opponent?.name || opponent,
         grade,

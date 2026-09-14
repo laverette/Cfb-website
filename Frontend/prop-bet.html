@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Prop Bet Evaluator</title>
+  <title>Prop Lab</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
   <link rel="stylesheet" href="styles/site-theme.css">
   <link rel="stylesheet" href="Resources/Styles/power.css">
-  <link rel="stylesheet" href="Resources/Styles/prop-bet.css">
+  <link rel="stylesheet" href="Resources/Styles/prop-lab.css">
 </head>
 <body class="power-rankings-body">
   <nav class="navbar weeklypicks-navbar site-nav">
@@ -20,151 +20,131 @@
           <span></span><span></span><span></span>
         </button>
         <div class="dropdown-menu" id="dropdownMenu"></div>
-        <h1 class="site-title">Prop Evaluator</h1>
+        <h1 class="site-title">Prop Lab</h1>
         <div id="auth-nav" class="navbar-auth-cluster"></div>
       </div>
     </div>
   </nav>
   <div class="menu-overlay" id="menuOverlay" onclick="closeMenu()"></div>
 
-  <main class="container page-shell power-page prop-page">
-    <header class="power-header">
-      <p class="power-eyebrow">Player props</p>
-      <h1 class="power-title">Prop Bet Evaluator</h1>
-      <p class="power-subtitle">
-        Build any leg with season averages and opponent strength. Load this week’s sportsbook board only when you want graded lines — that uses Odds API credits.
-      </p>
+  <main class="container page-shell power-page prop-lab-page">
+    <header class="prop-lab-header">
+      <div>
+        <p class="power-eyebrow">PrizePicks entry builder</p>
+        <h1 class="power-title">Prop Lab</h1>
+        <p class="power-subtitle prop-lab-lead">
+          Build a college football card, rank every leg, and see which four are actually worth keeping.
+        </p>
+      </div>
+      <div class="prop-lab-weekbar">
+        <label class="power-field">
+          <span>Week</span>
+          <select id="labWeek" class="site-select matchup-select" aria-label="CFB week"></select>
+        </label>
+        <p class="prop-lab-weekmeta" id="labWeekMeta"></p>
+      </div>
     </header>
 
-    <section class="matchup-panel prop-board-panel" aria-labelledby="propBoardTitle">
-      <div class="matchup-panel-head prop-board-head">
-        <div>
-          <h2 id="propBoardTitle" class="matchup-panel-title">This week’s board</h2>
-          <p class="matchup-panel-lead" id="propBoardLead">
-            Sportsbook props use Odds API credits. Load the board when you want this week’s graded lines.
-          </p>
-        </div>
-        <button type="button" class="btn btn-gold btn-sm" id="propBoardRefresh">Load this week’s board</button>
-      </div>
-      <div id="propBoardStatus" class="prop-board-status" hidden></div>
-      <div id="propBoard" class="prop-board-list">
-        <p class="prop-board-idle">Board is idle — the manual evaluator below does not use Odds API credits.</p>
-      </div>
-    </section>
-
-    <div class="prop-grid">
-      <section class="matchup-panel matchup-panel-form" aria-labelledby="propFormTitle">
+    <div class="prop-lab-shell">
+      <section class="matchup-panel prop-lab-builder" aria-labelledby="builderTitle">
         <div class="matchup-panel-head">
-          <h2 id="propFormTitle" class="matchup-panel-title">Build a leg</h2>
-          <p class="matchup-panel-lead">Manual entry — season averages + opponent strength → hit %.</p>
+          <h2 id="builderTitle" class="matchup-panel-title">Entry Builder</h2>
+          <p class="matchup-panel-lead">Search a player, set STAT / LINE / MORE, then Enter to add the next leg.</p>
         </div>
 
-        <form class="matchup-form" id="propForm" onsubmit="return false;">
-          <label class="power-field">
-            <span>Player</span>
-            <div class="matchup-combo" id="playerCombo">
-              <input type="hidden" id="playerId" value="">
-              <input type="hidden" id="playerTeam" value="">
-              <input type="hidden" id="playerName" value="">
-              <input
-                class="site-select matchup-select matchup-combo-input"
-                id="playerSearch"
-                type="text"
-                autocomplete="off"
-                spellcheck="false"
-                placeholder="Search player (e.g. Keelon Russell)…"
-                aria-label="Player search"
-                aria-autocomplete="list"
-                aria-controls="playerList"
-              >
-              <ul class="matchup-combo-list" id="playerList" hidden role="listbox"></ul>
-            </div>
-          </label>
-
-          <div class="prop-form-row">
+        <form id="addPropForm" class="prop-add-form" autocomplete="off">
+          <div class="prop-add-grid">
+            <label class="power-field prop-add-player">
+              <span>Player</span>
+              <div class="matchup-combo" id="playerCombo">
+                <input type="hidden" id="playerId" value="">
+                <input type="hidden" id="playerTeam" value="">
+                <input type="hidden" id="playerName" value="">
+                <input
+                  class="site-select matchup-select matchup-combo-input"
+                  id="playerSearch"
+                  type="text"
+                  spellcheck="false"
+                  placeholder="Search player…"
+                  aria-label="Player search"
+                  aria-autocomplete="list"
+                  aria-controls="playerList"
+                >
+                <ul class="matchup-combo-list" id="playerList" hidden role="listbox"></ul>
+              </div>
+            </label>
             <label class="power-field">
               <span>Stat</span>
-              <select id="propStat" class="site-select matchup-select" disabled>
-                <option value="">Select a player first…</option>
+              <select id="propStat" class="site-select matchup-select">
+                <option value="">Stat</option>
               </select>
             </label>
             <label class="power-field">
               <span>Line</span>
-              <input
-                id="propLine"
-                class="site-select matchup-select"
-                type="number"
-                step="0.5"
-                inputmode="decimal"
-                placeholder="e.g. 224.5"
-              >
-            </label>
-          </div>
-
-          <div class="prop-form-row">
-            <label class="power-field">
-              <span>Over price <em class="prop-optional">(optional)</em></span>
-              <input
-                id="propOverPrice"
-                class="site-select matchup-select"
-                type="number"
-                step="1"
-                inputmode="numeric"
-                placeholder="e.g. -115"
-              >
+              <input id="propLine" class="site-select matchup-select" type="number" step="0.5" inputmode="decimal" placeholder="98.5">
             </label>
             <label class="power-field">
-              <span>Under price <em class="prop-optional">(optional)</em></span>
-              <input
-                id="propUnderPrice"
-                class="site-select matchup-select"
-                type="number"
-                step="1"
-                inputmode="numeric"
-                placeholder="e.g. -105"
-              >
+              <span>Side</span>
+              <select id="propSide" class="site-select matchup-select">
+                <option value="more">More</option>
+                <option value="less">Less</option>
+              </select>
             </label>
+            <button type="submit" class="btn btn-gold prop-add-btn" id="addPropBtn">+ Add Prop</button>
           </div>
-
-          <label class="power-field">
-            <span>Opponent <em class="prop-optional">(optional — auto from schedule)</em></span>
-            <div class="matchup-combo" id="oppCombo">
-              <input type="hidden" id="opponentId" value="">
-              <input
-                class="site-select matchup-select matchup-combo-input"
-                id="opponentSearch"
-                type="text"
-                autocomplete="off"
-                spellcheck="false"
-                placeholder="Leave blank to use next game…"
-                aria-label="Opponent team"
-                aria-autocomplete="list"
-                aria-controls="opponentList"
-              >
-              <ul class="matchup-combo-list" id="opponentList" hidden role="listbox"></ul>
-            </div>
-          </label>
-
-          <button type="button" class="btn btn-gold matchup-submit-btn" id="evaluateBtn" disabled>
-            Evaluate prop
-          </button>
-          <p class="matchup-form-note">Not betting advice. Model uses season averages and power rankings only.</p>
+          <p class="prop-opp-hint" id="oppHint">Opponent fills from the week’s schedule after you pick a player.</p>
         </form>
+
+        <ol class="prop-entry-list" id="entryList"></ol>
+        <p class="prop-entry-empty" id="entryEmpty">No legs yet — add up to 8 PrizePicks props.</p>
       </section>
 
-      <section class="matchup-panel prop-result-panel" aria-live="polite" aria-labelledby="propResultTitle">
+      <aside class="matchup-panel prop-lab-summary" aria-labelledby="summaryTitle">
         <div class="matchup-panel-head">
-          <h2 id="propResultTitle" class="matchup-panel-title">Result</h2>
+          <h2 id="summaryTitle" class="matchup-panel-title">Entry Analysis</h2>
         </div>
-        <div id="propResult" class="prop-result-empty">
-          <p>Pick a player and line to see a lean.</p>
+        <div id="entrySummary" class="prop-summary-idle">
+          Add at least one evaluated leg to see grade, risk, and correlations.
         </div>
-      </section>
+        <div class="prop-summary-actions">
+          <button type="button" class="btn btn-gold btn-sm" id="bestNBtn" disabled>Find Best 4</button>
+          <button type="button" class="btn btn-outline-light btn-sm" id="compareBtn" disabled>Compare</button>
+          <button type="button" class="btn btn-outline-light btn-sm" id="saveBtn" disabled>Save entry</button>
+        </div>
+        <div id="savedEntries" class="prop-saved"></div>
+      </aside>
     </div>
+
+    <section class="prop-cards-wrap" aria-labelledby="cardsTitle">
+      <div class="prop-cards-head">
+        <h2 id="cardsTitle" class="matchup-panel-title">Prop cards</h2>
+        <p class="matchup-panel-lead">Sorted by Prop Score. Open a card for game log, matchup, and the bear case.</p>
+      </div>
+      <div id="propCards" class="prop-cards"></div>
+    </section>
+
+    <section id="comparePanel" class="matchup-panel prop-compare" hidden></section>
+    <section id="bestNPanel" class="matchup-panel prop-bestn" hidden></section>
+
+    <section class="matchup-panel prop-board-panel" aria-labelledby="propBoardTitle">
+      <div class="matchup-panel-head prop-board-head">
+        <div>
+          <h2 id="propBoardTitle" class="matchup-panel-title">Market Board</h2>
+          <p class="matchup-panel-lead" id="propBoardLead">
+            Optional sportsbook lines. Manual PrizePicks entry never spends Odds API credits.
+          </p>
+        </div>
+        <button type="button" class="btn btn-gold btn-sm" id="propBoardRefresh">Load market board</button>
+      </div>
+      <div id="propBoardStatus" class="prop-board-status" hidden></div>
+      <div id="propBoard" class="prop-board-list">
+        <p class="prop-board-idle">Idle — load only if you want sportsbook context.</p>
+      </div>
+    </section>
   </main>
 
   <script src="scripts/auth-ui.js"></script>
-  <script src="scripts/prop-bet.js"></script>
+  <script src="scripts/prop-lab.js?v=2"></script>
   <script>
     function closeMenu() {
       const menu = document.getElementById('dropdownMenu');

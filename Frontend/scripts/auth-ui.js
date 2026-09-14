@@ -29,7 +29,7 @@
       items: [
         { href: "teams.html", label: "🏈 Teams" },
         { href: "power-rankings.html", label: "📈 Power Rankings" },
-        { href: "prop-bet.html", label: "📊 Prop Evaluator" },
+        { href: "prop-bet.html", label: "📊 Prop Lab" },
         { href: "list.html", label: "👑 Heisman" },
         { href: "recruitmap.html", label: "🗺️ Recruit Map" },
       ]
