@@ -10,7 +10,7 @@ body{
     left: 0;
     width: 36px;
     height: 36px;
-    z-index: 40;
+    z-index: 80;
     pointer-events: none;
     opacity: 1;
     will-change: transform;
@@ -1763,10 +1763,6 @@ input:focus, select:focus {
     color: #1E1E1E !important;
     box-shadow: 0 2px 4px rgba(255, 215, 0, 0.3) !important;
     font-weight: bold !important;
-}
-
-body.picks-results-open .bouncing-football {
-    display: none;
 }
 
 body.picks-results-open #dbWeekPicksContainer,
@@ -4439,26 +4435,30 @@ select {
         font-size: 0.8rem;
     }
 
-    /* Convert dropdown to fixed drawer with overlay */
+    /* Keep the gold spinning football visible — drop the menu below the button */
+    .hamburger-menu-btn {
+        z-index: 1010;
+    }
+
     .dropdown-menu {
         position: fixed;
-        top: 0.75rem;
+        top: 4.25rem;
         left: 0.75rem;
         width: min(82vw, 300px);
-        max-height: calc(100vh - 1.5rem);
+        max-height: min(85vh, calc(100dvh - 5rem), calc(100vh - 5rem));
         overflow-x: hidden;
         overflow-y: auto;
         margin-top: 0;
         border-radius: 10px;
-        z-index: 1005;
-        transform: translateX(-12px);
+        z-index: 1002;
+        transform: translateY(-8px);
         opacity: 0;
         pointer-events: none;
         -webkit-overflow-scrolling: touch;
     }
 
     .dropdown-menu.show {
-        transform: translateX(0);
+        transform: translateY(0);
         opacity: 1;
         pointer-events: auto;
     }
@@ -4521,7 +4521,7 @@ select {
     .bouncing-football {
         width: 32px;
         height: 32px;
-        z-index: 40;
+        z-index: 80;
         opacity: 1;
         filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.35));
         will-change: transform;
@@ -5045,10 +5045,6 @@ a.results-stand-name:hover {
 }
 
 @media (max-width: 768px) {
-  body.weekly-results-view .bouncing-football {
-    display: none !important;
-  }
-
   #week10-results .results-week-toggle {
     margin-bottom: 0.75rem;
     max-width: calc(100% - 1rem);
@@ -5503,5 +5499,67 @@ a.results-stand-name:hover {
 
   #week10-results .award-headline {
     display: none;
+  }
+
+  .picks-submitted-card {
+    padding: 1rem 0.85rem 0.95rem;
+    margin: 0.85rem auto 1.1rem;
+  }
+
+  .picks-submitted-title {
+    font-size: 1.25rem;
+  }
+
+  .picks-submitted-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.45rem;
+  }
+
+  .picks-submitted-actions .screenshot-button {
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    padding: 0.5rem 0.7rem;
+    font-size: 0.88rem;
+  }
+
+  .picks-submitted-actions .edit-picks-button {
+    grid-column: 1 / -1;
+  }
+
+  #week10-results .picks-share-game {
+    padding: 0.55rem 0.5rem 0.6rem;
+  }
+
+  #week10-results .picks-share-team span {
+    white-space: normal;
+    line-height: 1.2;
+    font-size: 0.72rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: unset;
+  }
+
+  #week10-results .picks-share-logo,
+  #week10-results .picks-share-logo-fallback {
+    width: 36px;
+    height: 36px;
+  }
+
+  #week10-results .picks-share-actions .screenshot-button,
+  #week10-results .screenshot-button {
+    width: auto;
+    max-width: none;
+    min-width: 0;
+    padding: 0.45rem 0.95rem;
+    font-size: 0.88rem;
+  }
+
+  #week10-results .picks-share-pick {
+    font-size: 0.82rem;
+    padding: 0.35rem 0.5rem;
   }
 }

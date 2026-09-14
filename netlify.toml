@@ -255,6 +255,11 @@
   status = 200
 
 [[redirects]]
+  from = "/api/logo"
+  to = "/.netlify/functions/logo-proxy"
+  status = 200
+
+[[redirects]]
   from = "/api/live-scores"
   to = "/.netlify/functions/live-scores"
   status = 200

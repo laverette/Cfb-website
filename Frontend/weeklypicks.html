@@ -1174,6 +1174,7 @@
     }
 
     document.addEventListener('DOMContentLoaded', function() {
+      document.body.classList.add('weekly-picks-view');
       syncPicksAuthState();
       initFootballToggle();
       initBouncingFootball();
@@ -1234,8 +1235,8 @@
 
       let x = 24;
       let y = 96;
-      let vx = 1.35;
-      let vy = 1.1;
+      let vx = 1.85;
+      let vy = 1.55;
       let rot = 0;
       let raf = 0;
       let last = 0;
@@ -1253,17 +1254,22 @@
         };
       }
 
+      function viewport() {
+        const vv = window.visualViewport;
+        return {
+          w: Math.round((vv && vv.width) || window.innerWidth || document.documentElement.clientWidth || 320),
+          h: Math.round((vv && vv.height) || window.innerHeight || document.documentElement.clientHeight || 568),
+        };
+      }
+
       function bounds() {
         const s = size();
-        const vw = window.innerWidth || document.documentElement.clientWidth || 320;
-        const vh = window.innerHeight || document.documentElement.clientHeight || 568;
-        // Keep clear of bottom chrome / Corso FAB area
-        const padBottom = Math.min(120, Math.max(64, vh * 0.12));
+        const vp = viewport();
         return {
           minX: 4,
-          minY: 56,
-          maxX: Math.max(8, vw - s.w - 4),
-          maxY: Math.max(64, vh - s.h - padBottom),
+          minY: 8,
+          maxX: Math.max(8, vp.w - s.w - 4),
+          maxY: Math.max(24, vp.h - s.h - 8),
         };
       }
 
@@ -1282,7 +1288,7 @@
         const b = bounds();
         x += vx * speedScale * dt;
         y += vy * speedScale * dt;
-        rot += (vx > 0 ? 1.6 : -1.6) * speedScale * dt;
+        rot += (vx > 0 ? 1.8 : -1.8) * speedScale * dt;
 
         if (x <= b.minX) {
           x = b.minX;
@@ -1304,7 +1310,11 @@
       }
 
       function start() {
-        if (running || isFootballOff()) return;
+        if (isFootballOff()) {
+          stop();
+          return;
+        }
+        if (raf) cancelAnimationFrame(raf);
         running = true;
         last = 0;
         const b = bounds();
@@ -1326,13 +1336,19 @@
         else start();
       }
 
-      window.addEventListener('resize', function () {
+      function clampToBounds() {
         const b = bounds();
         x = Math.min(Math.max(x, b.minX), b.maxX);
         y = Math.min(Math.max(y, b.minY), b.maxY);
         place();
-      });
+      }
+
+      window.addEventListener('resize', clampToBounds);
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', clampToBounds);
+      }
       document.addEventListener('visibilitychange', sync);
+      window.addEventListener('pageshow', sync);
 
       // Randomize starting direction a bit
       if (Math.random() > 0.5) vx *= -1;
@@ -2441,12 +2457,64 @@
     function waitForShareImages(root) {
       const imgs = Array.from(root.querySelectorAll('img'));
       return Promise.all(imgs.map((img) => {
-        if (img.complete) return Promise.resolve();
+        if (img.complete && img.naturalWidth > 0) return Promise.resolve();
         return new Promise((resolve) => {
           img.onload = () => resolve();
           img.onerror = () => resolve();
         });
       }));
+    }
+
+    const captureImageDataUrlCache = new Map();
+
+    function captureFetchUrl(src) {
+      const raw = String(src || '').trim();
+      if (!raw || raw.startsWith('data:') || raw.startsWith('blob:')) return raw;
+      try {
+        const parsed = new URL(raw, window.location.href);
+        if (/(^|\.)espncdn\.com$/i.test(parsed.hostname)) {
+          return `/api/logo?src=${encodeURIComponent(parsed.toString())}`;
+        }
+        return parsed.toString();
+      } catch {
+        return raw;
+      }
+    }
+
+    async function blobToDataUrl(blob) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(blob);
+      });
+    }
+
+    async function inlineImagesForCapture(root) {
+      const imgs = Array.from(root.querySelectorAll('img'));
+      await Promise.all(imgs.map(async (img) => {
+        const raw = img.currentSrc || img.getAttribute('src') || '';
+        if (!raw || raw.startsWith('data:')) return;
+        const fetchUrl = captureFetchUrl(raw);
+        if (captureImageDataUrlCache.has(fetchUrl)) {
+          img.src = captureImageDataUrlCache.get(fetchUrl);
+          return;
+        }
+        try {
+          const resp = await fetch(fetchUrl);
+          if (!resp.ok) return;
+          const blob = await resp.blob();
+          if (!blob || !blob.size) return;
+          const dataUrl = await blobToDataUrl(blob);
+          if (typeof dataUrl === 'string' && dataUrl.startsWith('data:')) {
+            captureImageDataUrlCache.set(fetchUrl, dataUrl);
+            img.src = dataUrl;
+          }
+        } catch {
+          /* leave original src */
+        }
+      }));
+      await waitForShareImages(root);
     }
 
     async function captureScreenshot() {
@@ -2474,7 +2542,7 @@
       document.body.appendChild(tempContainer);
 
       try {
-        await waitForShareImages(clone);
+        await inlineImagesForCapture(clone);
         const canvas = await html2canvas(clone, {
           backgroundColor: '#1a1410',
           scale: 2,
@@ -3281,7 +3349,7 @@
       tempContainer.appendChild(clone);
       document.body.appendChild(tempContainer);
       try {
-        await waitForShareImages(clone);
+        await inlineImagesForCapture(clone);
         const canvas = await html2canvas(clone, {
           backgroundColor: '#1a1410',
           scale: 2,
@@ -3374,6 +3442,10 @@
         stopResultsLeaderboardRefresh();
       }
       document.body.classList.toggle('weekly-results-view', tabName === 'week10-results');
+      document.body.classList.toggle('weekly-picks-view', tabName !== 'week10-results');
+      if (window.__cfpFootballBounce && typeof window.__cfpFootballBounce.sync === 'function') {
+        window.__cfpFootballBounce.sync();
+      }
     }
 
     // Coach Corso chat
