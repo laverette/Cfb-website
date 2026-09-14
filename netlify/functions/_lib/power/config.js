@@ -16,27 +16,28 @@ const MODEL_PARAMS = Object.freeze({
   matchupTalentWeight: 0.35,
 
   /** Recency: weight = exp(-recencyLambda * weeksAgo). Higher = faster decay. */
-  recencyLambda: 0.1,
+  recencyLambda: 0.14,
 
   /**
    * Treat the preseason prior as this many "virtual games" when blending with observed play.
-   * Week 1 with 5 → only ~17% of the rating comes from the single game (rest stays prior).
-   * Stops cupcake blowouts from vaulting G5 teams into the top 10 overnight.
+   * Week 1 with 3.5 → ~22% of the rating comes from the single game (rest stays prior).
+   * After 3 games ≈ 46% observed. Stops cupcake blowouts from vaulting G5 teams overnight
+   * without letting last year's talent freeze the top 10.
    */
-  priorPseudoGames: 5,
+  priorPseudoGames: 3.5,
 
   /**
    * Opponent-adjusted OFF/DEF solve: prior unit ratings count as this many game-weights.
    * Keeps one-game EPA spikes from producing Off +25 unit ratings.
    */
-  oaPriorStrength: 4,
+  oaPriorStrength: 3.25,
 
   /** Legacy exponential prior fade (backup). Primary early-season control is priorPseudoGames. */
-  priorDecay: 0.12,
+  priorDecay: 0.14,
 
   /** Blend of efficiency vs result/margin power within the *observed* share. */
-  efficiencyWeight: 0.72,
-  resultWeight: 0.28,
+  efficiencyWeight: 0.64,
+  resultWeight: 0.36,
 
   /** Offense metric blend (normalized z/diffs vs FBS avg). EPA primary. */
   offenseEpaWeight: 0.7,
@@ -97,7 +98,7 @@ const PARAM_DOCS = Object.freeze({
     "Virtual games assigned to the preseason prior. Higher = slower to trust early results.",
   oaPriorStrength:
     "Virtual game-weights for prior OFF/DEF inside the opponent-adjusted solve.",
-  recencyLambda: "Exponential decay rate for game age in weeks.",
+  recencyLambda: "Exponential decay rate for game age in weeks. Higher trusts recent results more.",
   priorDecay: "Legacy exponential prior fade; sample shrink via priorPseudoGames is primary.",
   efficiencyWeight: "Weight on opponent-adjusted efficiency power in the observed blend.",
   resultWeight: "Weight on soft-margin game-result power in the observed blend.",

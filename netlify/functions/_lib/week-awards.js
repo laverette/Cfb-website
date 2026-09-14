@@ -322,7 +322,7 @@ async function getWeekAwards(weekIdInput = null) {
         perfect.map((p) =>
           playerSnippet({
             ...p,
-            value: `${p.correctPicks}-${p.incorrectPicks}-${p.tiedPicks}`,
+            value: `${p.correctPicks}-${p.incorrectPicks}`,
             detail: "No losses",
           })
         ),
@@ -343,7 +343,7 @@ async function getWeekAwards(weekIdInput = null) {
       winners: [
         playerSnippet({
           ...p,
-          value: `${p.correctPicks}-${p.incorrectPicks}-${p.tiedPicks}`,
+          value: `${p.correctPicks}-${p.incorrectPicks}`,
           detail: `${Number(p.accuracy || 0).toFixed(1)}%`,
         }),
       ],
@@ -354,7 +354,7 @@ async function getWeekAwards(weekIdInput = null) {
       winners: people.map((p) =>
         playerSnippet({
           ...p,
-          value: `${p.correctPicks}-${p.incorrectPicks}-${p.tiedPicks}`,
+          value: `${p.correctPicks}-${p.incorrectPicks}`,
           detail: `${Number(p.accuracy || 0).toFixed(1)}%`,
         })
       ),

@@ -212,6 +212,12 @@
   color: rgba(243, 239, 230, 0.7);
 }
 
+.prop-board-idle {
+  margin: 0;
+  color: rgba(243, 239, 230, 0.72);
+  line-height: 1.45;
+}
+
 .prop-board-card {
   background: rgba(0, 0, 0, 0.22);
   border: 1px solid rgba(245, 222, 179, 0.16);

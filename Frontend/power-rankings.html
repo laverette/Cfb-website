@@ -40,11 +40,15 @@
       <div class="power-filters">
         <label class="power-field">
           <span>Season</span>
-          <input id="seasonInput" class="site-select power-input" type="number" min="2015" max="2035">
+          <select id="seasonInput" class="site-select power-input" disabled>
+            <option value="">Loading…</option>
+          </select>
         </label>
         <label class="power-field">
           <span>Through week</span>
-          <input id="weekInput" class="site-select power-input" type="number" min="0" max="20">
+          <select id="weekInput" class="site-select power-input power-week-select" disabled>
+            <option value="">Loading…</option>
+          </select>
         </label>
         <a class="btn btn-brown" href="predictor.html">Matchup Predictor</a>
       </div>
@@ -66,7 +70,8 @@
     let sortKey = 'ranking';
     let sortDir = 1;
     let searchQuery = '';
-    let loadTimer = null;
+    let catalog = { seasons: [], weeksBySeason: {}, defaultSeason: null, defaultWeek: null };
+    let filtersReady = false;
 
     function escapeHtml(t) {
       return String(t ?? '')
@@ -114,7 +119,7 @@
     function render() {
       const body = document.getElementById('boardBody');
       if (!rows.length) {
-        body.innerHTML = '<p class="power-empty">No rankings yet. An admin can run ratings from the Admin panel, or retry with live CFBD.</p>';
+        body.innerHTML = '<p class="power-empty">No rankings yet. An admin can compute &amp; save a snapshot from the Admin panel.</p>';
         return;
       }
       const data = filteredRows();
@@ -178,6 +183,59 @@
       });
     }
 
+    function weekOptionLabel(week) {
+      const n = Number(week);
+      if (n === 0) return 'Week 0 (preseason)';
+      return `Week ${n}`;
+    }
+
+    function weeksForSeason(season) {
+      const list = catalog.weeksBySeason[String(season)] || [];
+      return [...list].sort((a, b) => a - b);
+    }
+
+    function fillSeasonSelect(selected) {
+      const sel = document.getElementById('seasonInput');
+      const seasons = catalog.seasons || [];
+      if (!seasons.length) {
+        sel.innerHTML = '<option value="">No snapshots</option>';
+        sel.disabled = true;
+        return;
+      }
+      sel.disabled = false;
+      sel.innerHTML = seasons
+        .map((y) => `<option value="${y}" ${Number(y) === Number(selected) ? 'selected' : ''}>${y}</option>`)
+        .join('');
+    }
+
+    function fillWeekSelect(season, selected) {
+      const sel = document.getElementById('weekInput');
+      const weeks = weeksForSeason(season);
+      if (!weeks.length) {
+        sel.innerHTML = '<option value="">No weeks</option>';
+        sel.disabled = true;
+        return;
+      }
+      sel.disabled = false;
+      const pick = weeks.includes(Number(selected)) ? Number(selected) : weeks[weeks.length - 1];
+      sel.innerHTML = weeks
+        .map((w) => `<option value="${w}" ${Number(w) === pick ? 'selected' : ''}>${weekOptionLabel(w)}</option>`)
+        .join('');
+    }
+
+    async function loadCatalog() {
+      const resp = await fetch('/api/power/rankings?catalog=1', { headers: { accept: 'application/json' } });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(data.details || data.error || 'Could not load available weeks');
+      catalog = {
+        seasons: Array.isArray(data.seasons) ? data.seasons : [],
+        weeksBySeason: data.weeksBySeason && typeof data.weeksBySeason === 'object' ? data.weeksBySeason : {},
+        defaultSeason: data.defaultSeason,
+        defaultWeek: data.defaultWeek,
+      };
+      return catalog;
+    }
+
     async function load() {
       const season = document.getElementById('seasonInput').value;
       const week = document.getElementById('weekInput').value;
@@ -187,51 +245,62 @@
       document.getElementById('boardBody').innerHTML = '<p class="power-loading">Loading power rankings…</p>';
       document.getElementById('metaLine').textContent = 'Loading…';
       try {
-        let resp = await fetch(`/api/power/rankings?${params}`, { headers: { accept: 'application/json' } });
-        let data = await resp.json().catch(() => ({}));
-        if (!resp.ok && resp.status === 503) {
-          params.set('live', '1');
-          resp = await fetch(`/api/power/rankings?${params}`, { headers: { accept: 'application/json' } });
-          data = await resp.json().catch(() => ({}));
-        }
+        const resp = await fetch(`/api/power/rankings?${params}`, { headers: { accept: 'application/json' } });
+        const data = await resp.json().catch(() => ({}));
         if (!resp.ok) throw new Error(data.details || data.error || 'Failed');
         rows = Array.isArray(data.teams) ? data.teams : [];
         document.getElementById('metaLine').textContent =
           `${data.source || 'rankings'} · Season ${data.season} · Through week ${data.week} · ${rows.length} teams`;
-        if (data.season != null) document.getElementById('seasonInput').value = data.season;
-        if (data.week != null) document.getElementById('weekInput').value = data.week;
         sortKey = 'ranking';
         sortDir = 1;
         render();
       } catch (err) {
+        rows = [];
         document.getElementById('boardBody').innerHTML =
           `<p class="power-empty">${escapeHtml(err.message || 'Could not load rankings')}</p>`;
         document.getElementById('metaLine').textContent = 'Unavailable';
       }
     }
 
-    function scheduleLoad(delay) {
-      clearTimeout(loadTimer);
-      loadTimer = setTimeout(load, delay || 450);
-    }
-
     function bindFilterInputs() {
       const seasonInput = document.getElementById('seasonInput');
       const weekInput = document.getElementById('weekInput');
-      seasonInput.addEventListener('change', load);
-      weekInput.addEventListener('change', load);
-      seasonInput.addEventListener('input', () => scheduleLoad(600));
-      weekInput.addEventListener('input', () => scheduleLoad(400));
+      seasonInput.addEventListener('change', () => {
+        if (!filtersReady) return;
+        fillWeekSelect(seasonInput.value, null);
+        load();
+      });
+      weekInput.addEventListener('change', () => {
+        if (!filtersReady) return;
+        load();
+      });
     }
 
     document.getElementById('teamSearch').addEventListener('input', (e) => {
       searchQuery = e.target.value || '';
       render();
     });
-    document.addEventListener('DOMContentLoaded', () => {
-      document.getElementById('seasonInput').value = new Date().getFullYear();
+    document.addEventListener('DOMContentLoaded', async () => {
       bindFilterInputs();
-      load();
+      try {
+        await loadCatalog();
+        if (!catalog.seasons.length) {
+          document.getElementById('metaLine').textContent = 'No saved weeks';
+          document.getElementById('boardBody').innerHTML =
+            '<p class="power-empty">No rankings yet. An admin can compute &amp; save a snapshot from the Admin panel.</p>';
+          fillSeasonSelect(null);
+          fillWeekSelect(null, null);
+          return;
+        }
+        fillSeasonSelect(catalog.defaultSeason);
+        fillWeekSelect(catalog.defaultSeason, catalog.defaultWeek);
+        filtersReady = true;
+        await load();
+      } catch (err) {
+        document.getElementById('metaLine').textContent = 'Unavailable';
+        document.getElementById('boardBody').innerHTML =
+          `<p class="power-empty">${escapeHtml(err.message || 'Could not load rankings')}</p>`;
+      }
     });
 
     function closeMenu() {

@@ -377,7 +377,7 @@ function calculateRatings(input) {
       blended = priorFull + stContrib + pers;
     } else {
       // Bayesian-style shrink: prior counts as priorPseudoGames virtual contests.
-      // After 1 real game with pseudo=5 → ~17% observed, ~83% prior.
+      // After 1 real game with pseudo=3.5 → ~22% observed; after 3 games ≈ 46%.
       const pseudo = Math.max(0, Number(params.priorPseudoGames) || 0);
       const sampleShare = gp / (gp + Math.max(pseudo, 1e-6));
       const observed =

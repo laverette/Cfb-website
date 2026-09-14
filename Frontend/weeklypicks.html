@@ -4,10 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Weekly Picks</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
   <link rel="stylesheet" href="styles/site-theme.css">
   <link rel="stylesheet" href="Resources/Styles/weeklypicks.css">
   <link rel="stylesheet" href="styles/picks-hub.css">
+  <link rel="stylesheet" href="Resources/Styles/power.css">
 </head>
 <body>
   <script>
@@ -386,6 +390,31 @@
     </button>
   </div>
 
+  <div id="predictMatchupModal" class="predict-matchup-modal" hidden>
+    <button type="button" id="predictMatchupBackdrop" class="predict-matchup-backdrop" aria-label="Close matchup prediction"></button>
+    <div
+      class="predict-matchup-dialog"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="predictMatchupTitle"
+    >
+      <div class="predict-matchup-header">
+        <h2 id="predictMatchupTitle" class="predict-matchup-title">Matchup prediction</h2>
+        <button type="button" class="predict-matchup-close" id="predictMatchupClose" aria-label="Close">×</button>
+      </div>
+      <div id="predictMatchupBody" class="predict-matchup-body" aria-live="polite"></div>
+      <div class="predict-matchup-foot">
+        <a
+          class="predict-matchup-full-link"
+          id="predictMatchupFullLink"
+          href="predictor.html"
+          target="_blank"
+          rel="noopener noreferrer"
+        >Open full predictor</a>
+      </div>
+    </div>
+  </div>
+
     <script src="scripts/auth-ui.js"></script>
     <script>
     // -------------------------------------------------------------------------
@@ -744,6 +773,313 @@
       return 'predictor.html?' + params.toString();
     }
 
+    let powerTeamsCache = null;
+    let powerTeamsLoadPromise = null;
+    let predictMatchupOpener = null;
+    let predictMatchupRequestId = 0;
+
+    function escapeMatchupHtml(t) {
+      return String(t ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function isPredictMatchupModalOpen() {
+      const modal = document.getElementById('predictMatchupModal');
+      return Boolean(modal && !modal.hidden);
+    }
+
+    function closePredictMatchupModal() {
+      const modal = document.getElementById('predictMatchupModal');
+      if (!modal || modal.hidden) return;
+      modal.hidden = true;
+      document.body.classList.remove('predict-matchup-open');
+      predictMatchupRequestId += 1;
+      const opener = predictMatchupOpener;
+      predictMatchupOpener = null;
+      if (opener && typeof opener.focus === 'function') {
+        try { opener.focus(); } catch (_) {}
+      }
+    }
+
+    function setPredictMatchupBodyHtml(html) {
+      const body = document.getElementById('predictMatchupBody');
+      if (body) body.innerHTML = html;
+    }
+
+    function matchupEmptyHtml({ icon, title, text }) {
+      return `
+        <div class="matchup-empty">
+          <div class="matchup-empty-icon" aria-hidden="true">${icon}</div>
+          <h2 class="matchup-empty-title">${escapeMatchupHtml(title)}</h2>
+          <p class="matchup-empty-text">${escapeMatchupHtml(text)}</p>
+        </div>
+      `;
+    }
+
+    function isModifiedLinkClick(e) {
+      return Boolean(e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0);
+    }
+
+    function openPredictMatchupModal(link) {
+      const modal = document.getElementById('predictMatchupModal');
+      const titleEl = document.getElementById('predictMatchupTitle');
+      const fullLink = document.getElementById('predictMatchupFullLink');
+      if (!modal) return;
+
+      const awayName = link.getAttribute('data-away-name') || '';
+      const homeName = link.getAttribute('data-home-name') || '';
+      const awayId = link.getAttribute('data-away-id') || '';
+      const homeId = link.getAttribute('data-home-id') || '';
+      const href = link.getAttribute('href') || predictorHref(awayName, homeName, awayId, homeId);
+
+      predictMatchupOpener = link;
+      if (titleEl) {
+        titleEl.textContent = awayName && homeName ? `${awayName} @ ${homeName}` : 'Matchup prediction';
+      }
+      if (fullLink) fullLink.href = href;
+
+      modal.hidden = false;
+      document.body.classList.add('predict-matchup-open');
+      const closeBtn = document.getElementById('predictMatchupClose');
+      if (closeBtn) closeBtn.focus();
+
+      const reqId = ++predictMatchupRequestId;
+      setPredictMatchupBodyHtml(matchupEmptyHtml({
+        icon: '🏈',
+        title: 'Calculating…',
+        text: 'Loading the power model for this matchup.',
+      }));
+      loadAndRenderPredictMatchup({ awayName, homeName, awayId, homeId, reqId });
+    }
+
+    function normalizePowerTeamKey(value) {
+      return String(value || '')
+        .toLowerCase()
+        .replace(/&/g, ' and ')
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .replace(/\b(university|univ|of|the|football|team)\b/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
+    function powerTeamById(teams, id) {
+      if (id == null || String(id).trim() === '') return null;
+      return teams.find((t) => String(t.teamId) === String(id)) || null;
+    }
+
+    function resolvePowerTeam(teams, name, id) {
+      const byId = powerTeamById(teams, id);
+      if (byId) return byId;
+      const raw = String(name || '').trim();
+      if (!raw) return null;
+      const key = normalizePowerTeamKey(raw);
+      if (!key) return null;
+
+      let hit = teams.find((t) => normalizePowerTeamKey(t.name) === key);
+      if (hit) return hit;
+
+      hit = teams.find((t) => normalizePowerTeamKey(t.abbreviation) === key);
+      if (hit) return hit;
+
+      const starts = teams.filter((t) => {
+        const n = normalizePowerTeamKey(t.name);
+        return n.startsWith(key) || key.startsWith(n);
+      });
+      if (starts.length === 1) return starts[0];
+
+      const includes = teams.filter((t) => {
+        const n = normalizePowerTeamKey(t.name);
+        return n.includes(key) || key.includes(n);
+      });
+      if (includes.length === 1) return includes[0];
+
+      if (includes.length > 1) {
+        includes.sort((a, b) => String(a.name).length - String(b.name).length);
+        const best = includes[0];
+        const bestKey = normalizePowerTeamKey(best.name);
+        if (bestKey === key || bestKey.startsWith(key) || key.startsWith(bestKey.split(' ')[0])) {
+          return best;
+        }
+      }
+      return null;
+    }
+
+    async function loadPowerTeams() {
+      if (Array.isArray(powerTeamsCache) && powerTeamsCache.length) return powerTeamsCache;
+      if (powerTeamsLoadPromise) return powerTeamsLoadPromise;
+      powerTeamsLoadPromise = (async () => {
+        const resp = await fetch('/api/power/teams', { headers: { accept: 'application/json' } });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok) throw new Error(data.details || data.error || 'Failed to load teams');
+        powerTeamsCache = Array.isArray(data.teams) ? data.teams : [];
+        return powerTeamsCache;
+      })().finally(() => {
+        powerTeamsLoadPromise = null;
+      });
+      return powerTeamsLoadPromise;
+    }
+
+    function matchupEdgeClass(edge) {
+      const n = Number(String(edge || '').replace(/[^0-9.\-]/g, ''));
+      if (!Number.isFinite(n) || n === 0) return '';
+      return n > 0 ? 'is-pos' : 'is-neg';
+    }
+
+    function formatMatchupSigned(value) {
+      const n = Number(value);
+      if (!Number.isFinite(n)) return String(value ?? '');
+      const rounded = Math.round(n * 100) / 100;
+      return `${rounded > 0 ? '+' : ''}${rounded}`;
+    }
+
+    function formatMatchupTalentCell(team) {
+      const score = Number(team.talentRating);
+      const pts = Number(team.talentPoints);
+      const scoreLabel = Number.isFinite(score) ? score.toFixed(0) : '—';
+      if (!Number.isFinite(pts)) return scoreLabel;
+      return `${scoreLabel} (${formatMatchupSigned(pts)})`;
+    }
+
+    function renderMatchupComparisonRow(label, aVal, bVal, edge) {
+      return `
+        <div class="matchup-stat-row">
+          <span class="matchup-stat-label">${escapeMatchupHtml(label)}</span>
+          <span class="matchup-stat-val">${escapeMatchupHtml(aVal)}</span>
+          <span class="matchup-stat-val">${escapeMatchupHtml(bVal)}</span>
+          <span class="matchup-stat-edge ${matchupEdgeClass(edge)}">${escapeMatchupHtml(edge)}</span>
+        </div>
+      `;
+    }
+
+    function renderMatchupPredictionHtml(pred) {
+      const p = pred.prediction || pred;
+      const a = p && p.teamA;
+      const b = p && p.teamB;
+      if (!p || !p.predictedWinner || !a || !b) {
+        throw new Error('Invalid prediction');
+      }
+      const c = p.comparisons || {};
+      const aWin = Math.max(0, Math.min(100, Number(a.winProbability) || 0));
+      const bWin = Math.max(0, Math.min(100, Number(b.winProbability) || 0));
+      return `
+        <div class="matchup-result">
+          <div class="matchup-result-hero">
+            <p class="matchup-result-eyebrow">Predicted winner</p>
+            <h2 class="matchup-winner">${escapeMatchupHtml(p.predictedWinner.name)}</h2>
+            <p class="matchup-spread-pill">${escapeMatchupHtml(p.projectedSpreadLabel)}</p>
+            ${
+              p.powerSpreadLabel && p.powerSpreadLabel !== p.projectedSpreadLabel
+                ? `<p class="matchup-power-line">Power line ${escapeMatchupHtml(p.powerSpreadLabel)}</p>`
+                : ''
+            }
+          </div>
+          <div class="matchup-prob-section">
+            <div class="matchup-prob-labels">
+              <span class="matchup-prob-name">${escapeMatchupHtml(a.name)}</span>
+              <span class="matchup-prob-name">${escapeMatchupHtml(b.name)}</span>
+            </div>
+            <div class="matchup-prob-track" role="img" aria-label="${escapeMatchupHtml(a.name)} ${aWin}%, ${escapeMatchupHtml(b.name)} ${bWin}%">
+              <div class="matchup-prob-seg matchup-prob-seg-a" style="width:${aWin}%">
+                <span>${aWin}%</span>
+              </div>
+              <div class="matchup-prob-seg matchup-prob-seg-b" style="width:${bWin}%">
+                <span>${bWin}%</span>
+              </div>
+            </div>
+          </div>
+          <p class="matchup-explain">${escapeMatchupHtml(p.explanation)}</p>
+          <div class="matchup-stats-card">
+            <div class="matchup-stats-head">
+              <span></span>
+              <span>${escapeMatchupHtml(a.name)}</span>
+              <span>${escapeMatchupHtml(b.name)}</span>
+              <span>Edge</span>
+            </div>
+            ${renderMatchupComparisonRow('Raw power', a.rawPower, b.rawPower, c.power)}
+            ${renderMatchupComparisonRow('Offense', a.offenseRating, b.offenseRating, c.offense)}
+            ${renderMatchupComparisonRow('Defense', a.defenseRating, b.defenseRating, c.defense)}
+            ${renderMatchupComparisonRow('Special teams', a.specialTeamsRating, b.specialTeamsRating, c.specialTeams)}
+            ${renderMatchupComparisonRow(
+              'Talent',
+              formatMatchupTalentCell(a),
+              formatMatchupTalentCell(b),
+              Number.isFinite(c.talentPoints) ? c.talentPoints : c.talent
+            )}
+            ${renderMatchupComparisonRow('SOS', a.sosRating, b.sosRating, c.sos)}
+          </div>
+          <div class="matchup-meta-chips">
+            <span class="matchup-meta-chip">Spread ${escapeMatchupHtml(p.projectedSpreadLabel)}</span>
+            <span class="matchup-meta-chip">Power line ${escapeMatchupHtml(p.powerSpreadLabel || p.projectedSpreadLabel)}</span>
+            <span class="matchup-meta-chip">Talent adj ${escapeMatchupHtml(formatMatchupSigned(p.talentAdjustment))}</span>
+            <span class="matchup-meta-chip">Venue adj ${escapeMatchupHtml(formatMatchupSigned(p.venueAdjustment))}</span>
+            <span class="matchup-meta-chip">Projected margin ${escapeMatchupHtml(formatMatchupSigned(p.projectedMargin))}</span>
+          </div>
+        </div>
+      `;
+    }
+
+    async function loadAndRenderPredictMatchup({ awayName, homeName, awayId, homeId, reqId }) {
+      try {
+        const teams = await loadPowerTeams();
+        if (reqId !== predictMatchupRequestId) return;
+        const teamA = resolvePowerTeam(teams, awayName, awayId);
+        const teamB = resolvePowerTeam(teams, homeName, homeId);
+        if (!teamA || !teamB) {
+          const missing = [
+            !teamA ? `${awayName || 'Away team'} not found.` : '',
+            !teamB ? `${homeName || 'Home team'} not found.` : '',
+          ].filter(Boolean).join(' ');
+          setPredictMatchupBodyHtml(matchupEmptyHtml({
+            icon: '⚠️',
+            title: 'Couldn’t match teams',
+            text: missing || 'Could not match these teams in the power model.',
+          }));
+          return;
+        }
+        if (String(teamA.teamId) === String(teamB.teamId)) {
+          setPredictMatchupBodyHtml(matchupEmptyHtml({
+            icon: '⚠️',
+            title: 'Could not predict',
+            text: 'Select two different teams.',
+          }));
+          return;
+        }
+        const resp = await fetch('/api/power/matchup', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', accept: 'application/json' },
+          body: JSON.stringify({
+            teamAId: Number(teamA.teamId),
+            teamBId: Number(teamB.teamId),
+            venue: 'b_home',
+          }),
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (reqId !== predictMatchupRequestId) return;
+        if (!resp.ok) throw new Error(data.details || data.error || 'Predict failed');
+        setPredictMatchupBodyHtml(renderMatchupPredictionHtml(data));
+      } catch (err) {
+        if (reqId !== predictMatchupRequestId) return;
+        setPredictMatchupBodyHtml(matchupEmptyHtml({
+          icon: '⚠️',
+          title: 'Could not predict',
+          text: err.message || 'Failed',
+        }));
+      }
+    }
+
+    function initPredictMatchupModal() {
+      const modal = document.getElementById('predictMatchupModal');
+      if (!modal || modal.dataset.wired === '1') return;
+      modal.dataset.wired = '1';
+      document.getElementById('predictMatchupClose')?.addEventListener('click', closePredictMatchupModal);
+      document.getElementById('predictMatchupBackdrop')?.addEventListener('click', closePredictMatchupModal);
+    }
+
+    initPredictMatchupModal();
+
     function normalizeCurrentWeekApi(w) {
       if (!w || typeof w !== 'object') return null;
       const prevRaw = w.previousWeek ?? w.previous_week ?? null;
@@ -940,6 +1276,11 @@
         const predictLink = e.target.closest('.pick-analyze-btn, .pick-predict-link');
         if (predictLink && container.contains(predictLink)) {
           savePicksDraft();
+          if (!isModifiedLinkClick(e)) {
+            e.preventDefault();
+            openPredictMatchupModal(predictLink);
+            return;
+          }
         }
 
         const btn = e.target.closest('.team-pick-btn');
@@ -1112,9 +1453,13 @@
             <a
               class="pick-analyze-btn"
               href="${predictorHref(awayName, homeName, awayEspnId, homeEspnId).replace(/"/g, '&quot;')}"
+              data-away-name="${safeText(awayName)}"
+              data-home-name="${safeText(homeName)}"
+              data-away-id="${safeText(awayEspnId)}"
+              data-home-id="${safeText(homeEspnId)}"
               target="_blank"
               rel="noopener noreferrer"
-              title="Open matchup predictor for this game"
+              title="View matchup prediction for this game"
             >Predict matchup</a>
             ${liveScoreHtml}
             ${extraLine}
@@ -2196,11 +2541,8 @@
           }
 
           // final from live scores
-          if (awayScore == null || homeScore == null) {
+          if (awayScore == null || homeScore == null || awayScore === homeScore) {
             return { state: 'final', label: 'Final' };
-          }
-          if (awayScore === homeScore) {
-            return { state: 'tie', label: 'Tie' };
           }
           const won =
             (pickedAway && awayScore > homeScore) || (pickedHome && homeScore > awayScore);
@@ -2212,7 +2554,6 @@
       }
 
       // Fallback when live boards drop finished games: use graded pick / DB flags.
-      if (pick?.isTie) return { state: 'tie', label: 'Tie' };
       if (pick?.isCorrect === true) return { state: 'correct', label: 'Correct' };
       if (pick?.isCorrect === false) return { state: 'wrong', label: 'Wrong' };
       if (game?.isCompleted || game?.is_completed) return { state: 'final', label: 'Final' };
@@ -2241,7 +2582,6 @@
       let gamesHtml = '';
       let correctCount = 0;
       let wrongCount = 0;
-      let tieCount = 0;
       let liveCount = 0;
       let finalCount = 0;
 
@@ -2265,7 +2605,7 @@
         const result = pickResultForShare(game, pick, liveGame);
         // Graded picks still count as final when live boards no longer list the game.
         if (
-          (result.state === 'correct' || result.state === 'wrong' || result.state === 'tie') &&
+          (result.state === 'correct' || result.state === 'wrong') &&
           status.kind !== 'live' &&
           status.kind !== 'final'
         ) {
@@ -2275,7 +2615,6 @@
 
         if (result.state === 'correct') correctCount += 1;
         if (result.state === 'wrong') wrongCount += 1;
-        if (result.state === 'tie') tieCount += 1;
         if (status.kind === 'live') liveCount += 1;
         if (status.kind === 'final') finalCount += 1;
 
@@ -2328,9 +2667,7 @@
                   ? '<span class="picks-share-pick-mark" aria-hidden="true">✓</span>'
                   : result.state === 'wrong'
                     ? '<span class="picks-share-pick-mark" aria-hidden="true">✗</span>'
-                    : result.state === 'tie'
-                      ? '<span class="picks-share-pick-mark" aria-hidden="true">=</span>'
-                      : ''
+                    : ''
               }
             </div>
           </div>
@@ -2340,7 +2677,7 @@
       let recordHtml = '';
       if (finalCount > 0 || liveCount > 0) {
         const bits = [];
-        if (finalCount > 0) bits.push(`${correctCount}–${wrongCount}–${tieCount}`);
+        if (finalCount > 0) bits.push(`${correctCount}–${wrongCount}`);
         if (liveCount > 0) bits.push(`${liveCount} live`);
         recordHtml = `<p class="picks-share-record">${safeText(bits.join(' · '))}</p>`;
       }
@@ -2361,7 +2698,7 @@
           : '';
 
       const footerBits = [`${gameCount} picks`];
-      if (finalCount > 0) footerBits.push(`${correctCount}–${wrongCount}–${tieCount} final`);
+      if (finalCount > 0) footerBits.push(`${correctCount}–${wrongCount} final`);
       footerBits.push(`${safeText(week.weekPart)}${week.yearPart ? safeText(week.yearPart) : ''}`);
 
       return `
@@ -2798,10 +3135,9 @@
     function recordLabel(entry) {
       const w = entry.correctPicks || 0;
       const l = entry.incorrectPicks || 0;
-      const t = entry.tiedPicks || 0;
       const pending = entry.pendingPicks || 0;
-      if (pending > 0 && w + l + t === 0) return '—';
-      return `${w}-${l}-${t}`;
+      if (pending > 0 && w + l === 0) return '—';
+      return `${w}-${l}`;
     }
 
     function displayPlayerName(entry) {
@@ -3013,13 +3349,7 @@
       if (finalized > 0) {
         highlights.push({
           icon: '📊',
-          text: `Combined record: ${totalCorrect}-${totalIncorrect}-${totalTied} (${combinedPct}% when decided).`,
-        });
-      }
-      if (totalTied > 0) {
-        highlights.push({
-          icon: '🤝',
-          text: `${totalTied} pick${totalTied === 1 ? '' : 's'} pushed on ties — ties don't count for or against accuracy.`,
+          text: `Combined record: ${totalCorrect}-${totalIncorrect} (${combinedPct}% when decided).`,
         });
       }
 
@@ -3082,7 +3412,7 @@
       } else if (undefeated.length && undefeated.length !== perfect.length) {
         highlights.push({
           icon: '🛡️',
-          text: `${undefeated.length} undefeated player${undefeated.length === 1 ? '' : 's'} after accounting for ties.`,
+          text: `${undefeated.length} undefeated player${undefeated.length === 1 ? '' : 's'} this week (no losses).`,
         });
       }
 
@@ -3378,13 +3708,12 @@
     }
 
     function h2hRecordLabel(bucket) {
-      if (!bucket) return '0-0-0';
-      return `${bucket.correctPicks || 0}-${bucket.incorrectPicks || 0}-${bucket.tiedPicks || 0}`;
+      if (!bucket) return '0-0';
+      return `${bucket.correctPicks || 0}-${bucket.incorrectPicks || 0}`;
     }
 
     function h2hPickState(pick) {
       if (!pick) return { state: 'pending', label: '—' };
-      if (pick.isTie) return { state: 'tie', label: 'Tie' };
       if (pick.isCorrect === true) return { state: 'correct', label: '✓' };
       if (pick.isCorrect === false) return { state: 'wrong', label: '✗' };
       return { state: 'pending', label: 'Pending' };
@@ -3813,7 +4142,12 @@
     document.getElementById('corsoPanelClose')?.addEventListener('click', () => setCorsoOpen(false));
     document.getElementById('corsoBackdrop')?.addEventListener('click', () => setCorsoOpen(false));
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') setCorsoOpen(false);
+      if (e.key !== 'Escape') return;
+      if (isPredictMatchupModalOpen()) {
+        closePredictMatchupModal();
+        return;
+      }
+      setCorsoOpen(false);
     });
 
     // Rivalry History Modal

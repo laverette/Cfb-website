@@ -44,7 +44,7 @@
     }
 
     function record(bucket) {
-      return `${bucket?.correctPicks || 0}-${bucket?.incorrectPicks || 0}-${bucket?.tiedPicks || 0}`;
+      return `${bucket?.correctPicks || 0}-${bucket?.incorrectPicks || 0}`;
     }
 
     function pct(bucket) {
@@ -52,14 +52,12 @@
     }
 
     function pickResultClass(pick) {
-      if (pick.isTie) return 'is-tie';
       if (pick.isCorrect === true) return 'is-correct';
       if (pick.isCorrect === false) return 'is-wrong';
       return 'is-pending';
     }
 
     function pickResultLabel(pick) {
-      if (pick.isTie) return 'Tie';
       if (pick.isCorrect === true) return 'Correct';
       if (pick.isCorrect === false) return 'Wrong';
       return 'Pending';
@@ -80,7 +78,7 @@
       const season = stats?.thisSeason || {};
       const allTime = stats?.allTime || {};
       const seasonYear = season.seasonYear || new Date().getFullYear();
-      const graded = Number(season.correctPicks || 0) + Number(season.incorrectPicks || 0) + Number(season.tiedPicks || 0);
+      const graded = Number(season.correctPicks || 0) + Number(season.incorrectPicks || 0);
       const pending = Number(season.pendingPicks || 0);
       const paragraphs = [];
 
@@ -92,9 +90,8 @@
 
       const w = Number(season.correctPicks || 0);
       const l = Number(season.incorrectPicks || 0);
-      const t = Number(season.tiedPicks || 0);
       const acc = Number(season.accuracy || 0);
-      let opener = `${escapeHtml(name)} is ${w}-${l}${t ? `-${t}` : ''} in ${seasonYear}`;
+      let opener = `${escapeHtml(name)} is ${w}-${l} in ${seasonYear}`;
       if (graded > 0) {
         if (acc >= 70) opener += ` — cooking at ${acc.toFixed(1)}% accuracy.`;
         else if (acc >= 55) opener += `, sitting pretty at ${acc.toFixed(1)}%.`;
@@ -109,7 +106,7 @@
         (wk) => Number(wk.seasonYear) === Number(seasonYear)
       );
       const scoredWeeks = seasonWeeks.filter(
-        (wk) => Number(wk.correctPicks || 0) + Number(wk.incorrectPicks || 0) + Number(wk.tiedPicks || 0) > 0
+        (wk) => Number(wk.correctPicks || 0) + Number(wk.incorrectPicks || 0) > 0
       );
       if (scoredWeeks.length) {
         const scoreOf = (wk) =>

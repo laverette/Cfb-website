@@ -32,7 +32,7 @@
       <p class="power-eyebrow">Player props</p>
       <h1 class="power-title">Prop Bet Evaluator</h1>
       <p class="power-subtitle">
-        Live sportsbook lines graded by our model’s hit probability — plus a manual builder for any leg.
+        Build any leg with season averages and opponent strength. Load this week’s sportsbook board only when you want graded lines — that uses Odds API credits.
       </p>
     </header>
 
@@ -41,14 +41,14 @@
         <div>
           <h2 id="propBoardTitle" class="matchup-panel-title">This week’s board</h2>
           <p class="matchup-panel-lead" id="propBoardLead">
-            Loading sportsbook props and model hit odds…
+            Sportsbook props use Odds API credits. Load the board when you want this week’s graded lines.
           </p>
         </div>
-        <button type="button" class="btn btn-brown btn-sm" id="propBoardRefresh">Refresh</button>
+        <button type="button" class="btn btn-gold btn-sm" id="propBoardRefresh">Load this week’s board</button>
       </div>
       <div id="propBoardStatus" class="prop-board-status" hidden></div>
       <div id="propBoard" class="prop-board-list">
-        <p class="prop-loading">Fetching weekly props…</p>
+        <p class="prop-board-idle">Board is idle — the manual evaluator below does not use Odds API credits.</p>
       </div>
     </section>
 

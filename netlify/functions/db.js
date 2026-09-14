@@ -1086,7 +1086,7 @@ async function getLeaderboard({
     entries,
     highlights: { hottest, coldest },
     viewerHint:
-      "Ranked by correct picks, then accuracy. Ties are pushes (W-L-T). 🔥 Hot and ❄️ cold streaks skip ties.",
+      "Ranked by correct picks, then accuracy. 🔥 Hot and ❄️ cold streaks shown from graded games.",
   };
 }
 

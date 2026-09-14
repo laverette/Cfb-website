@@ -8,6 +8,8 @@
     selectedPlayer: null,
     selectedOpponent: null,
     searchTimer: null,
+    boardLoaded: false,
+    boardLoading: false,
   };
 
   function escapeHtml(s) {
@@ -514,7 +516,7 @@
     const rows = Array.isArray(data.props) ? data.props : [];
     if (!rows.length) {
       host.innerHTML =
-        '<p class="prop-board-empty">No graded props yet. Check ODDS_API_KEY or try Refresh.</p>';
+        '<p class="prop-board-empty">No graded props yet. Check ODDS_API_KEY or load the board again.</p>';
       return;
     }
 
@@ -561,8 +563,24 @@
       .join("");
   }
 
+  function setBoardButton({ loading, loaded }) {
+    const btn = document.getElementById("propBoardRefresh");
+    if (!btn) return;
+    btn.disabled = Boolean(loading);
+    if (loading) {
+      btn.textContent = "Loading…";
+      return;
+    }
+    btn.textContent = loaded ? "Refresh board" : "Load this week’s board";
+    btn.classList.toggle("btn-gold", !loaded);
+    btn.classList.toggle("btn-brown", Boolean(loaded));
+  }
+
   async function loadBoard(force) {
     const host = document.getElementById("propBoard");
+    if (state.boardLoading) return;
+    state.boardLoading = true;
+    setBoardButton({ loading: true, loaded: state.boardLoaded });
     if (host) host.innerHTML = '<p class="prop-loading">Fetching weekly props…</p>';
     try {
       const data = await apiGet({
@@ -570,6 +588,7 @@
         season: SEASON,
         force: force ? "1" : "",
       });
+      state.boardLoaded = true;
       renderBoard(data);
     } catch (err) {
       if (host) {
@@ -580,6 +599,9 @@
       }
       const lead = document.getElementById("propBoardLead");
       if (lead) lead.textContent = "Board unavailable";
+    } finally {
+      state.boardLoading = false;
+      setBoardButton({ loading: false, loaded: state.boardLoaded });
     }
   }
 
@@ -589,8 +611,10 @@
     document.getElementById("propStat")?.addEventListener("change", setEvaluateEnabled);
     document.getElementById("propLine")?.addEventListener("input", setEvaluateEnabled);
     document.getElementById("evaluateBtn")?.addEventListener("click", evaluate);
-    document.getElementById("propBoardRefresh")?.addEventListener("click", () => loadBoard(true));
+    document.getElementById("propBoardRefresh")?.addEventListener("click", () => {
+      loadBoard(state.boardLoaded);
+    });
+    setBoardButton({ loading: false, loaded: false });
     await loadTeams();
-    loadBoard(false);
   });
 })();

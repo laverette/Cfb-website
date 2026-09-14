@@ -3,6 +3,40 @@
  */
 const { getSupabase, dbError, selectAllPages, hasSupabase } = require("../../db");
 
+function uniqueSeasonWeeks(rows) {
+  const seen = new Set();
+  const out = [];
+  for (const row of rows || []) {
+    const season = Number(row.season);
+    const week = Number(row.week);
+    if (!Number.isFinite(season) || !Number.isFinite(week)) continue;
+    const key = `${season}:${week}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ season, week });
+  }
+  out.sort((a, b) => b.season - a.season || b.week - a.week);
+  return out;
+}
+
+/** Distinct season/week snapshots saved by admin POST /api/power/run. */
+async function listRatingSnapshots() {
+  const supabase = getSupabase();
+  const { data: runs, error: runErr } = await supabase
+    .from("power_model_runs")
+    .select("season, week")
+    .order("season", { ascending: false })
+    .order("week", { ascending: false });
+  if (!runErr && Array.isArray(runs) && runs.length) {
+    return uniqueSeasonWeeks(runs);
+  }
+
+  const rows = await selectAllPages(() =>
+    supabase.from("power_team_ratings").select("season, week")
+  );
+  return uniqueSeasonWeeks(rows);
+}
+
 async function loadLatestRatings({ season, week } = {}) {
   const supabase = getSupabase();
   let targetSeason = season != null ? Number(season) : null;
@@ -155,6 +189,7 @@ async function loadActivePersonnelAdjustments() {
 module.exports = {
   hasSupabase,
   loadLatestRatings,
+  listRatingSnapshots,
   upsertTeams,
   saveRatingSnapshot,
   loadActivePersonnelAdjustments,
