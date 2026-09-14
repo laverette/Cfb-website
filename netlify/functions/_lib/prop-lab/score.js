@@ -1,10 +1,9 @@
 const { clamp } = require("./math");
 
 function labelForScore(score) {
-  if (score >= 84) return "Elite";
-  if (score >= 76) return "Strong";
-  if (score >= 66) return "Lean";
-  if (score >= 56) return "Slight Lean";
+  if (score >= 80) return "Strong";
+  if (score >= 65) return "Lean";
+  if (score >= 55) return "Slight Lean";
   return "Pass";
 }
 

@@ -33,28 +33,38 @@ function confidenceGrade({
     matchup: matchupOk ? 1 : 0.6,
     transfer: transfer ? 0.55 : 1,
   };
-  let score =
-    18 +
-    inputs.sample * 28 +
-    inputs.prior * 12 +
-    inputs.completeness * 18 +
-    inputs.role * 8 +
-    inputs.variance * 8 +
-    inputs.matchup * 8;
+  const breakdown = [
+    { label: "Base", value: 18 },
+    { label: "Sample size", value: Number((inputs.sample * 28).toFixed(2)) },
+    { label: "Prior history", value: Number((inputs.prior * 12).toFixed(2)) },
+    { label: "Input completeness", value: Number((inputs.completeness * 18).toFixed(2)) },
+    { label: "Role stability", value: Number((inputs.role * 8).toFixed(2)) },
+    { label: "Variance", value: Number((inputs.variance * 8).toFixed(2)) },
+    { label: "Matchup coverage", value: Number((inputs.matchup * 8).toFixed(2)) },
+  ];
+  let score = breakdown.reduce((s, row) => s + row.value, 0);
 
   const flagSet = new Set(flags || []);
-  if (flagSet.has("Small Sample")) score -= 12;
-  if (flagSet.has("Limited History")) score -= 8;
-  if (flagSet.has("Missing Data")) score -= 14;
-  if (flagSet.has("Transfer")) score -= 8;
-  if (flagSet.has("New Starter")) score -= 10;
-  if (flagSet.has("FCS-Heavy Sample")) score -= 6;
-  if (flagSet.has("High Variance")) score -= 7;
-  if (flagSet.has("Role Change")) score -= 4;
+  const penalties = [
+    ["Small Sample", -12],
+    ["Limited History", -8],
+    ["Missing Data", -14],
+    ["Transfer", -8],
+    ["New Starter", -10],
+    ["FCS-Heavy Sample", -6],
+    ["High Variance", -7],
+    ["Role Change", -4],
+  ];
+  for (const [flag, pts] of penalties) {
+    if (flagSet.has(flag)) {
+      breakdown.push({ label: `Flag ${flag}`, value: pts });
+      score += pts;
+    }
+  }
 
   score = clamp(score, 18, 94);
   const letter = letterFromScore(score);
-  return { letter, score, inputs, grades: GRADES };
+  return { letter, score, inputs, grades: GRADES, breakdown };
 }
 
 function reliabilityFromConfidence(letter, games) {

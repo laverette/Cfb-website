@@ -270,7 +270,7 @@ describe("model coherence invariants", () => {
       median: 110,
       confidence: "D",
       confidenceReasons: ["Only 2 current-season games"],
-      modelVersion: "2.0.0",
+      modelVersion: "2.1.0",
       stat: { id: "rec_yds" },
       player: { position: "WR" },
       usage: { role: "Stable" },

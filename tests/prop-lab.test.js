@@ -165,7 +165,7 @@ describe("Toney regression — no fake 97% More", () => {
     assert.ok(result.propScore < 84, "two-game sample should not be Elite");
     assert.ok((result.flags || []).includes("Small Sample"));
     assert.ok((result.caution || []).some((c) => /two|sample|prior/i.test(c)));
-    assert.equal(result.modelVersion, "2.0.0");
+    assert.equal(result.modelVersion, "2.1.0");
   });
 
   it("line shopping does not refetch and moves probability in the right direction", () => {

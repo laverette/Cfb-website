@@ -101,7 +101,7 @@ describe("ablations change 2.0 outputs without mutating the default path", () =>
       skipSims: true,
       ablation: { noMatchup: true },
     });
-    assert.equal(full.modelVersion, "2.0.0");
+    assert.equal(full.modelVersion, "2.1.0");
     assert.notEqual(Number(full.projection.toFixed(2)), Number(raw.projection.toFixed(2)));
     assert.ok(Math.abs(full.projection - noMatch.projection) >= 0 || true);
     assert.equal(full.stat.id, raw.stat.id);
@@ -120,7 +120,7 @@ describe("metrics", () => {
       rows.push({ pHit: 0.72, hit: i < 10 });
     }
     const table = calibrationTable(rows);
-    const top = table.find((b) => b.band === "70%+");
+    const top = table.find((b) => b.band === "70–79%");
     assert.ok(top.n === 40);
     assert.ok(top.gap > 0.2);
     assert.equal(top.overconfident, true);

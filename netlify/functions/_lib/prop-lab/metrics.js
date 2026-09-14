@@ -1,11 +1,13 @@
 const { mean, median, clamp } = require("./math");
 
 const CALIBRATION_BANDS = [
-  [0.5, 0.54, "50–54%"],
-  [0.55, 0.59, "55–59%"],
-  [0.6, 0.64, "60–64%"],
-  [0.65, 0.69, "65–69%"],
-  [0.7, 1, "70%+"],
+  [0.5, 0.55, "50–54%"],
+  [0.55, 0.6, "55–59%"],
+  [0.6, 0.65, "60–64%"],
+  [0.65, 0.7, "65–69%"],
+  [0.7, 0.8, "70–79%"],
+  [0.8, 0.9, "80–89%"],
+  [0.9, 1.0001, "90%+"],
 ];
 
 const BACKTEST_STAT_IDS = [
@@ -67,7 +69,7 @@ function meanP(rows) {
 function calibrationTable(rows) {
   return CALIBRATION_BANDS.map(([lo, hi, label]) => {
     const slice = (rows || []).filter(
-      (r) => r.hit != null && Number.isFinite(r.pHit) && r.pHit >= lo && r.pHit <= hi
+      (r) => r.hit != null && Number.isFinite(r.pHit) && r.pHit >= lo && r.pHit < hi
     );
     const predicted = slice.length ? mean(slice.map((r) => r.pHit)) : null;
     const actual = slice.length ? slice.filter((r) => r.hit).length / slice.length : null;
@@ -135,10 +137,9 @@ function propScoreBand(score) {
   const s = Number(score);
   if (!Number.isFinite(s)) return "unknown";
   if (s < 55) return "<55 Pass";
-  if (s < 66) return "55–65 Slight";
-  if (s < 76) return "66–75 Lean";
-  if (s < 84) return "76–83 Strong";
-  return "84+ Elite";
+  if (s < 65) return "55–64 Slight Lean";
+  if (s < 80) return "65–79 Lean";
+  return "80+ Strong";
 }
 
 function sampleBucket(games) {

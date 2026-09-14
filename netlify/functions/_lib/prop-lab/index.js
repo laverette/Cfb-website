@@ -54,6 +54,7 @@ async function evaluateEntry({
   signal,
   includeDebug = false,
   marketOddsByTeam = null,
+  mode = "balanced",
 }) {
   const cfbd = createClient(apiKey, { signal });
   const evaluated = [];
@@ -104,8 +105,8 @@ async function evaluateEntry({
     modelVersion: PROP_MODEL_VERSION,
     legs: evaluated,
     analysis,
-    best3: bestN(evaluated, Math.min(3, evaluated.filter((l) => !l.error).length)),
-    best4: bestN(evaluated, Math.min(4, evaluated.filter((l) => !l.error).length)),
+    best3: bestN(evaluated, Math.min(3, evaluated.filter((l) => !l.error).length), mode),
+    best4: bestN(evaluated, Math.min(4, evaluated.filter((l) => !l.error).length), mode),
     apiUsage: cfbd.usage,
   };
 }

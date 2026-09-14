@@ -129,6 +129,18 @@ function lastN(arr, n) {
   return arr.slice(-n);
 }
 
+function ordinal(n) {
+  const x = Math.round(Number(n));
+  if (!Number.isFinite(x)) return "";
+  const v = Math.abs(x) % 100;
+  if (v >= 11 && v <= 13) return `${x}th`;
+  const last = Math.abs(x) % 10;
+  if (last === 1) return `${x}st`;
+  if (last === 2) return `${x}nd`;
+  if (last === 3) return `${x}rd`;
+  return `${x}th`;
+}
+
 function hitRate(values, line, more) {
   const xs = (values || []).filter((n) => Number.isFinite(n));
   if (!xs.length || !Number.isFinite(line)) return null;
@@ -170,6 +182,7 @@ module.exports = {
   sampleNormal,
   sampleLogNormal,
   lastN,
+  ordinal,
   hitRate,
   weightedMean,
   expDecayWeight,

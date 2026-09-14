@@ -171,16 +171,17 @@ exports.handler = async (event) => {
 
     if (action === "analyze") {
       const legs = body.legs || [];
+      const mode = body.mode || "balanced";
       return json(200, {
         analysis: analyzeEntry(legs),
-        best3: bestN(legs, 3),
-        best4: bestN(legs, Number(body.n) || 4),
+        best3: bestN(legs, 3, mode),
+        best4: bestN(legs, Number(body.n) || 4, mode),
         compare: compareLegs(legs.filter((l) => l.selected)),
       });
     }
 
     if (action === "bestn" || action === "best-n") {
-      return json(200, bestN(body.legs || [], Number(body.n) || 4));
+      return json(200, bestN(body.legs || [], Number(body.n) || 4, body.mode || "balanced"));
     }
 
     if (action === "entries") {

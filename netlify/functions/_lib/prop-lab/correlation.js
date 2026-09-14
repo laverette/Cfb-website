@@ -7,6 +7,17 @@ const RELATIONSHIPS = [
     corr: 0.72,
     sign: "positive",
     label: "Same player receptions and receiving yards move together",
+    explanation: "More receptions generally increase receiving-yard opportunity.",
+  },
+  {
+    id: "same_player_rec_yds_td",
+    a: ["rec_yds", "rec"],
+    b: ["rec_td"],
+    samePlayer: true,
+    corr: 0.38,
+    sign: "positive",
+    label: "Same player receiving yards/receptions and receiving TDs",
+    explanation: "Both benefit from higher passing volume and a strong receiving game.",
   },
   {
     id: "same_player_rush_pair",
@@ -16,6 +27,7 @@ const RELATIONSHIPS = [
     corr: 0.7,
     sign: "positive",
     label: "Same player rushing yards and attempts are tightly linked",
+    explanation: "Rushing yards are mostly a function of carry volume.",
   },
   {
     id: "same_player_pass_pair",
@@ -25,6 +37,7 @@ const RELATIONSHIPS = [
     corr: 0.68,
     sign: "positive",
     label: "Same-player passing volume stats are highly related",
+    explanation: "Attempts, completions, and passing yards share the same dropback volume.",
   },
   {
     id: "qb_wr_yards",
@@ -34,6 +47,7 @@ const RELATIONSHIPS = [
     corr: 0.42,
     sign: "positive",
     label: "QB passing volume and WR receiving volume often rise together",
+    explanation: "Both benefit from higher passing volume.",
   },
   {
     id: "qb_wr_td",
@@ -43,6 +57,7 @@ const RELATIONSHIPS = [
     corr: 0.4,
     sign: "positive",
     label: "QB pass TDs and WR receiving TDs are positively related",
+    explanation: "Receiving TDs are a subset of passing TDs on the same offense.",
   },
   {
     id: "rb_qb_script",
@@ -52,6 +67,7 @@ const RELATIONSHIPS = [
     corr: -0.28,
     sign: "negative",
     label: "RB rushing volume and QB passing volume can compete for script",
+    explanation: "These can compete for offensive volume depending on game script.",
   },
   {
     id: "same_player_combo",
@@ -61,8 +77,24 @@ const RELATIONSHIPS = [
     corr: 0.8,
     sign: "positive",
     label: "Combo yardage props share outcomes with the component stats",
+    explanation: "The combo line is the sum of the component yardage outcomes.",
   },
 ];
+
+const { legCaption, sideLabel } = require("./format");
+
+function pairCategory(sign, strength) {
+  const dir = sign === "negative" ? "NEGATIVE" : "POSITIVE";
+  const mag = strength === "high" ? "HIGH" : strength === "moderate" ? "MODERATE" : "LOW";
+  return `${mag} ${dir}`;
+}
+
+function pairStrength(corr) {
+  const a = Math.abs(corr);
+  if (a >= 0.55) return "high";
+  if (a >= 0.28) return "moderate";
+  return "low";
+}
 
 function sameTeam(a, b) {
   return String(a || "").trim().toLowerCase() === String(b || "").trim().toLowerCase();
@@ -130,16 +162,47 @@ function classifyPair(legA, legB) {
     }
   }
 
+  const hist = historicalCorrFromLogs(legA.gameLog, legB.gameLog);
+  let source = "heuristic";
+  let heuristic = true;
+  let historicalR = null;
+  if (hist != null && Number.isFinite(hist) && (legA.gameLog || []).length >= 5 && (legB.gameLog || []).length >= 5) {
+    historicalR = Number(hist.toFixed(2));
+    corr = hist;
+    sign = hist < 0 ? "negative" : "positive";
+    source = "historical";
+    heuristic = false;
+    if ((legA.side === "less") !== (legB.side === "less")) {
+      corr = -corr;
+      sign = corr < 0 ? "negative" : "positive";
+    }
+  }
+  const strength = pairStrength(corr);
+  const explanation =
+    rel?.explanation ||
+    (samePlayer
+      ? "Same player — both outcomes share usage, game script, and injury/DNP risk."
+      : "Heuristic relationship based on game environment.");
+  const aCap = `${legA.player?.name || "Player"} ${legA.stat?.short || sa} ${sideLabel(legA.side)}`;
+  const bCap = `${legB.player?.name || "Player"} ${legB.stat?.short || sb} ${sideLabel(legB.side)}`;
   return {
-    a: legA.clientId || legA.player?.id,
-    b: legB.clientId || legB.player?.id,
+    a: legA.clientId || `${legA.player?.id}:${sa}:${legA.line}:${legA.side}`,
+    b: legB.clientId || `${legB.player?.id}:${sb}:${legB.line}:${legB.side}`,
     names: [legA.player?.name, legB.player?.name],
     stats: [legA.stat?.short || sa, legB.stat?.short || sb],
+    aCaption: aCap,
+    bCaption: bCap,
+    pairLabel: `${aCap} ↔ ${bCap}`,
     bucket,
-    corr,
+    corr: Number(corr.toFixed(3)),
+    historicalR,
     sign,
     label,
-    strength: Math.abs(corr) >= 0.55 ? "high" : Math.abs(corr) >= 0.28 ? "moderate" : "weak",
+    explanation,
+    source,
+    heuristic,
+    category: pairCategory(sign, strength),
+    strength,
   };
 }
 

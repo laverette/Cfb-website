@@ -30,6 +30,9 @@ const {
 const { confidenceGrade, reliabilityFromConfidence, collectFlags, confidenceReasons } = require("./confidence");
 const { propScore } = require("./score");
 const { lineSanity } = require("./sanity");
+const { buildPredictiveSd } = require("./variance");
+const { suggestWhatIfLines } = require("./whatif-lines");
+const { hitCountLabel } = require("./format");
 
 function valuesFromLogs(logs, statId) {
   return (logs || [])
@@ -102,39 +105,69 @@ function buildGameLogRows(logs, line, side) {
   });
 }
 
-function whyAndCaution({ def, bundle, projection, line, side, pHit, flags, role, matchup, env, blend }) {
+function whyAndCaution({
+  def,
+  bundle,
+  projection,
+  median,
+  line,
+  side,
+  pHit,
+  flags,
+  role,
+  matchup,
+  env,
+  blend,
+  form,
+  fcsShare,
+}) {
   const why = [];
   const caution = [];
   const edge = projection - line;
   const likesMore = (side === "less" && edge < 0) || (side !== "less" && edge > 0);
+  const center = Number.isFinite(median) ? median : projection;
 
-  if (role.role === "Rising") why.push(role.detail);
+  if (likesMore && side !== "less" && line < center - 8) {
+    why.push("The line sits well below the modeled median");
+  } else if (likesMore && side === "less" && line > center + 8) {
+    why.push("The line sits well above the modeled median");
+  }
+  if (role.role === "Rising") why.push(role.detail || "Recent usage is rising");
+  if (Number.isFinite(form?.recShare) && form.recShare >= 0.22) why.push("Stable receiving share in the current sample");
+  if (form?.hits != null && form?.games >= 2 && form.hits === form.games && likesMore) {
+    why.push(`Player cleared this threshold in ${form.hits}/${form.games} current games`);
+  }
   if (matchup.adjPct > 0.03) why.push("Favorable defensive matchup for this stat");
-  if (matchup.adjPct < -0.03) caution.push("Tough defensive matchup for this stat");
-  if (likesMore && edge > 0) why.push(`Model sits ${edge.toFixed(1)} above the PrizePicks line`);
-  if (!likesMore) caution.push("Projection is close to or on the wrong side of the line");
-  if (env.blowoutRisk === "High") caution.push(`Blowout risk ${env.blowoutRisk.toLowerCase()} — game script can scramble volume`);
-  env.notes.slice(0, 2).forEach((n) => {
-    if (/may shrink|compressed|haircut/i.test(n)) caution.push(n);
-    else why.push(n);
-  });
+  if (likesMore && edge > 0 && why.every((w) => !/median|threshold/i.test(w))) {
+    why.push(`Model sits ${edge.toFixed(1)} above the PrizePicks line`);
+  }
 
   const games = bundle.gameLogs?.length || 0;
-  if (games < 3) caution.push(`Only ${games || 0} game${games === 1 ? "" : "s"} in the current sample`);
+  if (games < 3) caution.push(`Only ${games || 0} current-season game${games === 1 ? "" : "s"}`);
+  if (fcsShare > 0 && games) caution.push(`${Math.round(fcsShare * 100)}% of sample came vs FCS`);
+  if (flags.includes("High Variance")) caution.push("High week-to-week variance");
+  if (matchup.adjPct < -0.03) caution.push("Difficult defensive matchup");
   if (flags.includes("Transfer")) caution.push("Player changed teams — prior-year stats are a weaker prior");
   if (flags.includes("New Starter")) caution.push("Limited established role");
-  if (flags.includes("FCS-Heavy Sample")) caution.push("Sample includes a large share of FCS games");
-  if (flags.includes("High Variance")) caution.push("Week-to-week results swing hard");
   if (flags.includes("Missing Data")) caution.push("Some CFBD fields were unavailable");
   if (blend.priorWeight > 0.45 && Number.isFinite(blend.priorAvg)) {
-    caution.push("Line is being judged against a prior-stabilized baseline, not raw early-season pace");
+    caution.push("Projection is prior-stabilized, not raw early-season pace");
   }
-  if (pHit < 0.55) caution.push("Modeled edge versus this line is modest");
+  if (env.blowoutRisk === "High") caution.push("High blowout risk can scramble volume");
+  if (!likesMore) caution.push("Projection is close to or on the wrong side of the line");
+  if (pHit < 0.55 && !caution.some((c) => /wrong side|close to/i.test(c))) {
+    caution.push("Modeled edge versus this line is modest");
+  }
 
-  if (!why.length) why.push("Limited positive signal after shrinkage and matchup caps");
-  if (!caution.length) caution.push("No single red flag — still treat this as a model estimate, not a lock");
+  const uniq = (arr) => {
+    const out = [];
+    for (const x of arr) {
+      if (!out.some((y) => y.slice(0, 18) === x.slice(0, 18))) out.push(x);
+    }
+    return out;
+  };
 
-  return { why: why.slice(0, 4), caution: caution.slice(0, 4) };
+  return { why: uniq(why).slice(0, 3), caution: uniq(caution).slice(0, 4) };
 }
 
 function evaluateFromBundle(bundle, {
@@ -256,23 +289,27 @@ function evaluateFromBundle(bundle, {
 
   const sampleSd = stddev(currentValues);
   const priorSd = stddev(priorValues);
-  let sd = sampleSd;
-  if (!Number.isFinite(sd) || currentValues.length < 4) {
-    const mix = [];
-    if (Number.isFinite(sampleSd)) mix.push(sampleSd);
-    if (Number.isFinite(priorSd)) mix.push(priorSd);
-    mix.push(def.priorSd);
-    sd = mean(mix);
-  }
-  const smallN = currentValues.length < 4;
-  if (smallN) sd = Math.max(sd, def.priorSd * 1.15);
-  if (currentValues.length <= 2) sd = Math.max(sd, def.priorSd * 1.35);
-  sd = Math.max(sd, def.priorSd * 0.55);
-
+  const fcsGames = currentLogs.filter((g) => g.isFcs).length;
+  const fcsShare = currentLogs.length ? fcsGames / currentLogs.length : 0;
+  const sdPack = buildPredictiveSd({
+    sampleValues: currentValues,
+    priorValues,
+    def,
+    roleStable: role.role === "Stable",
+    matchupMissing: matchup.missing,
+    blowoutRisk: env.blowoutRisk,
+    projection,
+  });
+  const sd = sdPack.final;
   const cv = projection > 0 && sd ? sd / projection : 1;
+
   const extraFlags = [];
-  if (cv > 0.55 || (sampleSd && sampleSd > def.priorSd * 1.4)) extraFlags.push("High Variance");
+  if (cv > 0.62 || (sampleSd && sampleSd > def.priorSd * 1.45)) extraFlags.push("High Variance");
   if (role.role !== "Stable") extraFlags.push("Role Change");
+  if (!priorLogs.length) extraFlags.push("Missing Prior");
+  if (oppEst.inferred) extraFlags.push("Low Usage Stability");
+  if (fcsShare >= 0.4) extraFlags.push("FCS-Heavy Sample");
+  if (fcsShare > 0 && fcsShare < 0.4 && currentLogs.length <= 3) extraFlags.push("Weak Opponent Sample");
   const flags = collectFlags(bundle, extraFlags);
 
   const completeness =
@@ -369,10 +406,12 @@ function evaluateFromBundle(bundle, {
   });
   if (sanity.unusual && !flags.includes("Unusual Line")) flags.push("Unusual Line");
 
+  const hitCount = currentValues.filter((v) => (leanSide === "less" ? v < lineNum : v > lineNum)).length;
   const narrative = whyAndCaution({
     def,
     bundle,
     projection,
+    median: distSummary.median,
     line: lineNum,
     side: leanSide,
     pHit: probs.pHit,
@@ -381,7 +420,10 @@ function evaluateFromBundle(bundle, {
     matchup,
     env,
     blend: { ...blend, priorAvg },
+    form: { hits: hitCount, games: currentValues.length, recShare: oppEst.recShare },
+    fcsShare,
   });
+  if (!narrative.why.length) narrative.why.push("Limited positive signal after shrinkage and matchup caps");
 
   const gameLog = buildGameLogRows(currentLogs, lineNum, leanSide);
   const priorLog = buildGameLogRows(priorLogs, lineNum, leanSide);
@@ -428,12 +470,65 @@ function evaluateFromBundle(bundle, {
       label: scored.label,
     },
     lineSanity: sanity,
+    sd: sdPack.final,
+    sdPack,
+    confidenceBreakdown: conf.breakdown,
+    fcs: { games: fcsGames, of: currentLogs.length, share: fcsShare },
+    whatIfLines: suggestWhatIfLines(def.id, lineNum),
+    cache: bundle.apiUsage || null,
+    cacheSummary: {
+      playerBundle: !bundle.apiUsage
+        ? "N/A"
+        : bundle.apiUsage.cacheMisses
+          ? bundle.apiUsage.cacheHits
+            ? "MIXED"
+            : "MISS"
+          : bundle.apiUsage.cacheHits
+            ? "HIT"
+            : "N/A",
+      schedule: (bundle.apiUsage?.paths || []).some((p) => String(p).includes("/games"))
+        ? bundle.apiUsage.cacheMisses
+          ? "MISS/MIXED"
+          : "HIT"
+        : "N/A",
+      teamMetrics: (bundle.apiUsage?.paths || []).some((p) => String(p).includes("/stats"))
+        ? bundle.apiUsage.cacheMisses
+          ? "MISS/MIXED"
+          : "HIT"
+        : "N/A",
+      cfbdRequests: bundle.apiUsage?.requests || 0,
+      oddsApiRequests: 0,
+      cacheHits: bundle.apiUsage?.cacheHits || 0,
+      cacheMisses: bundle.apiUsage?.cacheMisses || 0,
+    },
+    playerData: {
+      season: bundle.currentOverview || null,
+      prior: bundle.priorOverview || null,
+      careerUsed: false,
+    },
+    sample: {
+      gamesIncluded: currentLogs.length,
+      fbs: Math.max(0, currentLogs.length - fcsGames),
+      fcs: fcsGames,
+      fcsShare,
+      weights: (weighted.items || []).map((g) => ({
+        week: g.week,
+        opp: g.opponent,
+        weight: g.weight,
+        fcs: g.isFcs,
+      })),
+    },
+    simIterations: skipSims ? 0 : 8000,
+    currentYearWeight: currentSeasonWeight(currentValues.length, { hasPrior }),
+    priorYearWeight: 1 - currentSeasonWeight(currentValues.length, { hasPrior }),
   };
 
   return {
     modelVersion: PROP_MODEL_VERSION,
     player: bundle.player,
     opponent: bundle.opponent,
+    scheduleWarning: bundle.opponent ? null : `No scheduled game found for Week ${bundle.week ?? ""}`.trim(),
+    highProbLowConf: probs.pHit >= 0.8 && ["C", "D"].includes(conf.letter),
     stat: { id: def.id, label: def.label, short: def.short, category: def.category },
     line: lineNum,
     side: leanSide,
@@ -447,10 +542,16 @@ function evaluateFromBundle(bundle, {
     confidence: conf.letter,
     confidenceScore: conf.score,
     confidenceReasons: confReasons,
+    confidenceBreakdown: conf.breakdown,
+    confidenceLabel: "Model Confidence",
     propScore: scored.score,
     propScoreLabel: scored.label,
     propScoreComponents: scored.components,
     lineSanity: sanity,
+    whatIfLines: suggestWhatIfLines(def.id, lineNum),
+    fcs: { games: fcsGames, of: currentLogs.length, share: fcsShare },
+    hitCount,
+    hitCountLabel: hitCountLabel(hitCount, currentValues.length),
     lean: probs.pHit >= 0.52 ? leanSide : "tossup",
     edge,
     flags,
@@ -466,6 +567,7 @@ function evaluateFromBundle(bundle, {
       hitRate: hitAll,
       hitRateL5: hitL5,
       hitRatePrior: hitPrior,
+      hits: hitCount,
       games: currentValues.length,
       priorGames: priorValues.length,
     },
@@ -489,8 +591,10 @@ function evaluateFromBundle(bundle, {
       adjYards: matchupDelta,
       factors: matchup.factors,
       note: matchup.note,
+      headline: matchup.headline,
+      adjPctDisplay: matchup.adjPctDisplay,
       opponent: bundle.opponent,
-      percentilePass: matchup.factors?.find((f) => /pass yards/i.test(f.label))?.pct ?? null,
+      percentilePass: matchup.factors?.find((f) => /pass yards/i.test(f.label))?.defensePct ?? matchup.factors?.find((f) => /pass yards/i.test(f.label))?.pct ?? null,
     },
     environment: env,
     breakdown,
@@ -580,7 +684,14 @@ function relineEvaluation(evaluation, line, side) {
       label: scored.label,
     },
     lineSanity: sanity,
+    whatIfLines: suggestWhatIfLines(evaluation.stat?.id, lineNum),
+    cacheSummary: {
+      ...(evaluation.modelDebug?.cacheSummary || {}),
+      cfbdRequests: 0,
+      note: "Line-only reline — no CFBD refetch",
+    },
   };
+  const hits = values.filter((v) => (leanSide === "less" ? v < lineNum : v > lineNum)).length;
   return {
     ...evaluation,
     line: lineNum,
@@ -595,6 +706,10 @@ function relineEvaluation(evaluation, line, side) {
     propScoreLabel: scored.label,
     propScoreComponents: scored.components,
     lineSanity: sanity,
+    whatIfLines: suggestWhatIfLines(evaluation.stat?.id, lineNum),
+    highProbLowConf: probs.pHit >= 0.8 && ["C", "D"].includes(evaluation.confidence),
+    hitCount: hits,
+    hitCountLabel: hitCountLabel(hits, values.length),
     modelDebug,
     lean: probs.pHit >= 0.52 ? leanSide : "tossup",
     gameLog: (evaluation.gameLog || []).map((g) => ({

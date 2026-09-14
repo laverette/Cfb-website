@@ -67,9 +67,24 @@ function factor(value, pool, { invert = false, cap = 0.12 } = {}) {
   const z = zScore(value, pool);
   const pct = percentileRank(value, pool);
   const signed = invert ? -z : z;
-  // Higher allowed yards → easier matchup for offense (positive adj)
   const adj = clamp(signed * 0.045, -cap, cap);
-  return { z, pct, adj, used: true, value, mean: mean(pool) };
+  const defensePct = pct == null ? null : invert ? pct : 1 - pct;
+  let quality = "Average";
+  if (defensePct != null) {
+    if (defensePct >= 0.8) quality = "Elite";
+    else if (defensePct >= 0.65) quality = "Strong";
+    else if (defensePct <= 0.2) quality = "Poor";
+    else if (defensePct <= 0.35) quality = "Below average";
+  }
+  return { z, pct, adj, used: true, value, mean: mean(pool), defensePct, quality, invert };
+}
+
+function matchupHeadline(adjPct) {
+  if (adjPct > 0.04) return "Favorable";
+  if (adjPct > 0.015) return "Slightly favorable";
+  if (adjPct < -0.04) return "Unfavorable";
+  if (adjPct < -0.015) return "Slightly unfavorable";
+  return "Neutral";
 }
 
 /**
@@ -156,10 +171,11 @@ function matchupAdjustment(bundle, def) {
     allFactors: used,
     snapshot: snap,
     missing: used.length === 0,
-    note:
-      used.length === 0
-        ? "Matchup data incomplete — adjustment withheld rather than guessed."
-        : `Opponent adjustment capped at ${(adjPct * 100).toFixed(1)}%.`,
+    note: used.length === 0
+      ? "Matchup data incomplete — adjustment withheld rather than guessed."
+      : `Matchup: ${matchupHeadline(adjPct)}`,
+    headline: used.length === 0 ? "Unavailable" : matchupHeadline(adjPct),
+    adjPctDisplay: Number((adjPct * 100).toFixed(1)),
   };
 }
 
@@ -190,4 +206,5 @@ module.exports = {
   matchupAdjustment,
   defenseSnapshot,
   opponentQualityForGame,
+  matchupHeadline,
 };

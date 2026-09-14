@@ -728,6 +728,20 @@
       <div id="powerRunStatus" style="margin-top:0.75rem;"></div>
     </div>
 
+    <div class="admin-section" id="section-proplab">
+      <h2>Prop Lab backtest</h2>
+      <p class="section-lead">
+        Frozen Model 2.0.0 remains the official baseline. Live Model 2.1.0 walk-forward is for development only — do not retune thresholds on the holdout set.
+      </p>
+      <div class="btn-row" style="margin:0 0 0.75rem;">
+        <button type="button" class="btn btn-primary" id="btnPropLabFrozen" onclick="loadPropLabFrozen()">Load frozen 2.0 report</button>
+        <button type="button" class="btn btn-secondary" id="btnPropLabLive" onclick="runPropLabWalkForward()">Run live 2.1 walk-forward</button>
+        <a class="btn btn-secondary" href="prop-bet.html" target="_blank" rel="noopener">Open Prop Lab</a>
+      </div>
+      <div id="propLabBacktestStatus"></div>
+      <div id="propLabBacktestReport"></div>
+    </div>
+
     <!-- Heisman winner -->
     <div class="admin-section" id="section-heisman">
       <h2>Heisman winner</h2>
@@ -1888,6 +1902,158 @@
         if (activeWeekNorm.seasonYear != null) seasonEl.value = activeWeekNorm.seasonYear;
         if (activeWeekNorm.weekNumber != null) weekEl.value = activeWeekNorm.weekNumber;
       }
+    }
+
+    async function loadPropLabFrozen() {
+      const status = document.getElementById('propLabBacktestStatus');
+      const host = document.getElementById('propLabBacktestReport');
+      if (status) status.innerHTML = '<div class="status-message">Loading frozen 2.0.0 baseline…</div>';
+      try {
+        const res = await fetch(API_BASE + '/api/prop-eval?action=backtest-report', {
+          headers: adminAuthHeaders(false),
+        });
+        if (checkAdminFetch(res)) return;
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+        if (status) status.innerHTML = '<div class="status-message status-success">Frozen baseline loaded.</div>';
+        if (host) host.innerHTML = renderPropLabReport(data);
+      } catch (err) {
+        if (status) status.innerHTML = '<div class="status-message status-error">' + (err.message || err) + '</div>';
+      }
+    }
+
+    async function runPropLabWalkForward() {
+      const status = document.getElementById('propLabBacktestStatus');
+      const host = document.getElementById('propLabBacktestReport');
+      const btn = document.getElementById('btnPropLabLive');
+      if (btn) btn.disabled = true;
+      if (status) status.innerHTML = '<div class="status-message">Running live walk-forward (no CFBD)…</div>';
+      try {
+        const res = await fetch(API_BASE + '/api/prop-eval?action=backtest-run', {
+          method: 'POST',
+          headers: adminAuthHeaders(true),
+          body: JSON.stringify({ action: 'backtest-run' }),
+        });
+        if (checkAdminFetch(res)) return;
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+        if (status) {
+          status.innerHTML =
+            '<div class="status-message status-success">Live ' +
+            (data.modelVersion || '2.1.0') +
+            ' walk-forward complete. Official frozen baseline remains 2.0.0.</div>';
+        }
+        if (host) host.innerHTML = renderPropLabReport(data.official || data, data);
+      } catch (err) {
+        if (status) status.innerHTML = '<div class="status-message status-error">' + (err.message || err) + '</div>';
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+
+    function renderPropLabReport(report, extra) {
+      const body = report.official || report;
+      const overall = body.overall || body;
+      const cal = body.calibration || report.calibration || [];
+      const byScore = body.byPropScore || report.byPropScore || {};
+      const byConf = body.byConfidence || report.byConfidence || {};
+      const byStat = body.byStat || report.byStat || {};
+      function pct(n) {
+        if (n == null || !Number.isFinite(Number(n))) return '—';
+        return (Number(n) * 100).toFixed(1) + '%';
+      }
+      function num(n) {
+        if (n == null || !Number.isFinite(Number(n))) return '—';
+        return Number(n).toFixed(3);
+      }
+      const calRows = cal
+        .map(function (b) {
+          return (
+            '<tr><td>' +
+            (b.band || '') +
+            '</td><td>' +
+            (b.n || 0) +
+            '</td><td>' +
+            pct(b.predicted) +
+            '</td><td>' +
+            pct(b.actual) +
+            '</td></tr>'
+          );
+        })
+        .join('');
+      const scoreRows = Object.keys(byScore)
+        .map(function (k) {
+          const s = byScore[k];
+          return '<tr><td>' + k + '</td><td>' + (s.nGraded || s.n || 0) + '</td><td>' + pct(s.hitRate) + '</td></tr>';
+        })
+        .join('');
+      const confRows = Object.keys(byConf)
+        .map(function (k) {
+          const s = byConf[k];
+          return (
+            '<tr><td>' +
+            k +
+            '</td><td>' +
+            (s.n || 0) +
+            '</td><td>' +
+            num(s.mae) +
+            '</td><td>' +
+            num(s.brier) +
+            '</td></tr>'
+          );
+        })
+        .join('');
+      const statRows = Object.keys(byStat)
+        .map(function (k) {
+          const s = byStat[k];
+          return (
+            '<tr><td>' +
+            k +
+            '</td><td>' +
+            (s.n || 0) +
+            '</td><td>' +
+            num(s.mae) +
+            '</td><td>' +
+            num(s.rmse) +
+            '</td><td>' +
+            num(s.bias) +
+            '</td><td>' +
+            num(s.brier) +
+            '</td></tr>'
+          );
+        })
+        .join('');
+      const ablations = extra && extra.validation && extra.validation.ablations
+        ? '<pre style="white-space:pre-wrap;">' + JSON.stringify(extra.validation.ablations, null, 2) + '</pre>'
+        : '';
+      return (
+        '<p><strong>N</strong> ' +
+        (overall.n || '—') +
+        ' · <strong>MAE</strong> ' +
+        num(overall.mae) +
+        ' · <strong>RMSE</strong> ' +
+        num(overall.rmse) +
+        ' · <strong>MedAE</strong> ' +
+        num(overall.medae) +
+        ' · <strong>Bias</strong> ' +
+        num(overall.bias) +
+        ' · <strong>Brier</strong> ' +
+        num(overall.brier) +
+        '</p>' +
+        '<h3>Calibration</h3><table class="admin-table"><thead><tr><th>Bucket</th><th>N</th><th>Predicted</th><th>Actual</th></tr></thead><tbody>' +
+        calRows +
+        '</tbody></table>' +
+        '<h3>Prop Score buckets</h3><table class="admin-table"><thead><tr><th>Bucket</th><th>N</th><th>Hit rate</th></tr></thead><tbody>' +
+        scoreRows +
+        '</tbody></table>' +
+        '<h3>Model Confidence vs error</h3><p>Confidence is expected to track MAE / calibration, not hit rate.</p><table class="admin-table"><thead><tr><th>Grade</th><th>N</th><th>MAE</th><th>Brier</th></tr></thead><tbody>' +
+        confRows +
+        '</tbody></table>' +
+        '<h3>By stat</h3><table class="admin-table"><thead><tr><th>Stat</th><th>N</th><th>MAE</th><th>RMSE</th><th>Bias</th><th>Brier</th></tr></thead><tbody>' +
+        statRows +
+        '</tbody></table>' +
+        (ablations ? '<h3>Ablations (validation)</h3>' + ablations : '')
+      );
     }
 
     async function runPowerRankings() {

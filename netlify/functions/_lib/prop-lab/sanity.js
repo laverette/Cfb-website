@@ -54,6 +54,15 @@ function lineSanity({ statId, line, projection, position }) {
     };
   }
 
+  if (line > range.typicalMax * 1.8 || ((statId === "rec_td" || statId === "rush_td") && line >= 4) || (statId === "pass_td" && line >= 7)) {
+    flags.push("Unusual Line");
+    return {
+      unusual: true,
+      flags,
+      message: `This ${range.unit} line (${line}) is far above a realistic range. Confirm it is correct.`,
+    };
+  }
+
   return { unusual: false, flags: [], message: null };
 }
 
