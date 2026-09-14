@@ -258,6 +258,15 @@
     <div class="title-section">
       <h1 class="title" id="resultsTabTitle">Weekly Results</h1>
     </div>
+
+    <div class="results-week-toggle" id="resultsWeekToggle" role="tablist" aria-label="Results week" hidden>
+      <button type="button" class="results-week-btn active" id="resultsThisWeekBtn" data-recap-week="current" role="tab" aria-selected="true">This Week</button>
+      <button type="button" class="results-week-btn" id="resultsLastWeekBtn" data-recap-week="previous" role="tab" aria-selected="false">Last Week</button>
+    </div>
+
+    <div id="resultsRecapHost" class="results-recap-host">
+      <p class="results-recap-loading">Loading your results…</p>
+    </div>
     
     <div class="results-standings-grid">
       <section class="results-standings-board" aria-labelledby="weekBoardTitle">
@@ -265,18 +274,9 @@
         <ol class="results-standings-list" id="weekLeaderboardList">
           <li class="results-stand-empty">Loading standings…</li>
         </ol>
-      </section>
-      <section class="results-standings-board" aria-labelledby="lastWeekBoardTitle">
-        <h3 class="results-standings-title" id="lastWeekBoardTitle">🏆 Last Week</h3>
-        <ol class="results-standings-list" id="lastWeekLeaderboardList">
-          <li class="results-stand-empty">Loading standings…</li>
-        </ol>
-      </section>
-      <section class="results-standings-board" aria-labelledby="seasonBoardTitle">
-        <h3 class="results-standings-title" id="seasonBoardTitle">🏆 This Season</h3>
-        <ol class="results-standings-list" id="seasonLeaderboardList">
-          <li class="results-stand-empty">Loading standings…</li>
-        </ol>
+        <p class="results-lb-link">
+          <a href="prediction-history.html">Full leaderboards — last week, season, all-time</a>
+        </p>
       </section>
     </div>
 
@@ -372,6 +372,10 @@
     let activeWeekId = null;
     let activeWeekMeta = null; // { weekNumber, seasonYear, startDate, endDate, isCompleted, previousWeek }
     let activePreviousWeekId = null;
+    let resultsRecapScope = 'current'; // 'current' | 'previous'
+    let previousWeekGamesCache = null;
+    let previousWeekLiveScores = null;
+    let autoOpenedResultsThisLoad = false;
 
     async function cfbdProxyRequest(path, params = {}) {
       const url = new URL('/.netlify/functions/cfbd', window.location.origin);
@@ -501,6 +505,16 @@
 
       const weekBoardTitle = document.getElementById('weekBoardTitle');
       if (weekBoardTitle) weekBoardTitle.textContent = `🏆 ${weekPart}`;
+
+      const thisWeekBtn = document.getElementById('resultsThisWeekBtn');
+      if (thisWeekBtn) thisWeekBtn.textContent = weekPart || 'This Week';
+      const lastWeekBtn = document.getElementById('resultsLastWeekBtn');
+      const prev = meta.previousWeek;
+      if (lastWeekBtn) {
+        lastWeekBtn.textContent = prev?.weekNumber
+          ? `Week ${prev.weekNumber}`
+          : 'Last Week';
+      }
     }
 
     function showDbPicksContainer() {
@@ -1062,6 +1076,10 @@
         } catch {
           /* ignore */
         }
+        const resultsTab = document.getElementById('week10-results');
+        if (resultsTab && resultsTab.classList.contains('active')) {
+          loadResultsLeaderboards({ quiet: true });
+        }
       } catch (e) {
         console.error('loadActiveWeekAndGames:', e);
         if (cachedDbGames && cachedDbGames.length) return;
@@ -1161,6 +1179,7 @@
       initEmailRemindersOptIn();
       initCorsoChat();
       wireH2hPanel();
+      wireResultsWeekToggle();
 
       // Phase 1: Load active week + games from backend DB.
       // Live scores will be loaded automatically after games are loaded
@@ -1492,6 +1511,7 @@
               disableFormForAlreadySubmitted();
               hideLockedPicksForm();
               showPicksStatusBanner(result);
+              maybeOpenResultsWhenLocked();
             } else {
               restorePicksDraft();
             }
@@ -1683,43 +1703,51 @@
       });
     }
 
-    function wireShareCardActions(options = {}) {
-      const screenshotBtn = document.getElementById('screenshotBtn');
-      if (screenshotBtn) {
-        screenshotBtn.addEventListener('click', takeScreenshot);
-      }
-      const editBtn = document.getElementById('editPicksBtn');
-      if (editBtn) {
-        editBtn.addEventListener('click', async function () {
-          const status = window.__PICKS_STATUS__ || {};
-          if (status.picksLocked || status.canEdit === false) {
-            alert('Picks are locked. The Saturday lock deadline has passed.');
-            return;
-          }
-          try {
-            const savedPicks = await fetchSavedPicksForWeek();
-            applySavedPicksToForm(savedPicks);
-          } catch {
-            /* form may already have values */
-          }
-          showPicksFormForEditing();
-          showPicksStatusBanner({
-            hasSubmitted: true,
-            canEdit: true,
-            picksLocked: false,
-            lastSubmitted: status.lastSubmitted,
-            locksAt: status.locksAt || options.locksAt,
-          });
-          const form = document.querySelector('form[name="predictions"]');
-          if (form) {
-            form.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          }
-        });
-      }
+    function bindOnce(el, eventName, handler) {
+      if (!el || el.dataset.bound === '1') return;
+      el.dataset.bound = '1';
+      el.addEventListener(eventName, handler);
     }
 
-    async function fetchSavedPicksForWeek() {
-      const weekIdToUse = activeWeekId ?? FALLBACK_WEEK_ID;
+    function wireShareCardActions(options = {}) {
+      bindOnce(document.getElementById('screenshotBtn'), 'click', takeScreenshot);
+      bindOnce(document.getElementById('picksScreenshotBtn'), 'click', takeScreenshot);
+
+      const onEdit = async function () {
+        const status = window.__PICKS_STATUS__ || {};
+        if (status.picksLocked || status.canEdit === false) {
+          alert('Picks are locked. The Saturday lock deadline has passed.');
+          return;
+        }
+        try {
+          const savedPicks = await fetchSavedPicksForWeek();
+          applySavedPicksToForm(savedPicks);
+        } catch {
+          /* form may already have values */
+        }
+        const resultsTab = document.getElementById('week10-results');
+        if (resultsTab && resultsTab.classList.contains('active')) {
+          openTab(null, 'week11-picks');
+        }
+        showPicksFormForEditing();
+        showPicksStatusBanner({
+          hasSubmitted: true,
+          canEdit: true,
+          picksLocked: false,
+          lastSubmitted: status.lastSubmitted,
+          locksAt: status.locksAt || options.locksAt,
+        });
+        const form = document.querySelector('form[name="predictions"]');
+        if (form) {
+          form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      };
+      bindOnce(document.getElementById('editPicksBtn'), 'click', onEdit);
+      bindOnce(document.getElementById('picksEditBtn'), 'click', onEdit);
+    }
+
+    async function fetchSavedPicksForWeek(weekId) {
+      const weekIdToUse = weekId ?? activeWeekId ?? FALLBACK_WEEK_ID;
       const response = await fetch(`/api/picks/week/${weekIdToUse}`, {
         method: 'GET',
         headers: authHeaders(),
@@ -1729,52 +1757,151 @@
       return Array.isArray(result.picks) ? result.picks : [];
     }
 
+    function recapWeekId() {
+      if (resultsRecapScope === 'previous') {
+        return activePreviousWeekId || activeWeekMeta?.previousWeek?.id || null;
+      }
+      return activeWeekId;
+    }
+
+    function recapWeekMeta() {
+      if (resultsRecapScope === 'previous') return activeWeekMeta?.previousWeek || null;
+      return activeWeekMeta;
+    }
+
+    function previousWeekAvailable() {
+      const id = activePreviousWeekId || activeWeekMeta?.previousWeek?.id || null;
+      return id != null && Number(id) > 0;
+    }
+
+    function syncResultsWeekToggle() {
+      const toggle = document.getElementById('resultsWeekToggle');
+      if (toggle) toggle.hidden = !previousWeekAvailable();
+      document.querySelectorAll('.results-week-btn').forEach((btn) => {
+        const isActive = btn.getAttribute('data-recap-week') === resultsRecapScope;
+        btn.classList.toggle('active', isActive);
+        btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+      });
+    }
+
+    async function fetchGamesForWeek(weekId) {
+      if (!weekId) return [];
+      if (Number(weekId) === Number(activeWeekId) && Array.isArray(window.__DB_GAMES__)) {
+        return window.__DB_GAMES__;
+      }
+      if (Number(weekId) === Number(activePreviousWeekId) && Array.isArray(previousWeekGamesCache)) {
+        return previousWeekGamesCache;
+      }
+      const resp = await fetch(`/api/picks/games/week/${weekId}`, {
+        method: 'GET',
+        headers: { accept: 'application/json' },
+      });
+      if (!resp.ok) return [];
+      const body = await resp.json().catch(() => ({}));
+      const games = normalizeGamesPickerBody(body);
+      if (Number(weekId) === Number(activePreviousWeekId)) previousWeekGamesCache = games;
+      return games;
+    }
+
+    async function fetchScoresForWeekMeta(weekMeta) {
+      if (!weekMeta) return null;
+      try {
+        const url = new URL('/api/live-scores', window.location.origin);
+        const weekNumber = weekMeta.weekNumber ?? weekMeta.week_number;
+        const seasonYear = weekMeta.seasonYear ?? weekMeta.season_year;
+        if (seasonYear) url.searchParams.set('season', String(seasonYear));
+        if (weekNumber) url.searchParams.set('week', String(weekNumber));
+        const resp = await fetch(url.toString(), {
+          method: 'GET',
+          headers: { accept: 'application/json' },
+        });
+        if (!resp.ok) return null;
+        const body = await resp.json().catch(() => null);
+        const games = Array.isArray(body?.games) ? body.games : [];
+        return games.length ? games : null;
+      } catch {
+        return null;
+      }
+    }
+
+    function buildPicksSubmittedCardHtml({ gameCount, canEdit, locksAt, lastSubmitted }) {
+      const lockLabel = locksAt ? formatGameDate(locksAt) : '';
+      const submittedDate = lastSubmitted ? new Date(lastSubmitted).toLocaleString() : '';
+      const locked = !canEdit;
+      const countLabel = gameCount ? `${gameCount} game${gameCount === 1 ? '' : 's'}` : 'Your slate';
+      const body = locked
+        ? 'Picks are locked. Open Results to see which games you got right.'
+        : lockLabel
+          ? `You can still edit until ${lockLabel} (30 min after Saturday’s first kickoff).`
+          : 'You can still edit these picks.';
+      return `
+        <div class="picks-submitted-card" id="picksSubmittedCard">
+          <p class="picks-submitted-kicker">Picks in</p>
+          <h2 class="picks-submitted-title">${safeText(countLabel)}</h2>
+          <p class="picks-submitted-body">${safeText(body)}</p>
+          ${submittedDate ? `<p class="picks-submitted-meta">Last saved: ${safeText(submittedDate)}</p>` : ''}
+          <p class="next-steps" id="seasonCounterLine"></p>
+          <div class="picks-submitted-actions">
+            <button type="button" class="screenshot-button" id="viewResultsBtn">View Results</button>
+            <button type="button" class="screenshot-button" id="picksScreenshotBtn">Save image</button>
+            ${
+              canEdit
+                ? `<button type="button" class="screenshot-button edit-picks-button" id="picksEditBtn">Edit Picks</button>`
+                : ''
+            }
+          </div>
+        </div>
+      `;
+    }
+
+    function wireSubmittedCardActions(options = {}) {
+      const viewBtn = document.getElementById('viewResultsBtn');
+      if (viewBtn) {
+        viewBtn.addEventListener('click', () => openTab(null, 'week10-results'));
+      }
+      wireShareCardActions(options);
+    }
+
+    function maybeOpenResultsWhenLocked() {
+      if (autoOpenedResultsThisLoad) return;
+      const status = window.__PICKS_STATUS__ || {};
+      if (!status.picksLocked) return;
+      autoOpenedResultsThisLoad = true;
+      openTab(null, 'week10-results');
+    }
+
     async function showSavedPicksForWeek(opts = {}) {
       const authToken = localStorage.getItem('authToken');
       if (!authToken) return;
       const canEdit = Boolean(opts.canEdit);
       const locksAt = opts.locksAt || (window.__PICKS_STATUS__ && window.__PICKS_STATUS__.locksAt) || null;
       try {
-        const savedPicks = await fetchSavedPicksForWeek();
+        const savedPicks = await fetchSavedPicksForWeek(activeWeekId);
         if (!savedPicks.length) return;
         applySavedPicksToForm(savedPicks);
         hideLockedPicksForm();
         document.querySelectorAll('.already-submitted-message').forEach((el) => el.remove());
         document.body.classList.add('picks-results-open');
-        const userName = currentUser?.displayName || currentUser?.username || 'Guest';
         const gameCount = Math.max(
           Number(window.__DB_GAME_COUNT__) || 0,
           (window.__DB_GAMES__ || []).length,
           savedPicks.length
         );
-        const shareOpts = {
-          userName,
-          form: document.querySelector('form[name="predictions"]'),
-          gameCount,
-          savedPicks,
-          statusText: 'Your picks for this week',
-          canEdit,
-          locksAt,
-        };
-        window.__SHARE_CARD_OPTS__ = shareOpts;
-        document.getElementById('results').innerHTML = buildPicksShareCardHtml({
-          ...shareOpts,
-          liveScores: cachedLiveScores,
-        });
-        wireShareCardActions({ locksAt });
-        // Pull live scores for the share graphic (and keep refreshing).
-        fetchLiveScores({ fast: true })
-          .then((scores) => {
-            if (!scores) return;
-            cachedLiveScores = scores;
-            renderShareCardFromCache(scores);
-          })
-          .catch(() => {});
+        const resultsHost = document.getElementById('results');
+        if (resultsHost) {
+          resultsHost.innerHTML = buildPicksSubmittedCardHtml({
+            gameCount,
+            canEdit,
+            locksAt,
+            lastSubmitted: opts.lastSubmitted || (window.__PICKS_STATUS__ && window.__PICKS_STATUS__.lastSubmitted),
+          });
+          wireSubmittedCardActions({ locksAt });
+        }
         startLiveScoresAutoRefresh();
-        setTimeout(() => {
-          const card = document.getElementById('picksShareCard');
-          if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }, 80);
+        loadResultsRecap({ quiet: true }).catch(() => {});
+        if (opts.openResults || (window.__PICKS_STATUS__ && window.__PICKS_STATUS__.picksLocked && !opts.skipAutoResults)) {
+          maybeOpenResultsWhenLocked();
+        }
       } catch {
         /* keep previous UI if the card cannot load */
       }
@@ -1825,7 +1952,7 @@
       return espnLogoUrl(espnId);
     }
 
-    function shareWeekLabel() {
+    function shareWeekLabel(meta = activeWeekMeta) {
       const { weekPart, yearPart, weekNumber, seasonYear } = weekLabelParts(activeWeekMeta);
       return {
         heading: `${weekPart} Picks`,
@@ -1945,9 +2072,13 @@
       canEdit,
       locksAt,
       liveScores = null,
+      games: gamesOverride = null,
+      weekMeta = null,
     }) {
-      const week = shareWeekLabel();
-      const games = Array.isArray(window.__DB_GAMES__) ? window.__DB_GAMES__ : [];
+      const week = shareWeekLabel(weekMeta || activeWeekMeta);
+      const games = Array.isArray(gamesOverride)
+        ? gamesOverride
+        : (Array.isArray(window.__DB_GAMES__) ? window.__DB_GAMES__ : []);
       const scores = liveScores || cachedLiveScores || null;
       const safeUser = safeText(userName || 'Guest');
       const lockLabel = locksAt ? formatGameDate(locksAt) : '';
@@ -2058,14 +2189,20 @@
         recordHtml = `<p class="picks-share-record">${safeText(bits.join(' · '))}</p>`;
       }
 
+      const isCurrentWeek =
+        !weekMeta ||
+        activeWeekId == null ||
+        Number(weekMeta.id) === Number(activeWeekId);
       const editBlock = canEdit
         ? `
             <button id="editPicksBtn" class="screenshot-button edit-picks-button" type="button">Edit Picks</button>
             <p class="screenshot-note">${lockLabel ? `You can edit until ${safeText(lockLabel)} (30 min after Saturday’s first kickoff).` : 'You can still edit these picks.'}</p>
           `
-        : `
+        : isCurrentWeek
+          ? `
             <p class="screenshot-note">Picks are locked for this week.</p>
-          `;
+          `
+          : '';
 
       const footerBits = [`${gameCount} picks`];
       if (finalCount > 0) footerBits.push(`${correctCount}–${wrongCount}–${tieCount} final`);
@@ -2100,12 +2237,11 @@
 
     function renderShareCardFromCache(liveScores = null) {
       const opts = window.__SHARE_CARD_OPTS__;
-      if (!opts || !document.getElementById('picksShareCard')) return;
-      const results = document.getElementById('results');
-      if (!results) return;
-      results.innerHTML = buildPicksShareCardHtml({
+      const host = document.getElementById('resultsRecapHost');
+      if (!opts || !host || !document.getElementById('picksShareCard')) return;
+      host.innerHTML = buildPicksShareCardHtml({
         ...opts,
-        liveScores: liveScores || cachedLiveScores,
+        liveScores: liveScores || opts.liveScores || cachedLiveScores,
       });
       wireShareCardActions({ locksAt: opts.locksAt });
     }
@@ -2272,12 +2408,24 @@
     });
 
     // Screenshot functionality
-    function takeScreenshot() {
-      const resultsContainer = document.getElementById('results');
-      
-      // Check if html2canvas is available (we'll add it via CDN)
+    async function takeScreenshot(evt) {
+      const fromPicks = evt && evt.currentTarget && evt.currentTarget.id === 'picksScreenshotBtn';
+      if (fromPicks && resultsRecapScope !== 'current') {
+        resultsRecapScope = 'current';
+        syncResultsWeekToggle();
+        await loadResultsRecap({ quiet: true });
+      }
+      const ensureCard = async () => {
+        if (document.getElementById('picksShareCard')) return true;
+        await loadResultsRecap({ quiet: true });
+        return Boolean(document.getElementById('picksShareCard'));
+      };
+      const ready = await ensureCard();
+      if (!ready) {
+        alert('Nothing to save yet.');
+        return;
+      }
       if (typeof html2canvas === 'undefined') {
-        // Load html2canvas library
         const script = document.createElement('script');
         script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
         script.onload = function() {
@@ -2307,7 +2455,7 @@
         return;
       }
 
-      const week = shareWeekLabel();
+      const week = shareWeekLabel(recapWeekMeta());
       const tempContainer = document.createElement('div');
       tempContainer.style.position = 'fixed';
       tempContainer.style.left = '-10000px';
@@ -2780,49 +2928,140 @@
       return data;
     }
 
+    function buildGuestResultsRecapHtml(games, weekMeta) {
+      const { weekPart } = weekLabelParts(weekMeta);
+      const rows = (games || []).map((g, i) => {
+        const n = Number(g.gameNumber) || i + 1;
+        const away = safeText(g.awayTeamName || 'TBD');
+        const home = safeText(g.homeTeamName || 'TBD');
+        const done = g.isCompleted || g.is_completed;
+        return `<li class="results-slate-row"><span>Game ${n}</span><strong>${away} @ ${home}</strong><span>${done ? 'Final' : 'Upcoming'}</span></li>`;
+      }).join('');
+      return `
+        <div class="results-recap-empty">
+          <h2 class="results-recap-empty-title">${safeText(weekPart)} results</h2>
+          <p>Log in to see which games you picked correctly.</p>
+          <p><a href="login.html?redirect=weeklypicks.html" class="form-nav-link picks-action-btn">Log in</a></p>
+          ${rows ? `<ul class="results-slate-list">${rows}</ul>` : ''}
+        </div>
+      `;
+    }
+
+    function buildNoPicksRecapHtml(weekMeta) {
+      const { weekPart } = weekLabelParts(weekMeta);
+      const isCurrent = resultsRecapScope === 'current';
+      return `
+        <div class="results-recap-empty">
+          <h2 class="results-recap-empty-title">No ${safeText(weekPart)} picks yet</h2>
+          <p>${isCurrent ? 'Submit your picks to see which games you got right.' : 'You did not submit picks for this week.'}</p>
+          ${isCurrent ? '<button type="button" class="form-nav-link picks-action-btn" id="resultsGoPicksBtn">Go to Picks</button>' : ''}
+        </div>
+      `;
+    }
+
+    function recapLiveScores() {
+      return resultsRecapScope === 'previous' ? previousWeekLiveScores : cachedLiveScores;
+    }
+
+    function wireResultsWeekToggle() {
+      document.querySelectorAll('.results-week-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const next = btn.getAttribute('data-recap-week') === 'previous' ? 'previous' : 'current';
+          if (next === 'previous' && !previousWeekAvailable()) return;
+          if (next === resultsRecapScope) return;
+          resultsRecapScope = next;
+          syncResultsWeekToggle();
+          loadResultsRecap();
+        });
+      });
+    }
+
+    async function loadResultsRecap({ quiet = false } = {}) {
+      const host = document.getElementById('resultsRecapHost');
+      if (!host) return;
+      syncResultsWeekToggle();
+      if (!quiet) host.innerHTML = '<p class="results-recap-loading">Loading your results…</p>';
+
+      const weekId = recapWeekId();
+      const weekMeta = recapWeekMeta();
+      const games = await fetchGamesForWeek(weekId);
+      const loggedIn = Boolean(localStorage.getItem('authToken') && currentUser);
+
+      if (!loggedIn) {
+        host.innerHTML = buildGuestResultsRecapHtml(games, weekMeta);
+        return;
+      }
+
+      const savedPicks = weekId ? await fetchSavedPicksForWeek(weekId) : [];
+      if (!savedPicks.length) {
+        host.innerHTML = buildNoPicksRecapHtml(weekMeta);
+        const goBtn = document.getElementById('resultsGoPicksBtn');
+        if (goBtn) goBtn.addEventListener('click', () => openTab(null, 'week11-picks'));
+        return;
+      }
+
+      const status = window.__PICKS_STATUS__ || {};
+      const canEdit =
+        resultsRecapScope === 'current' &&
+        Boolean(status.canEdit) &&
+        !status.picksLocked;
+      const shareOpts = {
+        userName: currentUser?.displayName || currentUser?.username || 'Guest',
+        form: resultsRecapScope === 'current'
+          ? document.querySelector('form[name="predictions"]')
+          : null,
+        gameCount: Math.max(games.length, savedPicks.length),
+        savedPicks,
+        games,
+        weekMeta,
+        statusText:
+          resultsRecapScope === 'previous'
+            ? 'Your picks last week'
+            : 'Your results this week',
+        canEdit,
+        locksAt: status.locksAt || null,
+      };
+      window.__SHARE_CARD_OPTS__ = shareOpts;
+      host.innerHTML = buildPicksShareCardHtml({
+        ...shareOpts,
+        liveScores: recapLiveScores(),
+      });
+      wireShareCardActions({ locksAt: shareOpts.locksAt });
+
+      if (resultsRecapScope === 'current') {
+        fetchLiveScores({ fast: true })
+          .then((scores) => {
+            if (!scores || resultsRecapScope !== 'current') return;
+            cachedLiveScores = scores;
+            renderShareCardFromCache(scores);
+          })
+          .catch(() => {});
+      } else if (weekMeta && !previousWeekLiveScores) {
+        fetchScoresForWeekMeta(weekMeta)
+          .then((scores) => {
+            if (!scores || resultsRecapScope !== 'previous') return;
+            previousWeekLiveScores = scores;
+            renderShareCardFromCache(scores);
+          })
+          .catch(() => {});
+      }
+    }
+
     async function loadResultsLeaderboards({ quiet = false } = {}) {
       const weekList = document.getElementById('weekLeaderboardList');
-      const lastWeekList = document.getElementById('lastWeekLeaderboardList');
-      const seasonList = document.getElementById('seasonLeaderboardList');
-      if (!weekList || !lastWeekList || !seasonList) return;
+      if (!weekList) return;
 
       if (!quiet) {
         weekList.innerHTML = '<li class="results-stand-empty">Loading standings…</li>';
-        lastWeekList.innerHTML = '<li class="results-stand-empty">Loading standings…</li>';
-        seasonList.innerHTML = '<li class="results-stand-empty">Loading standings…</li>';
       }
 
       try {
         const weekId = activeWeekId;
-        const prevWeekId =
-          activePreviousWeekId ||
-          activeWeekMeta?.previousWeek?.id ||
-          null;
-
-        const fetches = [
-          fetchResultsLeaderboard('week', weekId),
-          fetchResultsLeaderboard('season'),
-        ];
-        if (prevWeekId) fetches.splice(1, 0, fetchResultsLeaderboard('week', prevWeekId));
-
-        const boards = await Promise.all(fetches);
-        const weekBoard = boards[0];
-        const lastWeekBoard = prevWeekId ? boards[1] : null;
-        const seasonBoard = prevWeekId ? boards[2] : boards[1];
+        const weekBoard = await fetchResultsLeaderboard('week', weekId);
 
         const weekTitle = document.getElementById('weekBoardTitle');
         if (weekTitle && weekBoard.scopeLabel) {
           weekTitle.textContent = `🏆 ${weekBoard.scopeLabel}`;
-        }
-        const lastWeekTitle = document.getElementById('lastWeekBoardTitle');
-        if (lastWeekTitle) {
-          lastWeekTitle.textContent = lastWeekBoard?.scopeLabel
-            ? `🏆 Last · ${lastWeekBoard.scopeLabel}`
-            : '🏆 Last Week';
-        }
-        const seasonTitle = document.getElementById('seasonBoardTitle');
-        if (seasonTitle && seasonBoard.scopeLabel) {
-          seasonTitle.textContent = `🏆 ${seasonBoard.scopeLabel}`;
         }
 
         const sortWeekRows = (entries) =>
@@ -2834,35 +3073,22 @@
               return (a.rank || 999) - (b.rank || 999);
             });
 
-        const seasonRows = [...(seasonBoard.entries || [])]
-          .filter((e) => e.gradedPicks > 0 || e.totalPicks > 0)
-          .sort((a, b) => (a.rank || 999) - (b.rank || 999));
-
         renderResultsLeaderboardList('weekLeaderboardList', sortWeekRows(weekBoard.entries), {
           emptyMessage: 'No picks submitted yet this week.',
-        });
-
-        if (lastWeekBoard) {
-          renderResultsLeaderboardList(
-            'lastWeekLeaderboardList',
-            sortWeekRows(lastWeekBoard.entries),
-            { emptyMessage: 'No picks from last week.' }
-          );
-        } else {
-          lastWeekList.innerHTML =
-            '<li class="results-stand-empty">No previous week yet this season.</li>';
-        }
-
-        renderResultsLeaderboardList('seasonLeaderboardList', seasonRows, {
-          emptyMessage: 'No graded picks yet this season.',
         });
         renderResultsAnalysis(weekBoard);
         loadWeeklyAwards(weekId);
       } catch (err) {
         console.warn('loadResultsLeaderboards:', err);
         weekList.innerHTML = `<li class="results-stand-empty">${safeText(err.message || 'Could not load standings')}</li>`;
-        lastWeekList.innerHTML = '<li class="results-stand-empty">Could not load standings</li>';
-        seasonList.innerHTML = '<li class="results-stand-empty">Could not load standings</li>';
+      }
+
+      if (!quiet) {
+        loadResultsRecap({ quiet: true }).catch((err) => {
+          console.warn('loadResultsRecap:', err);
+        });
+      } else if (resultsRecapScope === 'current' && document.getElementById('picksShareCard')) {
+        renderShareCardFromCache(cachedLiveScores);
       }
     }
 
@@ -3128,9 +3354,17 @@
       }
       
       // Show the selected tab content and mark the button as active
-      document.getElementById(tabName).classList.add("active");
-      evt.currentTarget.classList.add("active");
-      evt.currentTarget.setAttribute("aria-selected", "true");
+      const panel = document.getElementById(tabName);
+      if (panel) panel.classList.add("active");
+      const targetBtn = (evt && evt.currentTarget) || (
+        tabName === 'week10-results'
+          ? document.getElementById('tabResultsBtn')
+          : document.getElementById('tabPicksBtn')
+      );
+      if (targetBtn) {
+        targetBtn.classList.add("active");
+        targetBtn.setAttribute("aria-selected", "true");
+      }
 
       if (tabName === 'week10-results') {
         loadResultsLeaderboards();
@@ -3860,7 +4094,7 @@
       if (liveScores) {
         cachedLiveScores = liveScores;
         renderDbGamesIntoForm(cachedDbGames, liveScores);
-        if (document.body.classList.contains('picks-results-open')) {
+        if (resultsRecapScope === 'current' && document.getElementById('picksShareCard')) {
           renderShareCardFromCache(liveScores);
         }
       }

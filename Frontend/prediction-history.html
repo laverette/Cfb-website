@@ -46,6 +46,7 @@
       <button type="button" class="lb-tab active" data-scope="all" role="tab" aria-selected="true">All Time</button>
       <button type="button" class="lb-tab" data-scope="year" role="tab" aria-selected="false">Yearly</button>
       <button type="button" class="lb-tab" data-scope="season" role="tab" aria-selected="false">This Season</button>
+      <button type="button" class="lb-tab" data-scope="lastweek" id="lbLastWeekTab" role="tab" aria-selected="false" hidden>Last Week</button>
     </div>
 
     <div class="lb-year-row" id="yearRow" hidden>
@@ -123,6 +124,8 @@
     let activeScope = 'all';
     let availableYears = [];
     let currentSeasonYear = null;
+    let previousWeekId = null;
+    let previousWeekLabel = 'Last Week';
     let boardCache = {};
     let latestEntries = [];
     let latestHighlights = { hottest: [], coldest: [] };
@@ -201,16 +204,37 @@
       return String(rank);
     }
 
-    async function fetchBoard(scope, year) {
-      const key = `${scope}:${year || ''}`;
+    async function fetchBoard(scope, year, weekId) {
+      const key = `${scope}:${year || ''}:${weekId || ''}`;
       if (boardCache[key]) return boardCache[key];
       const params = new URLSearchParams({ scope });
       if (scope === 'year' && year) params.set('year', String(year));
+      if (scope === 'week' && weekId) params.set('weekId', String(weekId));
       const resp = await fetch(`/api/leaderboard?${params}`, { headers: { accept: 'application/json' } });
       const data = await resp.json().catch(() => ({}));
       if (!resp.ok) throw new Error(data.error || `Failed (${resp.status})`);
       boardCache[key] = data;
       return data;
+    }
+
+    async function loadWeekMeta() {
+      try {
+        const resp = await fetch('/api/picks/current-week', { headers: { accept: 'application/json' } });
+        if (!resp.ok) return;
+        const week = await resp.json().catch(() => ({}));
+        const prev = week.previousWeek || week.previous_week || null;
+        previousWeekId = prev && prev.id != null ? Number(prev.id) : null;
+        if (prev && (prev.weekNumber != null || prev.week_number != null)) {
+          previousWeekLabel = `Week ${prev.weekNumber ?? prev.week_number}`;
+        }
+        const lastTab = document.getElementById('lbLastWeekTab');
+        if (lastTab && previousWeekId) {
+          lastTab.hidden = false;
+          lastTab.textContent = previousWeekLabel;
+        }
+      } catch {
+        previousWeekId = null;
+      }
     }
 
     function renderPodium(entries) {
@@ -455,7 +479,13 @@
         const year = activeScope === 'year'
           ? Number(document.getElementById('yearSelect').value) || currentSeasonYear
           : null;
-        const data = await fetchBoard(activeScope, year);
+        const apiScope = activeScope === 'lastweek' ? 'week' : activeScope;
+        const weekId = activeScope === 'lastweek' ? previousWeekId : null;
+        if (activeScope === 'lastweek' && !weekId) {
+          body.innerHTML = '<p class="lb-empty">No previous week yet this season.</p>';
+          return;
+        }
+        const data = await fetchBoard(apiScope, year, weekId);
         availableYears = data.availableYears || availableYears;
         currentSeasonYear = data.currentSeasonYear || currentSeasonYear;
         if (activeScope === 'year') {
@@ -505,8 +535,9 @@
       syncLbMobileCollapses();
     });
 
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
       syncLbMobileCollapses();
+      await loadWeekMeta();
       loadActiveBoard();
     });
   </script>

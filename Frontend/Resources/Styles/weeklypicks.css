@@ -1771,8 +1771,161 @@ body.picks-results-open .bouncing-football {
 
 body.picks-results-open #dbWeekPicksContainer,
 body.picks-results-open #legacyHardcodedGames,
-body.picks-results-open #cfbdWeek1PicksContainer {
+body.picks-results-open #cfbdWeek1PicksContainer,
+body.picks-results-open .picks-form-actions,
+body.picks-results-open #picksLoginGate,
+body.picks-results-open #picksEmailOptIn {
     display: none !important;
+}
+
+.picks-submitted-card {
+    margin: 1.25rem auto 1.75rem;
+    max-width: 560px;
+    text-align: center;
+    background: linear-gradient(165deg, rgba(46, 34, 28, 0.95), rgba(24, 18, 14, 0.98));
+    border: 1px solid rgba(255, 215, 0, 0.35);
+    border-radius: 16px;
+    padding: 1.35rem 1.25rem 1.2rem;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+}
+
+.picks-submitted-kicker {
+    margin: 0 0 0.3rem;
+    color: #d4b896;
+    font-size: 0.75rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    font-weight: 800;
+}
+
+.picks-submitted-title {
+    margin: 0 0 0.45rem;
+    color: #ffd700;
+    font-size: 1.55rem;
+    font-weight: 800;
+}
+
+.picks-submitted-body,
+.picks-submitted-meta {
+    margin: 0.35rem 0 0;
+    color: #f5deb3;
+    font-size: 0.95rem;
+}
+
+.picks-submitted-meta {
+    opacity: 0.85;
+    font-size: 0.85rem;
+}
+
+.picks-submitted-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+    justify-content: center;
+    margin-top: 1rem;
+}
+
+.picks-submitted-actions .screenshot-button {
+    min-width: 0;
+    margin: 0;
+}
+
+.results-recap-host {
+    width: min(900px, calc(100% - 2rem));
+    margin: 0 auto 1.25rem;
+}
+
+.results-recap-loading,
+.results-recap-empty {
+    text-align: center;
+    color: #f5deb3;
+    padding: 1.25rem 1rem;
+}
+
+.results-recap-empty {
+    background: linear-gradient(165deg, rgba(46, 34, 28, 0.95), rgba(24, 18, 14, 0.98));
+    border: 1px solid rgba(255, 215, 0, 0.28);
+    border-radius: 14px;
+}
+
+.results-recap-empty-title {
+    margin: 0 0 0.5rem;
+    color: #ffd700;
+    font-size: 1.25rem;
+}
+
+.results-recap-empty .picks-action-btn {
+    margin-top: 0.75rem;
+}
+
+.results-slate-list {
+    list-style: none;
+    margin: 1rem 0 0;
+    padding: 0;
+    text-align: left;
+    display: grid;
+    gap: 0.4rem;
+}
+
+.results-slate-row {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 0.5rem;
+    align-items: center;
+    padding: 0.45rem 0.6rem;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.04);
+    font-size: 0.88rem;
+}
+
+.results-week-toggle {
+    display: flex;
+    justify-content: center;
+    gap: 0.4rem;
+    margin: 0 auto 1rem;
+    width: fit-content;
+    max-width: calc(100% - 2rem);
+    padding: 0.3rem;
+    background: rgba(62, 39, 35, 0.55);
+    border: 1px solid rgba(255, 215, 0, 0.22);
+    border-radius: 999px;
+}
+
+.results-week-btn {
+    appearance: none;
+    border: none;
+    background: transparent;
+    color: #f5deb3;
+    font: inherit;
+    font-weight: 700;
+    padding: 0.45rem 1rem;
+    border-radius: 999px;
+    cursor: pointer;
+}
+
+.results-week-btn:hover {
+    color: #ffd700;
+}
+
+.results-week-btn.active {
+    background: linear-gradient(135deg, #ffd700, #ffa000);
+    color: #1e1e1e;
+}
+
+.results-lb-link {
+    text-align: center;
+    margin: 0.85rem 0 0.25rem;
+}
+
+.results-lb-link a {
+    color: #ffd700;
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.results-lb-link a:hover {
+    text-decoration: underline;
 }
 
 .picks-share-wrap {
@@ -4026,7 +4179,8 @@ body.menu-open {
 .coach-corso-container,
 .leaderboards-container,
 .results-standings-grid,
-.analysis-container {
+.analysis-container,
+.awards-container {
     width: min(1240px, calc(100% - 2rem));
     margin-left: auto;
     margin-right: auto;
@@ -4205,7 +4359,9 @@ select {
     .coach-corso-container,
     .leaderboards-container,
     .results-standings-grid,
-    .analysis-container {
+    .analysis-container,
+    .results-recap-host,
+    .results-week-toggle {
         width: 100%;
         max-width: 100%;
         margin-left: auto;
@@ -4587,11 +4743,11 @@ select {
 
 .results-standings-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 1.5rem;
   margin: 2rem auto 1.5rem;
   padding: 0;
-  width: min(1280px, calc(100% - 2rem));
+  width: min(640px, calc(100% - 2rem));
 }
 
 .results-standings-board {
@@ -4814,8 +4970,13 @@ a.results-stand-name:hover {
   white-space: nowrap;
 }
 
-#week10-results .analysis-container {
-  margin-top: 0.5rem;
+#week10-results .picks-share-wrap {
+    margin-top: 0;
+    margin-bottom: 0.5rem;
+}
+
+#week10-results .picks-share-actions .next-steps:last-of-type {
+    display: none;
 }
 
 @media (max-width: 1100px) {
@@ -4831,6 +4992,17 @@ a.results-stand-name:hover {
 @media (max-width: 768px) {
   body.weekly-results-view .bouncing-football {
     display: none !important;
+  }
+
+  #week10-results .results-week-toggle {
+    margin-bottom: 0.75rem;
+    max-width: calc(100% - 1rem);
+  }
+
+  #week10-results .results-recap-host {
+    width: calc(100% - 1rem);
+    margin-left: auto;
+    margin-right: auto;
   }
 
   #week10-results .title-section {
