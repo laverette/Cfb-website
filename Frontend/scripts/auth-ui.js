@@ -639,10 +639,43 @@
     });
   }
 
+  function wireMenuFootballSpin() {
+    var btn = document.querySelector(".hamburger-menu-btn");
+    if (!btn || btn.dataset.spinWired === "1") return;
+    btn.dataset.spinWired = "1";
+    var angle = 0;
+    var raf = 0;
+    function tick() {
+      if (!btn.classList.contains("active")) {
+        angle = 0;
+        btn.style.setProperty("--football-rot", "0deg");
+        raf = 0;
+        return;
+      }
+      angle = (angle + 8) % 360;
+      btn.style.setProperty("--football-rot", angle + "deg");
+      raf = requestAnimationFrame(tick);
+    }
+    function sync() {
+      if (btn.classList.contains("active")) {
+        if (!raf) raf = requestAnimationFrame(tick);
+      } else if (raf) {
+        cancelAnimationFrame(raf);
+        raf = 0;
+        angle = 0;
+        btn.style.setProperty("--football-rot", "0deg");
+      }
+    }
+    var obs = new MutationObserver(sync);
+    obs.observe(btn, { attributes: true, attributeFilter: ["class"] });
+    sync();
+  }
+
   function onReady() {
     refreshAll();
     maybeValidateToken();
     mountSiteFeedback();
+    wireMenuFootballSpin();
   }
 
   if (document.readyState === "loading") {

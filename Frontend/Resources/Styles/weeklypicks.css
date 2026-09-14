@@ -3830,7 +3830,7 @@ body.picks-results-open #picksEmailOptIn {
 }
 
 /* Menu button look lives in site-theme.css (football + spin). Keep spans hidden here. */
-.hamburger-menu-btn span {
+.hamburger-menu-btn span:not(:first-of-type) {
     display: none !important;
 }
 
