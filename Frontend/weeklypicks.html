@@ -274,11 +274,21 @@
         <ol class="results-standings-list" id="weekLeaderboardList">
           <li class="results-stand-empty">Loading standings…</li>
         </ol>
-        <p class="results-lb-link">
-          <a href="prediction-history.html">Full leaderboards — last week, season, all-time</a>
-        </p>
       </section>
     </div>
+
+    <section class="results-lb-cta" aria-labelledby="resultsLbCtaTitle">
+      <p class="results-lb-cta-kicker">Looking for records?</p>
+      <h3 class="results-lb-cta-title" id="resultsLbCtaTitle">Season &amp; all-time stats live on Leaderboards</h3>
+      <p class="results-lb-cta-copy">
+        This page is this week’s games. Overall records, streaks, and rankings are on the Leaderboards page.
+      </p>
+      <div class="results-lb-cta-actions">
+        <a href="prediction-history.html?scope=season" class="form-nav-link picks-action-btn">This Season</a>
+        <a href="prediction-history.html?scope=all" class="form-nav-link picks-action-btn">All Time</a>
+        <a href="prediction-history.html?scope=lastweek" class="results-lb-cta-secondary" id="resultsLbLastWeekLink" hidden>Last week standings</a>
+      </div>
+    </section>
 
     <div class="analysis-container" id="resultsAnalysisContainer" hidden>
       <h3 class="analysis-title" id="analysisTitle">📊 Weekly Analysis</h3>
@@ -515,6 +525,7 @@
           ? `Week ${prev.weekNumber}`
           : 'Last Week';
       }
+      if (typeof syncResultsWeekToggle === 'function') syncResultsWeekToggle();
     }
 
     function showDbPicksContainer() {
@@ -1777,6 +1788,8 @@
     function syncResultsWeekToggle() {
       const toggle = document.getElementById('resultsWeekToggle');
       if (toggle) toggle.hidden = !previousWeekAvailable();
+      const lastWeekLink = document.getElementById('resultsLbLastWeekLink');
+      if (lastWeekLink) lastWeekLink.hidden = !previousWeekAvailable();
       document.querySelectorAll('.results-week-btn').forEach((btn) => {
         const isActive = btn.getAttribute('data-recap-week') === resultsRecapScope;
         btn.classList.toggle('active', isActive);

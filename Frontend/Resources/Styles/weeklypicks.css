@@ -1912,19 +1912,63 @@ body.picks-results-open #picksEmailOptIn {
     color: #1e1e1e;
 }
 
-.results-lb-link {
+.results-lb-cta {
+    width: min(640px, calc(100% - 2rem));
+    margin: 0 auto 1.75rem;
     text-align: center;
-    margin: 0.85rem 0 0.25rem;
+    background: linear-gradient(165deg, rgba(46, 34, 28, 0.95), rgba(24, 18, 14, 0.98));
+    border: 1px solid rgba(255, 215, 0, 0.35);
+    border-radius: 14px;
+    padding: 1.15rem 1.1rem 1.05rem;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
 }
 
-.results-lb-link a {
+.results-lb-cta-kicker {
+    margin: 0 0 0.3rem;
+    color: #d4b896;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+
+.results-lb-cta-title {
+    margin: 0 0 0.45rem;
+    color: #ffd700;
+    font-size: 1.12rem;
+    font-weight: 800;
+    line-height: 1.3;
+}
+
+.results-lb-cta-copy {
+    margin: 0 auto 0.95rem;
+    max-width: 34rem;
+    color: #f5deb3;
+    font-size: 0.92rem;
+    line-height: 1.45;
+}
+
+.results-lb-cta-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+    justify-content: center;
+    align-items: center;
+}
+
+.results-lb-cta-actions .picks-action-btn {
+    margin: 0;
+}
+
+.results-lb-cta-secondary {
     color: #ffd700;
     font-size: 0.85rem;
     font-weight: 700;
     text-decoration: none;
+    padding: 0.35rem 0.5rem;
 }
 
-.results-lb-link a:hover {
+.results-lb-cta-secondary:hover {
     text-decoration: underline;
 }
 
@@ -4361,7 +4405,8 @@ select {
     .results-standings-grid,
     .analysis-container,
     .results-recap-host,
-    .results-week-toggle {
+    .results-week-toggle,
+    .results-lb-cta {
         width: 100%;
         max-width: 100%;
         margin-left: auto;
@@ -5019,6 +5064,16 @@ a.results-stand-name:hover {
   #week10-results .results-standings-grid {
     gap: 0.75rem;
     margin: 0.65rem auto 0.85rem;
+  }
+
+  #week10-results .results-lb-cta {
+    width: calc(100% - 1rem);
+    margin: 0 auto 1.15rem;
+    padding: 1rem 0.85rem 0.95rem;
+  }
+
+  #week10-results .results-lb-cta-title {
+    font-size: 1.02rem;
   }
 
   #week10-results .results-standings-board {

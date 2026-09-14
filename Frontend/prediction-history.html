@@ -535,8 +535,21 @@
       syncLbMobileCollapses();
     });
 
+    function applyScopeFromUrl() {
+      const scope = String(new URLSearchParams(window.location.search).get('scope') || '').toLowerCase();
+      const allowed = new Set(['all', 'year', 'season', 'lastweek']);
+      if (!allowed.has(scope)) return;
+      activeScope = scope;
+      document.querySelectorAll('.lb-tab').forEach((btn) => {
+        const on = (btn.getAttribute('data-scope') || '') === scope;
+        btn.classList.toggle('active', on);
+        btn.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+    }
+
     document.addEventListener('DOMContentLoaded', async () => {
       syncLbMobileCollapses();
+      applyScopeFromUrl();
       await loadWeekMeta();
       loadActiveBoard();
     });
