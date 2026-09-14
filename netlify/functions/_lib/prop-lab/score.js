@@ -8,40 +8,46 @@ function labelForScore(score) {
   return "Pass";
 }
 
-/**
- * Conservative 0–100 ranking score. Not P(hit).
- * Most average props should land in Pass / Slight Lean.
- */
-function propScore({ pHit, edgeAbs, edgeRel, confidenceLetter, consistency, roleStable, sampleGames }) {
-  const pEdge = Math.abs((pHit ?? 0.5) - 0.5);
-  const confMult = {
-    A: 1,
-    "A-": 0.94,
-    "B+": 0.86,
-    B: 0.78,
-    "B-": 0.7,
-    "C+": 0.6,
-    C: 0.5,
-    D: 0.38,
-  }[confidenceLetter] || 0.55;
-
-  const cons = clamp(consistency ?? 0.5, 0.2, 1);
-  const role = roleStable ? 1 : 0.9;
-  const sample = clamp((Number(sampleGames) || 0) / 8, 0.25, 1);
-
-  let score =
-    48 +
-    pEdge * 70 * confMult +
-    clamp(edgeRel || 0, 0, 0.25) * 40 * confMult +
-    (cons - 0.5) * 8 +
-    (role - 1) * 6;
-
-  score *= 0.55 + 0.45 * sample;
-  if ((pHit ?? 0.5) < 0.52 && (pHit ?? 0.5) > 0.48) score = Math.min(score, 54);
-  if (confMult <= 0.5) score = Math.min(score, 62);
-
-  score = clamp(Math.round(score), 22, 93);
-  return { score, label: labelForScore(score) };
+function confidenceModifier(letter) {
+  return (
+    {
+      A: 1,
+      "A-": 0.98,
+      "B+": 0.96,
+      B: 0.94,
+      "B-": 0.92,
+      "C+": 0.9,
+      C: 0.87,
+      D: 0.84,
+    }[letter] || 0.9
+  );
 }
 
-module.exports = { propScore, labelForScore };
+/**
+ * Ranking score, not P(hit) and not confidence.
+ * Primary signal is modeled P(chosen side). Confidence only trims it.
+ * Matchup is already inside the projection / probability — not added again.
+ */
+function propScore({ pHit, confidenceLetter, roleStable }) {
+  const p = clamp(pHit ?? 0.5, 0.005, 0.995);
+  const rawStrength = 50 + 100 * (p - 0.5);
+  const confMod = confidenceModifier(confidenceLetter);
+  const stabilityMod = roleStable === false ? 0.95 : 1;
+  const final = clamp(Math.round(rawStrength * confMod * stabilityMod), 20, 96);
+  return {
+    score: final,
+    label: labelForScore(final),
+    components: {
+      probability: Number(p.toFixed(4)),
+      rawStrength: Number(rawStrength.toFixed(2)),
+      confidenceModifier: confMod,
+      stabilityModifier: stabilityMod,
+      matchupComponent: 0,
+      edgeComponent: 0,
+      sampleComponent: 1,
+      final,
+    },
+  };
+}
+
+module.exports = { propScore, labelForScore, confidenceModifier };

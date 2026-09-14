@@ -259,7 +259,7 @@
 
 .prop-card-hero {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 0.4rem;
   margin-bottom: 0.7rem;
 }
@@ -284,8 +284,37 @@
   color: #e8c547;
 }
 
+.prop-card-hero em {
+  display: block;
+  margin-top: 0.1rem;
+  font-style: normal;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--pr-muted);
+}
+
 .prop-card-hero .is-good strong { color: #7dcea0; }
 .prop-card-hero .is-bad strong { color: #f0a090; }
+
+.prop-unusual {
+  margin: 0 0 0.65rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 8px;
+  border: 1px solid rgba(232, 197, 71, 0.55);
+  background: rgba(232, 197, 71, 0.12);
+  color: #f3efe6;
+  font-size: 0.86rem;
+}
+
+.prop-unusual strong {
+  display: block;
+  margin-bottom: 0.15rem;
+  color: #e8c547;
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
 
 .prop-flags {
   display: flex;

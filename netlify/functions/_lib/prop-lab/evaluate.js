@@ -23,10 +23,13 @@ const { gameEnvironment } = require("./environment");
 const {
   simulateOutcomes,
   summarizeSims,
+  analyticDistSummary,
   probabilityAtLine,
+  rawProbability,
 } = require("./simulate");
-const { confidenceGrade, reliabilityFromConfidence, collectFlags } = require("./confidence");
+const { confidenceGrade, reliabilityFromConfidence, collectFlags, confidenceReasons } = require("./confidence");
 const { propScore } = require("./score");
+const { lineSanity } = require("./sanity");
 
 function valuesFromLogs(logs, statId) {
   return (logs || [])
@@ -37,12 +40,12 @@ function valuesFromLogs(logs, statId) {
     .filter((g) => Number.isFinite(g.value));
 }
 
-function weightedCurrent(logs, leagueMean) {
+function weightedCurrent(logs, leagueMean, { equalWeights = false } = {}) {
   const n = logs.length;
   const items = logs.map((g, i) => {
     const q = g.oppQuality ?? 0.5;
     const adj = adjustedGameValue(g.value, leagueMean, 0.55 + 0.5 * q);
-    const w = gamePredictiveWeight({ ...g, oppQuality: q }, i, n);
+    const w = equalWeights ? 1 : gamePredictiveWeight({ ...g, oppQuality: q }, i, n);
     return { value: adj, weight: w, raw: g.value, week: g.week, opponent: g.opponent, isFcs: g.isFcs };
   });
   let num = 0;
@@ -126,7 +129,7 @@ function whyAndCaution({ def, bundle, projection, line, side, pHit, flags, role,
   if (blend.priorWeight > 0.45 && Number.isFinite(blend.priorAvg)) {
     caution.push("Line is being judged against a prior-stabilized baseline, not raw early-season pace");
   }
-  if (pHit < 0.55) caution.push("Edge is modest after uncertainty shrinkage");
+  if (pHit < 0.55) caution.push("Modeled edge versus this line is modest");
 
   if (!why.length) why.push("Limited positive signal after shrinkage and matchup caps");
   if (!caution.length) caution.push("No single red flag — still treat this as a model estimate, not a lock");
@@ -134,7 +137,22 @@ function whyAndCaution({ def, bundle, projection, line, side, pHit, flags, role,
   return { why: why.slice(0, 4), caution: caution.slice(0, 4) };
 }
 
-function evaluateFromBundle(bundle, { statId, line, side = "more", marketOdds = null, seed = 20260 } = {}) {
+function evaluateFromBundle(bundle, {
+  statId,
+  line,
+  side = "more",
+  marketOdds = null,
+  seed = 20260,
+  ablation = null,
+  skipSims = false,
+} = {}) {
+  const flagsAblation = {
+    rawSeasonAverage: Boolean(ablation?.rawSeasonAverage),
+    noMatchup: Boolean(ablation?.noMatchup || ablation?.rawSeasonAverage),
+    noRecency: Boolean(ablation?.noRecency || ablation?.rawSeasonAverage),
+    noPriorShrinkage: Boolean(ablation?.noPriorShrinkage || ablation?.rawSeasonAverage),
+    noGameScript: Boolean(ablation?.noGameScript || ablation?.rawSeasonAverage),
+  };
   const def = getPropDef(statId);
   if (!def) {
     const err = new Error("Unknown stat");
@@ -162,7 +180,9 @@ function evaluateFromBundle(bundle, { statId, line, side = "more", marketOdds = 
     seasonAvgFromOverview(bundle, def) ??
     mean(priorValues);
 
-  const weighted = weightedCurrent(currentLogs, leagueMean);
+  const weighted = weightedCurrent(currentLogs, leagueMean, {
+    equalWeights: flagsAblation.noRecency || flagsAblation.rawSeasonAverage,
+  });
   currentLogs.forEach((g, i) => {
     g.adjusted = weighted.items[i]?.value ?? g.value;
   });
@@ -180,15 +200,27 @@ function evaluateFromBundle(bundle, { statId, line, side = "more", marketOdds = 
   const hasPrior = Number.isFinite(priorAvg);
   const rp = hasPrior ? null : rolePrior(bundle, def, oppEst);
 
-  const blend = blendExpectation({
-    current: currentAvg,
-    prior: priorAvg,
-    rolePrior: rp,
-    games: currentValues.length,
-    hasPrior,
-  });
-  blend.priorAvg = priorAvg;
-  blend.currentAvg = currentAvg;
+  let blend;
+  if (flagsAblation.noPriorShrinkage || flagsAblation.rawSeasonAverage) {
+    const avg = Number.isFinite(currentAvg) ? currentAvg : priorAvg;
+    blend = {
+      value: avg,
+      currentWeight: Number.isFinite(currentAvg) ? 1 : 0,
+      priorWeight: Number.isFinite(currentAvg) ? 0 : 1,
+      priorAvg,
+      currentAvg,
+    };
+  } else {
+    blend = blendExpectation({
+      current: currentAvg,
+      prior: priorAvg,
+      rolePrior: rp,
+      games: currentValues.length,
+      hasPrior,
+    });
+    blend.priorAvg = priorAvg;
+    blend.currentAvg = currentAvg;
+  }
 
   let baseline = blend.value;
   if (!Number.isFinite(baseline) && Number.isFinite(oppEst.rawOppProj)) baseline = oppEst.rawOppProj;
@@ -199,19 +231,26 @@ function evaluateFromBundle(bundle, { statId, line, side = "more", marketOdds = 
   }
 
   const usageDelta =
-    role.role === "Rising" ? Math.abs(role.deltaPct) * 0.12 * baseline : role.role === "Falling" ? -Math.abs(role.deltaPct) * 0.1 * baseline : 0;
+    flagsAblation.noRecency || flagsAblation.rawSeasonAverage
+      ? 0
+      : role.role === "Rising"
+        ? Math.abs(role.deltaPct) * 0.12 * baseline
+        : role.role === "Falling"
+          ? -Math.abs(role.deltaPct) * 0.1 * baseline
+          : 0;
 
-  const oppW = Number.isFinite(oppEst.rawOppProj)
-    ? currentSeasonWeight(currentValues.length, { hasPrior }) * 0.35
-    : 0;
+  const oppW =
+    flagsAblation.rawSeasonAverage || !Number.isFinite(oppEst.rawOppProj)
+      ? 0
+      : currentSeasonWeight(currentValues.length, { hasPrior }) * 0.35;
   const oppBlend =
-    Number.isFinite(oppEst.rawOppProj) && Number.isFinite(baseline)
+    Number.isFinite(oppEst.rawOppProj) && Number.isFinite(baseline) && oppW > 0
       ? baseline * (1 - oppW) + oppEst.rawOppProj * oppW
       : baseline;
 
   const afterUsage = oppBlend + usageDelta;
-  const matchupDelta = afterUsage * matchup.adjPct;
-  const envDelta = afterUsage * env.adjPct;
+  const matchupDelta = flagsAblation.noMatchup ? 0 : afterUsage * matchup.adjPct;
+  const envDelta = flagsAblation.noGameScript ? 0 : afterUsage * env.adjPct;
   const projectionRaw = afterUsage + matchupDelta + envDelta;
   const projection = clamp(projectionRaw, def.floor, def.ceil);
 
@@ -254,17 +293,41 @@ function evaluateFromBundle(bundle, { statId, line, side = "more", marketOdds = 
     transfer: flags.includes("Transfer"),
   });
   const reliability = reliabilityFromConfidence(conf.letter, currentValues.length);
+  const confReasons = confidenceReasons({
+    games: currentValues.length,
+    priorGames: priorValues.length,
+    flags,
+    completeness,
+    roleStable: role.role === "Stable",
+    varianceHigh: flags.includes("High Variance"),
+    matchupOk: !matchup.missing,
+    transfer: flags.includes("Transfer"),
+    letter: conf.letter,
+    score: conf.score,
+  });
 
-  const sims = simulateOutcomes({
+  const analytic = analyticDistSummary({
     mean: projection,
     sd,
     dist: def.dist,
     floor: def.floor,
     ceil: def.ceil,
-    n: 8000,
-    seed,
   });
-  const distSummary = summarizeSims(sims);
+  let distSummary;
+  if (skipSims) {
+    distSummary = analytic;
+  } else {
+    const sims = simulateOutcomes({
+      mean: projection,
+      sd,
+      dist: def.dist,
+      floor: def.floor,
+      ceil: def.ceil,
+      n: 8000,
+      seed,
+    });
+    distSummary = summarizeSims(sims);
+  }
   const distParams = {
     type: def.dist,
     dist: def.dist,
@@ -275,6 +338,13 @@ function evaluateFromBundle(bundle, { statId, line, side = "more", marketOdds = 
     floor: def.floor,
     ceil: def.ceil,
   };
+  const rawBoth = rawProbability({
+    mean: projection,
+    sd,
+    dist: def.dist,
+    line: lineNum,
+    side: leanSide,
+  });
   const probs = probabilityAtLine(distParams, lineNum, leanSide);
 
   const l3 = lastN(currentValues, 3);
@@ -286,16 +356,18 @@ function evaluateFromBundle(bundle, { statId, line, side = "more", marketOdds = 
 
   const consistency = hitAll == null ? 0.45 : 1 - Math.min(0.5, Math.abs(0.5 - hitAll));
   const edge = leanSide === "less" ? lineNum - projection : projection - lineNum;
-  const edgeRel = Math.abs(lineNum) > 0.2 ? Math.abs(edge) / Math.abs(lineNum) : Math.abs(edge);
   const scored = propScore({
     pHit: probs.pHit,
-    edgeAbs: Math.abs(edge),
-    edgeRel,
     confidenceLetter: conf.letter,
-    consistency,
     roleStable: role.role === "Stable",
-    sampleGames: currentValues.length,
   });
+  const sanity = lineSanity({
+    statId: def.id,
+    line: lineNum,
+    projection,
+    position: bundle.player?.position,
+  });
+  if (sanity.unusual && !flags.includes("Unusual Line")) flags.push("Unusual Line");
 
   const narrative = whyAndCaution({
     def,
@@ -325,6 +397,39 @@ function evaluateFromBundle(bundle, { statId, line, side = "more", marketOdds = 
     value: Number.isFinite(row.value) ? Number(row.value.toFixed(2)) : 0,
   }));
 
+  const modelDebug = {
+    projectionMean: projection,
+    median: distSummary.median,
+    analyticMedian: analytic.median,
+    sd,
+    p20: distSummary.p20,
+    p80: distSummary.p80,
+    dist: def.dist,
+    rawPMore: rawBoth.pMore,
+    calibrationAdjustment: 0,
+    uncertaintyAdjustment: probs.pull || 0,
+    uncertaintyReason: probs.shrinkReason || null,
+    z: probs.z,
+    finalPMore: probs.pMore,
+    finalPHit: probs.pHit,
+    confidenceGrade: conf.letter,
+    confidenceScore: conf.score,
+    confidenceReasons: confReasons,
+    propScore: {
+      probability: scored.components.probability,
+      rawStrength: scored.components.rawStrength,
+      confidenceModifier: scored.components.confidenceModifier,
+      stabilityModifier: scored.components.stabilityModifier,
+      matchupComponent: 0,
+      consistencyComponent: consistency,
+      roleComponent: scored.components.stabilityModifier,
+      raw: scored.components.rawStrength,
+      final: scored.score,
+      label: scored.label,
+    },
+    lineSanity: sanity,
+  };
+
   return {
     modelVersion: PROP_MODEL_VERSION,
     player: bundle.player,
@@ -341,8 +446,11 @@ function evaluateFromBundle(bundle, { statId, line, side = "more", marketOdds = 
     pRaw: probs.pRaw,
     confidence: conf.letter,
     confidenceScore: conf.score,
+    confidenceReasons: confReasons,
     propScore: scored.score,
     propScoreLabel: scored.label,
+    propScoreComponents: scored.components,
+    lineSanity: sanity,
     lean: probs.pHit >= 0.52 ? leanSide : "tossup",
     edge,
     flags,
@@ -392,6 +500,7 @@ function evaluateFromBundle(bundle, { statId, line, side = "more", marketOdds = 
     priorLog,
     distribution: distParams,
     market: bundle.market || marketOdds || null,
+    modelDebug,
     error: null,
     debug: {
       gamesIncluded: weighted.items,
@@ -407,9 +516,12 @@ function evaluateFromBundle(bundle, { statId, line, side = "more", marketOdds = 
       dist: def.dist,
       pMore: probs.pMore,
       pRaw: probs.pRaw,
+      rawPMore: rawBoth.pMore,
       reliability,
       confidenceInputs: conf.inputs,
+      confidenceReasons: confReasons,
       flags,
+      modelDebug,
       apiUsage: bundle.apiUsage || null,
     },
     disclaimer:
@@ -422,19 +534,53 @@ function relineEvaluation(evaluation, line, side) {
   if (lineNum == null) throw Object.assign(new Error("Line must be a number"), { code: "BAD_LINE" });
   const leanSide = String(side || evaluation.side || "more").toLowerCase() === "less" ? "less" : "more";
   const dist = evaluation.distribution;
+  const rawBoth = rawProbability({
+    mean: dist.mean,
+    sd: dist.sd,
+    dist: dist.dist || dist.type,
+    line: lineNum,
+    side: leanSide,
+  });
   const probs = probabilityAtLine(dist, lineNum, leanSide);
   const edge = leanSide === "less" ? lineNum - evaluation.projection : evaluation.projection - lineNum;
-  const edgeRel = Math.abs(lineNum) > 0.2 ? Math.abs(edge) / Math.abs(lineNum) : Math.abs(edge);
   const scored = propScore({
     pHit: probs.pHit,
-    edgeAbs: Math.abs(edge),
-    edgeRel,
     confidenceLetter: evaluation.confidence,
-    consistency: evaluation.form?.hitRate == null ? 0.45 : 1 - Math.min(0.5, Math.abs(0.5 - evaluation.form.hitRate)),
     roleStable: evaluation.usage?.role === "Stable",
-    sampleGames: evaluation.form?.games,
   });
+  const sanity = lineSanity({
+    statId: evaluation.stat?.id,
+    line: lineNum,
+    projection: evaluation.projection,
+    position: evaluation.player?.position,
+  });
+  const flags = (evaluation.flags || []).filter((f) => f !== "Unusual Line");
+  if (sanity.unusual) flags.push("Unusual Line");
   const values = (evaluation.gameLog || []).map((g) => g.value);
+  const modelDebug = {
+    ...(evaluation.modelDebug || {}),
+    rawPMore: rawBoth.pMore,
+    calibrationAdjustment: 0,
+    uncertaintyAdjustment: probs.pull || 0,
+    uncertaintyReason: probs.shrinkReason || null,
+    z: probs.z,
+    finalPMore: probs.pMore,
+    finalPHit: probs.pHit,
+    confidenceGrade: evaluation.confidence,
+    confidenceReasons: evaluation.confidenceReasons || evaluation.modelDebug?.confidenceReasons,
+    propScore: {
+      probability: scored.components.probability,
+      rawStrength: scored.components.rawStrength,
+      confidenceModifier: scored.components.confidenceModifier,
+      stabilityModifier: scored.components.stabilityModifier,
+      matchupComponent: 0,
+      roleComponent: scored.components.stabilityModifier,
+      raw: scored.components.rawStrength,
+      final: scored.score,
+      label: scored.label,
+    },
+    lineSanity: sanity,
+  };
   return {
     ...evaluation,
     line: lineNum,
@@ -444,14 +590,32 @@ function relineEvaluation(evaluation, line, side) {
     pHit: probs.pHit,
     pRaw: probs.pRaw,
     edge,
+    flags,
     propScore: scored.score,
     propScoreLabel: scored.label,
+    propScoreComponents: scored.components,
+    lineSanity: sanity,
+    modelDebug,
     lean: probs.pHit >= 0.52 ? leanSide : "tossup",
+    gameLog: (evaluation.gameLog || []).map((g) => ({
+      ...g,
+      over: g.value > lineNum,
+      hit: leanSide === "less" ? g.value < lineNum : g.value > lineNum,
+    })),
     form: {
       ...evaluation.form,
       hitRate: hitRate(values, lineNum, leanSide !== "less"),
       hitRateL5: hitRate(values.slice(-5), lineNum, leanSide !== "less"),
     },
+    debug: evaluation.debug
+      ? {
+          ...evaluation.debug,
+          pMore: probs.pMore,
+          pRaw: probs.pRaw,
+          rawPMore: rawBoth.pMore,
+          modelDebug,
+        }
+      : undefined,
   };
 }
 

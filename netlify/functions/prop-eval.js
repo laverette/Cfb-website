@@ -173,6 +173,7 @@ exports.handler = async (event) => {
       const legs = body.legs || [];
       return json(200, {
         analysis: analyzeEntry(legs),
+        best3: bestN(legs, 3),
         best4: bestN(legs, Number(body.n) || 4),
         compare: compareLegs(legs.filter((l) => l.selected)),
       });
@@ -217,6 +218,38 @@ exports.handler = async (event) => {
       if (auth.errorResponse) return auth.errorResponse;
       const ok = await propStore.deleteEntry(auth.userId, body.id || q.id);
       return json(200, { ok });
+    }
+
+    if (action === "backtest-report") {
+      const admin = requireAdmin(event);
+      if (admin && admin.statusCode) return admin;
+      try {
+        const report = require("./_lib/prop-lab/baselines/v2.0.0.json");
+        return json(200, report, { "cache-control": "public, max-age=60" });
+      } catch {
+        return json(404, { error: "Frozen 2.0.0 baseline missing. Run npm run backtest:props." });
+      }
+    }
+
+    if (action === "backtest-run") {
+      const admin = requireAdmin(event);
+      if (admin && admin.statusCode) return admin;
+      const { runWalkForward, ablationDelta } = require("./_lib/prop-lab/walkforward");
+      const { DOUBLE_COUNT_AUDIT } = require("./_lib/prop-lab/audit");
+      const run = runWalkForward({ seed: Number(body.seed || 20260) });
+      return json(200, {
+        modelVersion: PROP_MODEL_VERSION,
+        protocol: run.protocol,
+        official: run.reports.full.test,
+        validation: {
+          overall: run.reports.full.val.overall,
+          calibration: run.reports.full.val.calibration,
+          ablations: ablationDelta(run.reports, "val"),
+        },
+        testAblationsConfirm: ablationDelta(run.reports, "test"),
+        doubleCountAudit: DOUBLE_COUNT_AUDIT,
+        note: "Live walk-forward. Official frozen baseline remains v2.0.0.json until you re-run npm run backtest:props.",
+      });
     }
 
     if (action === "backtest") {

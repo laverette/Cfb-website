@@ -111,17 +111,29 @@ describe("early-season shrinkage", () => {
 });
 
 describe("distributions / probability", () => {
-  it("shrinks extreme probabilities when data quality is poor", () => {
-    const p = shrinkProbability(0.97, 0.4, 2);
-    assert.ok(p <= 0.68);
-    assert.ok(p > 0.5);
+  it("does not overwrite a far-from-line probability toward 50%", () => {
+    const far = shrinkProbability(0.97, 0.38, 2, 2.6);
+    assert.ok(far.p >= 0.96, `far-line p ${far.p} was pulled too hard`);
+    const near = shrinkProbability(0.62, 0.38, 2, 0.15);
+    assert.ok(near.p < 0.62);
+    assert.ok(near.p > 0.5);
+  });
+
+  it("does not apply a 65/68% ceiling on a trivially low completions line", () => {
+    const p = probabilityAtLine(
+      { mean: 21.8, sd: 8.1, dist: "normal", reliability: 0.38, games: 2 },
+      0.5,
+      "more"
+    );
+    assert.ok(p.pMore >= 0.85, `completions 21.8 vs 0.5 should be near-certain, got ${p.pMore}`);
   });
 
   it("recalculates P(More) at a new line without changing the projection", () => {
-    const dist = { mean: 108, sd: 42, dist: "lognormal", reliability: 0.55, games: 2 };
+    const dist = { mean: 108, sd: 42, dist: "normal", reliability: 0.38, games: 2 };
     const a = probabilityAtLine(dist, 80.5, "more");
     const b = probabilityAtLine(dist, 109.5, "more");
     assert.ok(a.pMore > b.pMore);
+    assert.ok(a.pMore - b.pMore >= 0.18, `line sensitivity too flat: ${a.pMore} vs ${b.pMore}`);
   });
 });
 
@@ -137,6 +149,17 @@ describe("Toney regression — no fake 97% More", () => {
     assert.ok(result.projection > 70);
     assert.ok(result.pMore < 0.75, `pMore ${result.pMore} must not look like a lock`);
     assert.ok(result.pMore > 0.4);
+    if (result.projection >= 108) {
+      assert.ok(result.pMore >= 0.54, `110-style projection vs 98.5 should not collapse to 50% (got ${result.pMore})`);
+    }
+    const at88 = relineEvaluation(result, 88.5, "more");
+    assert.equal(at88.projection, result.projection);
+    assert.equal(at88.confidence, result.confidence);
+    assert.ok(
+      at88.pMore - result.pMore >= 0.05,
+      `88.5 vs 98.5 too flat: ${result.pMore} → ${at88.pMore}`
+    );
+    assert.ok(result.propScore >= 45, `favorable rec-yards prop should not cluster in the 30s (score ${result.propScore})`);
     assert.notEqual(result.confidence, "A");
     assert.ok(["B+", "B", "B-", "C+", "C", "D"].includes(result.confidence));
     assert.ok(result.propScore < 84, "two-game sample should not be Elite");
@@ -164,8 +187,9 @@ describe("freshman / no prior", () => {
     bundle.player.year = "FR";
     const result = evaluateFromBundle(bundle, { statId: "rec_yds", line: 64.5, side: "more" });
     assert.ok(["C+", "C", "D", "B-"].includes(result.confidence));
-    assert.ok(result.pHit < 0.72);
     assert.ok((result.flags || []).includes("Limited History"));
+    assert.ok((result.confidenceReasons || []).length > 0);
+    assert.notEqual(result.confidence, "A");
   });
 });
 
@@ -215,6 +239,12 @@ describe("correlation + best-N", () => {
     const out = bestN(legs, 4);
     assert.equal(out.keep.length, 4);
     assert.ok(out.cut.some((l) => l.player.name === "F"));
+    const best3 = bestN(legs, 3);
+    assert.equal(best3.keep.length, 3);
+    assert.equal(best3.n, 3);
+    assert.ok(best3.cut.length === 3);
+    assert.ok(best3.cut.some((l) => l.player.name === "F"));
+    assert.ok(!best3.keep.some((l) => l.player.name === "F"));
     const entry = analyzeEntry(legs);
     assert.ok(entry.grade);
     assert.equal(entry.weakest.player.name, "F");

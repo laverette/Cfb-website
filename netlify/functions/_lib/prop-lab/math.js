@@ -88,6 +88,16 @@ function poissonCdf(k, lambda) {
   return clamp(s, 0, 1);
 }
 
+function poissonQuantile(p, lambda) {
+  const target = clamp(p, 0, 1);
+  let cdf = 0;
+  for (let k = 0; k <= 40; k += 1) {
+    cdf += poissonPmf(k, Math.max(lambda, 0));
+    if (cdf >= target) return k;
+  }
+  return 40;
+}
+
 function mulberry32(seed) {
   let a = seed >>> 0;
   return function rng() {
@@ -155,6 +165,7 @@ module.exports = {
   normalCdf,
   poissonPmf,
   poissonCdf,
+  poissonQuantile,
   mulberry32,
   sampleNormal,
   sampleLogNormal,

@@ -4,9 +4,10 @@
   "description": "Netlify site + functions for CFB picks frontend",
   "scripts": {
     "export:recruits": "node scripts/export-recruit-map-data.js",
-    "test": "node --test tests/power-model.test.js tests/prop-lab.test.js",
+    "test": "node --test tests/power-model.test.js tests/prop-lab.test.js tests/prop-lab-coherence.test.js tests/prop-lab-backtest.test.js",
     "test:power": "node --test tests/power-model.test.js",
-    "test:props": "node --test tests/prop-lab.test.js"
+    "test:props": "node --test tests/prop-lab.test.js tests/prop-lab-coherence.test.js tests/prop-lab-backtest.test.js",
+    "backtest:props": "node scripts/run-prop-lab-backtest.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",

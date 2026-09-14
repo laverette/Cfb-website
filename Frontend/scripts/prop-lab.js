@@ -14,6 +14,7 @@
     stats: [],
     legs: [],
     analysis: null,
+    best3: null,
     best4: null,
     selectedPlayer: null,
     searchTimer: null,
@@ -207,8 +208,10 @@
               <span>P(${escapeHtml((e.side || "more").toUpperCase())}) <strong class="${
                 e.pHit >= 0.58 ? "is-good" : e.pHit < 0.52 ? "is-bad" : "is-gold"
               }">${escapeHtml(pct(e.pHit))}</strong></span>
-              <span>Score <strong>${escapeHtml(String(e.propScore ?? "—"))}</strong></span>
-              <span>${escapeHtml(e.confidence || "")}</span>
+              <span>Score <strong>${escapeHtml(String(e.propScore ?? "—"))}</strong> ${escapeHtml(
+                e.propScoreLabel || ""
+              )}</span>
+              <span>Conf <strong>${escapeHtml(e.confidence || "")}</strong></span>
             </div>`
           : `<div class="prop-leg-kpis">${loading || err}</div>`;
         return `<li class="prop-leg ${e?.error ? "is-error" : ""}" data-id="${escapeHtml(leg.id)}">
@@ -240,7 +243,10 @@
     const host = document.getElementById("entrySummary");
     const a = state.analysis;
     const evals = evaluatedLegs();
-    document.getElementById("bestNBtn").disabled = evals.length < 2;
+    const best3Btn = document.getElementById("best3Btn");
+    const best4Btn = document.getElementById("bestNBtn");
+    if (best3Btn) best3Btn.disabled = evals.length < 3;
+    if (best4Btn) best4Btn.disabled = evals.length < 4;
     document.getElementById("compareBtn").disabled = evals.length < 2;
     document.getElementById("saveBtn").disabled = evals.length < 1 || !authToken();
     if (!host) return;
@@ -356,38 +362,47 @@
                 1
               )}</p>`
             : `<p class="prop-market-note">Market odds not loaded.</p>`;
-        const debug = debugMode && e.debug
-          ? `<details class="prop-debug"><summary>Model Debug</summary><pre>${escapeHtml(
-              JSON.stringify(
-                {
-                  currentYearWeight: e.debug.currentYearWeight,
-                  priorYearWeight: e.debug.priorYearWeight,
-                  opportunity: e.debug.opportunity?.rawOppProj,
-                  efficiency: e.debug.efficiency,
-                  opponentAdjustment: e.debug.opponentAdjustment,
-                  gameScriptAdjustment: e.debug.gameScriptAdjustment,
-                  finalProjection: e.debug.finalProjection,
-                  sd: e.debug.sd,
-                  pRaw: e.debug.pRaw,
-                  pMore: e.debug.pMore,
-                  reliability: e.debug.reliability,
-                  confidenceInputs: e.debug.confidenceInputs,
-                  flags: e.debug.flags,
-                  apiUsage: e.debug.apiUsage || e.apiUsage,
-                  games: (e.debug.gamesIncluded || []).map((g) => ({
-                    week: g.week,
-                    opp: g.opponent,
-                    raw: g.raw,
-                    adj: g.value,
-                    w: g.weight,
-                    fcs: g.isFcs,
-                  })),
-                },
-                null,
-                2
-              )
-            )}</pre></details>`
+        const md = e.modelDebug || {};
+        const unusual = e.lineSanity?.unusual
+          ? `<div class="prop-unusual"><strong>${escapeHtml(
+              (e.lineSanity.flags || ["Unusual Line"]).join(" · ")
+            )}</strong> ${escapeHtml(e.lineSanity.message || "")}</div>`
           : "";
+        const debug = `<details class="prop-debug"${debugMode ? " open" : ""}><summary>Model Debug</summary><pre>${escapeHtml(
+          JSON.stringify(
+            {
+              projectionMean: md.projectionMean ?? e.projection,
+              median: md.median ?? e.median,
+              sd: md.sd ?? e.distribution?.sd,
+              p20: md.p20 ?? e.range?.p20,
+              p80: md.p80 ?? e.range?.p80,
+              dist: md.dist ?? e.distribution?.dist,
+              rawPMore: md.rawPMore,
+              calibrationAdjustment: md.calibrationAdjustment,
+              uncertaintyAdjustment: md.uncertaintyAdjustment,
+              uncertaintyReason: md.uncertaintyReason,
+              z: md.z,
+              finalPMore: md.finalPMore ?? e.pMore,
+              confidenceGrade: md.confidenceGrade ?? e.confidence,
+              confidenceReasons: md.confidenceReasons || e.confidenceReasons,
+              propScore: md.propScore || e.propScoreComponents,
+              lineSanity: md.lineSanity || e.lineSanity,
+              currentYearWeight: e.debug?.currentYearWeight,
+              priorYearWeight: e.debug?.priorYearWeight,
+              flags: e.flags,
+              games: (e.debug?.gamesIncluded || []).map((g) => ({
+                week: g.week,
+                opp: g.opponent,
+                raw: g.raw,
+                adj: g.value,
+                w: g.weight,
+                fcs: g.isFcs,
+              })),
+            },
+            null,
+            2
+          )
+        )}</pre></details>`;
         return `<article class="prop-card" data-id="${escapeHtml(leg.id)}">
           <div class="prop-card-head">
             <h3>${escapeHtml(e.player?.name)}</h3>
@@ -403,11 +418,15 @@
             <div class="${e.pHit >= 0.58 ? "is-good" : ""}"><span>P(${escapeHtml(
           (e.side || "more").toUpperCase()
         )})</span><strong>${escapeHtml(pct(e.pHit))}</strong></div>
-            <div><span>Score / Conf</span><strong>${escapeHtml(String(e.propScore))} · ${escapeHtml(
-          e.confidence
-        )}</strong></div>
+            <div><span>Prop Score</span><strong>${escapeHtml(String(e.propScore))}</strong><em>${escapeHtml(
+          e.propScoreLabel || ""
+        )}</em></div>
+            <div><span>Confidence</span><strong>Conf ${escapeHtml(e.confidence || "—")}</strong></div>
           </div>
-          <p class="prop-card-sub">Expected range ${escapeHtml(fmt(e.range?.p20, 0))} – ${escapeHtml(
+          ${unusual}
+          <p class="prop-card-sub">Mean ${escapeHtml(fmt(e.projection, 1))} · Median ${escapeHtml(
+          fmt(e.median, 1)
+        )} · SD ${escapeHtml(fmt(e.distribution?.sd, 1))} · P20–P80 ${escapeHtml(fmt(e.range?.p20, 0))}–${escapeHtml(
           fmt(e.range?.p80, 0)
         )}</p>
           <div class="prop-flags">${flagHtml(e.flags)}</div>
@@ -480,14 +499,28 @@
     return sign * y;
   }
 
+  function poissonCdf(k, lambda) {
+    if (k < 0) return 0;
+    let p = 0;
+    let term = Math.exp(-Math.max(lambda, 0));
+    for (let i = 0; i <= k; i += 1) {
+      p += term;
+      term *= Math.max(lambda, 0) / (i + 1);
+    }
+    return Math.max(0, Math.min(1, p));
+  }
+
   function whatIf(legId, line) {
     const leg = state.legs.find((l) => l.id === legId);
     const d = leg?.evaluation?.distribution;
     if (!d || !Number.isFinite(line)) return "—";
     const mean = d.mean;
     const sd = Math.max(d.sd || 1, 0.4);
+    const kind = d.dist || d.type;
     let pMore = 0.5;
-    if (d.dist === "lognormal" || d.type === "lognormal") {
+    if (kind === "poisson") {
+      pMore = 1 - poissonCdf(Math.floor(line), Math.max(0.01, mean));
+    } else if (kind === "lognormal") {
       const m = Math.max(mean, 0.5);
       const v = sd * sd;
       const sigma = Math.sqrt(Math.log(1 + v / (m * m)));
@@ -497,13 +530,9 @@
     } else {
       pMore = 1 - 0.5 * (1 + erf((line - mean) / (sd * Math.SQRT2)));
     }
-    const games = d.games || 0;
-    const rel = d.reliability || 0.6;
-    let p = 0.5 + (pMore - 0.5) * rel;
-    const cap = games < 3 ? 0.68 : games < 5 ? 0.74 : 0.8;
-    p = Math.max(1 - cap, Math.min(cap, p));
+    pMore = Math.max(0.005, Math.min(0.995, pMore));
     const side = leg.evaluation.side || "more";
-    const hit = side === "less" ? 1 - p : p;
+    const hit = side === "less" ? 1 - pMore : pMore;
     return `${Math.round(hit * 100)}%`;
   }
 
@@ -534,12 +563,14 @@
     const legs = evaluatedLegs();
     if (!legs.length) {
       state.analysis = null;
+      state.best3 = null;
       state.best4 = null;
       return;
     }
     try {
-      const data = await api({ action: "analyze" }, { method: "POST", body: { legs, n: 4 } });
+      const data = await api({ action: "analyze" }, { method: "POST", body: { legs } });
       state.analysis = data.analysis;
+      state.best3 = data.best3;
       state.best4 = data.best4;
     } catch {
       state.analysis = null;
@@ -585,7 +616,7 @@
             side,
             season: state.season,
             week: state.week,
-            debug: debugMode ? true : undefined,
+            debug: true,
           },
         }
       );
@@ -619,19 +650,21 @@
     renderAll();
   }
 
-  function renderBestN() {
+  function renderBestN(which) {
     const panel = document.getElementById("bestNPanel");
-    if (!panel || !state.best4) return;
+    const result = which === 3 ? state.best3 : state.best4;
+    if (!panel || !result) return;
     panel.hidden = false;
-    const keep = (state.best4.keep || [])
-      .map((l) => `<li>KEEP ${escapeHtml(l.player?.name)} — score ${escapeHtml(String(l.propScore))}</li>`)
+    const n = result.n || which;
+    const keep = (result.keep || [])
+      .map((l) => `<li>KEEP ${escapeHtml(l.player?.name)} — ${escapeHtml(l.stat?.short || l.stat?.label || "")} ${escapeHtml(String(l.line ?? ""))} ${escapeHtml((l.side || "").toUpperCase())} — score ${escapeHtml(String(l.propScore))}</li>`)
       .join("");
-    const cut = (state.best4.cut || [])
-      .map((l) => `<li>CUT ${escapeHtml(l.player?.name)} — score ${escapeHtml(String(l.propScore))}</li>`)
+    const cut = (result.cut || [])
+      .map((l) => `<li>CUT ${escapeHtml(l.player?.name)} — ${escapeHtml(l.stat?.short || l.stat?.label || "")} ${escapeHtml(String(l.line ?? ""))} ${escapeHtml((l.side || "").toUpperCase())} — score ${escapeHtml(String(l.propScore))}</li>`)
       .join("");
-    panel.innerHTML = `<div class="matchup-panel-head"><h2 class="matchup-panel-title">Which legs to keep</h2></div>
+    panel.innerHTML = `<div class="matchup-panel-head"><h2 class="matchup-panel-title">Best ${n} of ${escapeHtml(String((result.keep || []).length + (result.cut || []).length))}</h2></div>
       <ol>${keep}${cut}</ol>
-      <p class="prop-corr">${escapeHtml(state.best4.reason || "")}</p>`;
+      <p class="prop-corr">${escapeHtml(result.reason || "")}</p>`;
   }
 
   function renderCompare() {
@@ -652,13 +685,13 @@
           <td>${escapeHtml(pct(l.pHit))}</td>
           <td>${escapeHtml(pct(l.form?.hitRateL5))}</td>
           <td>${escapeHtml(l.matchup?.adjPct != null ? `${(l.matchup.adjPct * 100).toFixed(1)}%` : "—")}</td>
-          <td>${escapeHtml(l.confidence)}</td>
-          <td class="${best}">${escapeHtml(String(l.propScore))}</td>
+          <td>Conf ${escapeHtml(l.confidence)}</td>
+          <td class="${best}">${escapeHtml(String(l.propScore))} ${escapeHtml(l.propScoreLabel || "")}</td>
         </tr>`;
       })
       .join("");
     panel.innerHTML = `<div class="matchup-panel-head"><h2 class="matchup-panel-title">Compare legs</h2></div>
-      <table><thead><tr><th>Player</th><th>Prop</th><th>Line</th><th>Proj</th><th>Edge</th><th>P(hit)</th><th>L5 hit</th><th>Matchup</th><th>Conf</th><th>Score</th></tr></thead><tbody>${rows}</tbody></table>`;
+      <table><thead><tr><th>Player</th><th>Prop</th><th>Line</th><th>Proj</th><th>Edge</th><th>P(hit)</th><th>L5 hit</th><th>Matchup</th><th>Confidence</th><th>Prop Score</th></tr></thead><tbody>${rows}</tbody></table>`;
   }
 
   async function saveEntry() {
@@ -835,9 +868,15 @@
     document.getElementById("labWeek")?.addEventListener("change", (e) => {
       state.week = Number(e.target.value);
     });
+    document.getElementById("best3Btn")?.addEventListener("click", () => {
+      refreshAnalysis().then(() => {
+        renderBestN(3);
+        renderSummary();
+      });
+    });
     document.getElementById("bestNBtn")?.addEventListener("click", () => {
       refreshAnalysis().then(() => {
-        renderBestN();
+        renderBestN(4);
         renderSummary();
       });
     });

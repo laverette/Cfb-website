@@ -133,4 +133,20 @@ async function persistBacktests(rows) {
   }
 }
 
-module.exports = { backtestOne, calibrationBuckets, metricsByStat, persistBacktests };
+const { reportFromRows } = require("./metrics");
+const { runWalkForward, ablationDelta, ABLATIONS, SPLITS } = require("./walkforward");
+const { DOUBLE_COUNT_AUDIT } = require("./audit");
+
+module.exports = {
+  backtestOne,
+  calibrationBuckets,
+  metricsByStat,
+  persistBacktests,
+  reportFromRows,
+  runWalkForward,
+  ablationDelta,
+  ABLATIONS,
+  SPLITS,
+  DOUBLE_COUNT_AUDIT,
+};
+

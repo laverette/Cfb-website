@@ -10,7 +10,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
   <link rel="stylesheet" href="styles/site-theme.css">
   <link rel="stylesheet" href="Resources/Styles/power.css">
-  <link rel="stylesheet" href="Resources/Styles/prop-lab.css">
+  <link rel="stylesheet" href="Resources/Styles/prop-lab.css?v=2">
 </head>
 <body class="power-rankings-body">
   <nav class="navbar weeklypicks-navbar site-nav">
@@ -107,6 +107,7 @@
           Add at least one evaluated leg to see grade, risk, and correlations.
         </div>
         <div class="prop-summary-actions">
+          <button type="button" class="btn btn-gold btn-sm" id="best3Btn" disabled>Find Best 3</button>
           <button type="button" class="btn btn-gold btn-sm" id="bestNBtn" disabled>Find Best 4</button>
           <button type="button" class="btn btn-outline-light btn-sm" id="compareBtn" disabled>Compare</button>
           <button type="button" class="btn btn-outline-light btn-sm" id="saveBtn" disabled>Save entry</button>
@@ -144,7 +145,7 @@
   </main>
 
   <script src="scripts/auth-ui.js"></script>
-  <script src="scripts/prop-lab.js?v=2"></script>
+  <script src="scripts/prop-lab.js?v=4"></script>
   <script>
     function closeMenu() {
       const menu = document.getElementById('dropdownMenu');

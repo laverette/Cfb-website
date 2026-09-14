@@ -104,6 +104,7 @@ async function evaluateEntry({
     modelVersion: PROP_MODEL_VERSION,
     legs: evaluated,
     analysis,
+    best3: bestN(evaluated, Math.min(3, evaluated.filter((l) => !l.error).length)),
     best4: bestN(evaluated, Math.min(4, evaluated.filter((l) => !l.error).length)),
     apiUsage: cfbd.usage,
   };
