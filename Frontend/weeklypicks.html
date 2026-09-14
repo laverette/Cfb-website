@@ -275,7 +275,7 @@
           <li class="results-stand-empty">Loading standings…</li>
         </ol>
         <p class="results-lb-link">
-          <a href="prediction-history.html">Season &amp; all-time stats → Leaderboards</a>
+          <a href="prediction-history.html">See full leaderboard →</a>
         </p>
       </section>
     </div>
@@ -2461,14 +2461,14 @@
       tempContainer.style.position = 'fixed';
       tempContainer.style.left = '-10000px';
       tempContainer.style.top = '0';
-      tempContainer.style.width = '900px';
+      tempContainer.style.width = '1100px';
       tempContainer.style.background = '#1a1410';
       tempContainer.style.zIndex = '-1';
       const clone = source.cloneNode(true);
       clone.id = 'picksShareCardCapture';
       clone.classList.add('is-capture');
-      clone.style.width = '900px';
-      clone.style.maxWidth = '900px';
+      clone.style.width = '1100px';
+      clone.style.maxWidth = '1100px';
       clone.style.margin = '0';
       tempContainer.appendChild(clone);
       document.body.appendChild(tempContainer);
@@ -2482,7 +2482,7 @@
           allowTaint: false,
           scrollX: 0,
           scrollY: 0,
-          width: 900,
+          width: 1100,
           logging: false,
         });
         const fileName = `${week.fileSlug}-${new Date().toISOString().split('T')[0]}.png`;

@@ -1831,7 +1831,7 @@ body.picks-results-open #picksEmailOptIn {
 }
 
 .results-recap-host {
-    width: min(900px, calc(100% - 2rem));
+    width: min(1120px, calc(100% - 2rem));
     margin: 0 auto 1.25rem;
 }
 
@@ -2272,12 +2272,22 @@ body.picks-results-open #picksEmailOptIn {
 }
 
 .picks-share-card.is-capture .picks-share-grid {
-    grid-template-columns: 1fr 1fr;
-    gap: 0.8rem;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 0.65rem;
 }
 
 .picks-share-card.is-capture .picks-share-title {
     font-size: 2rem;
+}
+
+.picks-share-card.is-capture .picks-share-game {
+    padding: 0.55rem 0.6rem 0.6rem;
+}
+
+.picks-share-card.is-capture .picks-share-logo,
+.picks-share-card.is-capture .picks-share-logo-fallback {
+    width: 36px;
+    height: 36px;
 }
 
 @media (min-width: 720px) {
@@ -2287,6 +2297,31 @@ body.picks-results-open #picksEmailOptIn {
 
     .picks-share-title {
         font-size: 2rem;
+    }
+}
+
+@media (min-width: 1024px) {
+    .picks-share-grid {
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 0.65rem;
+    }
+
+    .picks-share-game {
+        padding: 0.55rem 0.6rem 0.6rem;
+    }
+
+    .picks-share-logo,
+    .picks-share-logo-fallback {
+        width: 38px;
+        height: 38px;
+    }
+
+    .picks-share-team {
+        font-size: 0.76rem;
+    }
+
+    .picks-share-score {
+        font-size: 0.98rem;
     }
 }
 
@@ -2521,7 +2556,7 @@ body.picks-results-open #picksEmailOptIn {
     border-radius: 14px;
     padding: 1.5rem 1.25rem;
     margin: 2rem auto;
-    max-width: 1000px;
+    max-width: 1120px;
     box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
     position: relative;
     overflow: hidden;
@@ -4745,9 +4780,9 @@ select {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 1.5rem;
-  margin: 2rem auto 1.5rem;
+  margin: 1.25rem auto 1.5rem;
   padding: 0;
-  width: min(640px, calc(100% - 2rem));
+  width: min(1120px, calc(100% - 2rem));
 }
 
 .results-standings-board {
@@ -4972,11 +5007,31 @@ a.results-stand-name:hover {
 
 #week10-results .picks-share-wrap {
     margin-top: 0;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.35rem;
 }
 
-#week10-results .picks-share-actions .next-steps:last-of-type {
+#week10-results .picks-share-actions {
+    margin-top: 0.7rem;
+}
+
+#week10-results .picks-share-actions .success-message,
+#week10-results .picks-share-actions .next-steps,
+#week10-results .picks-share-actions .screenshot-note {
     display: none;
+}
+
+#week10-results .picks-share-actions .screenshot-section {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: center;
+    align-items: center;
+}
+
+#week10-results .picks-share-actions .screenshot-button {
+    min-width: 0;
+    padding: 0.5rem 1.15rem;
+    font-size: 0.92rem;
 }
 
 @media (max-width: 1100px) {
@@ -5219,7 +5274,8 @@ a.results-stand-name:hover {
 
 /* Weekly awards + head-to-head */
 .awards-container {
-    margin: 0 0 1.75rem;
+    margin: 0 auto 1.75rem;
+    width: min(1120px, calc(100% - 2rem));
     padding: 1.15rem 1rem 1.25rem;
     background: linear-gradient(165deg, rgba(46, 34, 28, 0.95), rgba(24, 18, 14, 0.98));
     border: 1px solid rgba(255, 215, 0, 0.28);
