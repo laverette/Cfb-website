@@ -89,6 +89,26 @@ describe("prop definitions", () => {
     assert.equal(extractStatValue(stats, "pass_rush_yds"), 290);
     assert.equal(extractStatValue(stats, "total_td"), 4);
   });
+
+  it("filters catalog stats by player position", () => {
+    const { statsForPosition, canonicalPosition } = require(path.join(root, "definitions"));
+    assert.equal(canonicalPosition(" wr "), "WR");
+    assert.equal(canonicalPosition("HB"), "RB");
+    const wr = statsForPosition("WR").map((s) => s.id);
+    assert.ok(wr.includes("rec_yds"));
+    assert.ok(wr.includes("rec"));
+    assert.ok(!wr.includes("pass_yds"));
+    const qb = statsForPosition("QB").map((s) => s.id);
+    assert.ok(qb.includes("pass_comp"));
+    assert.ok(!qb.includes("rec_yds"));
+    const rb = statsForPosition("RB").map((s) => s.id);
+    assert.ok(rb.includes("rush_yds"));
+    assert.ok(rb.includes("rec"));
+    assert.ok(!rb.includes("pass_att"));
+    const unknown = statsForPosition("").map((s) => s.id);
+    assert.ok(unknown.includes("pass_yds"));
+    assert.ok(unknown.includes("rec_yds"));
+  });
 });
 
 describe("early-season shrinkage", () => {

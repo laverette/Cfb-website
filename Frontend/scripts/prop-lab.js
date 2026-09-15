@@ -28,7 +28,14 @@
     bestMode: "balanced",
     dupWarning: "",
     allowExactDup: false,
+    keepIds: [],
+    cutIds: [],
+    summaryOpen: false,
   };
+
+  function isMobile() {
+    return window.matchMedia("(max-width: 899px)").matches;
+  }
 
   const FLAG_HELP = {
     "Small Sample": "Fewer than three current-season games in the projection sample.",
@@ -147,22 +154,52 @@
     }
   }
 
-  function fillStats(stats) {
+  function fillStats(stats, position) {
     const sel = document.getElementById("propStat");
     if (!sel) return;
-    state.stats = stats || [];
+    if (stats) state.stats = stats;
+    const prev = sel.value;
+    const eligible = statsForPosition(position, state.stats);
     sel.innerHTML = '<option value="">Stat</option>';
-    for (const s of state.stats) {
+    for (const s of eligible) {
       const opt = document.createElement("option");
       opt.value = s.id;
       opt.textContent = s.label;
       sel.appendChild(opt);
     }
+    if (eligible.some((s) => s.id === prev)) sel.value = prev;
+    else if (eligible.length === 1) sel.value = eligible[0].id;
+  }
+
+  function statsForPosition(position, catalog) {
+    const pos = String(position || "")
+      .toUpperCase()
+      .replace(/[^A-Z]/g, "");
+    const canon =
+      pos === "QB"
+        ? "QB"
+        : ["RB", "FB", "HB", "TB"].includes(pos)
+          ? "RB"
+          : ["WR", "SLOT"].includes(pos)
+            ? "WR"
+            : pos === "TE"
+              ? "TE"
+              : ["ATH", "UT"].includes(pos)
+                ? "ATH"
+                : pos || null;
+    const list = catalog || [];
+    if (!canon) return list;
+    const hit = list.filter((s) => (s.positions || []).includes(canon));
+    return hit.length ? hit : list;
   }
 
   function bindPlayerCombo() {
     const input = document.getElementById("playerSearch");
     const list = document.getElementById("playerList");
+    const sheet = document.getElementById("playerSheet");
+    const sheetInput = document.getElementById("playerSheetInput");
+    const sheetList = document.getElementById("playerSheetList");
+    const sheetClose = document.getElementById("playerSheetClose");
     if (!input || !list) return;
     if (list.parentElement !== document.body) document.body.appendChild(list);
     list.classList.add("prop-player-list-portal");
@@ -171,7 +208,7 @@
     input.setAttribute("aria-haspopup", "listbox");
 
     function place() {
-      if (list.hidden) return;
+      if (list.hidden || isMobile()) return;
       const box = dropdownPlacement(input.getBoundingClientRect());
       list.style.left = box.left;
       list.style.width = box.width;
@@ -181,7 +218,9 @@
     }
 
     function paintActive() {
-      list.querySelectorAll("li[data-id]").forEach((li, i) => {
+      const host = isMobile() ? sheetList : list;
+      if (!host) return;
+      host.querySelectorAll("li[data-id]").forEach((li, i) => {
         li.classList.toggle("is-active", i === state.searchActive);
         if (i === state.searchActive) {
           li.setAttribute("aria-selected", "true");
@@ -190,23 +229,74 @@
       });
     }
 
+    function closeSheet() {
+      if (!sheet) return;
+      sheet.hidden = true;
+      document.body.classList.remove("prop-sheet-open");
+    }
+
+    function openSheet() {
+      if (!sheet || !sheetInput) return;
+      sheet.hidden = false;
+      document.body.classList.add("prop-sheet-open");
+      sheetInput.value = input.value || "";
+      pinSheet();
+      sheetInput.focus();
+      if (sheetInput.value.trim().length >= 2) run(sheetInput.value, true);
+    }
+
     function close() {
       list.hidden = true;
       input.setAttribute("aria-expanded", "false");
       input.removeAttribute("aria-activedescendant");
       state.searchActive = -1;
+      if (!isMobile()) closeSheet();
     }
 
-    async function run(q) {
+    function renderHits(host, players) {
+      if (!players.length) {
+        host.innerHTML = "<li class='matchup-combo-empty'>No players found</li>";
+        return;
+      }
+      host.innerHTML = players
+        .map(
+          (p, i) =>
+            `<li role="option" id="playerOpt${i}" data-idx="${i}" data-id="${escapeHtml(p.id)}" data-team="${escapeHtml(
+              p.team || ""
+            )}" data-name="${escapeHtml(p.name)}" data-position="${escapeHtml(p.position || "")}">${escapeHtml(p.name)} <span>${escapeHtml(
+              [p.team, p.position].filter(Boolean).join(" · ")
+            )}</span></li>`
+        )
+        .join("");
+      host.querySelectorAll("li[data-id]").forEach((li) => {
+        li.addEventListener("mousedown", (e) => e.preventDefault());
+        li.addEventListener("click", () => {
+          choosePlayer({
+            id: li.getAttribute("data-id"),
+            team: li.getAttribute("data-team"),
+            name: li.getAttribute("data-name"),
+            position: li.getAttribute("data-position"),
+          });
+          closeSheet();
+        });
+      });
+    }
+
+    async function run(q, forSheet) {
       if (!q || q.trim().length < 2) {
-        close();
-        list.innerHTML = "";
+        if (!forSheet) close();
+        if (sheetList && forSheet) sheetList.innerHTML = "";
         return;
       }
       try {
         const data = await api({ action: "search", q: q.trim(), year: state.season });
         const players = data.players || [];
         state.searchHits = players.slice(0, 12);
+        if (isMobile() || forSheet) {
+          if (sheetList) renderHits(sheetList, players);
+          input.setAttribute("aria-expanded", "true");
+          return;
+        }
         if (!players.length) {
           list.innerHTML = "<li class='matchup-combo-empty'>No players found</li>";
           list.hidden = false;
@@ -214,44 +304,46 @@
           place();
           return;
         }
-        list.innerHTML = state.searchHits
-          .map(
-            (p, i) =>
-              `<li role="option" id="playerOpt${i}" data-idx="${i}" data-id="${escapeHtml(p.id)}" data-team="${escapeHtml(
-                p.team || ""
-              )}" data-name="${escapeHtml(p.name)}">${escapeHtml(p.name)} <span>${escapeHtml(
-                [p.team, p.position].filter(Boolean).join(" · ")
-              )}</span></li>`
-          )
-          .join("");
+        renderHits(list, players);
         list.hidden = false;
         input.setAttribute("aria-expanded", "true");
         state.searchActive = 0;
         paintActive();
         place();
-        list.querySelectorAll("li[data-id]").forEach((li) => {
-          li.addEventListener("mousedown", (e) => {
-            e.preventDefault();
-            choosePlayer({
-              id: li.getAttribute("data-id"),
-              team: li.getAttribute("data-team"),
-              name: li.getAttribute("data-name"),
-            });
-          });
-        });
       } catch {
-        list.innerHTML = "<li class='matchup-combo-empty'>Search failed</li>";
-        list.hidden = false;
+        const msg = "<li class='matchup-combo-empty'>Search failed</li>";
+        if (isMobile() || forSheet) {
+          if (sheetList) sheetList.innerHTML = msg;
+        } else {
+          list.innerHTML = msg;
+          list.hidden = false;
+          place();
+        }
         input.setAttribute("aria-expanded", "true");
-        place();
       }
     }
 
+    input.addEventListener("focus", () => {
+      if (isMobile()) {
+        input.blur();
+        openSheet();
+      }
+    });
+    input.addEventListener("click", () => {
+      if (isMobile()) openSheet();
+    });
     input.addEventListener("input", () => {
+      if (isMobile()) return;
       clearTimeout(state.searchTimer);
       state.searchTimer = setTimeout(() => run(input.value), 180);
     });
+    sheetInput?.addEventListener("input", () => {
+      clearTimeout(state.searchTimer);
+      state.searchTimer = setTimeout(() => run(sheetInput.value, true), 160);
+    });
+    sheetClose?.addEventListener("click", closeSheet);
     input.addEventListener("keydown", (e) => {
+      if (isMobile()) return;
       if (e.key === "Escape") {
         close();
         return;
@@ -272,12 +364,25 @@
       if (e.key === "Enter" && !list.hidden && state.searchHits[state.searchActive]) {
         e.preventDefault();
         const p = state.searchHits[state.searchActive];
-        choosePlayer({ id: p.id, team: p.team, name: p.name });
+        choosePlayer({ id: p.id, team: p.team, name: p.name, position: p.position });
       }
     });
-    input.addEventListener("blur", () => setTimeout(close, 160));
+    input.addEventListener("blur", () => {
+      if (!isMobile()) setTimeout(close, 160);
+    });
+    function pinSheet() {
+      const vv = window.visualViewport;
+      if (!sheet || sheet.hidden || !vv) return;
+      sheet.style.top = `${vv.offsetTop}px`;
+      sheet.style.left = `${vv.offsetLeft}px`;
+      sheet.style.width = `${vv.width}px`;
+      sheet.style.height = `${vv.height}px`;
+    }
+
     window.addEventListener("resize", place);
     window.addEventListener("scroll", place, true);
+    window.visualViewport?.addEventListener("resize", pinSheet);
+    window.visualViewport?.addEventListener("scroll", pinSheet);
   }
 
   function choosePlayer(p) {
@@ -288,12 +393,19 @@
     document.getElementById("playerSearch").value = p.name || "";
     document.getElementById("playerList").hidden = true;
     document.getElementById("playerSearch").setAttribute("aria-expanded", "false");
+    const sheet = document.getElementById("playerSheet");
+    if (sheet) {
+      sheet.hidden = true;
+      document.body.classList.remove("prop-sheet-open");
+    }
     const hint = document.getElementById("oppHint");
     if (hint) {
+      const pos = p.position ? ` · ${p.position}` : "";
       hint.textContent = p.team
-        ? `${p.name} · ${p.team} — opponent will come from the Week ${state.week || ""} schedule.`
+        ? `${p.name}${pos} · ${p.team} — opponent will come from the Week ${state.week || ""} schedule.`
         : "Opponent fills from the week’s schedule after you pick a player.";
     }
+    fillStats(null, p.position);
     document.getElementById("propStat")?.focus();
   }
 
@@ -330,24 +442,45 @@
               <div class="prop-kpi-chip"><span>Model Conf</span><strong>${escapeHtml(e.confidence || "")}</strong></div>
             </div>`
           : `<div class="prop-leg-kpis">${loading || err}</div>`;
-        return `<li class="prop-leg ${e?.error ? "is-error" : ""}" data-id="${escapeHtml(leg.id)}">
+        return `<li class="prop-leg ${e?.error ? "is-error" : ""} ${state.keepIds.includes(leg.id) ? "is-keep" : ""} ${
+          state.cutIds.includes(leg.id) ? "is-cut" : ""
+        }" data-id="${escapeHtml(leg.id)}">
           <span class="prop-leg-idx">${i + 1}</span>
           <div>
             <p class="prop-leg-name">${escapeHtml(leg.name)}</p>
-            <p class="prop-leg-meta">${escapeHtml(leg.statLabel || leg.statId)} ${escapeHtml(
-          String(leg.line)
-        )} ${escapeHtml((leg.side || "more").toUpperCase())}${
-          e?.opponent?.name ? ` · vs ${escapeHtml(e.opponent.name)}` : ""
-        }</p>
+            <p class="prop-leg-meta">
+              <span>${escapeHtml(leg.statLabel || leg.statId)}</span>
+              <input
+                class="prop-leg-line"
+                type="number"
+                step="0.5"
+                inputmode="decimal"
+                enterkeyhint="done"
+                value="${escapeHtml(String(leg.line))}"
+                aria-label="Edit line for ${escapeHtml(leg.name)}"
+                ${leg.loading || !e || e.error ? "disabled" : ""}
+              >
+              <select class="prop-leg-side" aria-label="Edit side for ${escapeHtml(leg.name)}" ${
+                leg.loading || !e || e.error ? "disabled" : ""
+              }>
+                <option value="more" ${(leg.side || "more") === "more" ? "selected" : ""}>More</option>
+                <option value="less" ${leg.side === "less" ? "selected" : ""}>Less</option>
+              </select>
+              ${e?.opponent?.name ? `<span>· vs ${escapeHtml(e.opponent.name)}</span>` : ""}
+            </p>
           </div>
           ${kpis}
           <div class="prop-leg-actions">
+            <button type="button" class="prop-chip" data-act="details">Details</button>
             <button type="button" class="prop-chip" data-act="dup">Dup</button>
             <button type="button" class="prop-chip" data-act="remove">Remove</button>
           </div>
         </li>`;
       })
       .join("");
+    const warn = state.dupWarning
+      ? `<p class="prop-dup-warn">${escapeHtml(state.dupWarning)} <button type="button" class="prop-chip" id="dupOverride">Add anyway</button></p>`
+      : "";
     const existingWarn = document.getElementById("dupWarnSlot");
     if (existingWarn) existingWarn.remove();
     if (warn) {
@@ -365,6 +498,82 @@
       const id = row.getAttribute("data-id");
       row.querySelector('[data-act="remove"]')?.addEventListener("click", () => removeLeg(id));
       row.querySelector('[data-act="dup"]')?.addEventListener("click", () => duplicateLeg(id));
+      row.querySelector('[data-act="details"]')?.addEventListener("click", () => {
+        document.querySelector(`.prop-card[data-id="${CSS.escape(id)}"]`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+      const lineInput = row.querySelector(".prop-leg-line");
+      const sideSel = row.querySelector(".prop-leg-side");
+      let timer = null;
+      const commit = () => {
+        const line = Number(lineInput?.value);
+        const side = sideSel?.value || "more";
+        editLeg(id, line, side);
+      };
+      lineInput?.addEventListener("input", () => {
+        clearTimeout(timer);
+        timer = setTimeout(commit, 280);
+      });
+      lineInput?.addEventListener("keydown", (ev) => {
+        if (ev.key === "Enter") {
+          ev.preventDefault();
+          clearTimeout(timer);
+          commit();
+          lineInput.blur();
+        }
+      });
+      lineInput?.addEventListener("blur", () => {
+        clearTimeout(timer);
+        commit();
+      });
+      sideSel?.addEventListener("change", commit);
+    });
+  }
+
+  function syncDock() {
+    const evals = evaluatedLegs();
+    const add = document.getElementById("dockAdd");
+    const best = document.getElementById("dockBest4");
+    const compare = document.getElementById("dockCompare");
+    if (add) add.disabled = state.legs.length >= MAX_LEGS;
+    if (best) {
+      best.disabled = evals.length < 3;
+      best.textContent = evals.length >= 4 ? "Best 4" : "Best 3";
+    }
+    if (compare) compare.disabled = evals.length < 2;
+  }
+
+  function updateAnalysisBar(a) {
+    const bar = document.getElementById("analysisBar");
+    const text = document.getElementById("analysisBarText");
+    if (!bar) return;
+    if (!a?.grade) {
+      bar.hidden = true;
+      bar.classList.remove("is-on");
+      return;
+    }
+    bar.hidden = false;
+    bar.classList.add("is-on");
+    if (text) {
+      text.textContent = `${a.grade} · Strength ${a.entryStrength ?? "—"} · Risk ${a.risk || "—"}`;
+    }
+  }
+
+  function bindTipTaps(root) {
+    (root || document).querySelectorAll(".prop-info, .prop-flag[title], .prop-tag-hi[title]").forEach((btn) => {
+      btn.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        const tip = btn.getAttribute("title") || btn.getAttribute("data-tip") || "";
+        if (!tip) return;
+        let pop = btn.parentElement?.querySelector(".prop-info-tip");
+        if (!pop || pop.previousElementSibling !== btn) {
+          pop = document.createElement("span");
+          pop.className = "prop-info-tip";
+          btn.insertAdjacentElement("afterend", pop);
+        }
+        pop.textContent = tip;
+        pop.classList.toggle("is-open");
+      });
     });
   }
 
@@ -378,10 +587,12 @@
     if (best4Btn) best4Btn.disabled = evals.length < 4;
     document.getElementById("compareBtn").disabled = evals.length < 2;
     document.getElementById("saveBtn").disabled = evals.length < 1 || !authToken();
+    syncDock();
     if (!host) return;
     if (!evals.length) {
       host.className = "prop-summary-idle";
       host.innerHTML = "Add at least one evaluated leg to see grade, risk, and correlations.";
+      updateAnalysisBar(null);
       return;
     }
     if (!a) {
@@ -389,6 +600,7 @@
       host.innerHTML = '<p class="prop-loading">Scoring entry…</p>';
       return;
     }
+    updateAnalysisBar(a);
     const corrs = (a.correlations || [])
       .slice(0, 5)
       .map(
@@ -411,23 +623,45 @@
     host.innerHTML = `
       <div class="prop-grade-row">
         <div class="prop-kpi"><span>Entry grade</span><strong>${escapeHtml(a.grade || "—")}</strong></div>
-        <div class="prop-kpi"><span>Avg score</span><strong>${escapeHtml(String(a.avgScore ?? "—"))}</strong></div>
-        <div class="prop-kpi"><span>Risk</span><strong>${escapeHtml(a.risk || "—")}</strong></div>
-        <div class="prop-kpi"><span>Entry Strength <button type="button" class="prop-info" title="${escapeHtml(
+        <div class="prop-kpi"><span>Strength <button type="button" class="prop-info" title="${escapeHtml(
           a.strengthTooltip || "A relative score based on leg quality, confidence, correlation, and concentration. It is not the probability that every leg hits."
         )}">i</button></span><strong>${escapeHtml(String(a.entryStrength ?? "—"))}</strong></div>
+        <div class="prop-kpi"><span>Risk</span><strong>${escapeHtml(a.risk || "—")}</strong></div>
+        <div class="prop-kpi"><span>Avg score</span><strong>${escapeHtml(String(a.avgScore ?? "—"))}</strong></div>
       </div>
-      ${drivers ? `<p class="prop-market-note">Risk drivers</p><ul class="prop-risk-drivers">${drivers}</ul>` : ""}
-      <p class="prop-corr"><strong>Strongest</strong><br>${escapeHtml(a.strongestCaption || a.strongestLabel || a.strongest?.player?.name || "—")}</p>
-      <p class="prop-corr"><strong>Weakest</strong><br>${escapeHtml(a.weakestCaption || a.weakestLabel || a.weakest?.player?.name || "—")}</p>
-      ${corrs || '<p class="prop-corr">No material correlations flagged.</p>'}
-      <div class="prop-opt-mode">
-        <button type="button" class="prop-chip ${state.bestMode === "upside" ? "is-on" : ""}" data-mode="upside">Highest Upside</button>
-        <button type="button" class="prop-chip ${state.bestMode === "balanced" ? "is-on" : ""}" data-mode="balanced">Balanced</button>
-        <button type="button" class="prop-chip ${state.bestMode === "risk" ? "is-on" : ""}" data-mode="risk">Lowest Risk</button>
+      <div class="prop-analysis-extra" id="summaryExtra">
+        <details ${state.summaryOpen ? "open" : ""} data-extra="strongest">
+          <summary>Strongest leg</summary>
+          <p class="prop-corr">${escapeHtml(a.strongestCaption || a.strongestLabel || a.strongest?.player?.name || "—")}</p>
+        </details>
+        <details ${state.summaryOpen ? "open" : ""} data-extra="weakest">
+          <summary>Weakest leg</summary>
+          <p class="prop-corr">${escapeHtml(a.weakestCaption || a.weakestLabel || a.weakest?.player?.name || "—")}</p>
+        </details>
+        <details ${state.summaryOpen ? "open" : ""} data-extra="risk">
+          <summary>Risk drivers</summary>
+          ${drivers ? `<ul class="prop-risk-drivers">${drivers}</ul>` : '<p class="prop-market-note">No major risk drivers flagged.</p>'}
+        </details>
+        <details ${state.summaryOpen ? "open" : ""} data-extra="corr">
+          <summary>Correlations</summary>
+          ${corrs || '<p class="prop-corr">No material correlations flagged.</p>'}
+        </details>
+        <details ${state.summaryOpen ? "open" : ""} data-extra="opt">
+          <summary>Optimizer</summary>
+          <div class="prop-opt-mode">
+            <button type="button" class="prop-chip ${state.bestMode === "upside" ? "is-on" : ""}" data-mode="upside">Highest Upside</button>
+            <button type="button" class="prop-chip ${state.bestMode === "balanced" ? "is-on" : ""}" data-mode="balanced">Balanced</button>
+            <button type="button" class="prop-chip ${state.bestMode === "risk" ? "is-on" : ""}" data-mode="risk">Lowest Risk</button>
+          </div>
+          <p class="prop-market-note">${escapeHtml(a.note || "")}</p>
+        </details>
       </div>
-      <p class="prop-market-note">${escapeHtml(a.note || "")}</p>
     `;
+    host.querySelectorAll("#summaryExtra details").forEach((el) => {
+      el.addEventListener("toggle", () => {
+        state.summaryOpen = [...host.querySelectorAll("#summaryExtra details")].some((d) => d.open);
+      });
+    });
     host.querySelectorAll("[data-mode]").forEach((btn) => {
       btn.addEventListener("click", () => {
         state.bestMode = btn.getAttribute("data-mode");
@@ -436,6 +670,7 @@
         });
       });
     });
+    bindTipTaps(host);
   }
 
   function flagHtml(flags, fcs) {
@@ -466,7 +701,16 @@
         </tr>`;
       })
       .join("");
-    return `<table class="prop-log"><thead><tr><th>Wk</th><th>Opp</th><th>Result</th><th>Value</th>${extraHead}<th>Hit</th></tr></thead><tbody>${body}</tbody></table><p class="prop-log-key">* FCS opponent</p>`;
+    return `<table class="prop-log"><thead><tr><th>Wk</th><th>Opp</th><th>Result</th><th>Value</th>${extraHead}<th>Hit</th></tr></thead><tbody>${body}</tbody></table>
+      <div class="prop-log-stack">${list
+        .map((g) => {
+          const hit = g.hit ? "Hit" : "Miss";
+          return `<div class="prop-log-card${g.isFcs ? " is-fcs" : ""}"><strong>Wk ${escapeHtml(
+            String(g.week ?? "—")
+          )}</strong> · ${escapeHtml(g.opp || "—")}${g.isFcs ? " · FCS" : ""} · ${escapeHtml(fmt(g.value, 1))} · ${hit}</div>`;
+        })
+        .join("")}</div>
+      <p class="prop-log-key">* FCS opponent</p>`;
   }
 
   function renderCards() {
@@ -524,7 +768,6 @@
           e.market && (e.market.spread != null || e.market.total != null)
             ? `<p class="prop-market-note">CFBD close: spread ${fmt(e.market.spread, 1)} · total ${fmt(e.market.total, 1)}</p>`
             : `<p class="prop-market-note">Market odds not loaded.</p>`;
-        const md = e.modelDebug || {};
         const unusual = e.lineSanity?.unusual
           ? `<div class="prop-unusual"><strong>Unusual line</strong> ${escapeHtml(e.lineSanity.message || "")}</div>`
           : "";
@@ -533,45 +776,6 @@
             ? `<span class="prop-tag-hi" title="The line is far from the modeled range, but the current data sample is limited.">High probability, low confidence</span>`
             : "";
         const fcsHint = e.fcs?.of ? `FCS-heavy: ${e.fcs.games} of ${e.fcs.of} games` : "";
-        const open = state.expanded[leg.id] ? " open" : "";
-        const debug = `<details class="prop-debug"${debugMode ? " open" : ""}><summary>Model Debug</summary><pre>${escapeHtml(
-          JSON.stringify(
-            {
-              projectionMean: md.projectionMean ?? e.projection,
-              median: md.median ?? e.median,
-              sd: md.sd ?? e.distribution?.sd,
-              sdPack: md.sdPack,
-              p20: md.p20 ?? e.range?.p20,
-              p80: md.p80 ?? e.range?.p80,
-              dist: md.dist ?? e.distribution?.dist,
-              simIterations: md.simIterations,
-              rawPMore: md.rawPMore,
-              calibrationAdjustment: md.calibrationAdjustment,
-              uncertaintyAdjustment: md.uncertaintyAdjustment,
-              finalPMore: md.finalPMore ?? e.pMore,
-              confidenceGrade: md.confidenceGrade ?? e.confidence,
-              confidenceBreakdown: md.confidenceBreakdown || e.confidenceBreakdown,
-              confidenceReasons: md.confidenceReasons || e.confidenceReasons,
-              propScore: md.propScore || e.propScoreComponents,
-              fcs: md.fcs || e.fcs,
-              cache: md.cacheSummary || md.cache || e.apiUsage,
-              lineSanity: md.lineSanity || e.lineSanity,
-              currentYearWeight: md.currentYearWeight || e.debug?.currentYearWeight,
-              priorYearWeight: md.priorYearWeight || e.debug?.priorYearWeight,
-              flags: e.flags,
-              games: (e.debug?.gamesIncluded || []).map((g) => ({
-                week: g.week,
-                opp: g.opponent,
-                raw: g.raw,
-                adj: g.value,
-                w: g.weight,
-                fcs: g.isFcs,
-              })),
-            },
-            null,
-            2
-          )
-        )}</pre></details>`;
         return `<article class="prop-card" data-id="${escapeHtml(leg.id)}">
           <div class="prop-card-head">
             <h3>${escapeHtml(e.player?.name)}</h3>
@@ -591,60 +795,60 @@
             )}</strong></div>
           </div>
           ${unusual}${hiLo}
-          <p class="prop-card-sub">Mean ${escapeHtml(fmt(e.projection, 1))} · Median ${escapeHtml(
+          <p class="prop-card-sub prop-dist-line">Mean ${escapeHtml(fmt(e.projection, 1))} · Median ${escapeHtml(
           fmt(e.median, 1)
         )} · SD ${escapeHtml(fmt(e.distribution?.sd, 1))} · P20–P80 ${escapeHtml(fmt(e.range?.p20, 0))}–${escapeHtml(
           fmt(e.range?.p80, 0)
         )}</p>
           <div class="prop-flags">${flagHtml(e.flags, e.fcs)}${fcsHint && !(e.flags || []).includes("FCS-Heavy Sample") ? `<span class="prop-flag" title="${escapeHtml(FLAG_HELP["FCS-Heavy Sample"])}">${escapeHtml(fcsHint)}</span>` : ""}</div>
           ${e.scheduleWarning ? `<p class="prop-error">${escapeHtml(e.scheduleWarning)}</p>` : ""}
-          <div class="prop-sec"><h4>Recent</h4>
+          <div class="prop-sec"><h4>Why ${escapeHtml((e.side || "more").toUpperCase())}</h4><p>${escapeHtml(whyOne)}</p></div>
+          <div class="prop-sec"><h4>Caution</h4><p>${escapeHtml(cautionOne)}</p></div>
+          <details class="prop-acc" data-acc="form"><summary>Recent form</summary>
             <div class="prop-form-grid">
               <div><span>Season</span><strong>${fmt(e.form?.season, 1)}</strong></div>
               <div><span>L3</span><strong>${fmt(e.form?.l3, 1)}</strong></div>
               <div><span>Prior</span><strong>${fmt(e.form?.prior, 1)}</strong></div>
               <div><span>Hit</span><strong>${escapeHtml(e.hitCountLabel || "—")}</strong></div>
             </div>
-          </div>
-          <div class="prop-sec"><h4>Why ${escapeHtml((e.side || "more").toUpperCase())}</h4><p>${escapeHtml(whyOne)}</p></div>
-          <div class="prop-sec"><h4>Caution</h4><p>${escapeHtml(cautionOne)}</p></div>
-          <details class="prop-details"${open} data-expand="${escapeHtml(leg.id)}">
-            <summary>View full analysis</summary>
-            <div class="prop-sec"><h4>Usage</h4><p>${escapeHtml(share)} · Role: ${escapeHtml(e.usage?.role)} — ${escapeHtml(
+            <p class="prop-market-note">Mean ${escapeHtml(fmt(e.projection, 1))} · Median ${escapeHtml(fmt(e.median, 1))} · SD ${escapeHtml(
+          fmt(e.distribution?.sd, 1)
+        )} · P20–P80 ${escapeHtml(fmt(e.range?.p20, 0))}–${escapeHtml(fmt(e.range?.p80, 0))}</p>
+          </details>
+          <details class="prop-acc" data-acc="usage"><summary>Usage</summary><p>${escapeHtml(share)} · Role: ${escapeHtml(e.usage?.role)} — ${escapeHtml(
           e.usage?.roleDetail || ""
-        )}${e.usage?.inferred ? " · inferred" : ""}</p></div>
-            <div class="prop-sec"><h4>Matchup</h4>
+        )}${e.usage?.inferred ? " · inferred" : ""}</p></details>
+          <details class="prop-acc" data-acc="matchup"><summary>Matchup</summary>
               <p>${escapeHtml(e.matchup?.headline ? `Matchup: ${e.matchup.headline}` : e.matchup?.note || "")}</p>
               <ul>${factors}</ul>
               <p class="prop-market-note">Projection adjustment: ${escapeHtml(
                 e.matchup?.adjPctDisplay != null ? `${e.matchup.adjPctDisplay}%` : "—"
               )}</p>
-            </div>
-            <div class="prop-sec"><h4>Game environment</h4>
+          </details>
+          <details class="prop-acc" data-acc="env"><summary>Game environment</summary>
               <p>Blowout risk: ${escapeHtml(e.environment?.blowoutRisk || "—")} · ${escapeHtml(
           (e.environment?.notes || []).join(" · ") || "No script adjustment"
         )}</p>${market}
-            </div>
-            <div class="prop-sec"><h4>Why the model likes ${(e.side || "more").toUpperCase()}</h4><ul>${(e.why || [])
+          </details>
+          <details class="prop-acc" data-acc="why"><summary>Why the model likes ${(e.side || "more").toUpperCase()}</summary><ul>${(e.why || [])
           .map((x) => `<li>${escapeHtml(x)}</li>`)
-          .join("")}</ul></div>
-            <div class="prop-sec"><h4>Reasons for caution</h4><ul>${(e.caution || [])
+          .join("")}</ul></details>
+          <details class="prop-acc" data-acc="caution"><summary>Reasons for caution</summary><ul>${(e.caution || [])
           .map((x) => `<li>${escapeHtml(x)}</li>`)
-          .join("")}</ul></div>
-            <div class="prop-sec"><h4>Projection breakdown</h4><div class="prop-breakdown">${breakdown}<div class="is-final">Final: ${fmt(
+          .join("")}</ul></details>
+          <details class="prop-acc" data-acc="break"><summary>Projection breakdown</summary><div class="prop-breakdown">${breakdown}<div class="is-final">Final: ${fmt(
           e.projection,
           1
-        )}</div></div></div>
-            <div class="prop-sec"><h4>Game log</h4>${logTable(e.gameLog, debugMode)}</div>
-            <div class="prop-sec"><h4>What-if lines</h4>
+        )}</div></div></details>
+          <details class="prop-acc" data-acc="log" data-expand-log="${escapeHtml(leg.id)}"><summary>Game log</summary><div data-log-host></div></details>
+          <details class="prop-acc" data-acc="whatif"><summary>What-if lines</summary>
               <div class="prop-whatif" data-id="${escapeHtml(leg.id)}">
                 ${alts.map((n) => `<button type="button" data-line="${n}">${n} → …</button>`).join("")}
-                <label>Custom <input type="number" step="0.5" value="${escapeHtml(String(line))}" data-custom></label>
+                <label>Custom <input type="number" step="0.5" inputmode="decimal" value="${escapeHtml(String(line))}" data-custom></label>
                 <button type="button" class="prop-chip" data-apply>Apply line</button>
               </div>
-            </div>
-            ${debug}
           </details>
+          <details class="prop-acc prop-debug" data-acc="debug"${debugMode ? " open" : ""}><summary>Model Debug</summary><pre data-debug-host></pre></details>
         </article>`;
       })
       .join("");
@@ -669,11 +873,68 @@
         applyLine(id, line);
       });
     });
-    host.querySelectorAll("details[data-expand]").forEach((el) => {
+    host.querySelectorAll("details[data-expand-log]").forEach((el) => {
       el.addEventListener("toggle", () => {
-        state.expanded[el.getAttribute("data-expand")] = el.open;
+        if (!el.open) return;
+        const hostLog = el.querySelector("[data-log-host]");
+        if (hostLog && !hostLog.innerHTML) {
+          const leg = state.legs.find((l) => l.id === el.getAttribute("data-expand-log"));
+          hostLog.innerHTML = logTable(leg?.evaluation?.gameLog, debugMode);
+        }
       });
     });
+    host.querySelectorAll("details.prop-acc").forEach((el) => {
+      const card = el.closest(".prop-card");
+      const key = `${card?.getAttribute("data-id")}:${el.getAttribute("data-acc")}`;
+      if (state.expanded[key]) el.open = true;
+      if (el.open && el.hasAttribute("data-expand-log")) {
+        const hostLog = el.querySelector("[data-log-host]");
+        const leg = state.legs.find((l) => l.id === el.getAttribute("data-expand-log"));
+        if (hostLog && !hostLog.innerHTML) hostLog.innerHTML = logTable(leg?.evaluation?.gameLog, debugMode);
+      }
+      if (el.open && el.getAttribute("data-acc") === "debug") fillDebug(el, card?.getAttribute("data-id"));
+      el.addEventListener("toggle", () => {
+        state.expanded[key] = el.open;
+        if (el.open && el.getAttribute("data-acc") === "debug") fillDebug(el, card?.getAttribute("data-id"));
+      });
+    });
+    bindTipTaps(host);
+  }
+
+  function fillDebug(el, id) {
+    const pre = el.querySelector("[data-debug-host]");
+    if (!pre || pre.textContent) return;
+    const e = state.legs.find((l) => l.id === id)?.evaluation;
+    if (!e) return;
+    const md = e.modelDebug || {};
+    pre.textContent = JSON.stringify(
+      {
+        projectionMean: md.projectionMean ?? e.projection,
+        median: md.median ?? e.median,
+        sd: md.sd ?? e.distribution?.sd,
+        sdPack: md.sdPack,
+        p20: md.p20 ?? e.range?.p20,
+        p80: md.p80 ?? e.range?.p80,
+        dist: md.dist ?? e.distribution?.dist,
+        simIterations: md.simIterations,
+        rawPMore: md.rawPMore,
+        calibrationAdjustment: md.calibrationAdjustment,
+        uncertaintyAdjustment: md.uncertaintyAdjustment,
+        finalPMore: md.finalPMore ?? e.pMore,
+        confidenceGrade: md.confidenceGrade ?? e.confidence,
+        confidenceBreakdown: md.confidenceBreakdown || e.confidenceBreakdown,
+        confidenceReasons: md.confidenceReasons || e.confidenceReasons,
+        propScore: md.propScore || e.propScoreComponents,
+        fcs: md.fcs || e.fcs,
+        cache: md.cacheSummary || md.cache || e.apiUsage,
+        lineSanity: md.lineSanity || e.lineSanity,
+        currentYearWeight: md.currentYearWeight || e.debug?.currentYearWeight,
+        priorYearWeight: md.priorYearWeight || e.debug?.priorYearWeight,
+        flags: e.flags,
+      },
+      null,
+      2
+    );
   }
 
   function erf(x) {
@@ -765,22 +1026,55 @@
     }
   }
 
-  async function applyLine(legId, line) {
+  async function applyLine(legId, line, side, { keepList = false } = {}) {
     const leg = state.legs.find((l) => l.id === legId);
     if (!leg?.evaluation?.distribution || !Number.isFinite(line)) return;
+    const nextSide = String(side || leg.side || "more").toLowerCase() === "less" ? "less" : "more";
+    if (Number(leg.line) === Number(line) && String(leg.side || "more") === nextSide) return;
     try {
       const next = await api(
         { action: "reline" },
-        { method: "POST", body: { evaluation: leg.evaluation, line, side: leg.side } }
+        { method: "POST", body: { evaluation: leg.evaluation, line, side: nextSide } }
       );
       leg.line = line;
+      leg.side = nextSide;
       leg.evaluation = next;
       delete state.preview[legId];
       await refreshAnalysis();
-      renderAll();
+      if (keepList) {
+        patchLegKpis(legId);
+        renderSummary();
+        renderCards();
+      } else {
+        renderAll();
+      }
     } catch {
       /* keep existing */
     }
+  }
+
+  function patchLegKpis(legId) {
+    const row = document.querySelector(`.prop-leg[data-id="${CSS.escape(legId)}"]`);
+    const leg = state.legs.find((l) => l.id === legId);
+    const e = leg?.evaluation;
+    if (!row || !e || e.error) return;
+    const host = row.querySelector(".prop-leg-kpis");
+    if (!host) return;
+    host.innerHTML = `
+      <div class="prop-kpi-chip"><span>Proj</span><strong>${escapeHtml(fmt(e.projection, 1))}</strong></div>
+      <div class="prop-kpi-chip"><span>P(${escapeHtml((e.side || "more").toUpperCase())})</span><strong class="${
+        e.pHit >= 0.58 ? "is-good" : e.pHit < 0.52 ? "is-bad" : "is-gold"
+      }">${escapeHtml(pct(e.pHit))}</strong></div>
+      <div class="prop-kpi-chip"><span>Score</span><strong>${escapeHtml(String(e.propScore ?? "—"))}</strong><em>${escapeHtml(
+        e.propScoreLabel || ""
+      )}</em></div>
+      <div class="prop-kpi-chip"><span>Model Conf</span><strong>${escapeHtml(e.confidence || "")}</strong></div>
+    `;
+  }
+
+  function editLeg(id, line, side) {
+    if (!Number.isFinite(line) || line < 0) return;
+    applyLine(id, line, side, { keepList: true });
   }
 
   function renderAll() {
@@ -868,7 +1162,7 @@
             side,
             season: state.season,
             week: state.week,
-            debug: true,
+            debug: !isMobile(),
           },
         }
       );
@@ -909,18 +1203,39 @@
     if (!panel || !result) return;
     panel.hidden = false;
     const n = result.n || which;
+    const keepIds = (result.keep || []).map((l) => l.clientId).filter(Boolean);
+    const cutIds = (result.cut || []).map((l) => l.clientId).filter(Boolean);
+    state.keepIds = keepIds;
+    state.cutIds = cutIds;
     const keep = (result.keep || [])
-      .map((l) => `<li>KEEP ${escapeHtml(l.player?.name)} — ${escapeHtml(l.stat?.short || l.stat?.label || "")} ${escapeHtml(String(l.line ?? ""))} ${escapeHtml((l.side || "").toUpperCase())} — score ${escapeHtml(String(l.propScore))}</li>`)
+      .map(
+        (l) =>
+          `<article class="prop-bestn-item is-keep"><span class="prop-bestn-tag">KEEP</span><p><strong>${escapeHtml(
+            l.player?.name
+          )}</strong> — ${escapeHtml(l.stat?.short || l.stat?.label || "")} ${escapeHtml(String(l.line ?? ""))} ${escapeHtml(
+            (l.side || "").toUpperCase()
+          )} · score ${escapeHtml(String(l.propScore))}</p></article>`
+      )
       .join("");
     const cut = (result.cut || [])
-      .map((l) => `<li>CUT ${escapeHtml(l.player?.name)} — ${escapeHtml(l.stat?.short || l.stat?.label || "")} ${escapeHtml(String(l.line ?? ""))} ${escapeHtml((l.side || "").toUpperCase())} — score ${escapeHtml(String(l.propScore))}</li>`)
+      .map(
+        (l) =>
+          `<article class="prop-bestn-item is-cut"><span class="prop-bestn-tag">CUT</span><p><strong>${escapeHtml(
+            l.player?.name
+          )}</strong> — ${escapeHtml(l.stat?.short || l.stat?.label || "")} ${escapeHtml(String(l.line ?? ""))} ${escapeHtml(
+            (l.side || "").toUpperCase()
+          )} · score ${escapeHtml(String(l.propScore))}</p><p class="prop-market-note">${escapeHtml(
+            l.cutReason || result.reason || "Removed to lower correlation or variance."
+          )}</p></article>`
+      )
       .join("");
     const why = (result.why || []).map((w) => `<li>${escapeHtml(w)}</li>`).join("");
     panel.innerHTML = `<div class="matchup-panel-head"><h2 class="matchup-panel-title">Best ${n} of ${escapeHtml(String((result.keep || []).length + (result.cut || []).length))}</h2></div>
       <p class="prop-market-note">Mode: ${escapeHtml(result.mode || state.bestMode)} · Why this ${n}-leg set</p>
       ${why ? `<ul class="prop-risk-drivers">${why}</ul>` : ""}
-      <ol>${keep}${cut}</ol>
+      ${keep}${cut}
       <p class="prop-corr">${escapeHtml(result.reason || "")}</p>`;
+    renderEntryList();
   }
 
   function renderCompare() {
@@ -929,6 +1244,25 @@
     if (!panel || legs.length < 2) return;
     panel.hidden = false;
     const bestScore = Math.max(...legs.map((l) => l.propScore || 0));
+    const cards = legs
+      .map((l) => {
+        const best = l.propScore === bestScore ? " is-best" : "";
+        return `<article class="prop-compare-card${best}">
+          <h3>${escapeHtml(l.player?.name)}</h3>
+          <p class="prop-card-sub">${escapeHtml(l.stat?.short || l.stat?.label || "")} · ${escapeHtml(fmt(l.line, 1))} ${escapeHtml(
+          (l.side || "").toUpperCase()
+        )}</p>
+          <div class="prop-compare-metrics">
+            <div><span>Projection</span><strong>${escapeHtml(fmt(l.projection, 1))}</strong></div>
+            <div><span>Probability</span><strong>${escapeHtml(pct(l.pHit))}</strong></div>
+            <div><span>Score</span><strong>${escapeHtml(String(l.propScore))} ${escapeHtml(l.propScoreLabel || "")}</strong></div>
+            <div><span>Confidence</span><strong>${escapeHtml(l.confidence || "—")}</strong></div>
+            <div><span>Recent hit</span><strong>${escapeHtml(pct(l.form?.hitRateL5))}</strong></div>
+            <div><span>Matchup</span><strong>${escapeHtml(l.matchup?.headline || (l.matchup?.adjPct != null ? `${(l.matchup.adjPct * 100).toFixed(1)}%` : "—"))}</strong></div>
+          </div>
+        </article>`;
+      })
+      .join("");
     const rows = legs
       .map((l) => {
         const best = l.propScore === bestScore ? "is-best" : "";
@@ -937,17 +1271,17 @@
           <td>${escapeHtml(l.stat?.short || l.stat?.label)}</td>
           <td>${escapeHtml(fmt(l.line, 1))} ${escapeHtml((l.side || "").toUpperCase())}</td>
           <td>${escapeHtml(fmt(l.projection, 1))}</td>
-          <td>${escapeHtml(fmt(l.edge, 1))}</td>
           <td>${escapeHtml(pct(l.pHit))}</td>
           <td>${escapeHtml(pct(l.form?.hitRateL5))}</td>
-          <td>${escapeHtml(l.matchup?.adjPct != null ? `${(l.matchup.adjPct * 100).toFixed(1)}%` : "—")}</td>
+          <td>${escapeHtml(l.matchup?.headline || "—")}</td>
           <td>Model Conf ${escapeHtml(l.confidence)}</td>
           <td class="${best}">${escapeHtml(String(l.propScore))} ${escapeHtml(l.propScoreLabel || "")}</td>
         </tr>`;
       })
       .join("");
     panel.innerHTML = `<div class="matchup-panel-head"><h2 class="matchup-panel-title">Compare legs</h2></div>
-      <table><thead><tr><th>Player</th><th>Prop</th><th>Line</th><th>Proj</th><th>Edge</th><th>P(hit)</th><th>L5 hit</th><th>Matchup</th><th>Confidence</th><th>Prop Score</th></tr></thead><tbody>${rows}</tbody></table>`;
+      <div class="prop-compare-cards">${cards}</div>
+      <table><thead><tr><th>Player</th><th>Prop</th><th>Line</th><th>Proj</th><th>P(hit)</th><th>L5 hit</th><th>Matchup</th><th>Confidence</th><th>Prop Score</th></tr></thead><tbody>${rows}</tbody></table>`;
   }
 
   async function saveEntry() {
@@ -1166,6 +1500,53 @@
     document.getElementById("compareBtn")?.addEventListener("click", renderCompare);
     document.getElementById("saveBtn")?.addEventListener("click", saveEntry);
     document.getElementById("propBoardRefresh")?.addEventListener("click", () => loadBoard(state.boardLoaded));
+    document.getElementById("dockAdd")?.addEventListener("click", () => {
+      const ready =
+        document.getElementById("playerId")?.value &&
+        document.getElementById("propStat")?.value &&
+        document.getElementById("propLine")?.value;
+      if (ready) {
+        addProp();
+        return;
+      }
+      document.getElementById("addPropForm")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      document.getElementById("playerSearch")?.click();
+    });
+    document.getElementById("dockBest4")?.addEventListener("click", () => {
+      const n = evaluatedLegs().length >= 4 ? 4 : 3;
+      refreshAnalysis().then(() => {
+        renderBestN(n);
+        renderSummary();
+        document.getElementById("bestNPanel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    });
+    document.getElementById("dockCompare")?.addEventListener("click", () => {
+      renderCompare();
+      document.getElementById("comparePanel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    document.getElementById("analysisBar")?.addEventListener("click", () => {
+      state.summaryOpen = true;
+      renderSummary();
+      document.getElementById("entrySummary")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    document.getElementById("propStat")?.addEventListener("change", () => {
+      if (document.getElementById("propStat").value) document.getElementById("propLine")?.focus();
+    });
+    document.getElementById("propLine")?.addEventListener("focus", () => {
+      setTimeout(() => document.getElementById("propLine")?.scrollIntoView({ block: "center", behavior: "smooth" }), 80);
+    });
+    document.getElementById("propLine")?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        document.getElementById("propSide")?.focus();
+      }
+    });
+    document.getElementById("propSide")?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        addProp(e);
+      }
+    });
     try {
       const meta = await api({ action: "meta" }).catch(() => null);
       fillWeekSelect(meta || { week: { weekNumber: 3 }, season: 2026, modelVersion: "2.1.0" });

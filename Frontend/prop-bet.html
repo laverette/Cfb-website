@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
   <title>Prop Lab</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -10,7 +10,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
   <link rel="stylesheet" href="styles/site-theme.css">
   <link rel="stylesheet" href="Resources/Styles/power.css">
-  <link rel="stylesheet" href="Resources/Styles/prop-lab.css?v=3">
+  <link rel="stylesheet" href="Resources/Styles/prop-lab.css?v=7">
 </head>
 <body class="power-rankings-body">
   <nav class="navbar weeklypicks-navbar site-nav">
@@ -28,6 +28,10 @@
   <div class="menu-overlay" id="menuOverlay" onclick="closeMenu()"></div>
 
   <main class="container page-shell power-page prop-lab-page">
+    <button type="button" class="prop-analysis-bar" id="analysisBar" hidden>
+      <span id="analysisBarText">Entry summary</span>
+      <strong>Open</strong>
+    </button>
     <header class="prop-lab-header">
       <div>
         <p class="power-eyebrow">PrizePicks entry builder</p>
@@ -70,31 +74,35 @@
                   aria-label="Player search"
                   aria-autocomplete="list"
                   aria-controls="playerList"
+                  enterkeyhint="search"
+                  autocomplete="off"
                 >
                 <ul class="matchup-combo-list" id="playerList" hidden role="listbox"></ul>
               </div>
             </label>
             <label class="power-field">
               <span>Stat</span>
-              <select id="propStat" class="site-select matchup-select" aria-label="Prop stat">
+              <select id="propStat" class="site-select matchup-select" aria-label="Prop stat" enterkeyhint="next">
                 <option value="">Stat</option>
               </select>
             </label>
-            <label class="power-field">
-              <span>Line</span>
-              <input id="propLine" class="site-select matchup-select" type="number" step="0.5" inputmode="decimal" placeholder="98.5" aria-label="PrizePicks line">
-            </label>
-            <label class="power-field">
-              <span>Side</span>
-              <select id="propSide" class="site-select matchup-select" aria-label="More or Less">
-                <option value="more">More</option>
-                <option value="less">Less</option>
-              </select>
-            </label>
+            <div class="prop-add-lineside">
+              <label class="power-field">
+                <span>Line</span>
+                <input id="propLine" class="site-select matchup-select" type="number" step="0.5" inputmode="decimal" enterkeyhint="next" placeholder="98.5" aria-label="PrizePicks line">
+              </label>
+              <label class="power-field">
+                <span>Side</span>
+                <select id="propSide" class="site-select matchup-select" aria-label="More or Less" enterkeyhint="go">
+                  <option value="more">More</option>
+                  <option value="less">Less</option>
+                </select>
+              </label>
+            </div>
             <button type="submit" class="btn btn-gold prop-add-btn" id="addPropBtn">+ Add Prop</button>
           </div>
           <p class="prop-opp-hint" id="oppHint">Opponent fills from the week’s schedule after you pick a player.</p>
-          <p class="prop-opp-hint">Model Confidence reflects data quality and model reliability, not whether the prop is good or bad. Ctrl/Cmd+Enter adds the prop.</p>
+          <p class="prop-opp-hint is-desktop-only">Model Confidence reflects data quality and model reliability, not whether the prop is good or bad. Ctrl/Cmd+Enter adds the prop.</p>
         </form>
 
         <ol class="prop-entry-list" id="entryList"></ol>
@@ -148,8 +156,25 @@
     </details>
   </main>
 
+  <div id="playerSheet" class="prop-search-sheet" hidden>
+    <div class="prop-search-sheet-head">
+      <label>
+        Search players
+        <input id="playerSheetInput" class="site-select matchup-select" type="search" enterkeyhint="search" autocomplete="off" spellcheck="false" placeholder="Name or team…">
+      </label>
+      <button type="button" class="btn btn-outline-light" id="playerSheetClose">Done</button>
+    </div>
+    <ul id="playerSheetList" class="prop-search-sheet-list" role="listbox"></ul>
+  </div>
+
+  <nav class="prop-dock" id="propDock" aria-label="Entry actions">
+    <button type="button" class="btn btn-gold" id="dockAdd">+ Add Prop</button>
+    <button type="button" class="btn btn-gold" id="dockBest4" disabled>Best 4</button>
+    <button type="button" class="btn btn-outline-light" id="dockCompare" disabled>Compare</button>
+  </nav>
+
   <script src="scripts/auth-ui.js"></script>
-  <script src="scripts/prop-lab.js?v=5"></script>
+  <script src="scripts/prop-lab.js?v=9"></script>
   <script>
     function closeMenu() {
       const menu = document.getElementById('dropdownMenu');

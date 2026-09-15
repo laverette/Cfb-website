@@ -217,6 +217,25 @@ function explainBestN(keep, cut, pairs, mode) {
   return parts;
 }
 
+function explainCut(leg, keep, pairs, mode) {
+  const key = legKey(leg);
+  const keepIds = new Set(keep.map(legKey));
+  const pair = pairs.find(
+    (p) => p.strength === "high" && ((p.a === key && keepIds.has(p.b)) || (p.b === key && keepIds.has(p.a)))
+  );
+  if (pair) {
+    const otherKey = pair.a === key ? pair.b : pair.a;
+    const other = keep.find((k) => legKey(k) === otherKey);
+    return `High correlation with ${legCaption(other || { player: { name: "a kept leg" } })}.`;
+  }
+  const same = keep.find((k) => playerKey(k) === playerKey(leg) && playerKey(leg));
+  if (same) return `Same player as ${legCaption(same)} — keeping the stronger prop.`;
+  if (mode !== "upside" && ((leg.flags || []).includes("High Variance") || /td/i.test(leg.stat?.id || ""))) {
+    return "Cut to lower overall variance versus the kept set.";
+  }
+  return `Weaker ${mode} mix of score, confidence, and correlation than the kept legs.`;
+}
+
 function bestN(legs, n = 4, mode = "balanced") {
   const ok = (legs || []).filter((l) => l && !l.error);
   const k = Math.min(n, ok.length);
@@ -233,7 +252,10 @@ function bestN(legs, n = 4, mode = "balanced") {
   }
   const keepIds = new Set(best.map(legKey));
   const keep = best.slice().sort((a, b) => (b.propScore || 0) - (a.propScore || 0));
-  const cut = ok.filter((l) => !keepIds.has(legKey(l)));
+  const cut = ok.filter((l) => !keepIds.has(legKey(l))).map((l) => ({
+    ...l,
+    cutReason: explainCut(l, keep, pairs, mode),
+  }));
   const why = explainBestN(keep, cut, pairs, mode);
   return {
     n: k,

@@ -241,6 +241,7 @@ describe("Best-N correlation penalty", () => {
     assert.equal(out.keep.length, 3);
     assert.ok(out.keep.some((l) => l.clientId === "rb"), "independent RB should survive correlation-aware pick");
     assert.ok(out.why.length);
+    assert.ok(out.cut.every((l) => l.cutReason && l.cutReason.length > 8));
   });
 });
 

@@ -262,6 +262,48 @@ const PROP_DEFINITIONS = [
 
 const PROP_BY_ID = Object.fromEntries(PROP_DEFINITIONS.map((d) => [d.id, d]));
 
+const POSITIONS_BY_STAT = {
+  pass_yds: ["QB", "ATH"],
+  pass_att: ["QB", "ATH"],
+  pass_comp: ["QB", "ATH"],
+  pass_td: ["QB", "ATH"],
+  pass_int: ["QB", "ATH"],
+  pass_rush_yds: ["QB", "ATH"],
+  rush_yds: ["QB", "RB", "WR", "ATH"],
+  rush_att: ["QB", "RB", "WR", "ATH"],
+  rush_td: ["QB", "RB", "WR", "ATH"],
+  rec_yds: ["WR", "TE", "RB", "ATH"],
+  rec: ["WR", "TE", "RB", "ATH"],
+  rec_td: ["WR", "TE", "RB", "ATH"],
+  rush_rec_yds: ["RB", "WR", "TE", "ATH"],
+  total_td: ["QB", "RB", "WR", "TE", "ATH"],
+};
+
+for (const d of PROP_DEFINITIONS) {
+  d.positions = POSITIONS_BY_STAT[d.id] || ["QB", "RB", "WR", "TE", "ATH"];
+}
+
+function canonicalPosition(pos) {
+  const p = String(pos || "")
+    .toUpperCase()
+    .replace(/[^A-Z]/g, "");
+  if (!p) return null;
+  if (p === "QB") return "QB";
+  if (["RB", "FB", "HB", "TB"].includes(p)) return "RB";
+  if (["WR", "SLOT"].includes(p)) return "WR";
+  if (p === "TE") return "TE";
+  if (["ATH", "UT"].includes(p)) return "ATH";
+  return p;
+}
+
+function statsForPosition(position, catalog = PROP_DEFINITIONS) {
+  const pos = canonicalPosition(position);
+  const list = catalog || PROP_DEFINITIONS;
+  if (!pos) return list.slice();
+  const hit = list.filter((d) => (d.positions || []).includes(pos));
+  return hit.length ? hit : list.slice();
+}
+
 function getPropDef(id) {
   return PROP_BY_ID[String(id || "")] || null;
 }
@@ -274,6 +316,7 @@ function catalogPublic() {
     category: d.category,
     family: d.family,
     combo: Boolean(d.combo),
+    positions: d.positions || [],
   }));
 }
 
@@ -282,4 +325,7 @@ module.exports = {
   PROP_BY_ID,
   getPropDef,
   catalogPublic,
+  canonicalPosition,
+  statsForPosition,
+  POSITIONS_BY_STAT,
 };
