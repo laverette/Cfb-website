@@ -28,6 +28,8 @@ body.has-mobile-dock {
 
 .bouncing-football {
   pointer-events: none !important;
+  z-index: 1050;
+  opacity: 1;
 }
 
 /* Football stays decorative */
@@ -99,9 +101,10 @@ body.has-mobile-dock {
 
 @media (max-width: 899px) {
   .bouncing-football {
-    width: 26px;
-    height: 26px;
-    opacity: 0.55;
+    width: 32px;
+    height: 32px;
+    opacity: 1;
+    z-index: 1050;
   }
 
   .site-nav,
