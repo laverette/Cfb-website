@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
   <title>Weekly Picks</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="Resources/Styles/weeklypicks.css">
   <link rel="stylesheet" href="styles/picks-hub.css">
   <link rel="stylesheet" href="Resources/Styles/power.css">
+  <link rel="stylesheet" href="styles/weeklypicks-mobile.css?v=1">
 </head>
 <body>
   <script>
@@ -84,7 +85,8 @@
           <input type="hidden" name="form-name" value="predictions" />
           <input type="hidden" name="user" id="predictionsUserIdentity" value="" />
           <p id="picksLoginGate" class="picks-auth-notice" style="display:none;">
-            Please <a href="login.html?redirect=weeklypicks.html">log in</a> to submit your picks. Your account name will be sent with your entry.
+            Log in to submit your picks and save your entry.
+            <a href="login.html?redirect=weeklypicks.html">Log in</a>
           </p>
 
           <!-- Database Weekly Picks (dynamic). This is Phase 1: read-only from backend DB. -->
@@ -384,11 +386,21 @@
       class="corso-fab"
       aria-expanded="false"
       aria-controls="corsoPanel"
+      aria-label="Ask Corso"
+      title="Ask Corso"
     >
       <span class="corso-fab-icon" aria-hidden="true">🎙️</span>
       <span class="corso-fab-label">Ask Corso</span>
     </button>
   </div>
+
+  <nav class="picks-mobile-dock" id="picksMobileDock" hidden aria-label="Pick progress">
+    <div class="picks-mobile-dock-copy">
+      <strong id="picksDockCount">0 / 12 picked</strong>
+      <span class="picks-mobile-dock-track" aria-hidden="true"><span id="picksDockFill"></span></span>
+    </div>
+    <button type="button" class="picks-mobile-dock-submit" id="picksDockSubmit" disabled>Submit</button>
+  </nav>
 
   <div id="predictMatchupModal" class="predict-matchup-modal" hidden>
     <button type="button" id="predictMatchupBackdrop" class="predict-matchup-backdrop" aria-label="Close matchup prediction"></button>
@@ -416,6 +428,7 @@
   </div>
 
     <script src="scripts/auth-ui.js"></script>
+    <script src="scripts/weeklypicks-mobile.js?v=1"></script>
     <script>
     // -------------------------------------------------------------------------
     // CFBD data layer (kept for later; NOT used in Phase 1)
@@ -587,20 +600,79 @@
       const fill = document.getElementById('hubProgressFill');
       const rows = document.querySelectorAll('#dbWeekPicksContainer .pick-game-row');
       const total = rows.length;
-      if (!wrap || !label || !fill) return;
+      if (!wrap || !label || !fill) {
+        syncMobileDock(0, 0);
+        return;
+      }
       if (!total || document.body.classList.contains('picks-results-open') || document.body.classList.contains('weekly-results-view')) {
         wrap.hidden = true;
+        syncMobileDock(0, 0);
         return;
       }
       const picked = document.querySelectorAll('#dbWeekPicksContainer .pick-game-row.has-pick').length;
       wrap.hidden = false;
       wrap.classList.toggle('is-complete', picked >= total);
-      label.textContent = picked >= total ? 'Board complete' : `${picked} of ${total} picked`;
+      label.textContent = picked >= total ? `${picked} of ${total} picked` : `${picked} of ${total} picked`;
       fill.style.width = `${Math.round((picked / total) * 100)}%`;
       const submitBtn = document.getElementById('submit');
       if (submitBtn && submitBtn.style.display !== 'none') {
         submitBtn.textContent = picked >= total ? 'Submit picks' : `Submit ${picked}/${total}`;
       }
+      syncMobileDock(picked, total);
+    }
+
+    function syncMobileDock(picked, total) {
+      const dock = document.getElementById('picksMobileDock');
+      const count = document.getElementById('picksDockCount');
+      const fill = document.getElementById('picksDockFill');
+      const dockBtn = document.getElementById('picksDockSubmit');
+      const submitBtn = document.getElementById('submit');
+      const status = window.__PICKS_STATUS__ || {};
+      const helper = window.WeeklyPicksMobile;
+      const editing = Boolean(document.getElementById('cancelEditPicks')) && submitBtn && submitBtn.style.display !== 'none';
+      const show = helper
+        ? helper.dockShouldShow({
+            picksView: !document.body.classList.contains('weekly-results-view') && !document.body.classList.contains('picks-results-open'),
+            submitted: Boolean(status.hasSubmitted),
+            editing,
+            total: total || 0,
+            submitHidden: !submitBtn || submitBtn.style.display === 'none',
+          })
+        : false;
+      if (count) count.textContent = `${picked || 0} / ${total || 0} picked`;
+      if (fill && total) fill.style.width = `${Math.round(((picked || 0) / total) * 100)}%`;
+      if (dock) {
+        dock.hidden = !show;
+        dock.classList.toggle('is-complete', Boolean(total) && picked >= total);
+      }
+      if (dockBtn) {
+        dockBtn.disabled = !submitBtn || submitBtn.disabled || submitBtn.style.display === 'none';
+        dockBtn.textContent = picked >= total && total ? 'Submit picks' : 'Submit';
+      }
+      document.body.classList.toggle('has-mobile-dock', show);
+      const barH = show && dock ? Math.round(dock.getBoundingClientRect().height) : 0;
+      document.documentElement.style.setProperty('--mobile-bottom-bar-height', `${barH}px`);
+    }
+
+    function initMobilePicksDock() {
+      const dockBtn = document.getElementById('picksDockSubmit');
+      dockBtn?.addEventListener('click', () => {
+        const submitBtn = document.getElementById('submit');
+        if (submitBtn && !submitBtn.disabled && submitBtn.style.display !== 'none') {
+          submitBtn.click();
+        }
+      });
+      const fab = document.getElementById('corsoFab');
+      if (fab && window.matchMedia('(max-width: 899px)').matches) {
+        fab.classList.add('is-expanded');
+        setTimeout(() => fab.classList.remove('is-expanded'), 2600);
+      }
+    }
+
+    function restoreWeeklyPicksTab() {
+      let saved = '';
+      try { saved = sessionStorage.getItem('weeklyPicksTab') || ''; } catch (_) {}
+      if (saved === 'week10-results') openTab(null, 'week10-results');
     }
 
     function syncHubLockLabel() {
@@ -647,6 +719,14 @@
       }
     }
 
+    function scrollToHubContent(el) {
+      if (!el) return;
+      const navH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hub-nav-h')) || 0;
+      const switchH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hub-switch-h')) || 0;
+      const y = el.getBoundingClientRect().top + window.scrollY - navH - switchH - 8;
+      window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
+    }
+
     function syncHubStickyOffset() {
       const nav = document.querySelector('.weeklypicks-navbar, .site-nav');
       const dock = document.querySelector('.hub-switch-dock');
@@ -667,6 +747,8 @@
         const btn = e.target.closest('.hub-subnav-btn');
         if (!btn) return;
         setResultsPanel(btn.getAttribute('data-results-panel') || 'board');
+        const panel = document.querySelector(`#week10-results .hub-panel[data-results-panel="${btn.getAttribute('data-results-panel') || 'board'}"]`);
+        scrollToHubContent(panel);
       });
       let saved = 'board';
       try { saved = sessionStorage.getItem('weeklyPicksResultsPanel') || 'board'; } catch (_) {}
@@ -1129,7 +1211,7 @@
     function teamPickButtonHtml({ espnId, teamName, logoUrl, spreadText, side }) {
       const name = String(teamName || 'TBD');
       const logo = logoUrl
-        ? `<img src="${safeText(logoUrl)}" alt="" class="team-logo" draggable="false">`
+        ? `<img src="${safeText(logoUrl)}" alt="" class="team-logo" width="24" height="24" loading="lazy" decoding="async" draggable="false">`
         : '';
       const spread = spreadChipHtml(spreadText);
       const label = spreadText ? `Pick ${name} (${spreadText})` : `Pick ${name}`;
@@ -1417,11 +1499,7 @@
         const gameDate = g?.gameDate || g?.game_date || null;
         const venue = g?.venue || null;
         const extraLine = (gameDate || venue)
-          ? `<div class="pick-meta">
-              ${gameDate ? safeText(formatGameDate(gameDate)) : ''}
-              ${gameDate && venue ? ' · ' : ''}
-              ${venue ? safeText(venue) : ''}
-            </div>`
+          ? `<div class="pick-meta">${safeText((window.WeeklyPicksMobile && WeeklyPicksMobile.formatVenueLine(gameDate, venue)) || [gameDate ? formatGameDate(gameDate) : '', venue].filter(Boolean).join(' · '))}</div>`
           : '';
 
         // IMPORTANT:
@@ -1646,6 +1724,9 @@
       if (submitBtn && submitBtn.style.display !== 'none') {
         submitBtn.disabled = !loggedIn;
       }
+      const dockBtn = document.getElementById('picksDockSubmit');
+      if (dockBtn) dockBtn.disabled = !loggedIn || !submitBtn || submitBtn.style.display === 'none' || submitBtn.disabled;
+      updateHubProgress();
     }
 
     document.addEventListener('DOMContentLoaded', function() {
@@ -1659,6 +1740,8 @@
       wireResultsWeekToggle();
       initResultsSubnav();
       syncHubStickyOffset();
+      initMobilePicksDock();
+      restoreWeeklyPicksTab();
       window.addEventListener('resize', syncHubStickyOffset);
       if (window.visualViewport) {
         window.visualViewport.addEventListener('resize', syncHubStickyOffset);
@@ -2478,7 +2561,7 @@
           ? ` onerror="if(!this.dataset.fb){this.dataset.fb='1';this.src='${safeText(fallback)}';}"`
           : '';
       // No crossorigin — ESPN logos don't send CORS headers and break when it's set.
-      return `<img class="picks-share-logo" src="${safeText(resolved)}" alt="${safeText(name || '')}"${onError}>`;
+      return `<img class="picks-share-logo" src="${safeText(resolved)}" alt="" width="24" height="24" loading="lazy" decoding="async"${onError}>`;
     }
 
     function resolvePickForGame(savedPicks, form, gameNumber, game) {
@@ -2637,17 +2720,19 @@
               </div>
             </div>`
           : `<span class="picks-share-at">@</span>`;
+        const matchupLine = `${awayName || 'TBD'} @ ${homeName || 'TBD'}`;
 
         gamesHtml += `
           <div class="picks-share-game is-${safeText(result.state)}${status.kind === 'live' ? ' is-live' : ''}${status.kind === 'final' ? ' is-final' : ''}">
             <div class="picks-share-game-top">
-              <div class="picks-share-game-num">Game ${i}</div>
+              <div class="picks-share-game-num">Game ${i}${result.state !== 'pending' ? ` ${safeText(result.label)}` : ''}</div>
               ${
                 result.state !== 'pending'
                   ? `<span class="picks-share-result-chip is-${safeText(result.state)}">${safeText(result.label)}</span>`
-                  : ''
+                  : `<span class="picks-share-result-chip is-pending">Pending</span>`
               }
             </div>
+            <p class="picks-share-matchup">${safeText(matchupLine)}</p>
             <div class="picks-share-teams">
               <div class="picks-share-team${awayIsPick ? ' is-pick' : ''}${awayWinning}">
                 ${logoImgHtml(awayLogo, awayName, game?.awayTeamEspnId)}
@@ -3078,10 +3163,11 @@
 
     function showSuccessMessage(message) {
       const btn = document.getElementById('screenshotBtn');
+      if (!btn) return;
       const originalText = btn.innerHTML;
       btn.innerHTML = '✅ ' + message;
       btn.style.backgroundColor = '#4CAF50';
-      
+      btn.setAttribute('aria-live', 'polite');
       setTimeout(() => {
         btn.innerHTML = originalText;
         btn.style.backgroundColor = '';
@@ -3133,6 +3219,9 @@
     let resultsLeaderboardInterval = null;
 
     function recordLabel(entry) {
+      if (window.WeeklyPicksMobile && typeof WeeklyPicksMobile.recordWithPending === 'function') {
+        return WeeklyPicksMobile.recordWithPending(entry);
+      }
       const w = entry.correctPicks || 0;
       const l = entry.incorrectPicks || 0;
       const pending = entry.pendingPicks || 0;
@@ -3457,12 +3546,36 @@
         });
       }
 
-      statsEl.innerHTML = highlights.map((h) => `
-        <div class="stat-highlight">
-          <span class="stat-icon${h.htmlIcon ? ' is-avatar' : ''}">${h.htmlIcon ? h.icon : safeText(h.icon)}</span>
-          <span class="stat-text">${safeText(h.text)}</span>
+      const helper = window.WeeklyPicksMobile;
+      const leaderNames = helper ? helper.nameListCompact(leaders.map(displayPlayerName)) : formatNameList(leaders);
+      const hotNames = helper ? helper.nameListCompact(hotShow.map(displayPlayerName)) : formatNameList(hotShow);
+      const roughNames = helper ? helper.nameListCompact(toughestGroup.map(displayPlayerName)) : formatNameList(toughestGroup);
+      const leaderRec = leader ? recordLabel(leader) : '—';
+      const roughRec = toughestGroup[0] ? recordLabel(toughestGroup[0]) : '—';
+      const heaterLine = hotShow.length
+        ? `${hotNames} · ${hotShow[0].currentStreak}-pick streak`
+        : 'No 3+ streak yet';
+      const topLine = leaders.length
+        ? `${leaderNames} · ${leaderRec}`
+        : 'No graded boards yet';
+      const toughLine = toughestGroup.length
+        ? `${roughNames} · ${roughRec}`
+        : gamesFinal < slateGames
+          ? 'Available after the slate finishes'
+          : '—';
+
+      statsEl.innerHTML = `
+        <div class="analysis-kpis">
+          <div class="analysis-kpi"><span>Players</span><strong>${players}</strong></div>
+          <div class="analysis-kpi"><span>Final</span><strong>${gamesFinal}${slateGames ? `/${slateGames}` : ''}</strong></div>
+          <div class="analysis-kpi"><span>Combined</span><strong>${totalCorrect}–${totalIncorrect}</strong></div>
         </div>
-      `).join('');
+        <div class="analysis-insights">
+          <article class="analysis-insight"><h4>Top of board</h4><p>${safeText(topLine)}</p></article>
+          <article class="analysis-insight"><h4>Longest heater</h4><p>${safeText(heaterLine)}</p></article>
+          <article class="analysis-insight"><h4>Tough week</h4><p>${safeText(toughLine)}</p></article>
+        </div>
+      `;
       container.hidden = false;
     }
 
@@ -3669,7 +3782,7 @@
           return;
         }
         if (empty) empty.hidden = true;
-        grid.innerHTML = awards.map((a) => {
+        grid.innerHTML = awards.map((a, idx) => {
           const winners = (a.winners || []).map((w) => {
             const profileUrl = w.username
               ? `user-profile.html?username=${encodeURIComponent(w.username)}`
@@ -3689,17 +3802,32 @@
               </div>
             `;
           }).join('');
+          const primary = window.WeeklyPicksMobile && WeeklyPicksMobile.isPrimaryAward(a.title);
+          const collapsed = !primary && idx > 2;
+          const emptyWinners = !a.winners || !a.winners.length
+            ? `<p class="award-desc">Available after the slate finishes</p>`
+            : '';
           return `
-            <article class="award-card">
-              <div class="award-card-top">
+            <article class="award-card${collapsed ? ' is-collapsed' : ''}">
+              <button type="button" class="award-card-top" aria-expanded="${collapsed ? 'false' : 'true'}">
                 <span class="award-icon" aria-hidden="true">${safeText(a.icon || '🏅')}</span>
                 <h4 class="award-title">${safeText(a.title || 'Award')}</h4>
-              </div>
-              <p class="award-headline">${safeText(a.headline || '')}</p>
+              </button>
+              <p class="award-desc">${safeText(a.headline || a.description || '')}</p>
+              ${emptyWinners}
               <div class="award-winners">${winners}</div>
             </article>
           `;
         }).join('');
+        grid.querySelectorAll('.award-card-top').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const card = btn.closest('.award-card');
+            if (!card) return;
+            const next = !card.classList.contains('is-collapsed');
+            card.classList.toggle('is-collapsed', next);
+            btn.setAttribute('aria-expanded', next ? 'false' : 'true');
+          });
+        });
         container.hidden = false;
       } catch (err) {
         console.warn('loadWeeklyAwards:', err);
@@ -3946,6 +4074,13 @@
       }
       updateHubProgress();
       syncHubLockLabel();
+      try { sessionStorage.setItem('weeklyPicksTab', tabName); } catch (_) {}
+      if (evt) {
+        requestAnimationFrame(() => {
+          const panel = document.getElementById(tabName);
+          scrollToHubContent(panel);
+        });
+      }
       if (window.__cfpFootballBounce && typeof window.__cfpFootballBounce.sync === 'function') {
         window.__cfpFootballBounce.sync();
       }
@@ -4116,6 +4251,7 @@
       panel.setAttribute('aria-modal', next ? 'true' : 'false');
       fab.setAttribute('aria-expanded', next ? 'true' : 'false');
       if (widget) widget.classList.toggle('is-open', next);
+      if (!next && fab) fab.classList.remove('is-expanded');
       document.body.classList.toggle('corso-panel-open', next);
       if (next) {
         setTimeout(() => {

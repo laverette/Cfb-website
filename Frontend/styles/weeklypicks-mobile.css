@@ -1,0 +1,756 @@
+/* Weekly Picks — mobile-first polish. Loaded last so it wins over hub/weeklypicks.css. */
+
+:root {
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --mobile-bottom-bar-height: 0px;
+  --wp-space-1: 4px;
+  --wp-space-2: 8px;
+  --wp-space-3: 12px;
+  --wp-space-4: 16px;
+  --wp-radius: 12px;
+  --wp-border: 1px solid rgba(245, 222, 179, 0.22);
+  --wp-border-strong: 1px solid rgba(255, 215, 0, 0.45);
+}
+
+html {
+  overflow-x: clip;
+}
+
+body.weekly-picks-view,
+body.weekly-results-view {
+  overflow-x: clip;
+  max-width: 100%;
+}
+
+body.has-mobile-dock {
+  padding-bottom: calc(var(--mobile-bottom-bar-height) + var(--safe-bottom) + 12px);
+}
+
+.bouncing-football {
+  pointer-events: none !important;
+}
+
+/* Football stays decorative */
+.award-card-top {
+  appearance: none;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 44px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.analysis-kpis {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.4rem;
+  margin-bottom: 0.5rem;
+}
+.analysis-kpi {
+  min-width: 0;
+  padding: 0.4rem 0.35rem;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.22);
+  border: 1px solid rgba(245, 222, 179, 0.18);
+  text-align: center;
+}
+.analysis-kpi span {
+  display: block;
+  font-size: 0.62rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #d4b896;
+}
+.analysis-kpi strong {
+  font-size: 1rem;
+  color: #ffd700;
+}
+.analysis-insights {
+  display: grid;
+  gap: 0.4rem;
+}
+.analysis-insight {
+  padding: 0.45rem 0.55rem;
+  border-radius: 10px;
+  border: 1px solid rgba(245, 222, 179, 0.18);
+  background: rgba(0, 0, 0, 0.16);
+}
+.analysis-insight h4 {
+  margin: 0 0 0.15rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #ffd700;
+}
+.analysis-insight p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #f5deb3;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 899px) {
+  .bouncing-football {
+    width: 26px;
+    height: 26px;
+    opacity: 0.55;
+  }
+
+  .site-nav,
+  .weeklypicks-navbar {
+    padding: max(0.35rem, env(safe-area-inset-top, 0px)) 0.55rem 0.35rem;
+  }
+
+  .site-nav-inner,
+  .navbar-content-weekly {
+    min-height: 2.45rem;
+    gap: 0.35rem;
+  }
+
+  .site-title {
+    font-size: 1rem;
+    max-width: min(10.5rem, calc(100% - 6.5rem));
+  }
+
+  .hamburger-menu-btn,
+  .navbar-profile-btn {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .hub-shell {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    background: none;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .hub-switch-dock {
+    position: -webkit-sticky;
+    position: sticky;
+    top: var(--hub-nav-h, 2.9rem);
+    z-index: 95;
+    padding: 0.28rem 0.55rem;
+    background: rgba(22, 16, 14, 0.94);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(255, 215, 0, 0.2);
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.22);
+  }
+
+  .hub-switch .picks-mode-btn.tab-button {
+    min-height: 42px;
+    padding: 0.4rem 0.35rem;
+    font-size: 0.88rem;
+    box-shadow: none;
+  }
+
+  .hub-switch .picks-mode-btn.tab-button.active {
+    box-shadow: none;
+  }
+
+  .hub-chrome {
+    width: calc(100% - 0.9rem);
+    margin: 0.4rem auto 0.35rem;
+    padding: 0.5rem 0.6rem 0.55rem;
+    border-radius: 12px;
+    box-shadow: none;
+  }
+
+  .hub-week-kicker {
+    display: none;
+  }
+
+  .hub-weekbar {
+    margin-top: 0;
+    gap: 0.4rem;
+  }
+
+  .hub-week-title {
+    font-size: 1.12rem;
+  }
+
+  .hub-week-status {
+    margin: 0.12rem 0 0;
+    font-size: 0.78rem;
+  }
+
+  .hub-progress-label {
+    margin-bottom: 0.15rem;
+    font-size: 0.74rem;
+  }
+
+  .hub-chrome .football-toggle-btn {
+    min-height: 40px;
+    padding: 0.28rem 0.7rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    background: transparent;
+    color: #d4b896;
+    border: 1px solid rgba(245, 222, 179, 0.28);
+    box-shadow: none;
+    align-self: flex-start;
+  }
+
+  .hub-scoreboard {
+    width: calc(100% - 0.9rem);
+    margin: 0.2rem auto 1rem;
+    padding-bottom: max(0.75rem, var(--safe-bottom));
+  }
+
+  /* Only Picks/Results sticks; secondary nav scrolls with content */
+  .hub-subnav {
+    position: static;
+    top: auto;
+    margin: 0 auto 0.55rem;
+    padding: 0.22rem;
+    border-radius: 12px;
+    backdrop-filter: none;
+  }
+
+  .hub-subnav-btn {
+    min-height: 42px;
+    padding: 0.35rem 0.15rem;
+    font-size: 0.75rem;
+    box-shadow: none;
+  }
+
+  .hub-subnav-btn.active {
+    box-shadow: none;
+  }
+
+  .results-week-toggle {
+    display: flex;
+    gap: 0.3rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 0 0 0.2rem;
+    margin: 0 0 0.55rem;
+    scrollbar-width: none;
+  }
+
+  .results-week-toggle::-webkit-scrollbar { display: none; }
+
+  .results-week-btn {
+    flex: 0 0 auto;
+    min-height: 40px;
+    padding: 0.3rem 0.75rem;
+    font-size: 0.78rem;
+    border-radius: 999px;
+  }
+
+  .picks-auth-notice,
+  #picksLoginGate {
+    margin: 0.35rem 0 0.5rem !important;
+    padding: 0.45rem 0.6rem !important;
+    font-size: 0.8rem !important;
+    line-height: 1.35;
+    border-radius: 10px;
+  }
+
+  .picks-auth-notice a {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  #week11-picks .picks-layout-solo {
+    padding-top: 0.1rem;
+    width: calc(100% - 0.9rem);
+    margin: 0 auto;
+  }
+
+  #dbWeekPicksContainer {
+    gap: 0.4rem;
+  }
+
+  .pick-game-row {
+    padding: 0.4rem 0.5rem 0.42rem;
+    border-radius: var(--wp-radius);
+    box-shadow: none;
+    border: var(--wp-border);
+  }
+
+  .pick-game-row.has-pick {
+    border: var(--wp-border-strong);
+    box-shadow: none;
+  }
+
+  .pick-game-top {
+    margin-bottom: 0.15rem;
+    min-height: 0;
+  }
+
+  .pick-game-top .games {
+    font-size: 0.62rem;
+    padding: 1px 6px;
+  }
+
+  .pick-matchup .team-pick-btn {
+    min-height: 44px;
+    padding: 0.28rem 0.32rem;
+    box-shadow: none !important;
+  }
+
+  .pick-matchup .team-pick-btn.is-picked,
+  .pick-matchup .team-pick-btn[aria-pressed="true"] {
+    box-shadow: none !important;
+  }
+
+  .pick-analyze-btn {
+    display: flex;
+    width: 100%;
+    min-height: 40px;
+    margin: 0.28rem 0 0;
+    padding: 0.28rem 0.5rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    border-radius: 999px;
+    background: transparent;
+    color: #d4b896;
+    border: 1px solid rgba(245, 222, 179, 0.28);
+    box-shadow: none;
+  }
+
+  .inline-score-display {
+    margin: 0.22rem 0 0;
+    padding: 0.22rem 0.35rem;
+    gap: 0.15rem;
+    box-shadow: none;
+  }
+
+  .live-status-badge,
+  .final-status-badge {
+    animation: none;
+    font-size: 0.62rem;
+    padding: 0.12rem 0.4rem;
+  }
+
+  .pick-meta {
+    margin: 0.18rem 0 0;
+    padding: 0;
+    font-size: 0.68rem;
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    white-space: normal;
+  }
+
+  .hub-sticky-actions {
+    margin: 0.75rem 0 0.35rem;
+    padding: 0.35rem 0 0.5rem;
+  }
+
+  body.has-mobile-dock .hub-sticky-actions {
+    display: none;
+  }
+
+  .picks-reminders-card {
+    margin-top: 0.65rem;
+    padding: 0.55rem 0.6rem;
+  }
+
+  .picks-reminders-title { font-size: 0.88rem; margin-bottom: 0.2rem; }
+  .picks-reminders-lead { font-size: 0.76rem; margin-bottom: 0.3rem; }
+
+  /* Ask Corso: compact circular FAB, offset above sticky dock */
+  .corso-widget {
+    left: auto !important;
+    right: 0.7rem !important;
+    bottom: calc(var(--mobile-bottom-bar-height, 0px) + var(--safe-bottom) + 12px) !important;
+    width: auto !important;
+    max-width: min(calc(100vw - 1.4rem), 22rem);
+    align-items: flex-end !important;
+  }
+
+  .corso-widget:not(.is-open) .corso-fab {
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+    min-height: 48px;
+    padding: 0;
+    font-size: 1.15rem;
+    justify-content: center;
+    bottom: auto;
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.4);
+  }
+
+  .corso-widget:not(.is-open) .corso-fab-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+
+  .corso-widget:not(.is-open) .corso-fab.is-expanded {
+    width: auto;
+    padding: 0 0.85rem;
+    gap: 0.4rem;
+  }
+
+  .corso-widget:not(.is-open) .corso-fab.is-expanded .corso-fab-label {
+    position: static;
+    width: auto;
+    height: auto;
+    clip: auto;
+    overflow: visible;
+    font-size: 0.78rem;
+  }
+
+  .corso-panel {
+    width: min(calc(100vw - 1.4rem), 22rem);
+    max-height: min(68dvh, 30rem);
+  }
+
+  body.weekly-picks-view,
+  body.weekly-results-view {
+    padding-bottom: calc(4.5rem + var(--safe-bottom));
+  }
+
+  body.has-mobile-dock.weekly-picks-view {
+    padding-bottom: calc(var(--mobile-bottom-bar-height) + var(--safe-bottom) + 12px);
+  }
+
+  /* Share card */
+  .picks-share-wrap { margin: 0.5rem 0 1rem; }
+  .picks-share-card {
+    padding: 0.75rem 0.7rem 0.65rem;
+    border-radius: 14px;
+    border-width: 1.5px;
+  }
+  .picks-share-header { margin-bottom: 0.55rem; }
+  .picks-share-title { font-size: 1.25rem; text-shadow: none; }
+  .picks-share-week-badge { margin-bottom: 0.25rem; font-size: 0.72rem; padding: 0.12rem 0.5rem; }
+  .picks-share-grid { gap: 0.35rem; }
+  .picks-share-game { padding: 0.4rem 0.5rem 0.42rem; border-radius: 10px; }
+  .picks-share-game-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.35rem;
+    margin-bottom: 0.15rem;
+  }
+  .picks-share-game-num { margin-bottom: 0; font-size: 0.62rem; }
+  .picks-share-result-chip {
+    font-size: 0.62rem;
+    padding: 0.08rem 0.4rem;
+  }
+  .picks-share-teams { display: none; }
+  .picks-share-matchup {
+    margin: 0 0 0.25rem;
+    font-size: 0.72rem;
+    color: #d4b896;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .picks-share-pick {
+    min-height: 36px;
+    padding: 0.25rem 0.4rem;
+    font-size: 0.82rem;
+    border-radius: 8px;
+  }
+  .picks-share-logo,
+  .picks-share-logo-fallback {
+    width: 18px;
+    height: 18px;
+  }
+  .picks-share-actions .screenshot-button {
+    min-width: 0;
+    width: 100%;
+    min-height: 46px;
+  }
+
+  /* Leaderboard */
+  .results-standings-title { font-size: 1.05rem; margin-bottom: 0.35rem; }
+  .hub-panel-hint { font-size: 0.74rem; margin-bottom: 0.4rem; }
+  .results-stand-row {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    padding: 0.45rem 0.5rem;
+    min-height: 52px;
+    box-shadow: none;
+  }
+  .results-stand-row.is-me {
+    box-shadow: none;
+  }
+  .results-stand-name {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .results-stand-player-copy {
+    min-width: 0;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 0.05rem !important;
+  }
+  .results-stand-record {
+    font-size: 0.78rem;
+    font-weight: 800;
+    color: #f5deb3;
+  }
+  .results-stand-acc {
+    font-size: 0.78rem;
+    color: #d4b896;
+  }
+  .results-stand-compare {
+    min-height: 36px;
+    font-size: 0.7rem;
+  }
+  .results-stand-stats {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.15rem;
+    min-width: 0;
+  }
+  .results-lb-link a {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    margin-bottom: 0.5rem;
+  }
+
+  /* Analysis */
+  .analysis-container {
+    padding: 0.65rem 0.7rem 0.75rem;
+    margin-top: 0.65rem;
+  }
+  .analysis-title { font-size: 1.02rem; margin-bottom: 0.4rem; }
+  .analysis-kpis {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.3rem;
+    margin-bottom: 0.45rem;
+  }
+  .analysis-kpi {
+    min-width: 0;
+    padding: 0.35rem 0.3rem;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.22);
+    border: var(--wp-border);
+    text-align: center;
+  }
+  .analysis-kpi span {
+    display: block;
+    font-size: 0.58rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: #d4b896;
+  }
+  .analysis-kpi strong {
+    font-size: 0.92rem;
+    color: #ffd700;
+  }
+  .analysis-insights {
+    display: grid;
+    gap: 0.35rem;
+  }
+  .analysis-insight {
+    padding: 0.4rem 0.5rem;
+    border-radius: 10px;
+    border: var(--wp-border);
+    background: rgba(0, 0, 0, 0.18);
+  }
+  .analysis-insight h4 {
+    margin: 0 0 0.15rem;
+    font-size: 0.68rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #ffd700;
+  }
+  .analysis-insight p {
+    margin: 0;
+    font-size: 0.8rem;
+    color: #f5deb3;
+    overflow-wrap: anywhere;
+  }
+  .stat-highlight { display: none; }
+
+  /* Awards */
+  .awards-container { padding: 0; }
+  .awards-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.45rem;
+  }
+  .award-card {
+    padding: 0.55rem 0.6rem;
+    box-shadow: none;
+  }
+  .award-card-top {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-height: 44px;
+    cursor: pointer;
+  }
+  .award-icon { font-size: 1.15rem; }
+  .award-title { font-size: 0.95rem; margin: 0; }
+  .award-desc {
+    margin: 0 0 0.35rem;
+    font-size: 0.72rem;
+    color: #d4b896;
+  }
+  .award-headline { display: none; }
+  .award-winner {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.25rem 0;
+    min-height: 40px;
+  }
+  .award-winner-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .award-card.is-collapsed .award-winners,
+  .award-card.is-collapsed .award-desc { display: none; }
+
+  .h2h-panel {
+    position: fixed;
+    left: 0.45rem;
+    right: 0.45rem;
+    bottom: calc(var(--safe-bottom) + 0.45rem);
+    top: auto;
+    max-height: min(78dvh, 36rem);
+    overflow: auto;
+    z-index: 1300;
+    margin: 0;
+    border-radius: 16px;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5);
+  }
+
+  .results-recap-empty {
+    padding: 0.75rem 0.7rem;
+  }
+  .results-recap-empty-title { font-size: 1.1rem; }
+}
+
+.picks-mobile-dock {
+  display: none;
+}
+
+@media (max-width: 899px) {
+  .picks-mobile-dock {
+    display: none;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1100;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.7rem calc(0.4rem + var(--safe-bottom));
+    background: rgba(18, 12, 10, 0.96);
+    border-top: 1px solid rgba(255, 215, 0, 0.28);
+  }
+
+  body.has-mobile-dock .picks-mobile-dock {
+    display: grid;
+  }
+
+  .picks-mobile-dock-copy {
+    min-width: 0;
+  }
+
+  .picks-mobile-dock-copy strong {
+    display: block;
+    color: #ffd700;
+    font-size: 0.82rem;
+    font-weight: 800;
+  }
+
+  .picks-mobile-dock-track {
+    display: block;
+    height: 0.35rem;
+    margin-top: 0.2rem;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.4);
+    overflow: hidden;
+  }
+
+  .picks-mobile-dock-track > span {
+    display: block;
+    height: 100%;
+    width: 0;
+    background: linear-gradient(90deg, #ffa000, #ffd700);
+  }
+
+  .picks-mobile-dock.is-complete .picks-mobile-dock-track > span {
+    background: linear-gradient(90deg, #43a047, #ffd700);
+  }
+
+  .picks-mobile-dock-submit {
+    min-height: 44px;
+    min-width: 7.5rem;
+    padding: 0.4rem 0.85rem;
+    border: 0;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #ffd700, #ffa000);
+    color: #1e1e1e;
+    font-weight: 800;
+    font-size: 0.88rem;
+  }
+
+  .picks-mobile-dock-submit:disabled {
+    opacity: 0.45;
+  }
+}
+
+@media (min-width: 900px) {
+  .picks-mobile-dock { display: none !important; }
+  .picks-share-matchup { display: none; }
+}
+
+@media (max-width: 359px) {
+  .site-title { font-size: 0.92rem; }
+  .hub-week-title { font-size: 1rem; }
+  .pick-matchup .team-pick-name { font-size: 0.72rem; }
+  .analysis-kpis { grid-template-columns: 1fr 1fr 1fr; }
+}
+
+@media (max-width: 899px) and (orientation: landscape) {
+  .hub-chrome { padding: 0.35rem 0.55rem; }
+  .hub-week-status { display: none; }
+  .corso-panel { max-height: min(62dvh, 22rem); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-status-badge,
+  .bouncing-football,
+  .corso-fab,
+  .pick-matchup .team-pick-btn {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+.picks-mobile-dock-submit:focus-visible,
+.corso-fab:focus-visible,
+.hub-subnav-btn:focus-visible,
+.team-pick-btn:focus-visible {
+  outline: 2px solid #ffd700;
+  outline-offset: 2px;
+}
