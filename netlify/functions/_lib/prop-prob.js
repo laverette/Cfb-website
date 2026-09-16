@@ -40,6 +40,8 @@ const STAT_SCALE = {
   rec: 1.55,
   rec_yds: 26,
   rec_td: 0.5,
+  fg_made: 0.85,
+  kicking_pts: 2.8,
   tackles: 2.4,
   sacks: 0.5,
 };

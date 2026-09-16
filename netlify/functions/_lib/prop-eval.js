@@ -84,6 +84,20 @@ const STAT_DEFS = [
     side: "offense",
   },
   {
+    id: "fg_made",
+    label: "Field goals",
+    category: "kicking",
+    keys: ["FGM", "FG"],
+    side: "offense",
+  },
+  {
+    id: "kicking_pts",
+    label: "Kicking points",
+    category: "kicking",
+    keys: ["PTS", "POINTS"],
+    side: "offense",
+  },
+  {
     id: "tackles",
     label: "Total tackles",
     category: "defensive",

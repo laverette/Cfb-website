@@ -25,9 +25,15 @@ function flattenOverview(overview) {
       const type = String(st.stat || st.name || st.abbreviation || "")
         .toUpperCase()
         .replace(/\s+/g, "");
-      const val = toNum(st.value ?? st.stat);
-      if (!catName || !type || val == null) continue;
-      out[`${catName}:${type}`] = val;
+      const rawVal = st.value ?? st.stat;
+      const val = toNum(rawVal);
+      const pair = val == null ? parseMadeAttempted(rawVal) : null;
+      if (!catName || !type) continue;
+      if (val != null) out[`${catName}:${type}`] = val;
+      else if (pair) {
+        out[`${catName}:${type}`] = pair.made;
+        out[`${catName}:${type}_ATT`] = pair.att;
+      }
     }
   }
   return out;
@@ -50,7 +56,25 @@ const TYPE_ALIASES = {
   AVG: "avg",
   LONG: "long",
   LNG: "long",
+  FGM: "fgm",
+  FGA: "fga",
+  FG: "fg",
+  XPM: "xpm",
+  XPA: "xpa",
+  XP: "xp",
+  PAT: "xp",
+  PTS: "pts",
+  POINTS: "pts",
 };
+
+/** ESPN/CFBD kicking often stores FG/XP as "2-3" or "2/3". */
+function parseMadeAttempted(raw) {
+  if (raw == null || raw === "") return null;
+  const s = String(raw).trim();
+  const m = s.match(/^(\d+)\s*[-/]\s*(\d+)$/);
+  if (!m) return null;
+  return { made: Number(m[1]), att: Number(m[2]) };
+}
 
 function flattenPlayerBox(categories) {
   const out = {};
@@ -83,6 +107,50 @@ function athleteStat(categories, playerId, playerName, category, typeKey) {
   return null;
 }
 
+function athleteRawStat(categories, playerId, playerName, category, typeKey) {
+  for (const cat of categories || []) {
+    if (String(cat.name || "").toLowerCase() !== category) continue;
+    for (const type of cat.types || []) {
+      const raw = String(type.name || "").toUpperCase().replace(/\s+/g, "");
+      const key = TYPE_ALIASES[raw] || raw.toLowerCase();
+      if (key !== typeKey) continue;
+      for (const ath of type.athletes || []) {
+        const idOk = playerId && String(ath.id) === String(playerId);
+        const nameOk = playerName && playerNameMatch(ath.name, playerName);
+        if (idOk || nameOk) return ath.stat ?? ath.value ?? null;
+      }
+    }
+  }
+  return null;
+}
+
+function kickingFromBox(categories, playerId, playerName) {
+  const fgm = athleteStat(categories, playerId, playerName, "kicking", "fgm");
+  const fga = athleteStat(categories, playerId, playerName, "kicking", "fga");
+  const fgPair = parseMadeAttempted(athleteRawStat(categories, playerId, playerName, "kicking", "fg"));
+  const xpm = athleteStat(categories, playerId, playerName, "kicking", "xpm");
+  const xpPair =
+    parseMadeAttempted(athleteRawStat(categories, playerId, playerName, "kicking", "xp")) ||
+    parseMadeAttempted(athleteRawStat(categories, playerId, playerName, "kicking", "pat"));
+  const pts =
+    athleteStat(categories, playerId, playerName, "kicking", "pts") ??
+    athleteStat(categories, playerId, playerName, "kicking", "points");
+
+  const fgMade = fgm != null ? fgm : fgPair?.made ?? null;
+  const fgAtt = fga != null ? fga : fgPair?.att ?? null;
+  const xpMade = xpm != null ? xpm : xpPair?.made ?? null;
+  let kickingPts = pts;
+  if (kickingPts == null && (fgMade != null || xpMade != null)) {
+    kickingPts = (fgMade || 0) * 3 + (xpMade || 0);
+  }
+  return {
+    fg_made: fgMade,
+    fg_att: fgAtt,
+    xp_made: xpMade,
+    kicking_pts: kickingPts,
+  };
+}
+
 function extractGameStats(categories, playerId, playerName) {
   return {
     pass_yds: athleteStat(categories, playerId, playerName, "passing", "yds"),
@@ -96,6 +164,7 @@ function extractGameStats(categories, playerId, playerName) {
     rec_yds: athleteStat(categories, playerId, playerName, "receiving", "yds"),
     rec_td: athleteStat(categories, playerId, playerName, "receiving", "td"),
     rec: athleteStat(categories, playerId, playerName, "receiving", "rec"),
+    ...kickingFromBox(categories, playerId, playerName),
   };
 }
 
@@ -143,7 +212,18 @@ function extractOverviewTotal(overview, statId) {
     rec_yds: ["receiving:YDS", "receiving:YARDS"],
     rec: ["receiving:REC", "receiving:RECEPTIONS"],
     rec_td: ["receiving:TD", "receiving:TDS"],
+    fg_made: ["kicking:FGM", "kicking:FG"],
+    kicking_pts: ["kicking:PTS", "kicking:POINTS"],
   };
+  if (statId === "kicking_pts") {
+    for (const k of map.kicking_pts) {
+      if (flat[k] != null) return flat[k];
+    }
+    const fg = extractOverviewTotal(overview, "fg_made");
+    const xp = flat["kicking:XPM"] ?? flat["kicking:XP"] ?? null;
+    if (fg == null && xp == null) return null;
+    return (fg || 0) * 3 + (xp || 0);
+  }
   if (statId === "rush_rec_yds") {
     const a = extractOverviewTotal(overview, "rush_yds");
     const b = extractOverviewTotal(overview, "rec_yds");
@@ -358,6 +438,7 @@ module.exports = {
   extractGameStats,
   extractStatValue,
   extractOverviewTotal,
+  parseMadeAttempted,
   parsePlayerGameLogs,
   parseSchedule,
   nextUnplayed,

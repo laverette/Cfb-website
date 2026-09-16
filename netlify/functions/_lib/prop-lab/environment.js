@@ -38,6 +38,10 @@ function gameEnvironment(bundle, def, marketOdds) {
         adjPct += clamp((abs - 17) * 0.003, 0, 0.06);
         notes.push("Large favorite: rushing volume may increase if they sit on a lead");
       }
+      if (def.family === "kicking") {
+        adjPct += clamp((abs - 17) * 0.003, 0, 0.05);
+        notes.push("Large favorite: more scoring chances for FG/XP");
+      }
     }
     if (!fav && abs >= 14) {
       if (def.family === "passing" || def.family === "receiving") {
@@ -48,10 +52,14 @@ function gameEnvironment(bundle, def, marketOdds) {
         adjPct -= clamp((abs - 10) * 0.0025, 0, 0.05);
         notes.push("Underdog: traditional rushing volume often compressed");
       }
+      if (def.family === "kicking") {
+        adjPct -= clamp((abs - 10) * 0.002, 0, 0.04);
+        notes.push("Underdog: scoring volume often compressed");
+      }
     }
   }
 
-  if (Number.isFinite(total) && total >= 65 && (def.family === "passing" || def.family === "receiving")) {
+  if (Number.isFinite(total) && total >= 65 && (def.family === "passing" || def.family === "receiving" || def.family === "kicking")) {
     adjPct += 0.02;
     notes.push("High expected total");
   }

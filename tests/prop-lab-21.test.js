@@ -163,6 +163,15 @@ describe("what-if line menus", () => {
     assert.ok(lines.includes(23.5));
     assert.ok(lines.includes(25.5));
   });
+
+  it("field goals and kicking points use count steps", () => {
+    const fg = suggestWhatIfLines("fg_made", 1.5);
+    assert.ok(fg.includes(0.5));
+    assert.ok(fg.includes(2.5));
+    const pts = suggestWhatIfLines("kicking_pts", 8.5);
+    assert.ok(pts.includes(6.5));
+    assert.ok(pts.includes(10.5));
+  });
 });
 
 describe("hit-rate + FCS labeling", () => {

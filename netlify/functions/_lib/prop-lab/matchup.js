@@ -130,6 +130,18 @@ function matchupAdjustment(bundle, def) {
     // One WR does not inherit the full team pass-defense adjustment.
     for (const f of factors) f.adj *= 0.55;
   }
+  if (def.family === "kicking") {
+    if (Number.isFinite(snap.defenseRating) && Number.isFinite(bundle.playerTeamRating?.offenseRating)) {
+      const gap = bundle.playerTeamRating.offenseRating - snap.defenseRating;
+      factors.push({
+        label: "Offense vs defense rating",
+        adj: clamp(gap / 90, -0.06, 0.06),
+        pct: null,
+        used: true,
+        value: snap.defenseRating,
+      });
+    }
+  }
 
   const used = factors.filter((f) => f.used);
   if (!used.length) {

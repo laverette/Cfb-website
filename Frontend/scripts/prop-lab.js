@@ -96,6 +96,14 @@
     return `${Math.round(Number(p) * 100)}%`;
   }
 
+  function pctTogether(p) {
+    if (p == null || !Number.isFinite(Number(p))) return "—";
+    const n = Number(p);
+    if (n < 0.005) return "<1%";
+    if (n < 0.15) return `${(n * 100).toFixed(1)}%`;
+    return `${Math.round(n * 100)}%`;
+  }
+
   function authToken() {
     return localStorage.getItem("authToken") || "";
   }
@@ -186,7 +194,9 @@
               ? "TE"
               : ["ATH", "UT"].includes(pos)
                 ? "ATH"
-                : pos || null;
+                : ["K", "PK", "FG"].includes(pos)
+                  ? "K"
+                  : pos || null;
     const list = catalog || [];
     if (!canon) return list;
     const hit = list.filter((s) => (s.positions || []).includes(canon));
@@ -554,7 +564,8 @@
     bar.hidden = false;
     bar.classList.add("is-on");
     if (text) {
-      text.textContent = `${a.grade} · Strength ${a.entryStrength ?? "—"} · Risk ${a.risk || "—"}`;
+      const together = a.together?.label ? ` · All hit ${a.together.label}` : "";
+      text.textContent = `${a.grade}${together} · Risk ${a.risk || "—"}`;
     }
   }
 
@@ -591,7 +602,7 @@
     if (!host) return;
     if (!evals.length) {
       host.className = "prop-summary-idle";
-      host.innerHTML = "Add at least one evaluated leg to see grade, risk, and correlations.";
+      host.innerHTML = "Add at least one evaluated leg to see combined odds, grade, risk, and correlations.";
       updateAnalysisBar(null);
       return;
     }
@@ -619,16 +630,31 @@
       )
       .join("");
     const drivers = (a.riskDrivers || []).map((d) => `<li>${escapeHtml(d)}</li>`).join("");
+    const together = a.together;
+    const togetherNote = together
+      ? together.corrUsed
+        ? `Independent (if these ${together.n} legs were unrelated): ${escapeHtml(
+            pctTogether(together.independent)
+          )}. Correlations adjust that to ${escapeHtml(together.pctLabel)}.`
+        : `These ${together.n} legs look independent, so all-hit is the product of the individual probabilities.`
+      : "";
     host.className = "";
     host.innerHTML = `
       <div class="prop-grade-row">
+        <div class="prop-kpi prop-kpi-together">
+          <span>All hit <button type="button" class="prop-info" title="${escapeHtml(
+            together?.tooltip || "Estimated chance every listed leg hits together."
+          )}">i</button></span>
+          <strong>${escapeHtml(together?.pctLabel || "—")}</strong>
+          <em>${escapeHtml(together?.americanLabel || "")}</em>
+        </div>
         <div class="prop-kpi"><span>Entry grade</span><strong>${escapeHtml(a.grade || "—")}</strong></div>
         <div class="prop-kpi"><span>Strength <button type="button" class="prop-info" title="${escapeHtml(
           a.strengthTooltip || "A relative score based on leg quality, confidence, correlation, and concentration. It is not the probability that every leg hits."
         )}">i</button></span><strong>${escapeHtml(String(a.entryStrength ?? "—"))}</strong></div>
         <div class="prop-kpi"><span>Risk</span><strong>${escapeHtml(a.risk || "—")}</strong></div>
-        <div class="prop-kpi"><span>Avg score</span><strong>${escapeHtml(String(a.avgScore ?? "—"))}</strong></div>
       </div>
+      ${togetherNote ? `<p class="prop-together-note">${togetherNote}</p>` : ""}
       <div class="prop-analysis-extra" id="summaryExtra">
         <details ${state.summaryOpen ? "open" : ""} data-extra="strongest">
           <summary>Strongest leg</summary>
@@ -1230,8 +1256,13 @@
       )
       .join("");
     const why = (result.why || []).map((w) => `<li>${escapeHtml(w)}</li>`).join("");
+    const together = result.together;
+    const togetherLine = together?.label
+      ? `<p class="prop-together-note">This ${n}-leg set all-hit: <strong>${escapeHtml(together.label)}</strong></p>`
+      : "";
     panel.innerHTML = `<div class="matchup-panel-head"><h2 class="matchup-panel-title">Best ${n} of ${escapeHtml(String((result.keep || []).length + (result.cut || []).length))}</h2></div>
       <p class="prop-market-note">Mode: ${escapeHtml(result.mode || state.bestMode)} · Why this ${n}-leg set</p>
+      ${togetherLine}
       ${why ? `<ul class="prop-risk-drivers">${why}</ul>` : ""}
       ${keep}${cut}
       <p class="prop-corr">${escapeHtml(result.reason || "")}</p>`;

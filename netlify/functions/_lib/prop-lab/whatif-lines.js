@@ -13,6 +13,8 @@ const COUNT_DELTAS = {
   pass_comp: [2, 4],
   pass_att: [3, 6],
   rush_att: [2, 4],
+  fg_made: [1],
+  kicking_pts: [2, 4],
 };
 
 const YARD_DELTAS = {

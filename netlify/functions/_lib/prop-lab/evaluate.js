@@ -79,6 +79,7 @@ function rolePrior(bundle, def, oppEst) {
   if (def.family === "receiving") return 45;
   if (def.family === "rushing") return 55;
   if (def.family === "passing") return 210;
+  if (def.family === "kicking") return def.id === "fg_made" ? 1.4 : 7.5;
   if (def.id === "total_td") return 0.7;
   return 20;
 }

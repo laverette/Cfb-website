@@ -258,6 +258,42 @@ const PROP_DEFINITIONS = [
     parts: ["pass_td", "rush_td", "rec_td"],
     matchupKeys: ["passTdAllowed", "rushTdAllowed"],
   },
+  {
+    id: "fg_made",
+    label: "Field goals",
+    short: "FG",
+    category: "kicking",
+    family: "kicking",
+    dist: "poisson",
+    sources: ["player_game.kicking.fgm", "overview.kicking.FGM"],
+    methodology: "opportunity_efficiency",
+    opportunity: "fg_attempts",
+    efficiency: "fg_pct",
+    minGames: 3,
+    priorSd: 0.9,
+    floor: 0,
+    ceil: 8,
+    combo: false,
+    matchupKeys: ["pointsAllowed", "defenseRating"],
+  },
+  {
+    id: "kicking_pts",
+    label: "Kicking points",
+    short: "K PTS",
+    category: "kicking",
+    family: "kicking",
+    dist: "normal",
+    sources: ["player_game.kicking.pts", "overview.kicking.PTS"],
+    methodology: "rate",
+    opportunity: "scoring_chances",
+    efficiency: null,
+    minGames: 3,
+    priorSd: 3.4,
+    floor: 0,
+    ceil: 24,
+    combo: false,
+    matchupKeys: ["pointsAllowed", "defenseRating"],
+  },
 ];
 
 const PROP_BY_ID = Object.fromEntries(PROP_DEFINITIONS.map((d) => [d.id, d]));
@@ -277,6 +313,8 @@ const POSITIONS_BY_STAT = {
   rec_td: ["WR", "TE", "RB", "ATH"],
   rush_rec_yds: ["RB", "WR", "TE", "ATH"],
   total_td: ["QB", "RB", "WR", "TE", "ATH"],
+  fg_made: ["K"],
+  kicking_pts: ["K"],
 };
 
 for (const d of PROP_DEFINITIONS) {
@@ -293,6 +331,7 @@ function canonicalPosition(pos) {
   if (["WR", "SLOT"].includes(p)) return "WR";
   if (p === "TE") return "TE";
   if (["ATH", "UT"].includes(p)) return "ATH";
+  if (["K", "PK", "FG", "KICKER"].includes(p)) return "K";
   return p;
 }
 

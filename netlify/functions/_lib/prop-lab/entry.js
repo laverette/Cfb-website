@@ -1,6 +1,7 @@
 const { clamp, mean } = require("./math");
 const { analyzeCorrelations } = require("./correlation");
 const { legCaption, compactLegCaption } = require("./format");
+const { jointAllHit } = require("./joint");
 
 function letterFromAvg(score) {
   if (score >= 82) return "A-";
@@ -89,6 +90,7 @@ function analyzeEntry(legs) {
       risk: null,
       riskDrivers: [],
       correlations: [],
+      together: null,
       note: "No evaluated legs yet.",
     };
   }
@@ -129,7 +131,8 @@ function analyzeEntry(legs) {
     riskDrivers: riskInfo.drivers,
     correlations: pairs,
     entryStrength: strength,
-    note: "Entry Strength is not a parlay probability. Legs are correlated; we do not multiply hit rates.",
+    together: jointAllHit(ok, pairs),
+    note: "Entry Strength is a relative quality score. All-hit % is the estimated chance every listed leg cashes, after correlations.",
     strengthTooltip:
       "A relative score based on leg quality, model confidence, correlation, and concentration. It is not the probability that every leg hits.",
   };
@@ -257,12 +260,14 @@ function bestN(legs, n = 4, mode = "balanced") {
     cutReason: explainCut(l, keep, pairs, mode),
   }));
   const why = explainBestN(keep, cut, pairs, mode);
+  const keepPairs = analyzeCorrelations(keep);
   return {
     n: k,
     mode,
     keep,
     cut,
     why,
+    together: jointAllHit(keep, keepPairs),
     reason: why.map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join("; ") + ".",
   };
 }
@@ -298,4 +303,4 @@ function compareLegs(legs) {
   };
 }
 
-module.exports = { analyzeEntry, bestN, compareLegs, comboScore, summarizeRisk };
+module.exports = { analyzeEntry, bestN, compareLegs, comboScore, summarizeRisk, jointAllHit };

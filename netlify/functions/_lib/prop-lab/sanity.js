@@ -16,6 +16,8 @@ const RANGES = {
   rush_rec_yds: { typicalMin: 40, typicalMax: 200, unit: "rush + receiving yards" },
   pass_rush_yds: { typicalMin: 140, typicalMax: 400, unit: "pass + rush yards" },
   total_td: { typicalMin: 0.5, typicalMax: 4.5, unit: "total TDs" },
+  fg_made: { typicalMin: 0.5, typicalMax: 3.5, unit: "field goals" },
+  kicking_pts: { typicalMin: 3.5, typicalMax: 14.5, unit: "kicking points" },
 };
 
 function lineSanity({ statId, line, projection, position }) {
@@ -45,7 +47,7 @@ function lineSanity({ statId, line, projection, position }) {
     };
   }
 
-  if (line < range.typicalMin * 0.2 && statId !== "pass_td" && statId !== "rec_td" && statId !== "rush_td" && statId !== "pass_int" && statId !== "total_td") {
+  if (line < range.typicalMin * 0.2 && statId !== "pass_td" && statId !== "rec_td" && statId !== "rush_td" && statId !== "pass_int" && statId !== "total_td" && statId !== "fg_made") {
     flags.push("Unusual Line");
     return {
       unusual: true,

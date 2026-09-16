@@ -79,6 +79,16 @@ const RELATIONSHIPS = [
     label: "Combo yardage props share outcomes with the component stats",
     explanation: "The combo line is the sum of the component yardage outcomes.",
   },
+  {
+    id: "same_player_kicking",
+    a: ["fg_made"],
+    b: ["kicking_pts"],
+    samePlayer: true,
+    corr: 0.75,
+    sign: "positive",
+    label: "Same kicker field goals and kicking points move together",
+    explanation: "Kicking points are mostly field goals plus extra points from the same scoring drives.",
+  },
 ];
 
 const { legCaption, sideLabel } = require("./format");

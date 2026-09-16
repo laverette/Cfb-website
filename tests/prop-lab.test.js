@@ -78,6 +78,8 @@ describe("prop definitions", () => {
       "rush_rec_yds",
       "pass_rush_yds",
       "total_td",
+      "fg_made",
+      "kicking_pts",
     ]) {
       assert.ok(ids.includes(id), `missing ${id}`);
     }
@@ -88,6 +90,58 @@ describe("prop definitions", () => {
     assert.equal(extractStatValue(stats, "rush_rec_yds"), 102);
     assert.equal(extractStatValue(stats, "pass_rush_yds"), 290);
     assert.equal(extractStatValue(stats, "total_td"), 4);
+  });
+
+  it("extracts field goals and kicking points from CFBD boxes", () => {
+    const { extractGameStats, extractOverviewTotal, parseMadeAttempted } = require(path.join(root, "parse"));
+    assert.deepEqual(parseMadeAttempted("2-3"), { made: 2, att: 3 });
+    assert.deepEqual(parseMadeAttempted("1/1"), { made: 1, att: 1 });
+    const espnBox = [
+      {
+        name: "kicking",
+        types: [
+          { name: "FG", athletes: [{ id: "k1", name: "Will Hart", stat: "2-3" }] },
+          { name: "XP", athletes: [{ id: "k1", name: "Will Hart", stat: "4-4" }] },
+          { name: "PTS", athletes: [{ id: "k1", name: "Will Hart", stat: "10" }] },
+        ],
+      },
+    ];
+    const espn = extractGameStats(espnBox, "k1", "Will Hart");
+    assert.equal(espn.fg_made, 2);
+    assert.equal(espn.fg_att, 3);
+    assert.equal(espn.xp_made, 4);
+    assert.equal(espn.kicking_pts, 10);
+    const numericBox = [
+      {
+        name: "kicking",
+        types: [
+          { name: "FGM", athletes: [{ id: "k1", name: "Will Hart", stat: "1" }] },
+          { name: "FGA", athletes: [{ id: "k1", name: "Will Hart", stat: "2" }] },
+          { name: "XPM", athletes: [{ id: "k1", name: "Will Hart", stat: "3" }] },
+        ],
+      },
+    ];
+    const numeric = extractGameStats(numericBox, "k1", "Will Hart");
+    assert.equal(numeric.fg_made, 1);
+    assert.equal(numeric.kicking_pts, 6);
+    const overview = {
+      boxScoreStats: {
+        categories: [
+          {
+            name: "kicking",
+            stats: [
+              { stat: "FGM", value: 12 },
+              { stat: "XPM", value: 28 },
+              { stat: "PTS", value: 64 },
+            ],
+          },
+        ],
+      },
+    };
+    assert.equal(extractOverviewTotal(overview, "fg_made"), 12);
+    assert.equal(extractOverviewTotal(overview, "kicking_pts"), 64);
+    assert.equal(extractStatValue({ fg_made: 2, kicking_pts: 9 }, "fg_made"), 2);
+    assert.equal(extractStatValue({ fg_made: 2, kicking_pts: 9 }, "kicking_pts"), 9);
   });
 
   it("filters catalog stats by player position", () => {
@@ -108,6 +162,13 @@ describe("prop definitions", () => {
     const unknown = statsForPosition("").map((s) => s.id);
     assert.ok(unknown.includes("pass_yds"));
     assert.ok(unknown.includes("rec_yds"));
+    assert.equal(canonicalPosition("PK"), "K");
+    const kicker = statsForPosition("K").map((s) => s.id);
+    assert.ok(kicker.includes("fg_made"));
+    assert.ok(kicker.includes("kicking_pts"));
+    assert.ok(!kicker.includes("pass_yds"));
+    assert.ok(!qb.includes("fg_made"));
+    assert.ok(!wr.includes("kicking_pts"));
   });
 });
 
@@ -272,6 +333,207 @@ describe("correlation + best-N", () => {
   });
 });
 
+describe("joint all-hit probability", () => {
+  it("multiplies independent legs and reports American odds", () => {
+    const analysis = analyzeEntry([
+      {
+        clientId: "a",
+        pHit: 0.5,
+        player: { id: "1", name: "A", team: "Miami" },
+        stat: { id: "rush_yds", short: "RUSH YDS" },
+        side: "more",
+        line: 70,
+        propScore: 70,
+        confidence: "B",
+        form: { games: 8 },
+        flags: [],
+      },
+      {
+        clientId: "b",
+        pHit: 0.5,
+        player: { id: "2", name: "B", team: "Clemson" },
+        stat: { id: "rec_yds", short: "REC YDS" },
+        side: "more",
+        line: 60,
+        propScore: 70,
+        confidence: "B",
+        form: { games: 8 },
+        flags: [],
+      },
+    ]);
+    assert.equal(analysis.together.n, 2);
+    assert.equal(analysis.together.corrUsed, false);
+    assert.ok(Math.abs(analysis.together.p - 0.25) < 0.005);
+    assert.equal(analysis.together.american, 300);
+    assert.equal(analysis.together.americanLabel, "+300");
+  });
+
+  it("raises all-hit when same-player legs are positively correlated", () => {
+    const analysis = analyzeEntry([
+      {
+        clientId: "t-rec",
+        pHit: 0.6,
+        player: { id: "toney", name: "Toney", team: "Miami" },
+        stat: { id: "rec", short: "REC" },
+        side: "more",
+        line: 5.5,
+        propScore: 75,
+        confidence: "B",
+        form: { games: 8 },
+        flags: [],
+      },
+      {
+        clientId: "t-yds",
+        pHit: 0.6,
+        player: { id: "toney", name: "Toney", team: "Miami" },
+        stat: { id: "rec_yds", short: "REC YDS" },
+        side: "more",
+        line: 60,
+        propScore: 74,
+        confidence: "B",
+        form: { games: 8 },
+        flags: [],
+      },
+    ]);
+    assert.ok(analysis.together.corrUsed);
+    assert.ok(analysis.together.p > analysis.together.independent + 0.03);
+    assert.ok(analysis.together.p <= 0.6);
+  });
+
+  it("lowers all-hit when sides oppose a positive relationship", () => {
+    const sameSide = analyzeEntry([
+      {
+        clientId: "a",
+        pHit: 0.6,
+        player: { id: "toney", name: "Toney", team: "Miami" },
+        stat: { id: "rec", short: "REC" },
+        side: "more",
+        line: 5.5,
+        propScore: 75,
+        confidence: "B",
+        form: { games: 8 },
+        flags: [],
+      },
+      {
+        clientId: "b",
+        pHit: 0.6,
+        player: { id: "toney", name: "Toney", team: "Miami" },
+        stat: { id: "rec_yds", short: "REC YDS" },
+        side: "more",
+        line: 60,
+        propScore: 74,
+        confidence: "B",
+        form: { games: 8 },
+        flags: [],
+      },
+    ]);
+    const mixed = analyzeEntry([
+      {
+        clientId: "a",
+        pHit: 0.6,
+        player: { id: "toney", name: "Toney", team: "Miami" },
+        stat: { id: "rec", short: "REC" },
+        side: "more",
+        line: 5.5,
+        propScore: 75,
+        confidence: "B",
+        form: { games: 8 },
+        flags: [],
+      },
+      {
+        clientId: "b",
+        pHit: 0.6,
+        player: { id: "toney", name: "Toney", team: "Miami" },
+        stat: { id: "rec_yds", short: "REC YDS" },
+        side: "less",
+        line: 60,
+        propScore: 74,
+        confidence: "B",
+        form: { games: 8 },
+        flags: [],
+      },
+    ]);
+    assert.ok(mixed.together.p < mixed.together.independent);
+    assert.ok(mixed.together.p < sameSide.together.p);
+  });
+
+  it("uses a copula for three correlated legs and stays inside Frechet bounds", () => {
+    const analysis = analyzeEntry([
+      {
+        clientId: "t-rec",
+        pHit: 0.55,
+        player: { id: "toney", name: "Toney", team: "Miami" },
+        stat: { id: "rec", short: "REC" },
+        side: "more",
+        line: 5.5,
+        propScore: 75,
+        confidence: "B",
+        form: { games: 8 },
+        flags: [],
+      },
+      {
+        clientId: "t-yds",
+        pHit: 0.55,
+        player: { id: "toney", name: "Toney", team: "Miami" },
+        stat: { id: "rec_yds", short: "REC YDS" },
+        side: "more",
+        line: 60,
+        propScore: 74,
+        confidence: "B",
+        form: { games: 8 },
+        flags: [],
+      },
+      {
+        clientId: "t-td",
+        pHit: 0.55,
+        player: { id: "toney", name: "Toney", team: "Miami" },
+        stat: { id: "rec_td", short: "REC TD" },
+        side: "more",
+        line: 0.5,
+        propScore: 70,
+        confidence: "C",
+        form: { games: 8 },
+        flags: [],
+      },
+    ]);
+    assert.equal(analysis.together.method, "gaussian_copula");
+    assert.ok(analysis.together.p > analysis.together.independent);
+    assert.ok(analysis.together.p <= 0.55);
+    assert.ok(analysis.together.p >= 0);
+    const best = bestN(
+      [
+        {
+          clientId: "t-rec",
+          pHit: 0.55,
+          player: { id: "toney", name: "Toney", team: "Miami" },
+          stat: { id: "rec", short: "REC" },
+          side: "more",
+          line: 5.5,
+          propScore: 75,
+          confidence: "B",
+          form: { games: 8 },
+          flags: [],
+        },
+        {
+          clientId: "rb",
+          pHit: 0.55,
+          player: { id: "rb1", name: "RB", team: "Clemson" },
+          stat: { id: "rush_yds", short: "RUSH YDS" },
+          side: "more",
+          line: 70,
+          propScore: 68,
+          confidence: "B",
+          form: { games: 8 },
+          flags: [],
+        },
+      ],
+      2
+    );
+    assert.ok(best.together);
+    assert.equal(best.together.n, 2);
+  });
+});
+
 describe("rushing / passing / TD props", () => {
   it("evaluates a veteran rushing-yards prop", () => {
     const bundle = toneyBundle();
@@ -308,5 +570,29 @@ describe("rushing / passing / TD props", () => {
     assert.ok(Number.isFinite(pass.projection));
     assert.ok(Number.isFinite(td.pMore));
     assert.equal(td.stat.id, "pass_td");
+  });
+
+  it("evaluates field-goal and kicking-point props", () => {
+    const bundle = toneyBundle();
+    bundle.player = { id: "k1", name: "Will Hart", team: "Miami", position: "K" };
+    bundle.gameLogs = [
+      log(1, "Notre Dame", { fg_made: 2, fg_att: 3, xp_made: 3, kicking_pts: 9 }),
+      log(2, "South Florida", { fg_made: 1, fg_att: 1, xp_made: 4, kicking_pts: 7 }),
+      log(3, "Florida State", { fg_made: 2, fg_att: 2, xp_made: 2, kicking_pts: 8 }),
+    ];
+    bundle.priorLogs = Array.from({ length: 12 }, (_, i) =>
+      log(i + 1, "Prior", { fg_made: 1.5, fg_att: 2, xp_made: 3, kicking_pts: 7.5 })
+    );
+    bundle.usage = { games: 3, fgMade: 1.67, fgAtt: 2, xpMade: 3, kickingPts: 8, rec: 0, recYds: 0, rushAtt: 0, rushYds: 0, passAtt: 0 };
+    bundle.usageL3 = bundle.usage;
+    bundle.flags = [];
+    const fg = evaluateFromBundle(bundle, { statId: "fg_made", line: 1.5, side: "more" });
+    const pts = evaluateFromBundle(bundle, { statId: "kicking_pts", line: 7.5, side: "more" });
+    assert.equal(fg.stat.id, "fg_made");
+    assert.equal(pts.stat.id, "kicking_pts");
+    assert.ok(fg.projection > 0.5 && fg.projection < 4);
+    assert.ok(pts.projection > 4 && pts.projection < 14);
+    assert.ok(Number.isFinite(fg.pMore));
+    assert.ok(Number.isFinite(pts.pMore));
   });
 });

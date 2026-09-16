@@ -138,6 +138,25 @@ function estimateOpportunity(bundle, def) {
     rawOppProj = (usage.passTd || 0) + (usage.rushTd || 0) + (usage.recTd || 0);
     opportunity = rawOppProj;
     efficiency = 1;
+  } else if (def.family === "kicking") {
+    const fgMade = usage.fgMade;
+    const fgAtt = usage.fgAtt;
+    const kickingPts = usage.kickingPts;
+    if (def.id === "fg_made") {
+      opportunity = Number.isFinite(fgAtt) && fgAtt > 0 ? fgAtt : fgMade;
+      efficiency =
+        Number.isFinite(fgAtt) && fgAtt > 0 && Number.isFinite(fgMade) ? fgMade / fgAtt : 1;
+      rawOppProj =
+        Number.isFinite(fgMade)
+          ? fgMade
+          : opportunity != null && efficiency != null
+            ? opportunity * efficiency
+            : null;
+    } else {
+      opportunity = kickingPts;
+      efficiency = 1;
+      rawOppProj = kickingPts;
+    }
   }
 
   return {
@@ -170,6 +189,9 @@ function roleTrend(bundle, def) {
   } else if (def.family === "rushing") {
     seasonU = season.rushAtt;
     recentU = l3.rushAtt;
+  } else if (def.family === "kicking") {
+    seasonU = def.id === "fg_made" ? season.fgMade : season.kickingPts;
+    recentU = def.id === "fg_made" ? l3.fgMade : l3.kickingPts;
   } else {
     seasonU = season.passAtt;
     recentU = l3.passAtt;

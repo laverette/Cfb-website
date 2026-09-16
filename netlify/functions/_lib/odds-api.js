@@ -18,6 +18,8 @@ const MARKET_TO_STAT = {
   player_receptions: "rec",
   player_reception_yds: "rec_yds",
   player_reception_tds: "rec_td",
+  player_field_goals: "fg_made",
+  player_kicking_points: "kicking_pts",
 };
 
 const DEFAULT_PROP_MARKETS = [

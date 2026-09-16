@@ -53,6 +53,10 @@ function usageFromLogs(logs) {
     passTd: sum("pass_td") / n,
     rushTd: sum("rush_td") / n,
     recTd: sum("rec_td") / n,
+    fgMade: sum("fg_made") / n,
+    fgAtt: sum("fg_att") / n,
+    xpMade: sum("xp_made") / n,
+    kickingPts: sum("kicking_pts") / n,
   };
 }
 

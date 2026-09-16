@@ -297,6 +297,35 @@ body.power-rankings-body {
   color: #e8c547;
 }
 
+.prop-kpi em {
+  display: block;
+  margin-top: 0.05rem;
+  font-style: normal;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: rgba(243, 239, 230, 0.78);
+}
+
+.prop-kpi em:empty {
+  display: none;
+}
+
+.prop-kpi-together strong {
+  font-size: 1.45rem;
+}
+
+.prop-together-note {
+  margin: 0 0 0.55rem;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--pr-muted);
+}
+
+.prop-kpi-together {
+  grid-column: 1 / -1;
+}
+
 .prop-corr {
   margin: 0.35rem 0;
   font-size: 0.82rem;
@@ -973,6 +1002,7 @@ body.prop-sheet-open {
   .prop-lab-header .power-title { font-size: 2.1rem; }
   .prop-card-hero { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .prop-grade-row { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .prop-kpi-together { grid-column: auto; }
 }
 
 @media (min-width: 900px) {
