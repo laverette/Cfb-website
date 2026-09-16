@@ -2,6 +2,18 @@ const { clamp } = require("./math");
 
 const GRADES = ["D", "C", "C+", "B-", "B", "B+", "A-", "A"];
 
+/**
+ * What the letter does and does not mean.
+ *
+ * It scores the quality of the inputs behind a projection — sample size, prior
+ * history, input completeness, role stability. It is NOT a forecast of whether
+ * the leg cashes. The frozen TEST scorecard is blunt about this: grade A hit
+ * 46.8% and grade D hit 56.4%. Anything that wants "how likely is this to hit"
+ * should read the calibrated probability instead.
+ */
+const CONFIDENCE_MEANING =
+  "Model Confidence grades the data behind the projection (sample size, history, input completeness) — not how likely the leg is to hit. Use the calibrated probability for that.";
+
 function letterFromScore(s) {
   const x = clamp(s, 0, 100);
   if (x >= 88) return "A";
@@ -64,7 +76,7 @@ function confidenceGrade({
 
   score = clamp(score, 18, 94);
   const letter = letterFromScore(score);
-  return { letter, score, inputs, grades: GRADES, breakdown };
+  return { letter, score, inputs, grades: GRADES, breakdown, meaning: CONFIDENCE_MEANING };
 }
 
 function reliabilityFromConfidence(letter, games) {
@@ -132,4 +144,5 @@ module.exports = {
   confidenceReasons,
   letterFromScore,
   collectFlags,
+  CONFIDENCE_MEANING,
 };

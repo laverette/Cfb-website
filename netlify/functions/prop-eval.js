@@ -24,9 +24,46 @@ const {
 } = require("./_lib/prop-lab");
 const propStore = require("./_lib/prop-lab/store");
 const { backtestOne, calibrationBuckets, metricsByStat, persistBacktests } = require("./_lib/prop-lab/backtest");
+const { recordPredictions } = require("./_lib/prop-lab/grading");
 
 function readCfbdKey() {
   return (process.env.CFBD_API_KEY && String(process.env.CFBD_API_KEY).trim()) || "";
+}
+
+/**
+ * Log every served projection as a pending prediction so it can be graded once
+ * the game is final. This is the only source of real calibration evidence, so
+ * it runs on the normal evaluate path — but it must never fail a user request.
+ */
+async function recordPredictionSafely(result, { season, week }) {
+  try {
+    const targetWeek = week ?? result?.opponent?.week;
+    if (!Number.isFinite(Number(targetWeek))) return;
+    await recordPredictions([
+      {
+        season,
+        week: targetWeek,
+        playerId: result.player?.id,
+        playerName: result.player?.name,
+        team: result.player?.team,
+        opponent: result.opponent?.name,
+        statId: result.stat?.id,
+        projection: result.projection,
+        line: result.line,
+        side: result.side,
+        pHit: result.pHit,
+        pUncalibrated: result.modelDebug?.pUncalibrated,
+        calibratorMethod: result.modelDebug?.calibrationMethod,
+        confidence: result.confidence,
+        propScore: result.propScore,
+        sampleGames: result.form?.games,
+        spread: result.market?.spread,
+        source: "live",
+      },
+    ]);
+  } catch (err) {
+    console.warn("prop-eval prediction ledger:", err.message);
+  }
 }
 
 function isDebug(event, q) {
@@ -225,10 +262,12 @@ exports.handler = async (event) => {
       const admin = requireAdmin(event);
       if (admin && admin.statusCode) return admin;
       try {
-        const report = require("./_lib/prop-lab/baselines/v2.0.0.json");
+        const report = require("./_lib/prop-lab/baselines/latest.json");
         return json(200, report, { "cache-control": "public, max-age=60" });
       } catch {
-        return json(404, { error: "Frozen 2.0.0 baseline missing. Run npm run backtest:props." });
+        return json(404, {
+          error: `Frozen ${PROP_MODEL_VERSION} baseline missing. Run npm run backtest:props.`,
+        });
       }
     }
 
@@ -249,7 +288,7 @@ exports.handler = async (event) => {
         },
         testAblationsConfirm: ablationDelta(run.reports, "test"),
         doubleCountAudit: DOUBLE_COUNT_AUDIT,
-        note: "Live walk-forward. Official frozen baseline remains v2.0.0.json until you re-run npm run backtest:props.",
+        note: `Live walk-forward. Official frozen baseline remains v${PROP_MODEL_VERSION} until you re-run npm run backtest:props.`,
       });
     }
 
@@ -334,6 +373,7 @@ exports.handler = async (event) => {
       marketOdds: body.marketOdds || null,
       includeDebug: isDebug(event, q) || body.debug === true,
     });
+    await recordPredictionSafely(result, { season, week });
     return json(200, result, { "cache-control": "public, max-age=20, s-maxage=40" });
   } catch (err) {
     if (err && err.name === "AbortError") {

@@ -23,13 +23,25 @@ function confidenceModifier(letter) {
 }
 
 /**
+ * How far the score moves per point of probability above 50%.
+ *
+ * Calibrated probabilities are much tighter than the raw model's were: across
+ * the backtest the 90th percentile is 0.566 and the 99th is 0.659. A 1:1 gain
+ * would squash every prop into the Pass band and make the label meaningless.
+ * At 200 the median prop reads Pass, the top decile reaches Slight Lean, and
+ * only the top ~1% reaches Strong, which is the right level of selectivity for
+ * a model with this much measured uncertainty.
+ */
+const SCORE_GAIN = 200;
+
+/**
  * Ranking score, not P(hit) and not confidence.
  * Primary signal is modeled P(chosen side). Confidence only trims it.
  * Matchup is already inside the projection / probability — not added again.
  */
 function propScore({ pHit, confidenceLetter, roleStable }) {
   const p = clamp(pHit ?? 0.5, 0.005, 0.995);
-  const rawStrength = 50 + 100 * (p - 0.5);
+  const rawStrength = 50 + SCORE_GAIN * (p - 0.5);
   const confMod = confidenceModifier(confidenceLetter);
   const stabilityMod = roleStable === false ? 0.95 : 1;
   const final = clamp(Math.round(rawStrength * confMod * stabilityMod), 20, 96);
@@ -49,4 +61,4 @@ function propScore({ pHit, confidenceLetter, roleStable }) {
   };
 }
 
-module.exports = { propScore, labelForScore, confidenceModifier };
+module.exports = { propScore, labelForScore, confidenceModifier, SCORE_GAIN };

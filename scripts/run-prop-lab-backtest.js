@@ -16,8 +16,19 @@ function pct(n) {
   return Number((n * 100).toFixed(1));
 }
 
+function loadCalibratorArtifact() {
+  try {
+    // eslint-disable-next-line global-require
+    return require("../netlify/functions/_lib/prop-lab/baselines/calibrator.json");
+  } catch {
+    return null;
+  }
+}
+
 function main() {
   const started = Date.now();
+  const calibratorArtifact = loadCalibratorArtifact();
+  const calibrator = calibratorArtifact?.calibrator || null;
   const run = runWalkForward({ seed: 20260 });
   const valAblation = ablationDelta(run.reports, "val");
   const testAblation = ablationDelta(run.reports, "test");
@@ -28,6 +39,8 @@ function main() {
     baselineVersion: PROP_MODEL_VERSION,
     frozen: true,
     elapsedMs: Date.now() - started,
+    calibrator,
+    calibratorFitProtocol: calibratorArtifact?.protocol || null,
     protocol: run.protocol,
     official: {
       split: "test",
@@ -61,14 +74,29 @@ function main() {
     generatedAt: run.generatedAt,
   };
 
+  const bands = (test.calibration || []).filter((b) => b.n > 0 && b.gap != null);
+  const worst = bands.slice().sort((a, b) => Math.abs(b.gap) - Math.abs(a.gap))[0];
+  const thinBands = bands.filter((b) => b.n < 30).map((b) => b.band);
+  const calibratorNote = calibrator
+    ? `${calibrator.method}${calibrator.method === "temperature" ? ` T=${calibrator.temperature}` : ""}, display cap ${(calibrator.maxProbability * 100).toFixed(1)}%`
+    : "none installed";
+
   payload.findings = [
     {
       rank: 1,
-      title: "Tail probabilities are not calibrated",
+      title: calibrator && calibrator.method !== "identity"
+        ? "Probabilities are calibrated; residual gaps are in thin bands"
+        : "Tail probabilities are not calibrated",
       evidence:
-        "TEST 70%+ band: predicted 74.0% vs actual 44.1% (n=34). 55–59% and 60–64% bands are also ~13–14 points overconfident. Overall ECE 0.044 hides a severe tail problem.",
+        `Calibrator: ${calibratorNote}. TEST ECE ${test.overall.calibrationError}, Brier ${test.overall.brier}. ` +
+        (worst
+          ? `Largest remaining band gap is ${worst.band} at ${(worst.gap * 100).toFixed(1)} points (n=${worst.n}).`
+          : "No graded bands.") +
+        (thinBands.length
+          ? ` Bands with n<30 and therefore unreadable: ${thinBands.join(", ")}.`
+          : ""),
       v21:
-        "Fit a monotone calibrator (isotonic or temperature) on TRAIN only, freeze it on VAL, and never touch TEST while choosing the map. Cap displayed P(hit) until the 70%+ band is within ~5 points.",
+        "Calibrator is fit on TRAIN, selected on VAL by log loss with a parsimony margin, and capped at the support ceiling. Refit against real graded outcomes once enough weeks are stored via npm run grade:props.",
     },
     {
       rank: 2,
@@ -88,11 +116,15 @@ function main() {
     },
     {
       rank: 4,
-      title: "Confidence letters track sample size, not hit quality",
-      evidence:
-        "TEST grade A (n=275) hits 46.6% with predicted 46.6% — a coin flip with an A sticker. Grade D hits 56.1%. Late-season 8+ samples auto-promote to A/A- even when the line is on top of the mean.",
+      title: "Confidence letters describe input quality, not edge",
+      evidence: (() => {
+        const rows = Object.entries(test.byConfidence || {})
+          .filter(([, v]) => v.nGraded >= 20)
+          .map(([k, v]) => `${k} n=${v.nGraded} hits ${(v.hitRate * 100).toFixed(1)}%`);
+        return `Hit rate by grade on TEST: ${rows.join(", ")}. A high grade means the inputs are trustworthy, not that the leg is likely to cash.`;
+      })(),
       v21:
-        "Require both sample and a minimum |pHit−0.5| (or Brier skill vs 0.25) before A/A-. Confidence should mean 'the distribution is trustworthy', not 'we have seen eight games'.",
+        "Grades now carry an explicit meaning in the UI and no longer feed the value haircut; calibrated probability carries the edge signal instead.",
     },
     {
       rank: 5,
@@ -106,12 +138,18 @@ function main() {
 
   const outDir = path.join(__dirname, "..", "netlify", "functions", "_lib", "prop-lab", "baselines");
   fs.mkdirSync(outDir, { recursive: true });
-  const frozenPath = path.join(outDir, "v2.0.0.json");
+  const frozenPath = path.join(outDir, `v${PROP_MODEL_VERSION}.json`);
   fs.writeFileSync(frozenPath, JSON.stringify(payload, null, 2));
+  // Stable filename so consumers do not chase the version number.
+  fs.writeFileSync(path.join(outDir, "latest.json"), JSON.stringify(payload, null, 2));
 
   const frontDir = path.join(__dirname, "..", "Frontend", "data");
   fs.mkdirSync(frontDir, { recursive: true });
-  fs.writeFileSync(path.join(frontDir, "prop-lab-backtest-2.0.0.json"), JSON.stringify(payload));
+  fs.writeFileSync(
+    path.join(frontDir, `prop-lab-backtest-${PROP_MODEL_VERSION}.json`),
+    JSON.stringify(payload)
+  );
+  fs.writeFileSync(path.join(frontDir, "prop-lab-backtest-latest.json"), JSON.stringify(payload));
 
   const o = test.overall;
   console.log(`Frozen ${PROP_MODEL_VERSION} TEST n=${o.n} MAE=${o.mae} Brier=${o.brier} ECE=${o.calibrationError}`);

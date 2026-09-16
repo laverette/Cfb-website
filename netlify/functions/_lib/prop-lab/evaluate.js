@@ -205,6 +205,7 @@ function evaluateFromBundle(bundle, {
     noRecency: Boolean(ablation?.noRecency || ablation?.rawSeasonAverage),
     noPriorShrinkage: Boolean(ablation?.noPriorShrinkage || ablation?.rawSeasonAverage),
     noGameScript: Boolean(ablation?.noGameScript || ablation?.rawSeasonAverage),
+    noCalibration: Boolean(ablation?.noCalibration),
   };
   const def = getPropDef(statId);
   if (!def) {
@@ -394,6 +395,7 @@ function evaluateFromBundle(bundle, {
     games: currentValues.length,
     floor: def.floor,
     ceil: def.ceil,
+    calibrate: !flagsAblation.noCalibration,
   };
   const rawBoth = rawProbability({
     mean: projection,
@@ -468,7 +470,9 @@ function evaluateFromBundle(bundle, {
     p80: distSummary.p80,
     dist: def.dist,
     rawPMore: rawBoth.pMore,
-    calibrationAdjustment: 0,
+    calibrationAdjustment: probs.calibrationAdjustment || 0,
+    calibrationMethod: probs.calibrationMethod || "identity",
+    pUncalibrated: probs.pUncalibrated,
     uncertaintyAdjustment: probs.pull || 0,
     uncertaintyReason: probs.shrinkReason || null,
     z: probs.z,
@@ -684,7 +688,9 @@ function relineEvaluation(evaluation, line, side) {
   const modelDebug = {
     ...(evaluation.modelDebug || {}),
     rawPMore: rawBoth.pMore,
-    calibrationAdjustment: 0,
+    calibrationAdjustment: probs.calibrationAdjustment || 0,
+    calibrationMethod: probs.calibrationMethod || "identity",
+    pUncalibrated: probs.pUncalibrated,
     uncertaintyAdjustment: probs.pull || 0,
     uncertaintyReason: probs.shrinkReason || null,
     z: probs.z,

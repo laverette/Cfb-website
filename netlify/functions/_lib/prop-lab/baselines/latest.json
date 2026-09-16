@@ -1,7 +1,27 @@
 {
-  "baselineVersion": "2.0.0",
+  "baselineVersion": "2.1.0",
   "frozen": true,
-  "elapsedMs": 1854,
+  "elapsedMs": 2389,
+  "calibrator": {
+    "method": "temperature",
+    "temperature": 2.55,
+    "zSupport": 1.329,
+    "n": 855,
+    "fit": {
+      "bestTemperature": 3.9823,
+      "bestLoss": 0.688077,
+      "chosenLoss": 0.689743,
+      "tolerance": 0.0025
+    },
+    "zFade": 1,
+    "maxProbability": 0.97
+  },
+  "calibratorFitProtocol": {
+    "fitOn": "TRAIN weeks 2-6, no_calibration ablation",
+    "selectedOn": "VAL split by log loss, with a parsimony margin",
+    "testWithheld": true,
+    "symmetrized": "each row mirrored so f(1-p) = 1-f(p)"
+  },
   "protocol": {
     "dgp": "independent synthetic CFB seasons; Model 2.0 is not the data generator",
     "asOf": "projection at week W uses only games with week < W plus prior season",
@@ -42,6 +62,7 @@
       "no_recency",
       "no_prior_shrinkage",
       "no_gamescript",
+      "no_calibration",
       "raw_season_average"
     ],
     "stats": [
@@ -69,9 +90,9 @@
       "rmse": 22.4758,
       "bias": 0.8802,
       "hitRate": 0.4643,
-      "predictedProbability": 0.4669,
-      "brier": 0.2593,
-      "calibrationError": 0.0444
+      "predictedProbability": 0.4824,
+      "brier": 0.2484,
+      "calibrationError": 0.0283
     },
     "byStat": {
       "rec_yds": {
@@ -82,9 +103,9 @@
         "rmse": 37.7609,
         "bias": 4.3837,
         "hitRate": 0.432,
-        "predictedProbability": 0.4612,
-        "brier": 0.2745,
-        "calibrationError": 0.0861,
+        "predictedProbability": 0.4931,
+        "brier": 0.2558,
+        "calibrationError": 0.0403,
         "key": "rec_yds"
       },
       "rec": {
@@ -95,9 +116,9 @@
         "rmse": 2.2812,
         "bias": 0.1997,
         "hitRate": 0.512,
-        "predictedProbability": 0.4974,
-        "brier": 0.2562,
-        "calibrationError": 0.036,
+        "predictedProbability": 0.4981,
+        "brier": 0.2496,
+        "calibrationError": 0.0189,
         "key": "rec"
       },
       "rec_td": {
@@ -108,9 +129,9 @@
         "rmse": 0.7544,
         "bias": 0.0947,
         "hitRate": 0.424,
-        "predictedProbability": 0.4227,
-        "brier": 0.2435,
-        "calibrationError": 0.0328,
+        "predictedProbability": 0.4464,
+        "brier": 0.2363,
+        "calibrationError": 0.0405,
         "key": "rec_td"
       },
       "rush_yds": {
@@ -121,9 +142,9 @@
         "rmse": 24.7502,
         "bias": 2.713,
         "hitRate": 0.4667,
-        "predictedProbability": 0.4265,
-        "brier": 0.2614,
-        "calibrationError": 0.0373,
+        "predictedProbability": 0.478,
+        "brier": 0.2449,
+        "calibrationError": 0.0319,
         "key": "rush_yds"
       },
       "rush_att": {
@@ -134,9 +155,9 @@
         "rmse": 3.2002,
         "bias": 0.3615,
         "hitRate": 0.5,
-        "predictedProbability": 0.4753,
-        "brier": 0.264,
-        "calibrationError": 0.0708,
+        "predictedProbability": 0.4887,
+        "brier": 0.2522,
+        "calibrationError": 0.0343,
         "key": "rush_att"
       },
       "rush_td": {
@@ -147,9 +168,9 @@
         "rmse": 0.9293,
         "bias": 0.0367,
         "hitRate": 0.4167,
-        "predictedProbability": 0.4698,
-        "brier": 0.2705,
-        "calibrationError": 0.0965,
+        "predictedProbability": 0.4857,
+        "brier": 0.2567,
+        "calibrationError": 0.0696,
         "key": "rush_td"
       },
       "pass_yds": {
@@ -160,9 +181,9 @@
         "rmse": 59.5461,
         "bias": -0.464,
         "hitRate": 0.4833,
-        "predictedProbability": 0.4794,
-        "brier": 0.2724,
-        "calibrationError": 0.0159,
+        "predictedProbability": 0.4929,
+        "brier": 0.2532,
+        "calibrationError": 0.0578,
         "key": "pass_yds"
       },
       "pass_att": {
@@ -173,9 +194,9 @@
         "rmse": 5.5243,
         "bias": 0.203,
         "hitRate": 0.4,
-        "predictedProbability": 0.4866,
-        "brier": 0.2509,
-        "calibrationError": 0.0986,
+        "predictedProbability": 0.4905,
+        "brier": 0.2442,
+        "calibrationError": 0.1025,
         "key": "pass_att"
       },
       "pass_comp": {
@@ -186,9 +207,9 @@
         "rmse": 3.6908,
         "bias": -0.122,
         "hitRate": 0.5,
-        "predictedProbability": 0.4626,
-        "brier": 0.2671,
-        "calibrationError": 0.0841,
+        "predictedProbability": 0.4767,
+        "brier": 0.2534,
+        "calibrationError": 0.0591,
         "key": "pass_comp"
       },
       "pass_td": {
@@ -199,9 +220,9 @@
         "rmse": 1.3154,
         "bias": -0.0156,
         "hitRate": 0.4833,
-        "predictedProbability": 0.4696,
-        "brier": 0.2455,
-        "calibrationError": 0.0647,
+        "predictedProbability": 0.4732,
+        "brier": 0.2446,
+        "calibrationError": 0.0205,
         "key": "pass_td"
       },
       "pass_int": {
@@ -212,183 +233,170 @@
         "rmse": 0.7945,
         "bias": 0.0844,
         "hitRate": 0.5167,
-        "predictedProbability": 0.5055,
-        "brier": 0.2496,
-        "calibrationError": 0.0688,
+        "predictedProbability": 0.4934,
+        "brier": 0.2448,
+        "calibrationError": 0.0139,
         "key": "pass_int"
       }
     },
     "byConfidence": {
-      "B": {
-        "n": 92,
-        "nGraded": 92,
-        "mae": 5.6071,
-        "medae": 0.7197,
-        "rmse": 12.896,
-        "bias": 1.395,
-        "hitRate": 0.3804,
-        "predictedProbability": 0.4413,
-        "brier": 0.2621,
-        "calibrationError": 0.0664,
-        "key": "B"
-      },
       "A-": {
-        "n": 265,
-        "nGraded": 265,
-        "mae": 6.3659,
-        "medae": 0.9329,
-        "rmse": 16.7622,
-        "bias": -0.0654,
-        "hitRate": 0.4981,
-        "predictedProbability": 0.483,
-        "brier": 0.2655,
-        "calibrationError": 0.0559,
+        "n": 278,
+        "nGraded": 278,
+        "mae": 6.6071,
+        "medae": 0.9846,
+        "rmse": 16.7562,
+        "bias": -0.2338,
+        "hitRate": 0.4784,
+        "predictedProbability": 0.492,
+        "brier": 0.2527,
+        "calibrationError": 0.029,
         "key": "A-"
       },
+      "B": {
+        "n": 76,
+        "nGraded": 76,
+        "mae": 3.972,
+        "medae": 0.6654,
+        "rmse": 11.5641,
+        "bias": 1.4039,
+        "hitRate": 0.4211,
+        "predictedProbability": 0.4698,
+        "brier": 0.2547,
+        "calibrationError": 0.0628,
+        "key": "B"
+      },
       "A": {
-        "n": 275,
-        "nGraded": 275,
-        "mae": 16.7305,
-        "medae": 4.8352,
-        "rmse": 31.5072,
-        "bias": 1.2393,
-        "hitRate": 0.4655,
-        "predictedProbability": 0.4656,
-        "brier": 0.2682,
-        "calibrationError": 0.0577,
+        "n": 278,
+        "nGraded": 278,
+        "mae": 16.7807,
+        "medae": 4.9311,
+        "rmse": 31.425,
+        "bias": 1.4752,
+        "hitRate": 0.4676,
+        "predictedProbability": 0.4871,
+        "brier": 0.2511,
+        "calibrationError": 0.0568,
         "key": "A"
       },
       "B-": {
-        "n": 93,
-        "nGraded": 93,
-        "mae": 12.9629,
+        "n": 89,
+        "nGraded": 89,
+        "mae": 12.5326,
         "medae": 3.0701,
-        "rmse": 23.1154,
-        "bias": 2.0388,
-        "hitRate": 0.4301,
-        "predictedProbability": 0.4652,
-        "brier": 0.245,
-        "calibrationError": 0.0267,
+        "rmse": 22.5505,
+        "bias": 1.9502,
+        "hitRate": 0.427,
+        "predictedProbability": 0.4799,
+        "brier": 0.2421,
+        "calibrationError": 0.0272,
         "key": "B-"
       },
       "C": {
-        "n": 56,
-        "nGraded": 56,
-        "mae": 3.4662,
-        "medae": 0.5606,
-        "rmse": 10.1819,
-        "bias": -0.7481,
-        "hitRate": 0.375,
-        "predictedProbability": 0.4364,
-        "brier": 0.2265,
-        "calibrationError": 0.0262,
+        "n": 57,
+        "nGraded": 57,
+        "mae": 2.8062,
+        "medae": 0.5499,
+        "rmse": 8.9213,
+        "bias": -0.1358,
+        "hitRate": 0.3684,
+        "predictedProbability": 0.4472,
+        "brier": 0.2326,
+        "calibrationError": 0.075,
         "key": "C"
       },
       "C+": {
-        "n": 20,
-        "nGraded": 20,
-        "mae": 12.5626,
-        "medae": 4.7463,
-        "rmse": 19.9544,
-        "bias": 0.1096,
-        "hitRate": 0.55,
-        "predictedProbability": 0.5074,
-        "brier": 0.2535,
-        "calibrationError": 0.0867,
+        "n": 22,
+        "nGraded": 22,
+        "mae": 11.6205,
+        "medae": 4.3978,
+        "rmse": 19.0431,
+        "bias": 0.2412,
+        "hitRate": 0.5455,
+        "predictedProbability": 0.5104,
+        "brier": 0.2514,
+        "calibrationError": 0.095,
         "key": "C+"
       },
       "D": {
-        "n": 41,
-        "nGraded": 41,
-        "mae": 5.4095,
+        "n": 39,
+        "nGraded": 39,
+        "mae": 5.5741,
         "medae": 0.7927,
-        "rmse": 11.317,
-        "bias": 3.1667,
-        "hitRate": 0.561,
-        "predictedProbability": 0.45,
-        "brier": 0.2387,
-        "calibrationError": 0.031,
+        "rmse": 11.5875,
+        "bias": 3.2492,
+        "hitRate": 0.5641,
+        "predictedProbability": 0.4431,
+        "brier": 0.2274,
+        "calibrationError": 0.0745,
         "key": "D"
       },
       "B+": {
-        "n": 13,
-        "nGraded": 13,
-        "mae": 3.181,
-        "medae": 1.4514,
-        "rmse": 5.8796,
-        "bias": 1.6195,
-        "hitRate": 0.5385,
-        "predictedProbability": 0.4799,
-        "brier": 0.2391,
-        "calibrationError": 0.0434,
+        "n": 16,
+        "nGraded": 16,
+        "mae": 10.3535,
+        "medae": 2.1237,
+        "rmse": 19.6085,
+        "bias": 0.1837,
+        "hitRate": 0.5625,
+        "predictedProbability": 0.4903,
+        "brier": 0.2347,
+        "calibrationError": 0.1414,
         "key": "B+"
       }
     },
     "byPropScore": {
-      "55–65 Slight": {
-        "n": 479,
-        "nGraded": 479,
-        "mae": 9.7569,
-        "medae": 1.5504,
-        "rmse": 21.5542,
-        "bias": 1.2248,
-        "hitRate": 0.4739,
-        "predictedProbability": 0.4766,
-        "brier": 0.2513,
-        "calibrationError": 0.0328,
-        "key": "55–65 Slight"
-      },
       "<55 Pass": {
-        "n": 148,
-        "nGraded": 148,
-        "mae": 10.6358,
-        "medae": 2.3015,
-        "rmse": 21.9623,
-        "bias": -2.8737,
-        "hitRate": 0.4595,
-        "predictedProbability": 0.4914,
-        "brier": 0.247,
-        "calibrationError": 0.016,
+        "n": 662,
+        "nGraded": 662,
+        "mae": 9.619,
+        "medae": 1.7376,
+        "rmse": 20.1662,
+        "bias": 1.0189,
+        "hitRate": 0.4562,
+        "predictedProbability": 0.4569,
+        "brier": 0.2474,
+        "calibrationError": 0.0098,
         "key": "<55 Pass"
       },
-      "66–75 Lean": {
-        "n": 190,
-        "nGraded": 190,
-        "mae": 9.0144,
-        "medae": 1.5637,
-        "rmse": 20.2583,
-        "bias": -0.2226,
-        "hitRate": 0.4316,
-        "predictedProbability": 0.4541,
-        "brier": 0.2806,
-        "calibrationError": 0.1049,
-        "key": "66–75 Lean"
+      "55–64 Slight Lean": {
+        "n": 146,
+        "nGraded": 146,
+        "mae": 12.6124,
+        "medae": 1.6428,
+        "rmse": 29.9297,
+        "bias": 0.0563,
+        "hitRate": 0.4795,
+        "predictedProbability": 0.5532,
+        "brier": 0.2531,
+        "calibrationError": 0.076,
+        "key": "55–64 Slight Lean"
       },
-      "76–83 Strong": {
-        "n": 37,
-        "nGraded": 37,
-        "mae": 20.4444,
-        "medae": 3.7888,
-        "rmse": 40.274,
-        "bias": 17.1459,
-        "hitRate": 0.5135,
-        "predictedProbability": 0.2977,
-        "brier": 0.3081,
-        "calibrationError": 0.0193,
-        "key": "76–83 Strong"
+      "65–79 Lean": {
+        "n": 43,
+        "nGraded": 43,
+        "mae": 11.7958,
+        "medae": 2.5759,
+        "rmse": 27.2401,
+        "bias": 1.6527,
+        "hitRate": 0.4884,
+        "predictedProbability": 0.6136,
+        "brier": 0.2622,
+        "calibrationError": 0.1559,
+        "key": "65–79 Lean"
       },
-      "84+ Elite": {
-        "n": 1,
-        "nGraded": 1,
-        "mae": 0.8955,
-        "medae": 0.8955,
-        "rmse": 0.8955,
-        "bias": -0.8955,
+      "80+ Strong": {
+        "n": 4,
+        "nGraded": 4,
+        "mae": 0.3337,
+        "medae": 0.1925,
+        "rmse": 0.478,
+        "bias": -0.3033,
         "hitRate": 1,
-        "predictedProbability": 0.86,
-        "brier": 0.0196,
-        "calibrationError": 0.14,
-        "key": "84+ Elite"
+        "predictedProbability": 0.7062,
+        "brier": 0.0875,
+        "calibrationError": 0.2938,
+        "key": "80+ Strong"
       }
     },
     "bySample": {
@@ -400,9 +408,9 @@
         "rmse": 22.4758,
         "bias": 0.8802,
         "hitRate": 0.4643,
-        "predictedProbability": 0.4669,
-        "brier": 0.2593,
-        "calibrationError": 0.0444,
+        "predictedProbability": 0.4824,
+        "brier": 0.2484,
+        "calibrationError": 0.0283,
         "key": "8+"
       }
     },
@@ -415,9 +423,9 @@
         "rmse": 22.121,
         "bias": 3.3753,
         "hitRate": 0.445,
-        "predictedProbability": 0.457,
-        "brier": 0.2613,
-        "calibrationError": 0.0417,
+        "predictedProbability": 0.4763,
+        "brier": 0.2496,
+        "calibrationError": 0.0142,
         "key": "Fav 7–13"
       },
       "Fav 14+": {
@@ -428,9 +436,9 @@
         "rmse": 21.5016,
         "bias": 0.9781,
         "hitRate": 0.4597,
-        "predictedProbability": 0.4568,
-        "brier": 0.2562,
-        "calibrationError": 0.0609,
+        "predictedProbability": 0.4758,
+        "brier": 0.2419,
+        "calibrationError": 0.045,
         "key": "Fav 14+"
       },
       "Toss-up": {
@@ -441,9 +449,9 @@
         "rmse": 21.7585,
         "bias": -0.9351,
         "hitRate": 0.4925,
-        "predictedProbability": 0.4765,
-        "brier": 0.257,
-        "calibrationError": 0.0465,
+        "predictedProbability": 0.4878,
+        "brier": 0.2482,
+        "calibrationError": 0.0288,
         "key": "Toss-up"
       },
       "Dog 7–13": {
@@ -454,9 +462,9 @@
         "rmse": 23.7903,
         "bias": -0.2517,
         "hitRate": 0.4045,
-        "predictedProbability": 0.4693,
-        "brier": 0.2721,
-        "calibrationError": 0.122,
+        "predictedProbability": 0.4844,
+        "brier": 0.258,
+        "calibrationError": 0.0873,
         "key": "Dog 7–13"
       },
       "Dog 14+": {
@@ -467,9 +475,9 @@
         "rmse": 35.1736,
         "bias": 13.3554,
         "hitRate": 0.4091,
-        "predictedProbability": 0.4352,
-        "brier": 0.2451,
-        "calibrationError": 0.0647,
+        "predictedProbability": 0.4718,
+        "brier": 0.238,
+        "calibrationError": 0.04,
         "key": "Dog 14+"
       }
     },
@@ -482,9 +490,9 @@
         "rmse": 19.831,
         "bias": -0.9849,
         "hitRate": 0.4724,
-        "predictedProbability": 0.4889,
-        "brier": 0.2598,
-        "calibrationError": 0.0431,
+        "predictedProbability": 0.4926,
+        "brier": 0.2508,
+        "calibrationError": 0.0146,
         "key": "Rising"
       },
       "Stable": {
@@ -495,9 +503,9 @@
         "rmse": 23.6222,
         "bias": 0.7403,
         "hitRate": 0.4574,
-        "predictedProbability": 0.4683,
-        "brier": 0.2566,
-        "calibrationError": 0.0449,
+        "predictedProbability": 0.4844,
+        "brier": 0.2474,
+        "calibrationError": 0.0358,
         "key": "Stable"
       },
       "Falling": {
@@ -508,52 +516,68 @@
         "rmse": 18.9967,
         "bias": 5.0501,
         "hitRate": 0.4946,
-        "predictedProbability": 0.4189,
-        "brier": 0.2753,
-        "calibrationError": 0.0529,
+        "predictedProbability": 0.4519,
+        "brier": 0.2507,
+        "calibrationError": 0.0497,
         "key": "Falling"
       }
     },
     "calibration": [
       {
         "band": "50–54%",
-        "n": 76,
-        "predicted": 0.5173,
-        "actual": 0.4605,
-        "gap": 0.0568,
+        "n": 227,
+        "predicted": 0.5239,
+        "actual": 0.4581,
+        "gap": 0.0658,
         "overconfident": true
       },
       {
         "band": "55–59%",
-        "n": 82,
-        "predicted": 0.5694,
-        "actual": 0.4268,
-        "gap": 0.1426,
-        "overconfident": true
+        "n": 101,
+        "predicted": 0.5697,
+        "actual": 0.5446,
+        "gap": 0.0251,
+        "overconfident": false
       },
       {
         "band": "60–64%",
-        "n": 66,
-        "predicted": 0.6194,
-        "actual": 0.4848,
-        "gap": 0.1345,
+        "n": 24,
+        "predicted": 0.6191,
+        "actual": 0.4167,
+        "gap": 0.2024,
         "overconfident": true
       },
       {
         "band": "65–69%",
-        "n": 24,
-        "predicted": 0.663,
-        "actual": 0.5417,
-        "gap": 0.1214,
-        "overconfident": true
+        "n": 7,
+        "predicted": 0.6697,
+        "actual": 0.8571,
+        "gap": -0.1874,
+        "overconfident": false
       },
       {
-        "band": "70%+",
-        "n": 34,
-        "predicted": 0.7395,
-        "actual": 0.4412,
-        "gap": 0.2983,
-        "overconfident": true
+        "band": "70–79%",
+        "n": 2,
+        "predicted": 0.7383,
+        "actual": 1,
+        "gap": -0.2617,
+        "overconfident": false
+      },
+      {
+        "band": "80–89%",
+        "n": 0,
+        "predicted": null,
+        "actual": null,
+        "gap": null,
+        "overconfident": null
+      },
+      {
+        "band": "90%+",
+        "n": 0,
+        "predicted": null,
+        "actual": null,
+        "gap": null,
+        "overconfident": null
       }
     ]
   },
@@ -567,50 +591,66 @@
       "rmse": 20.1278,
       "bias": 0.6728,
       "hitRate": 0.4522,
-      "predictedProbability": 0.4599,
-      "brier": 0.2498,
-      "calibrationError": 0.0251
+      "predictedProbability": 0.4804,
+      "brier": 0.2432,
+      "calibrationError": 0.0256
     },
     "calibration": [
       {
         "band": "50–54%",
-        "n": 56,
-        "predicted": 0.5192,
-        "actual": 0.4643,
-        "gap": 0.0549,
+        "n": 122,
+        "predicted": 0.5225,
+        "actual": 0.459,
+        "gap": 0.0635,
         "overconfident": true
       },
       {
         "band": "55–59%",
-        "n": 41,
-        "predicted": 0.5669,
-        "actual": 0.5366,
-        "gap": 0.0304,
-        "overconfident": true
+        "n": 57,
+        "predicted": 0.5702,
+        "actual": 0.614,
+        "gap": -0.0439,
+        "overconfident": false
       },
       {
         "band": "60–64%",
         "n": 21,
-        "predicted": 0.6193,
+        "predicted": 0.6147,
         "actual": 0.5238,
-        "gap": 0.0955,
+        "gap": 0.0909,
         "overconfident": true
       },
       {
         "band": "65–69%",
-        "n": 22,
-        "predicted": 0.6701,
-        "actual": 0.7273,
-        "gap": -0.0571,
+        "n": 10,
+        "predicted": 0.6729,
+        "actual": 0.7,
+        "gap": -0.0271,
         "overconfident": false
       },
       {
-        "band": "70%+",
-        "n": 26,
-        "predicted": 0.7422,
-        "actual": 0.5385,
-        "gap": 0.2038,
+        "band": "70–79%",
+        "n": 0,
+        "predicted": null,
+        "actual": null,
+        "gap": null,
+        "overconfident": null
+      },
+      {
+        "band": "80–89%",
+        "n": 2,
+        "predicted": 0.8647,
+        "actual": 0.5,
+        "gap": 0.3647,
         "overconfident": true
+      },
+      {
+        "band": "90%+",
+        "n": 0,
+        "predicted": null,
+        "actual": null,
+        "gap": null,
+        "overconfident": null
       }
     ],
     "ablations": [
@@ -619,60 +659,72 @@
         "n": 513,
         "mae": 9.4812,
         "maeDeltaVsFull": 0.22189999999999976,
-        "brier": 0.2522,
-        "brierDeltaVsFull": 0.0023999999999999855,
-        "ece": 0.049,
-        "eceDeltaVsFull": 0.0239,
+        "brier": 0.2445,
+        "brierDeltaVsFull": 0.0012999999999999956,
+        "ece": 0.0438,
+        "eceDeltaVsFull": 0.018199999999999997,
         "hitRate": 0.4522,
-        "predicted": 0.4585
+        "predicted": 0.4791
       },
       {
         "ablation": "raw_season_average",
         "n": 513,
         "mae": 9.3693,
         "maeDeltaVsFull": 0.11000000000000121,
-        "brier": 0.2508,
-        "brierDeltaVsFull": 0.0010000000000000286,
-        "ece": 0.0546,
-        "eceDeltaVsFull": 0.029500000000000002,
+        "brier": 0.2426,
+        "brierDeltaVsFull": -0.0005999999999999894,
+        "ece": 0.0333,
+        "eceDeltaVsFull": 0.007700000000000002,
         "hitRate": 0.4522,
-        "predicted": 0.4616
+        "predicted": 0.4779
       },
       {
         "ablation": "no_prior_shrinkage",
         "n": 513,
         "mae": 9.3259,
         "maeDeltaVsFull": 0.0666000000000011,
-        "brier": 0.2511,
-        "brierDeltaVsFull": 0.0012999999999999956,
-        "ece": 0.042,
-        "eceDeltaVsFull": 0.016900000000000002,
+        "brier": 0.2437,
+        "brierDeltaVsFull": 0.0005000000000000004,
+        "ece": 0.0273,
+        "eceDeltaVsFull": 0.0017000000000000001,
         "hitRate": 0.4522,
-        "predicted": 0.462
+        "predicted": 0.4806
       },
       {
         "ablation": "no_gamescript",
         "n": 513,
         "mae": 9.2856,
         "maeDeltaVsFull": 0.026300000000000878,
-        "brier": 0.2499,
-        "brierDeltaVsFull": 0.00010000000000001674,
-        "ece": 0.0342,
-        "eceDeltaVsFull": 0.0091,
+        "brier": 0.2432,
+        "brierDeltaVsFull": 0,
+        "ece": 0.0181,
+        "eceDeltaVsFull": -0.0075,
         "hitRate": 0.4522,
-        "predicted": 0.4574
+        "predicted": 0.4791
+      },
+      {
+        "ablation": "no_calibration",
+        "n": 513,
+        "mae": 9.2593,
+        "maeDeltaVsFull": 0,
+        "brier": 0.2537,
+        "brierDeltaVsFull": 0.010499999999999982,
+        "ece": 0.0446,
+        "eceDeltaVsFull": 0.019,
+        "hitRate": 0.4522,
+        "predicted": 0.4559
       },
       {
         "ablation": "no_recency",
         "n": 513,
         "mae": 9.097,
         "maeDeltaVsFull": -0.1623000000000001,
-        "brier": 0.2478,
-        "brierDeltaVsFull": -0.0020000000000000018,
-        "ece": 0.0256,
-        "eceDeltaVsFull": 0.0005000000000000004,
+        "brier": 0.2419,
+        "brierDeltaVsFull": -0.0012999999999999956,
+        "ece": 0.0319,
+        "eceDeltaVsFull": 0.006299999999999997,
         "hitRate": 0.4522,
-        "predicted": 0.4629
+        "predicted": 0.4826
       }
     ]
   },
@@ -681,14 +733,14 @@
     "overall": {
       "n": 855,
       "nGraded": 855,
-      "mae": 10.7446,
-      "medae": 1.8122,
-      "rmse": 24.1137,
-      "bias": 2.0936,
+      "mae": 10.719,
+      "medae": 1.7932,
+      "rmse": 24.1053,
+      "bias": 2.1192,
       "hitRate": 0.4491,
-      "predictedProbability": 0.4659,
-      "brier": 0.2529,
-      "calibrationError": 0.0355
+      "predictedProbability": 0.4736,
+      "brier": 0.2481,
+      "calibrationError": 0.0361
     }
   },
   "testAblationsConfirm": [
@@ -697,60 +749,72 @@
       "n": 855,
       "mae": 10.4345,
       "maeDeltaVsFull": 0.23830000000000062,
-      "brier": 0.2612,
-      "brierDeltaVsFull": 0.0019000000000000128,
-      "ece": 0.0493,
-      "eceDeltaVsFull": 0.004899999999999995,
+      "brier": 0.25,
+      "brierDeltaVsFull": 0.0015999999999999903,
+      "ece": 0.0389,
+      "eceDeltaVsFull": 0.010599999999999998,
       "hitRate": 0.4643,
-      "predicted": 0.4673
+      "predicted": 0.4815
     },
     {
       "ablation": "no_matchup",
       "n": 855,
       "mae": 10.3432,
       "maeDeltaVsFull": 0.14700000000000024,
-      "brier": 0.2603,
-      "brierDeltaVsFull": 0.0010000000000000009,
-      "ece": 0.0419,
-      "eceDeltaVsFull": -0.0025000000000000022,
+      "brier": 0.2491,
+      "brierDeltaVsFull": 0.0006999999999999784,
+      "ece": 0.0213,
+      "eceDeltaVsFull": -0.006999999999999999,
       "hitRate": 0.4643,
-      "predicted": 0.4669
+      "predicted": 0.4823
     },
     {
       "ablation": "no_recency",
       "n": 855,
       "mae": 10.2766,
       "maeDeltaVsFull": 0.08040000000000092,
-      "brier": 0.2597,
-      "brierDeltaVsFull": 0.00040000000000001146,
-      "ece": 0.0444,
-      "eceDeltaVsFull": 0,
+      "brier": 0.2488,
+      "brierDeltaVsFull": 0.0003999999999999837,
+      "ece": 0.0317,
+      "eceDeltaVsFull": 0.0034000000000000002,
       "hitRate": 0.4643,
-      "predicted": 0.4654
+      "predicted": 0.4819
     },
     {
       "ablation": "no_prior_shrinkage",
       "n": 855,
       "mae": 10.2033,
       "maeDeltaVsFull": 0.0071000000000012164,
-      "brier": 0.2597,
-      "brierDeltaVsFull": 0.00040000000000001146,
-      "ece": 0.0374,
-      "eceDeltaVsFull": -0.006999999999999999,
+      "brier": 0.2485,
+      "brierDeltaVsFull": 0.00009999999999998899,
+      "ece": 0.0285,
+      "eceDeltaVsFull": 0.00020000000000000226,
       "hitRate": 0.4643,
-      "predicted": 0.4686
+      "predicted": 0.4832
+    },
+    {
+      "ablation": "no_calibration",
+      "n": 855,
+      "mae": 10.1962,
+      "maeDeltaVsFull": 0,
+      "brier": 0.263,
+      "brierDeltaVsFull": 0.014600000000000002,
+      "ece": 0.0523,
+      "eceDeltaVsFull": 0.024,
+      "hitRate": 0.4643,
+      "predicted": 0.4618
     },
     {
       "ablation": "no_gamescript",
       "n": 855,
       "mae": 10.1581,
       "maeDeltaVsFull": -0.03810000000000002,
-      "brier": 0.2577,
-      "brierDeltaVsFull": -0.0015999999999999903,
-      "ece": 0.0366,
-      "eceDeltaVsFull": -0.007800000000000001,
+      "brier": 0.2477,
+      "brierDeltaVsFull": -0.0007000000000000062,
+      "ece": 0.0294,
+      "eceDeltaVsFull": 0.0011000000000000003,
       "hitRate": 0.4643,
-      "predicted": 0.4653
+      "predicted": 0.4817
     }
   ],
   "ablationsFull": {
@@ -759,14 +823,14 @@
       "train": {
         "n": 855,
         "nGraded": 855,
-        "mae": 10.7446,
-        "medae": 1.8122,
-        "rmse": 24.1137,
-        "bias": 2.0936,
+        "mae": 10.719,
+        "medae": 1.7932,
+        "rmse": 24.1053,
+        "bias": 2.1192,
         "hitRate": 0.4491,
-        "predictedProbability": 0.4659,
-        "brier": 0.2529,
-        "calibrationError": 0.0355
+        "predictedProbability": 0.4736,
+        "brier": 0.2481,
+        "calibrationError": 0.0361
       },
       "val": {
         "n": 513,
@@ -776,9 +840,9 @@
         "rmse": 20.1278,
         "bias": 0.6728,
         "hitRate": 0.4522,
-        "predictedProbability": 0.4599,
-        "brier": 0.2498,
-        "calibrationError": 0.0251
+        "predictedProbability": 0.4804,
+        "brier": 0.2432,
+        "calibrationError": 0.0256
       },
       "test": {
         "n": 855,
@@ -788,9 +852,9 @@
         "rmse": 22.4758,
         "bias": 0.8802,
         "hitRate": 0.4643,
-        "predictedProbability": 0.4669,
-        "brier": 0.2593,
-        "calibrationError": 0.0444
+        "predictedProbability": 0.4824,
+        "brier": 0.2484,
+        "calibrationError": 0.0283
       }
     },
     "no_matchup": {
@@ -798,14 +862,14 @@
       "train": {
         "n": 855,
         "nGraded": 855,
-        "mae": 10.6971,
-        "medae": 1.7383,
-        "rmse": 24.3554,
-        "bias": 2.1003,
+        "mae": 10.6715,
+        "medae": 1.7331,
+        "rmse": 24.3471,
+        "bias": 2.126,
         "hitRate": 0.4491,
-        "predictedProbability": 0.4663,
-        "brier": 0.2518,
-        "calibrationError": 0.0307
+        "predictedProbability": 0.4734,
+        "brier": 0.2474,
+        "calibrationError": 0.0289
       },
       "val": {
         "n": 513,
@@ -815,9 +879,9 @@
         "rmse": 20.6767,
         "bias": 0.6974,
         "hitRate": 0.4522,
-        "predictedProbability": 0.4585,
-        "brier": 0.2522,
-        "calibrationError": 0.049
+        "predictedProbability": 0.4791,
+        "brier": 0.2445,
+        "calibrationError": 0.0438
       },
       "test": {
         "n": 855,
@@ -827,9 +891,9 @@
         "rmse": 23.102,
         "bias": 0.9511,
         "hitRate": 0.4643,
-        "predictedProbability": 0.4669,
-        "brier": 0.2603,
-        "calibrationError": 0.0419
+        "predictedProbability": 0.4823,
+        "brier": 0.2491,
+        "calibrationError": 0.0213
       }
     },
     "no_recency": {
@@ -837,14 +901,14 @@
       "train": {
         "n": 855,
         "nGraded": 855,
-        "mae": 10.7308,
-        "medae": 1.7521,
-        "rmse": 24.1295,
-        "bias": 2.0956,
+        "mae": 10.7051,
+        "medae": 1.7334,
+        "rmse": 24.121,
+        "bias": 2.1212,
         "hitRate": 0.4491,
-        "predictedProbability": 0.4657,
-        "brier": 0.2527,
-        "calibrationError": 0.0292
+        "predictedProbability": 0.4736,
+        "brier": 0.2483,
+        "calibrationError": 0.0301
       },
       "val": {
         "n": 513,
@@ -854,9 +918,9 @@
         "rmse": 19.8385,
         "bias": 0.4987,
         "hitRate": 0.4522,
-        "predictedProbability": 0.4629,
-        "brier": 0.2478,
-        "calibrationError": 0.0256
+        "predictedProbability": 0.4826,
+        "brier": 0.2419,
+        "calibrationError": 0.0319
       },
       "test": {
         "n": 855,
@@ -866,9 +930,9 @@
         "rmse": 22.5292,
         "bias": 0.9116,
         "hitRate": 0.4643,
-        "predictedProbability": 0.4654,
-        "brier": 0.2597,
-        "calibrationError": 0.0444
+        "predictedProbability": 0.4819,
+        "brier": 0.2488,
+        "calibrationError": 0.0317
       }
     },
     "no_prior_shrinkage": {
@@ -881,9 +945,9 @@
         "rmse": 26.1614,
         "bias": 1.2584,
         "hitRate": 0.4491,
-        "predictedProbability": 0.4719,
-        "brier": 0.2578,
-        "calibrationError": 0.0478
+        "predictedProbability": 0.4725,
+        "brier": 0.2565,
+        "calibrationError": 0.0489
       },
       "val": {
         "n": 513,
@@ -893,9 +957,9 @@
         "rmse": 20.448,
         "bias": 0.3993,
         "hitRate": 0.4522,
-        "predictedProbability": 0.462,
-        "brier": 0.2511,
-        "calibrationError": 0.042
+        "predictedProbability": 0.4806,
+        "brier": 0.2437,
+        "calibrationError": 0.0273
       },
       "test": {
         "n": 855,
@@ -905,9 +969,9 @@
         "rmse": 22.5198,
         "bias": 0.7617,
         "hitRate": 0.4643,
-        "predictedProbability": 0.4686,
-        "brier": 0.2597,
-        "calibrationError": 0.0374
+        "predictedProbability": 0.4832,
+        "brier": 0.2485,
+        "calibrationError": 0.0285
       }
     },
     "no_gamescript": {
@@ -915,14 +979,14 @@
       "train": {
         "n": 855,
         "nGraded": 855,
-        "mae": 10.639,
-        "medae": 1.7849,
-        "rmse": 23.9083,
-        "bias": 2.1654,
+        "mae": 10.6135,
+        "medae": 1.7731,
+        "rmse": 23.8998,
+        "bias": 2.1909,
         "hitRate": 0.4491,
-        "predictedProbability": 0.4652,
-        "brier": 0.2525,
-        "calibrationError": 0.0238
+        "predictedProbability": 0.4731,
+        "brier": 0.2475,
+        "calibrationError": 0.0312
       },
       "val": {
         "n": 513,
@@ -932,9 +996,9 @@
         "rmse": 20.1781,
         "bias": 0.7984,
         "hitRate": 0.4522,
-        "predictedProbability": 0.4574,
-        "brier": 0.2499,
-        "calibrationError": 0.0342
+        "predictedProbability": 0.4791,
+        "brier": 0.2432,
+        "calibrationError": 0.0181
       },
       "test": {
         "n": 855,
@@ -944,9 +1008,48 @@
         "rmse": 22.3972,
         "bias": 0.9958,
         "hitRate": 0.4643,
-        "predictedProbability": 0.4653,
-        "brier": 0.2577,
-        "calibrationError": 0.0366
+        "predictedProbability": 0.4817,
+        "brier": 0.2477,
+        "calibrationError": 0.0294
+      }
+    },
+    "no_calibration": {
+      "n": 2223,
+      "train": {
+        "n": 855,
+        "nGraded": 855,
+        "mae": 10.719,
+        "medae": 1.7932,
+        "rmse": 24.1053,
+        "bias": 2.1192,
+        "hitRate": 0.4491,
+        "predictedProbability": 0.4424,
+        "brier": 0.2634,
+        "calibrationError": 0.0606
+      },
+      "val": {
+        "n": 513,
+        "nGraded": 513,
+        "mae": 9.2593,
+        "medae": 1.7202,
+        "rmse": 20.1278,
+        "bias": 0.6728,
+        "hitRate": 0.4522,
+        "predictedProbability": 0.4559,
+        "brier": 0.2537,
+        "calibrationError": 0.0446
+      },
+      "test": {
+        "n": 855,
+        "nGraded": 855,
+        "mae": 10.1962,
+        "medae": 1.7327,
+        "rmse": 22.4758,
+        "bias": 0.8802,
+        "hitRate": 0.4643,
+        "predictedProbability": 0.4618,
+        "brier": 0.263,
+        "calibrationError": 0.0523
       }
     },
     "raw_season_average": {
@@ -959,9 +1062,9 @@
         "rmse": 26.1427,
         "bias": 1.2983,
         "hitRate": 0.4491,
-        "predictedProbability": 0.4714,
-        "brier": 0.2561,
-        "calibrationError": 0.047
+        "predictedProbability": 0.4668,
+        "brier": 0.257,
+        "calibrationError": 0.0473
       },
       "val": {
         "n": 513,
@@ -971,9 +1074,9 @@
         "rmse": 20.6651,
         "bias": 0.3428,
         "hitRate": 0.4522,
-        "predictedProbability": 0.4616,
-        "brier": 0.2508,
-        "calibrationError": 0.0546
+        "predictedProbability": 0.4779,
+        "brier": 0.2426,
+        "calibrationError": 0.0333
       },
       "test": {
         "n": 855,
@@ -983,9 +1086,9 @@
         "rmse": 23.2159,
         "bias": 0.9469,
         "hitRate": 0.4643,
-        "predictedProbability": 0.4673,
-        "brier": 0.2612,
-        "calibrationError": 0.0493
+        "predictedProbability": 0.4815,
+        "brier": 0.25,
+        "calibrationError": 0.0389
       }
     }
   },
@@ -1042,13 +1145,13 @@
       "v21": "Use a strict hierarchy: advanced PPA if present, else yards allowed vs FBS, else power gap — never sum two of these."
     }
   ],
-  "generatedAt": "2026-09-14T19:54:45.386Z",
+  "generatedAt": "2026-09-16T20:16:11.632Z",
   "findings": [
     {
       "rank": 1,
-      "title": "Tail probabilities are not calibrated",
-      "evidence": "TEST 70%+ band: predicted 74.0% vs actual 44.1% (n=34). 55–59% and 60–64% bands are also ~13–14 points overconfident. Overall ECE 0.044 hides a severe tail problem.",
-      "v21": "Fit a monotone calibrator (isotonic or temperature) on TRAIN only, freeze it on VAL, and never touch TEST while choosing the map. Cap displayed P(hit) until the 70%+ band is within ~5 points."
+      "title": "Probabilities are calibrated; residual gaps are in thin bands",
+      "evidence": "Calibrator: temperature T=2.55, display cap 97.0%. TEST ECE 0.0283, Brier 0.2484. Largest remaining band gap is 70–79% at -26.2 points (n=2). Bands with n<30 and therefore unreadable: 60–64%, 65–69%, 70–79%.",
+      "v21": "Calibrator is fit on TRAIN, selected on VAL by log loss with a parsimony margin, and capped at the support ceiling. Refit against real graded outcomes once enough weeks are stored via npm run grade:props."
     },
     {
       "rank": 2,
@@ -1064,9 +1167,9 @@
     },
     {
       "rank": 4,
-      "title": "Confidence letters track sample size, not hit quality",
-      "evidence": "TEST grade A (n=275) hits 46.6% with predicted 46.6% — a coin flip with an A sticker. Grade D hits 56.1%. Late-season 8+ samples auto-promote to A/A- even when the line is on top of the mean.",
-      "v21": "Require both sample and a minimum |pHit−0.5| (or Brier skill vs 0.25) before A/A-. Confidence should mean 'the distribution is trustworthy', not 'we have seen eight games'."
+      "title": "Confidence letters describe input quality, not edge",
+      "evidence": "Hit rate by grade on TEST: A- n=278 hits 47.8%, B n=76 hits 42.1%, A n=278 hits 46.8%, B- n=89 hits 42.7%, C n=57 hits 36.8%, C+ n=22 hits 54.5%, D n=39 hits 56.4%. A high grade means the inputs are trustworthy, not that the leg is likely to cash.",
+      "v21": "Grades now carry an explicit meaning in the UI and no longer feed the value haircut; calibrated probability carries the edge signal instead."
     },
     {
       "rank": 5,

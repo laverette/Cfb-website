@@ -99,15 +99,23 @@ function assertMonotoneMore(dist, lines = CURVE_LINES) {
 }
 
 describe("screenshot regressions", () => {
+  // Thresholds are on the calibrated scale. Near-the-line yardage props sit
+  // much closer to 50% than the raw model claimed, because that is what the
+  // backtest measured; what must survive is direction and line sensitivity,
+  // not the old inflated magnitudes.
   it("Toney 110 rec yds is not ~50% at 98.5 or 52% at 88.5", () => {
     const dist = { mean: 110, sd: 42, dist: "normal", reliability: 0.38, games: 2 };
     const a = probabilityAtLine(dist, 98.5, "more");
     const b = probabilityAtLine(dist, 88.5, "more");
-    assert.ok(a.pMore >= 0.56, `98.5 → ${a.pMore}`);
-    assert.ok(b.pMore >= 0.64, `88.5 → ${b.pMore}`);
-    assert.ok(b.pMore - a.pMore >= 0.07, `gap ${b.pMore - a.pMore}`);
+    assert.ok(a.pMore > 0.52, `98.5 → ${a.pMore}`);
+    assert.ok(b.pMore > 0.55, `88.5 → ${b.pMore}`);
+    assert.ok(b.pMore - a.pMore >= 0.025, `gap ${b.pMore - a.pMore}`);
+    // D confidence trims the ranking score but must not crush it: the gap to
+    // an A-grade prop at the same probability stays small, because the letter
+    // grades input quality rather than edge.
     const scored = propScore({ pHit: a.pMore, confidenceLetter: "D", roleStable: true });
-    assert.ok(scored.score >= 50, `score ${scored.score} still crushed by D confidence`);
+    const scoredA = propScore({ pHit: a.pMore, confidenceLetter: "A", roleStable: true });
+    assert.ok(scoredA.score - scored.score <= 10, `D trim too harsh: ${scoredA.score} vs ${scored.score}`);
     assert.notEqual(scored.label, undefined);
   });
 
@@ -127,7 +135,7 @@ describe("screenshot regressions", () => {
     const expected = 1 - poissonCdf(0, lambda);
     const p = probabilityAtLine({ mean: lambda, sd: 0.9, dist: "poisson", reliability: 0.38, games: 2 }, 0.5, "more");
     assert.ok(Math.abs(p.pRaw - expected) < 0.01);
-    assert.ok(p.pMore >= 0.62, `P(over 0.5 | λ=1.1) collapsed to ${p.pMore}; Poisson says ${expected}`);
+    assert.ok(p.pMore >= 0.55, `P(over 0.5 | λ=1.1) collapsed to ${p.pMore}; Poisson says ${expected}`);
   });
 
   it("Mensah passing TDs 2.7 vs 2.5 is a true toss-up under Poisson", () => {
@@ -204,7 +212,7 @@ describe("probability curves", () => {
       assert.ok(Math.abs(atMean.pMore - 0.5) < 0.04, `${fam.name} at mean → ${atMean.pMore}`);
       const low = curve[0].pMore;
       const high = curve[curve.length - 1].pMore;
-      assert.ok(low - high >= 0.35, `${fam.name} span too flat: ${low} → ${high}\n${JSON.stringify(curve)}`);
+      assert.ok(low - high >= 0.3, `${fam.name} span too flat: ${low} → ${high}\n${JSON.stringify(curve)}`);
       if (process.env.PROP_LAB_LOG_CURVES) {
         console.log(
           fam.name,
@@ -283,7 +291,7 @@ describe("model coherence invariants", () => {
     const next = relineEvaluation(slim, 88.5, "more");
     assert.equal(next.projection, 110);
     assert.equal(next.confidence, "D");
-    assert.ok(next.pMore > 0.6);
+    assert.ok(next.pMore > 0.55);
   });
 
   it("a line near the modeled median is approximately 50%", () => {
@@ -302,7 +310,12 @@ describe("model coherence invariants", () => {
       side: "more",
     });
     assert.ok(Math.abs(rec.modelDebug.rawPMore - raw.pMore) < 0.02);
-    assert.equal(rec.modelDebug.calibrationAdjustment, 0);
+    // Calibration is applied and reported, and it always moves toward 50%.
+    const uncal = rec.modelDebug.pUncalibrated;
+    assert.ok(Number.isFinite(uncal), "uncalibrated probability must be reported");
+    assert.ok(Math.abs(rec.pHit - 0.5) <= Math.abs(uncal - 0.5) + 1e-9);
+    assert.ok(Math.abs(rec.modelDebug.calibrationAdjustment - (rec.pHit - uncal)) < 1e-9);
+    assert.equal(rec.modelDebug.calibrationMethod, "temperature");
     assert.ok(rec.modelDebug.uncertaintyAdjustment < 0.12);
     if (rec.projection >= rec.line + 8) {
       assert.ok(rec.pMore >= 0.55, `proj ${rec.projection} vs 98.5 → ${rec.pMore} with no defensible 50% overwrite`);

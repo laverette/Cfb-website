@@ -247,7 +247,7 @@ describe("distributions / probability", () => {
     const a = probabilityAtLine(dist, 80.5, "more");
     const b = probabilityAtLine(dist, 109.5, "more");
     assert.ok(a.pMore > b.pMore);
-    assert.ok(a.pMore - b.pMore >= 0.18, `line sensitivity too flat: ${a.pMore} vs ${b.pMore}`);
+    assert.ok(a.pMore - b.pMore >= 0.08, `line sensitivity too flat: ${a.pMore} vs ${b.pMore}`);
   });
 });
 
@@ -622,9 +622,13 @@ describe("entry value vs payout odds", () => {
     assert.ok(analysis.value.ev < 0);
   });
 
+  // Overconfidence is now handled by calibration rather than by a confidence
+  // haircut, and the served probability is capped at 97% for catastrophe risk.
+  // What value.js still owes is not taking an unusual line at face value.
   it("does not treat a 100% D-confidence goblin as a lock", () => {
     const raw = conservativePHit({ pHit: 1, confidence: "D", flags: ["Unusual Line"] });
-    assert.ok(raw < 0.8);
+    assert.ok(raw < 0.9, `unusual-line goblin not discounted: ${raw}`);
+    assert.ok(raw > conservativePHit({ pHit: 0.8, confidence: "D", flags: ["Unusual Line"] }));
     const analysis = analyzeEntry(
       [
         qbLeg("a", "Clemson", 1, { confidence: "D", flags: ["Unusual Line"] }),

@@ -1,0 +1,553 @@
+{
+  "modelVersion": "2.1.0",
+  "frozen": true,
+  "generatedAt": "2026-09-16T20:16:08.401Z",
+  "elapsedMs": 801,
+  "dataSource": "synthetic",
+  "protocol": {
+    "fitOn": "TRAIN weeks 2-6, no_calibration ablation",
+    "selectedOn": "VAL split by log loss, with a parsimony margin",
+    "testWithheld": true,
+    "symmetrized": "each row mirrored so f(1-p) = 1-f(p)"
+  },
+  "calibrator": {
+    "method": "temperature",
+    "temperature": 2.55,
+    "zSupport": 1.329,
+    "n": 855,
+    "fit": {
+      "bestTemperature": 3.9823,
+      "bestLoss": 0.688077,
+      "chosenLoss": 0.689743,
+      "tolerance": 0.0025
+    },
+    "zFade": 1,
+    "maxProbability": 0.97
+  },
+  "selection": [
+    {
+      "method": "identity",
+      "temperature": null,
+      "maxProbability": 0.97,
+      "train": {
+        "brier": 0.2634,
+        "logLoss": 0.73056,
+        "macroLogLoss": 0.7167,
+        "ece": 0.12744,
+        "n": 855,
+        "byDist": {
+          "normal": {
+            "n": 550,
+            "logLoss": 0.76506,
+            "brier": 0.27794
+          },
+          "poisson": {
+            "n": 305,
+            "logLoss": 0.66834,
+            "brier": 0.23718
+          }
+        },
+        "table": [
+          {
+            "band": "50–55%",
+            "n": 185,
+            "predicted": 0.5256,
+            "actual": 0.4,
+            "gap": 0.1256
+          },
+          {
+            "band": "55–60%",
+            "n": 185,
+            "predicted": 0.5751,
+            "actual": 0.5081,
+            "gap": 0.067
+          },
+          {
+            "band": "60–65%",
+            "n": 148,
+            "predicted": 0.6223,
+            "actual": 0.5203,
+            "gap": 0.102
+          },
+          {
+            "band": "65–70%",
+            "n": 118,
+            "predicted": 0.6727,
+            "actual": 0.5763,
+            "gap": 0.0964
+          },
+          {
+            "band": "70–80%",
+            "n": 118,
+            "predicted": 0.7449,
+            "actual": 0.5085,
+            "gap": 0.2364
+          },
+          {
+            "band": "80–100%",
+            "n": 101,
+            "predicted": 0.8608,
+            "actual": 0.6733,
+            "gap": 0.1875
+          }
+        ]
+      },
+      "val": {
+        "brier": 0.2537,
+        "logLoss": 0.70683,
+        "macroLogLoss": 0.70256,
+        "ece": 0.08551,
+        "n": 513,
+        "byDist": {
+          "normal": {
+            "n": 330,
+            "logLoss": 0.71746,
+            "brier": 0.25989
+          },
+          "poisson": {
+            "n": 183,
+            "logLoss": 0.68766,
+            "brier": 0.24254
+          }
+        },
+        "table": [
+          {
+            "band": "50–55%",
+            "n": 105,
+            "predicted": 0.5249,
+            "actual": 0.5143,
+            "gap": 0.0106
+          },
+          {
+            "band": "55–60%",
+            "n": 107,
+            "predicted": 0.5753,
+            "actual": 0.5701,
+            "gap": 0.0052
+          },
+          {
+            "band": "60–65%",
+            "n": 80,
+            "predicted": 0.6247,
+            "actual": 0.4875,
+            "gap": 0.1372
+          },
+          {
+            "band": "65–70%",
+            "n": 72,
+            "predicted": 0.6716,
+            "actual": 0.5278,
+            "gap": 0.1438
+          },
+          {
+            "band": "70–80%",
+            "n": 89,
+            "predicted": 0.7397,
+            "actual": 0.618,
+            "gap": 0.1217
+          },
+          {
+            "band": "80–100%",
+            "n": 60,
+            "predicted": 0.8672,
+            "actual": 0.7,
+            "gap": 0.1672
+          }
+        ]
+      }
+    },
+    {
+      "method": "temperature",
+      "temperature": 2.55,
+      "maxProbability": 0.97,
+      "train": {
+        "brier": 0.24813,
+        "logLoss": 0.68974,
+        "macroLogLoss": 0.68276,
+        "ece": 0.04687,
+        "n": 855,
+        "byDist": {
+          "normal": {
+            "n": 550,
+            "logLoss": 0.70714,
+            "brier": 0.25654
+          },
+          "poisson": {
+            "n": 305,
+            "logLoss": 0.65837,
+            "brier": 0.23297
+          }
+        },
+        "table": [
+          {
+            "band": "50–55%",
+            "n": 460,
+            "predicted": 0.5247,
+            "actual": 0.4696,
+            "gap": 0.0552
+          },
+          {
+            "band": "55–60%",
+            "n": 231,
+            "predicted": 0.5715,
+            "actual": 0.5281,
+            "gap": 0.0434
+          },
+          {
+            "band": "60–65%",
+            "n": 86,
+            "predicted": 0.6214,
+            "actual": 0.593,
+            "gap": 0.0284
+          },
+          {
+            "band": "65–70%",
+            "n": 62,
+            "predicted": 0.6728,
+            "actual": 0.6774,
+            "gap": -0.0046
+          },
+          {
+            "band": "70–80%",
+            "n": 13,
+            "predicted": 0.7302,
+            "actual": 0.6923,
+            "gap": 0.0379
+          },
+          {
+            "band": "80–100%",
+            "n": 3,
+            "predicted": 0.8177,
+            "actual": 0.3333,
+            "gap": 0.4844
+          }
+        ]
+      },
+      "val": {
+        "brier": 0.24317,
+        "logLoss": 0.67969,
+        "macroLogLoss": 0.67671,
+        "ece": 0.02388,
+        "n": 513,
+        "byDist": {
+          "normal": {
+            "n": 330,
+            "logLoss": 0.68711,
+            "brier": 0.2471
+          },
+          "poisson": {
+            "n": 183,
+            "logLoss": 0.66631,
+            "brier": 0.23607
+          }
+        },
+        "table": [
+          {
+            "band": "50–55%",
+            "n": 252,
+            "predicted": 0.5237,
+            "actual": 0.5317,
+            "gap": -0.008
+          },
+          {
+            "band": "55–60%",
+            "n": 157,
+            "predicted": 0.5722,
+            "actual": 0.5732,
+            "gap": -0.0011
+          },
+          {
+            "band": "60–65%",
+            "n": 55,
+            "predicted": 0.6178,
+            "actual": 0.5091,
+            "gap": 0.1087
+          },
+          {
+            "band": "65–70%",
+            "n": 37,
+            "predicted": 0.6745,
+            "actual": 0.7568,
+            "gap": -0.0823
+          },
+          {
+            "band": "70–80%",
+            "n": 9,
+            "predicted": 0.7217,
+            "actual": 0.7778,
+            "gap": -0.0561
+          },
+          {
+            "band": "80–100%",
+            "n": 3,
+            "predicted": 0.8449,
+            "actual": 0.6667,
+            "gap": 0.1782
+          }
+        ]
+      }
+    },
+    {
+      "method": "temperature",
+      "temperature": 2.55,
+      "maxProbability": 0.97,
+      "train": {
+        "brier": 0.24447,
+        "logLoss": 0.68151,
+        "macroLogLoss": 0.67573,
+        "ece": 0.04558,
+        "n": 855,
+        "byDist": {
+          "normal": {
+            "n": 550,
+            "logLoss": 0.6959,
+            "brier": 0.25135
+          },
+          "poisson": {
+            "n": 305,
+            "logLoss": 0.65557,
+            "brier": 0.23207
+          }
+        },
+        "table": [
+          {
+            "band": "50–55%",
+            "n": 580,
+            "predicted": 0.5163,
+            "actual": 0.4828,
+            "gap": 0.0335
+          },
+          {
+            "band": "55–60%",
+            "n": 106,
+            "predicted": 0.5695,
+            "actual": 0.4906,
+            "gap": 0.079
+          },
+          {
+            "band": "60–65%",
+            "n": 58,
+            "predicted": 0.6227,
+            "actual": 0.5517,
+            "gap": 0.071
+          },
+          {
+            "band": "65–70%",
+            "n": 33,
+            "predicted": 0.6735,
+            "actual": 0.4848,
+            "gap": 0.1886
+          },
+          {
+            "band": "70–80%",
+            "n": 56,
+            "predicted": 0.7448,
+            "actual": 0.75,
+            "gap": -0.0052
+          },
+          {
+            "band": "80–100%",
+            "n": 22,
+            "predicted": 0.8394,
+            "actual": 0.8636,
+            "gap": -0.0242
+          }
+        ]
+      },
+      "val": {
+        "brier": 0.24375,
+        "logLoss": 0.68155,
+        "macroLogLoss": 0.67887,
+        "ece": 0.02757,
+        "n": 513,
+        "byDist": {
+          "normal": {
+            "n": 330,
+            "logLoss": 0.68823,
+            "brier": 0.24757
+          },
+          "poisson": {
+            "n": 183,
+            "logLoss": 0.66951,
+            "brier": 0.23687
+          }
+        },
+        "table": [
+          {
+            "band": "50–55%",
+            "n": 358,
+            "predicted": 0.5184,
+            "actual": 0.5391,
+            "gap": -0.0207
+          },
+          {
+            "band": "55–60%",
+            "n": 61,
+            "predicted": 0.5672,
+            "actual": 0.5738,
+            "gap": -0.0066
+          },
+          {
+            "band": "60–65%",
+            "n": 26,
+            "predicted": 0.6228,
+            "actual": 0.6154,
+            "gap": 0.0075
+          },
+          {
+            "band": "65–70%",
+            "n": 24,
+            "predicted": 0.6729,
+            "actual": 0.5,
+            "gap": 0.1729
+          },
+          {
+            "band": "70–80%",
+            "n": 20,
+            "predicted": 0.7516,
+            "actual": 0.7,
+            "gap": 0.0516
+          },
+          {
+            "band": "80–100%",
+            "n": 24,
+            "predicted": 0.8318,
+            "actual": 0.7917,
+            "gap": 0.0401
+          }
+        ]
+      }
+    },
+    {
+      "method": "isotonic",
+      "temperature": null,
+      "maxProbability": 0.97,
+      "train": {
+        "brier": 0.24788,
+        "logLoss": 0.69204,
+        "macroLogLoss": 0.68554,
+        "ece": 0.01293,
+        "n": 855,
+        "byDist": {
+          "normal": {
+            "n": 550,
+            "logLoss": 0.70822,
+            "brier": 0.25587
+          },
+          "poisson": {
+            "n": 305,
+            "logLoss": 0.66286,
+            "brier": 0.23347
+          }
+        },
+        "table": [
+          {
+            "band": "50–55%",
+            "n": 1009,
+            "predicted": 0.5075,
+            "actual": 0.5114,
+            "gap": -0.0038
+          },
+          {
+            "band": "55–60%",
+            "n": 45,
+            "predicted": 0.5722,
+            "actual": 0.5111,
+            "gap": 0.0611
+          },
+          {
+            "band": "60–65%",
+            "n": 34,
+            "predicted": 0.6222,
+            "actual": 0.5294,
+            "gap": 0.0927
+          },
+          {
+            "band": "65–70%",
+            "n": 103,
+            "predicted": 0.6734,
+            "actual": 0.6893,
+            "gap": -0.0159
+          },
+          {
+            "band": "70–80%",
+            "n": 1,
+            "predicted": 0.7178,
+            "actual": 0,
+            "gap": 0.7178
+          },
+          {
+            "band": "80–100%",
+            "n": 7,
+            "predicted": 0.9077,
+            "actual": 0.4286,
+            "gap": 0.4791
+          }
+        ]
+      },
+      "val": {
+        "brier": 0.24412,
+        "logLoss": 0.68312,
+        "macroLogLoss": 0.68142,
+        "ece": 0.00912,
+        "n": 513,
+        "byDist": {
+          "normal": {
+            "n": 330,
+            "logLoss": 0.68734,
+            "brier": 0.24739
+          },
+          "poisson": {
+            "n": 183,
+            "logLoss": 0.6755,
+            "brier": 0.23821
+          }
+        },
+        "table": [
+          {
+            "band": "50–55%",
+            "n": 588,
+            "predicted": 0.5082,
+            "actual": 0.5136,
+            "gap": -0.0054
+          },
+          {
+            "band": "55–60%",
+            "n": 38,
+            "predicted": 0.5748,
+            "actual": 0.5526,
+            "gap": 0.0222
+          },
+          {
+            "band": "60–65%",
+            "n": 20,
+            "predicted": 0.6222,
+            "actual": 0.6,
+            "gap": 0.0222
+          },
+          {
+            "band": "65–70%",
+            "n": 58,
+            "predicted": 0.6755,
+            "actual": 0.6897,
+            "gap": -0.0141
+          },
+          {
+            "band": "70–80%",
+            "n": 2,
+            "predicted": 0.7503,
+            "actual": 1,
+            "gap": -0.2497
+          },
+          {
+            "band": "80–100%",
+            "n": 4,
+            "predicted": 0.9229,
+            "actual": 0.75,
+            "gap": 0.1729
+          }
+        ]
+      }
+    }
+  ]
+}

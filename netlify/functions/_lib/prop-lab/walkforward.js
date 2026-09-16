@@ -22,6 +22,7 @@ const ABLATIONS = {
   no_recency: { noRecency: true },
   no_prior_shrinkage: { noPriorShrinkage: true },
   no_gamescript: { noGameScript: true },
+  no_calibration: { noCalibration: true },
   raw_season_average: { rawSeasonAverage: true },
 };
 
@@ -291,6 +292,8 @@ function evaluateCase(bundle, statId, line, side, ablation, game, player, week) 
     projection: evaluation.projection,
     error: actual - evaluation.projection,
     pHit: evaluation.pHit,
+    z: evaluation.modelDebug?.z ?? null,
+    dist: evaluation.distribution?.dist ?? null,
     hit,
     confidence: evaluation.confidence,
     propScore: evaluation.propScore,
@@ -362,6 +365,7 @@ function runWalkForward({ seed = 20260, ablations = Object.keys(ABLATIONS) } = {
   return {
     modelVersion: PROP_MODEL_VERSION,
     generatedAt: new Date().toISOString(),
+    rows: byAblation,
     protocol: {
       dgp: "independent synthetic CFB seasons; Model 2.0 is not the data generator",
       asOf: "projection at week W uses only games with week < W plus prior season",

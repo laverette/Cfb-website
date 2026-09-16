@@ -1,4 +1,5 @@
 const { clamp, normalCdf, poissonCdf, poissonQuantile, mulberry32, sampleNormal, sampleLogNormal } = require("./math");
+const { applyCalibrator, loadCalibrator, IDENTITY } = require("./calibration");
 
 function logNormalParams(mean, sd) {
   const m = Math.max(mean, 0.5);
@@ -145,8 +146,14 @@ function probabilityAtLine(distParams, line, side = "more") {
   });
   const pHitRaw = side === "less" ? raw.pLess : raw.pMore;
   const shrunk = shrinkProbability(pHitRaw, distParams.reliability ?? 1, distParams.games, Math.abs(z));
-  const pHit = shrunk.p;
-  const pMore = side === "less" ? 1 - pHit : pHit;
+  const pMoreShrunk = side === "less" ? 1 - shrunk.p : shrunk.p;
+
+  // Calibration is the last step: it is fit against the output of everything
+  // above, so applying it earlier would measure a different pipeline.
+  const calibrator = distParams.calibrate === false ? IDENTITY : loadCalibrator();
+  const pMore = applyCalibrator(calibrator, pMoreShrunk, { z, dist: distParams.dist });
+  const pHit = side === "less" ? 1 - pMore : pMore;
+
   return {
     pMore,
     pLess: 1 - pMore,
@@ -155,6 +162,9 @@ function probabilityAtLine(distParams, line, side = "more") {
     z,
     pull: shrunk.pull,
     shrinkReason: shrunk.reason,
+    pUncalibrated: shrunk.p,
+    calibrationAdjustment: pHit - shrunk.p,
+    calibrationMethod: calibrator.method,
   };
 }
 
