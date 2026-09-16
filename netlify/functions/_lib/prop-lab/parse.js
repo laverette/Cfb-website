@@ -49,6 +49,11 @@ const TYPE_ALIASES = {
   CAR: "att",
   COMP: "comp",
   COMPLETIONS: "comp",
+  CMP: "comp",
+  "C/ATT": "c/att",
+  "CMP/ATT": "c/att",
+  "COMP/ATT": "c/att",
+  "C-ATT": "c/att",
   INT: "int",
   INTS: "int",
   REC: "rec",
@@ -151,12 +156,24 @@ function kickingFromBox(categories, playerId, playerName) {
   };
 }
 
+function passingFromBox(categories, playerId, playerName) {
+  let comp = athleteStat(categories, playerId, playerName, "passing", "comp");
+  let att = athleteStat(categories, playerId, playerName, "passing", "att");
+  const pair =
+    parseMadeAttempted(athleteRawStat(categories, playerId, playerName, "passing", "c/att")) ||
+    parseMadeAttempted(athleteRawStat(categories, playerId, playerName, "passing", "comp"));
+  if (comp == null && pair) comp = pair.made;
+  if (att == null && pair) att = pair.att;
+  return { pass_comp: comp, pass_att: att };
+}
+
 function extractGameStats(categories, playerId, playerName) {
+  const passing = passingFromBox(categories, playerId, playerName);
   return {
     pass_yds: athleteStat(categories, playerId, playerName, "passing", "yds"),
     pass_td: athleteStat(categories, playerId, playerName, "passing", "td"),
-    pass_att: athleteStat(categories, playerId, playerName, "passing", "att"),
-    pass_comp: athleteStat(categories, playerId, playerName, "passing", "comp"),
+    pass_att: passing.pass_att,
+    pass_comp: passing.pass_comp,
     pass_int: athleteStat(categories, playerId, playerName, "passing", "int"),
     rush_yds: athleteStat(categories, playerId, playerName, "rushing", "yds"),
     rush_td: athleteStat(categories, playerId, playerName, "rushing", "td"),
@@ -202,8 +219,8 @@ function extractOverviewTotal(overview, statId) {
   const flat = flattenOverview(overview);
   const map = {
     pass_yds: ["passing:YDS", "passing:YARDS"],
-    pass_att: ["passing:ATT", "passing:ATTEMPTS"],
-    pass_comp: ["passing:COMP", "passing:COMPLETIONS"],
+    pass_att: ["passing:ATT", "passing:ATTEMPTS", "passing:C/ATT_ATT", "passing:CMP/ATT_ATT"],
+    pass_comp: ["passing:COMP", "passing:COMPLETIONS", "passing:CMP", "passing:C/ATT", "passing:CMP/ATT"],
     pass_td: ["passing:TD", "passing:TDS"],
     pass_int: ["passing:INT", "passing:INTS"],
     rush_yds: ["rushing:YDS", "rushing:YARDS"],

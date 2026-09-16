@@ -10,7 +10,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
   <link rel="stylesheet" href="styles/site-theme.css">
   <link rel="stylesheet" href="Resources/Styles/power.css">
-  <link rel="stylesheet" href="Resources/Styles/prop-lab.css?v=8">
+  <link rel="stylesheet" href="Resources/Styles/prop-lab.css?v=9">
 </head>
 <body class="power-rankings-body">
   <nav class="navbar weeklypicks-navbar site-nav">
@@ -113,8 +113,13 @@
         <div class="matchup-panel-head">
           <h2 id="summaryTitle" class="matchup-panel-title">Entry Analysis</h2>
         </div>
+        <label class="power-field prop-payout-field">
+          <span>Payout odds</span>
+          <input id="payoutOdds" class="site-select matchup-select" type="text" inputmode="text" enterkeyhint="done" placeholder="10x or +900" aria-label="Payout odds for this entry" autocomplete="off">
+        </label>
+        <p class="prop-together-note">Blank uses PrizePicks Power (2=3x, 3=5x, 4=10x, 5=20x, 6=40x). American like +900 also works.</p>
         <div id="entrySummary" class="prop-summary-idle">
-          Add at least one evaluated leg to see grade, risk, and correlations.
+          Add at least one evaluated leg to see if the card is worth putting in.
         </div>
         <div class="prop-summary-actions">
           <button type="button" class="btn btn-gold btn-sm" id="best3Btn" disabled>Find Best 3</button>
@@ -174,7 +179,7 @@
   </nav>
 
   <script src="scripts/auth-ui.js"></script>
-  <script src="scripts/prop-lab.js?v=10"></script>
+  <script src="scripts/prop-lab.js?v=11"></script>
   <script>
     function closeMenu() {
       const menu = document.getElementById('dropdownMenu');

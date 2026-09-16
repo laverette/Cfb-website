@@ -2,6 +2,7 @@ const { clamp, mean } = require("./math");
 const { analyzeCorrelations } = require("./correlation");
 const { legCaption, compactLegCaption } = require("./format");
 const { jointAllHit } = require("./joint");
+const { entryValue } = require("./value");
 
 function letterFromAvg(score) {
   if (score >= 82) return "A-";
@@ -77,7 +78,7 @@ function summarizeRisk(legs, pairs) {
   return { risk, drivers: drivers.slice(0, 5), maxSamePlayer, highCorr, avgConf };
 }
 
-function analyzeEntry(legs) {
+function analyzeEntry(legs, opts = {}) {
   const ok = (legs || []).filter((l) => l && !l.error);
   if (!ok.length) {
     return {
@@ -91,6 +92,7 @@ function analyzeEntry(legs) {
       riskDrivers: [],
       correlations: [],
       together: null,
+      value: null,
       note: "No evaluated legs yet.",
     };
   }
@@ -111,6 +113,7 @@ function analyzeEntry(legs) {
     92
   );
 
+  const together = jointAllHit(ok, pairs);
   return {
     grade: letterFromAvg(gradeScore),
     gradeInputs: {
@@ -131,7 +134,14 @@ function analyzeEntry(legs) {
     riskDrivers: riskInfo.drivers,
     correlations: pairs,
     entryStrength: strength,
-    together: jointAllHit(ok, pairs),
+    together,
+    value: entryValue({
+      legs: ok,
+      pairs,
+      together,
+      risk: riskInfo.risk,
+      payout: opts.payout ?? opts.odds,
+    }),
     note: "Entry Strength is a relative quality score. All-hit % is the estimated chance every listed leg cashes, after correlations.",
     strengthTooltip:
       "A relative score based on leg quality, model confidence, correlation, and concentration. It is not the probability that every leg hits.",

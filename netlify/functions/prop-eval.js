@@ -173,7 +173,7 @@ exports.handler = async (event) => {
       const legs = body.legs || [];
       const mode = body.mode || "balanced";
       return json(200, {
-        analysis: analyzeEntry(legs),
+        analysis: analyzeEntry(legs, { payout: body.payout || body.odds }),
         best3: bestN(legs, 3, mode),
         best4: bestN(legs, Number(body.n) || 4, mode),
         compare: compareLegs(legs.filter((l) => l.selected)),

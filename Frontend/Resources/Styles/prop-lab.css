@@ -322,6 +322,67 @@ body.power-rankings-body {
   color: var(--pr-muted);
 }
 
+.prop-payout-field {
+  margin: 0 0 0.35rem;
+}
+
+.prop-verdict {
+  margin: 0 0 0.65rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.28);
+}
+
+.prop-verdict-head {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.prop-verdict strong {
+  font-family: "Barlow Condensed", Impact, sans-serif;
+  font-size: 1.35rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.prop-verdict p {
+  margin: 0.2rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  color: rgba(243, 239, 230, 0.86);
+}
+
+.prop-verdict-ev {
+  font-weight: 700;
+  color: #e8c547 !important;
+}
+
+.prop-verdict.is-play {
+  border-color: rgba(88, 196, 120, 0.45);
+}
+
+.prop-verdict.is-play strong {
+  color: #7ee39a;
+}
+
+.prop-verdict.is-lean {
+  border-color: rgba(232, 197, 71, 0.45);
+}
+
+.prop-verdict.is-lean strong {
+  color: #e8c547;
+}
+
+.prop-verdict.is-pass {
+  border-color: rgba(220, 96, 96, 0.4);
+}
+
+.prop-verdict.is-pass strong {
+  color: #f08a8a;
+}
+
 .prop-kpi-together {
   grid-column: 1 / -1;
 }

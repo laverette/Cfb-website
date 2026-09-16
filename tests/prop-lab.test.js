@@ -144,6 +144,39 @@ describe("prop definitions", () => {
     assert.equal(extractStatValue({ fg_made: 2, kicking_pts: 9 }, "kicking_pts"), 9);
   });
 
+  it("reads completions and attempts from C/ATT box strings", () => {
+    const { extractGameStats, extractOverviewTotal } = require(path.join(root, "parse"));
+    const box = [
+      {
+        name: "passing",
+        types: [
+          { name: "C/ATT", athletes: [{ id: "qb1", name: "Tait Reynolds", stat: "21/32" }] },
+          { name: "YDS", athletes: [{ id: "qb1", name: "Tait Reynolds", stat: "248" }] },
+          { name: "TD", athletes: [{ id: "qb1", name: "Tait Reynolds", stat: "2" }] },
+        ],
+      },
+    ];
+    const stats = extractGameStats(box, "qb1", "Tait Reynolds");
+    assert.equal(stats.pass_comp, 21);
+    assert.equal(stats.pass_att, 32);
+    assert.equal(stats.pass_yds, 248);
+    const overview = {
+      boxScoreStats: {
+        categories: [
+          {
+            name: "passing",
+            stats: [
+              { stat: "C/ATT", value: "45-70" },
+              { stat: "YDS", value: 520 },
+            ],
+          },
+        ],
+      },
+    };
+    assert.equal(extractOverviewTotal(overview, "pass_comp"), 45);
+    assert.equal(extractOverviewTotal(overview, "pass_att"), 70);
+  });
+
   it("filters catalog stats by player position", () => {
     const { statsForPosition, canonicalPosition } = require(path.join(root, "definitions"));
     assert.equal(canonicalPosition(" wr "), "WR");
@@ -534,6 +567,75 @@ describe("joint all-hit probability", () => {
   });
 });
 
+describe("entry value vs payout odds", () => {
+  const { parsePayout, conservativePHit } = require(path.join(root, "value"));
+
+  function qbLeg(id, team, pHit, extra = {}) {
+    return {
+      clientId: id,
+      pHit,
+      player: { id, name: id, team },
+      stat: { id: "pass_yds", short: "PASS YDS" },
+      side: "more",
+      line: 220,
+      propScore: 75,
+      confidence: extra.confidence || "B",
+      form: { games: 8 },
+      flags: extra.flags || [],
+    };
+  }
+
+  it("parses 10x, +900, and PrizePicks defaults", () => {
+    assert.equal(parsePayout("10x", 4).decimal, 10);
+    assert.equal(parsePayout("+900", 4).decimal, 10);
+    assert.equal(parsePayout("", 4).multiplier, 10);
+    assert.equal(parsePayout("", 3).multiplier, 5);
+    assert.match(parsePayout("", 4).label, /PrizePicks/);
+  });
+
+  it("calls Play when all-hit is well above the payout breakeven", () => {
+    const analysis = analyzeEntry(
+      [
+        qbLeg("a", "Miami", 0.72),
+        qbLeg("b", "Clemson", 0.7),
+        qbLeg("c", "Duke", 0.68),
+        qbLeg("d", "NC State", 0.7),
+      ],
+      { payout: "10x" }
+    );
+    assert.equal(analysis.value.payout.decimal, 10);
+    assert.ok(analysis.value.pUse > analysis.value.breakeven);
+    assert.equal(analysis.value.verdict, "play");
+  });
+
+  it("calls Pass when modeled all-hit cannot cover 10x", () => {
+    const analysis = analyzeEntry(
+      [
+        qbLeg("a", "Miami", 0.52),
+        qbLeg("b", "Clemson", 0.51),
+        qbLeg("c", "Duke", 0.5),
+        qbLeg("d", "NC State", 0.51),
+      ],
+      { payout: "10x" }
+    );
+    assert.equal(analysis.value.verdict, "pass");
+    assert.ok(analysis.value.ev < 0);
+  });
+
+  it("does not treat a 100% D-confidence goblin as a lock", () => {
+    const raw = conservativePHit({ pHit: 1, confidence: "D", flags: ["Unusual Line"] });
+    assert.ok(raw < 0.8);
+    const analysis = analyzeEntry(
+      [
+        qbLeg("a", "Clemson", 1, { confidence: "D", flags: ["Unusual Line"] }),
+        qbLeg("b", "Miami", 0.55),
+      ],
+      { payout: "3x" }
+    );
+    assert.ok(analysis.value.pUse < 0.55);
+  });
+});
+
 describe("rushing / passing / TD props", () => {
   it("evaluates a veteran rushing-yards prop", () => {
     const bundle = toneyBundle();
@@ -570,6 +672,25 @@ describe("rushing / passing / TD props", () => {
     assert.ok(Number.isFinite(pass.projection));
     assert.ok(Number.isFinite(td.pMore));
     assert.equal(td.stat.id, "pass_td");
+  });
+
+  it("does not project 55 completions from the passing-yards prior", () => {
+    const bundle = toneyBundle();
+    bundle.player = { id: "qb1", name: "Tait Reynolds", team: "Clemson", position: "QB" };
+    bundle.gameLogs = [
+      log(1, "North Carolina", { pass_yds: 248, pass_td: 2 }),
+      log(2, "Georgia Tech", { pass_yds: 261, pass_td: 1 }),
+    ];
+    bundle.priorLogs = [];
+    bundle.priorOverview = { games: 0 };
+    bundle.currentOverview = { games: 2, team: "Clemson", name: "Tait Reynolds", position: "QB" };
+    bundle.usage = { games: 2, passAtt: 0, passYds: 254, rec: 0, recYds: 0, rushAtt: 4, rushYds: 12, passTd: 1.5 };
+    bundle.usageL3 = bundle.usage;
+    bundle.flags = ["Small Sample", "Missing Prior"];
+    const result = evaluateFromBundle(bundle, { statId: "pass_comp", line: 13.5, side: "more" });
+    assert.ok(result.projection < 32, `completions projection ${result.projection} used a yards-scale prior`);
+    assert.ok(result.projection > 10);
+    assert.ok(result.projection < 40);
   });
 
   it("evaluates field-goal and kicking-point props", () => {

@@ -76,6 +76,25 @@ function priorAvgFromOverview(bundle, def) {
 
 function rolePrior(bundle, def, oppEst) {
   if (oppEst?.rawOppProj) return oppEst.rawOppProj * 0.85;
+  const byId = {
+    pass_yds: 210,
+    pass_att: 31,
+    pass_comp: 19,
+    pass_td: 1.6,
+    pass_int: 0.8,
+    pass_rush_yds: 230,
+    rush_yds: 55,
+    rush_att: 14,
+    rush_td: 0.6,
+    rec_yds: 45,
+    rec: 4.2,
+    rec_td: 0.35,
+    rush_rec_yds: 70,
+    total_td: 0.7,
+    fg_made: 1.4,
+    kicking_pts: 7.5,
+  };
+  if (byId[def.id] != null) return byId[def.id];
   if (def.family === "receiving") return 45;
   if (def.family === "rushing") return 55;
   if (def.family === "passing") return 210;

@@ -31,6 +31,8 @@
     keepIds: [],
     cutIds: [],
     summaryOpen: false,
+    payoutOdds: "",
+    payoutTimer: null,
   };
 
   function isMobile() {
@@ -564,8 +566,10 @@
     bar.hidden = false;
     bar.classList.add("is-on");
     if (text) {
+      const value = a.value;
       const together = a.together?.label ? ` · All hit ${a.together.label}` : "";
-      text.textContent = `${a.grade}${together} · Risk ${a.risk || "—"}`;
+      const call = value?.verdictLabel ? ` · ${value.verdictLabel}` : "";
+      text.textContent = `${a.grade}${call}${together} · Risk ${a.risk || "—"}`;
     }
   }
 
@@ -602,7 +606,7 @@
     if (!host) return;
     if (!evals.length) {
       host.className = "prop-summary-idle";
-      host.innerHTML = "Add at least one evaluated leg to see combined odds, grade, risk, and correlations.";
+      host.innerHTML = "Add at least one evaluated leg to see if the card is worth putting in.";
       updateAnalysisBar(null);
       return;
     }
@@ -638,8 +642,24 @@
           )}. Correlations adjust that to ${escapeHtml(together.pctLabel)}.`
         : `These ${together.n} legs look independent, so all-hit is the product of the individual probabilities.`
       : "";
+    const value = a.value;
+    const verdictClass =
+      value?.verdict === "play" ? "is-play" : value?.verdict === "lean" ? "is-lean" : value?.verdict === "pass" ? "is-pass" : "";
+    const reasons = (value?.reasons || []).map((r) => `<li>${escapeHtml(r)}</li>`).join("");
     host.className = "";
     host.innerHTML = `
+      ${
+        value
+          ? `<div class="prop-verdict ${verdictClass}">
+              <div class="prop-verdict-head">
+                <strong>${escapeHtml(value.verdictLabel)}</strong>
+                <button type="button" class="prop-info" title="${escapeHtml(value.tooltip || "")}">i</button>
+              </div>
+              <p>${escapeHtml(value.summary || "")}</p>
+              <p class="prop-verdict-ev">${escapeHtml(value.evLabel || "")} at ${escapeHtml(value.payout?.label || "")}</p>
+            </div>`
+          : ""
+      }
       <div class="prop-grade-row">
         <div class="prop-kpi prop-kpi-together">
           <span>All hit <button type="button" class="prop-info" title="${escapeHtml(
@@ -656,6 +676,10 @@
       </div>
       ${togetherNote ? `<p class="prop-together-note">${togetherNote}</p>` : ""}
       <div class="prop-analysis-extra" id="summaryExtra">
+        <details ${state.summaryOpen ? "open" : ""} data-extra="value">
+          <summary>Why this call</summary>
+          ${reasons ? `<ul class="prop-risk-drivers">${reasons}</ul>` : '<p class="prop-market-note">Add legs to score the card against a payout.</p>'}
+        </details>
         <details ${state.summaryOpen ? "open" : ""} data-extra="strongest">
           <summary>Strongest leg</summary>
           <p class="prop-corr">${escapeHtml(a.strongestCaption || a.strongestLabel || a.strongest?.player?.name || "—")}</p>
@@ -1118,7 +1142,7 @@
       return;
     }
     try {
-      const data = await api({ action: "analyze" }, { method: "POST", body: { legs, mode: state.bestMode } });
+      const data = await api({ action: "analyze" }, { method: "POST", body: { legs, mode: state.bestMode, payout: state.payoutOdds } });
       state.analysis = data.analysis;
       state.best3 = data.best3;
       state.best4 = data.best4;
@@ -1515,6 +1539,21 @@
     });
     document.getElementById("labWeek")?.addEventListener("change", (e) => {
       state.week = Number(e.target.value);
+    });
+    document.getElementById("payoutOdds")?.addEventListener("input", (e) => {
+      state.payoutOdds = e.target.value;
+      clearTimeout(state.payoutTimer);
+      state.payoutTimer = setTimeout(() => {
+        refreshAnalysis().then(renderSummary);
+      }, 320);
+    });
+    document.getElementById("payoutOdds")?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        clearTimeout(state.payoutTimer);
+        state.payoutOdds = e.target.value;
+        refreshAnalysis().then(renderSummary);
+      }
     });
     document.getElementById("best3Btn")?.addEventListener("click", () => {
       refreshAnalysis().then(() => {
