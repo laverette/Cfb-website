@@ -10,7 +10,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
   <link rel="stylesheet" href="styles/site-theme.css">
   <link rel="stylesheet" href="Resources/Styles/power.css">
-  <link rel="stylesheet" href="Resources/Styles/prop-lab.css?v=9">
+  <link rel="stylesheet" href="Resources/Styles/prop-lab.css?v=10">
 </head>
 <body class="power-rankings-body">
   <nav class="navbar weeklypicks-navbar site-nav">
@@ -125,6 +125,7 @@
           <button type="button" class="btn btn-gold btn-sm" id="best3Btn" disabled>Find Best 3</button>
           <button type="button" class="btn btn-gold btn-sm" id="bestNBtn" disabled>Find Best 4</button>
           <button type="button" class="btn btn-outline-light btn-sm" id="compareBtn" disabled>Compare</button>
+          <button type="button" class="btn btn-outline-light btn-sm" id="shareLinkBtn" disabled>Share link</button>
           <button type="button" class="btn btn-outline-light btn-sm" id="saveBtn" disabled>Save card</button>
         </div>
 
@@ -136,9 +137,21 @@
           <p class="prop-save-preview" id="savePreview"></p>
           <div class="prop-save-actions">
             <button type="button" class="btn btn-gold btn-sm" id="saveConfirmBtn">Save</button>
-            <button type="button" class="btn btn-outline-light btn-sm" id="saveCopyBtn">Copy link</button>
+            <button type="button" class="btn btn-outline-light btn-sm" id="saveCopyBtn">Share link</button>
             <button type="button" class="btn btn-outline-light btn-sm" id="saveCancelBtn">Cancel</button>
           </div>
+        </div>
+
+        <div id="shareLinkBox" class="prop-share-box" hidden>
+          <label class="power-field">
+            <span>Share this card</span>
+            <input id="shareLinkInput" class="site-select matchup-select" type="text" readonly aria-label="Shareable card link">
+          </label>
+          <div class="prop-save-actions">
+            <button type="button" class="btn btn-gold btn-sm" id="shareLinkCopyBtn">Copy URL</button>
+            <button type="button" class="btn btn-outline-light btn-sm" id="shareLinkHideBtn">Hide</button>
+          </div>
+          <p class="prop-together-note">Send this URL to a friend — it opens the same props on their phone or laptop.</p>
         </div>
         <div id="saveStatus" class="prop-save-status" role="status" aria-live="polite" hidden></div>
 
@@ -197,7 +210,7 @@
   </nav>
 
   <script src="scripts/auth-ui.js"></script>
-  <script src="scripts/prop-lab.js?v=11"></script>
+  <script src="scripts/prop-lab.js?v=12"></script>
   <script>
     function closeMenu() {
       const menu = document.getElementById('dropdownMenu');

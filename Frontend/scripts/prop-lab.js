@@ -623,6 +623,8 @@
     if (best4Btn) best4Btn.disabled = evals.length < 4;
     document.getElementById("compareBtn").disabled = evals.length < 2;
     document.getElementById("saveBtn").disabled = evals.length < 1 || !authToken();
+    const shareBtn = document.getElementById("shareLinkBtn");
+    if (shareBtn) shareBtn.disabled = evals.length < 1;
     syncDock();
     if (!host) return;
     if (!evals.length) {
@@ -1408,6 +1410,31 @@
     if (panel) panel.hidden = true;
   }
 
+  function slimAnalysis(analysis) {
+    if (!analysis || typeof analysis !== "object") return null;
+    return {
+      note: analysis.note || null,
+      risk: analysis.risk || null,
+      grade: analysis.grade || null,
+      entryStrength: analysis.entryStrength ?? null,
+      together: analysis.together || null,
+      value: analysis.value || null,
+      riskDrivers: analysis.riskDrivers || [],
+      correlations: Array.isArray(analysis.correlations)
+        ? analysis.correlations.map((c) => ({
+            label: c.label,
+            explanation: c.explanation,
+            sign: c.sign,
+            corr: c.corr,
+          }))
+        : [],
+      strongestCaption: analysis.strongestCaption || null,
+      weakestCaption: analysis.weakestCaption || null,
+      strongestLabel: analysis.strongestLabel || null,
+      weakestLabel: analysis.weakestLabel || null,
+    };
+  }
+
   function cardSharePayload(legs, analysis, meta = {}) {
     return {
       v: 1,
@@ -1415,7 +1442,9 @@
       seasonYear: meta.seasonYear ?? state.season,
       weekNumber: meta.weekNumber ?? state.week,
       modelVersion: meta.modelVersion || legs[0]?.modelVersion || null,
-      analysis: analysis || null,
+      // Keep analysis lean — full evaluate dumps blow past useful share sizes
+      // and slow open-on-friend-device to a crawl.
+      analysis: slimAnalysis(analysis),
       legs: (legs || []).map((e) => ({
         playerId: e.player?.id,
         playerName: e.player?.name,
@@ -1435,7 +1464,6 @@
         propScoreLabel: e.propScoreLabel,
         flags: e.flags,
         modelVersion: e.modelVersion,
-        frozen: true,
       })),
     };
   }
@@ -1698,7 +1726,7 @@
       host.querySelectorAll("[data-copy]").forEach((btn) => {
         btn.addEventListener("click", async () => {
           const id = btn.getAttribute("data-copy");
-          setSaveStatus("Preparing share link…", "info");
+          setSaveStatus("Creating share link…", "info");
           try {
             const row = await api({ action: "entry", id });
             const entry = row.entry;
@@ -1728,12 +1756,8 @@
               modelVersion: entry.model_version,
             });
             const link = await createShareLink(payload);
-            const text = `${formatCardText(payload)}\n\n${link}`;
-            const ok = await copyText(text);
-            setSaveStatus(
-              ok ? "Copied card summary + share link to clipboard." : `Copy failed — link: ${link}`,
-              ok ? "ok" : "err"
-            );
+            showShareLink(link);
+            await copyShareUrl(link);
           } catch (err) {
             setSaveStatus(err.message || "Could not copy that card.", "err");
           }
@@ -1783,7 +1807,13 @@
         setSaveStatus("That share link could not be read.", "err");
         return;
       }
-      setSaveStatus(`Opened shared card “${payload.title || ""}”. Frozen snapshot — not re-scored.`, "ok");
+      setSaveStatus(
+        `Opened shared card “${payload.title || ""}” — ${payload.legs.length} prop${
+          payload.legs.length === 1 ? "" : "s"
+        } loaded.`,
+        "ok"
+      );
+      document.getElementById("entryList")?.scrollIntoView({ behavior: "smooth", block: "start" });
       try {
         const url = new URL(location.href);
         url.searchParams.delete("share");
@@ -1797,11 +1827,25 @@
     }
   }
 
-  async function copyCurrentCardLink() {
+  function showShareLink(url) {
+    const box = document.getElementById("shareLinkBox");
+    const input = document.getElementById("shareLinkInput");
+    if (input) input.value = url;
+    if (box) {
+      box.hidden = false;
+      box.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+    if (input) {
+      input.focus();
+      input.select();
+    }
+  }
+
+  async function publishShareLink() {
     const legs = evaluatedLegs();
     if (!legs.length) {
-      setSaveStatus("Add and evaluate at least one leg before copying.", "err");
-      return;
+      setSaveStatus("Add and evaluate at least one leg before sharing.", "err");
+      return null;
     }
     const titleInput = document.getElementById("saveTitle");
     const title = (titleInput?.value || "").trim() || defaultSaveTitle();
@@ -1811,14 +1855,26 @@
       weekNumber: state.week,
     });
     setSaveStatus("Creating share link…", "info");
+    const link = await createShareLink(payload);
+    showShareLink(link);
+    return link;
+  }
+
+  async function copyShareUrl(url) {
+    const ok = await copyText(url);
+    setSaveStatus(
+      ok
+        ? "Share URL copied. Paste it to a friend — they will see the same props."
+        : "Could not copy automatically — select the link above and copy it.",
+      ok ? "ok" : "err"
+    );
+    return ok;
+  }
+
+  async function copyCurrentCardLink() {
     try {
-      const link = await createShareLink(payload);
-      const text = `${formatCardText(payload)}\n\n${link}`;
-      const ok = await copyText(text);
-      setSaveStatus(
-        ok ? "Copied card summary + share link. Anyone with the link can open it on this page." : `Copy failed — link: ${link}`,
-        ok ? "ok" : "err"
-      );
+      const link = await publishShareLink();
+      if (link) await copyShareUrl(link);
     } catch (err) {
       setSaveStatus(err.message || "Could not create a share link.", "err");
     }
@@ -1974,8 +2030,23 @@
     });
     document.getElementById("compareBtn")?.addEventListener("click", renderCompare);
     document.getElementById("saveBtn")?.addEventListener("click", openSavePanel);
+    document.getElementById("shareLinkBtn")?.addEventListener("click", copyCurrentCardLink);
     document.getElementById("saveConfirmBtn")?.addEventListener("click", saveEntryConfirm);
     document.getElementById("saveCopyBtn")?.addEventListener("click", copyCurrentCardLink);
+    document.getElementById("shareLinkCopyBtn")?.addEventListener("click", async () => {
+      const input = document.getElementById("shareLinkInput");
+      const url = (input?.value || "").trim();
+      if (!url) {
+        await copyCurrentCardLink();
+        return;
+      }
+      input.select();
+      await copyShareUrl(url);
+    });
+    document.getElementById("shareLinkHideBtn")?.addEventListener("click", () => {
+      const box = document.getElementById("shareLinkBox");
+      if (box) box.hidden = true;
+    });
     document.getElementById("saveCancelBtn")?.addEventListener("click", () => {
       closeSavePanel();
       setSaveStatus("");
@@ -2052,6 +2123,6 @@
       /* catalog stays empty until the function is reachable */
     }
     await loadSaved();
-    tryOpenSharedCard();
+    await tryOpenSharedCard();
   });
 })();

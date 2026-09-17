@@ -422,12 +422,20 @@ body.power-rankings-body {
   color: rgba(245, 222, 179, 0.92);
 }
 
-.prop-save-panel {
+.prop-share-box {
   margin-top: 0.55rem;
   padding: 0.65rem 0.7rem;
-  border: 1px solid rgba(245, 222, 179, 0.2);
+  border: 1px solid rgba(255, 215, 0, 0.28);
   border-radius: 10px;
-  background: rgba(0, 0, 0, 0.22);
+  background: rgba(255, 215, 0, 0.06);
+}
+
+.prop-share-box .power-field {
+  margin: 0 0 0.4rem;
+}
+
+.prop-share-box input {
+  font-size: 0.78rem;
 }
 
 .prop-save-title-field {
