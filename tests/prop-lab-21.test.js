@@ -164,13 +164,25 @@ describe("what-if line menus", () => {
     assert.ok(lines.includes(25.5));
   });
 
-  it("field goals and kicking points use count steps", () => {
+  it("field goals, kicking points, and PATs use count steps", () => {
     const fg = suggestWhatIfLines("fg_made", 1.5);
     assert.ok(fg.includes(0.5));
     assert.ok(fg.includes(2.5));
     const pts = suggestWhatIfLines("kicking_pts", 8.5);
     assert.ok(pts.includes(6.5));
     assert.ok(pts.includes(10.5));
+    const xp = suggestWhatIfLines("xp_made", 3.5);
+    assert.ok(xp.includes(2.5));
+    assert.ok(xp.includes(4.5));
+  });
+
+  it("longest pass and reception use yard steps like longest rush", () => {
+    const pass = suggestWhatIfLines("pass_long", 24.5);
+    assert.ok(pass.includes(19.5));
+    assert.ok(pass.includes(29.5));
+    const rec = suggestWhatIfLines("rec_long", 19.5);
+    assert.ok(rec.includes(14.5));
+    assert.ok(rec.includes(24.5));
   });
 });
 

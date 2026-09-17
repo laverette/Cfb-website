@@ -54,6 +54,7 @@ async function saveEntry({ userId, title, seasonYear, weekNumber, legs, analysis
     throw err;
   }
   const supabase = getSupabase();
+  const snapLegs = (legs || []).map((leg) => snapshotLeg(leg));
   const { data: entry, error } = await supabase
     .from("prop_lab_entries")
     .insert({
@@ -64,11 +65,21 @@ async function saveEntry({ userId, title, seasonYear, weekNumber, legs, analysis
       model_version: PROP_MODEL_VERSION,
       entry_snapshot: {
         analysis,
+        legsPreview: snapLegs.map((l) => ({
+          playerName: l.playerName,
+          team: l.team,
+          statLabel: l.statLabel,
+          statId: l.statId,
+          line: l.line,
+          side: l.side,
+          pHit: l.pHit,
+          projection: l.projection,
+        })),
         savedAt: new Date().toISOString(),
         modelVersion: PROP_MODEL_VERSION,
       },
     })
-    .select("id, title, season_year, week_number, model_version, created_at")
+    .select("id, title, season_year, week_number, model_version, created_at, entry_snapshot")
     .single();
   if (error) throw saveError(error, "entry");
   const rows = (legs || []).map((leg, i) => ({

@@ -16,11 +16,15 @@ const MARKET_TO_STAT = {
   player_rush_tds: "rush_td",
   player_rush_attempts: "rush_att",
   player_rush_longest: "rush_long",
+  player_pass_longest_completion: "pass_long",
+  player_reception_longest: "rec_long",
   player_receptions: "rec",
   player_reception_yds: "rec_yds",
   player_reception_tds: "rec_td",
   player_field_goals: "fg_made",
   player_kicking_points: "kicking_pts",
+  player_pats: "xp_made",
+  player_extra_points: "xp_made",
 };
 
 const DEFAULT_PROP_MARKETS = [

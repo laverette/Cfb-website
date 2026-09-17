@@ -90,6 +90,7 @@ function rolePrior(bundle, def, oppEst) {
     pass_comp: 19,
     pass_td: 1.6,
     pass_int: 0.8,
+    pass_long: 28,
     pass_rush_yds: 230,
     rush_yds: 55,
     rush_att: 14,
@@ -98,17 +99,24 @@ function rolePrior(bundle, def, oppEst) {
     rec_yds: 45,
     rec: 4.2,
     rec_td: 0.35,
+    rec_long: 18,
     rush_rec_yds: 70,
     total_td: 0.7,
     fg_made: 1.4,
     kicking_pts: 7.5,
+    xp_made: 3.2,
   };
   if (byId[def.id] != null) return byId[def.id];
-  if (def.family === "receiving") return 45;
+  if (def.family === "receiving") return def.id === "rec_long" ? 18 : 45;
   if (def.id === "rush_long") return 14;
+  if (def.id === "pass_long") return 28;
   if (def.family === "rushing") return 55;
   if (def.family === "passing") return 210;
-  if (def.family === "kicking") return def.id === "fg_made" ? 1.4 : 7.5;
+  if (def.family === "kicking") {
+    if (def.id === "fg_made") return 1.4;
+    if (def.id === "xp_made") return 3.2;
+    return 7.5;
+  }
   if (def.id === "total_td") return 0.7;
   return 20;
 }

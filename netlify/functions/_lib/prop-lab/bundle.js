@@ -43,20 +43,36 @@ function usageFromLogs(logs) {
   const sum = (key) =>
     logs.reduce((s, g) => s + (Number.isFinite(g.stats?.[key]) ? g.stats[key] : 0), 0);
 
-  // Longest rush only means something in games the player actually carried it.
-  // Averaging in zeros from games he never touched the ball would drag the
-  // projection toward nothing.
-  const carried = logs.filter((g) => Number(g.stats?.rush_att) > 0 && Number.isFinite(g.stats?.rush_long));
-  const rushLong = carried.length
-    ? carried.reduce((s, g) => s + g.stats.rush_long, 0) / carried.length
-    : null;
-  const rushLongMax = carried.length ? Math.max(...carried.map((g) => g.stats.rush_long)) : null;
+  // Max stats only count games where the volume opportunity actually happened.
+  const avgLong = (volumeKey, longKey) => {
+    const rows = logs.filter(
+      (g) => Number(g.stats?.[volumeKey]) > 0 && Number.isFinite(g.stats?.[longKey])
+    );
+    if (!rows.length) return { avg: null, max: null, games: 0 };
+    return {
+      avg: rows.reduce((s, g) => s + g.stats[longKey], 0) / rows.length,
+      max: Math.max(...rows.map((g) => g.stats[longKey])),
+      games: rows.length,
+    };
+  };
+  const rushLong = avgLong("rush_att", "rush_long");
+  const passLong = avgLong("pass_comp", "pass_long");
+  // Completions are often missing early; fall back to attempts as volume proxy.
+  const passLongFallback =
+    passLong.games > 0 ? passLong : avgLong("pass_att", "pass_long");
+  const recLong = avgLong("rec", "rec_long");
 
   return {
     games: n,
-    rushLong,
-    rushLongMax,
-    rushLongGames: carried.length,
+    rushLong: rushLong.avg,
+    rushLongMax: rushLong.max,
+    rushLongGames: rushLong.games,
+    passLong: passLongFallback.avg,
+    passLongMax: passLongFallback.max,
+    passLongGames: passLongFallback.games,
+    recLong: recLong.avg,
+    recLongMax: recLong.max,
+    recLongGames: recLong.games,
     rec: sum("rec") / n,
     recYds: sum("rec_yds") / n,
     rushAtt: sum("rush_att") / n,
@@ -64,6 +80,7 @@ function usageFromLogs(logs) {
     passAtt: sum("pass_att") / n,
     passYds: sum("pass_yds") / n,
     passTd: sum("pass_td") / n,
+    passComp: sum("pass_comp") / n,
     rushTd: sum("rush_td") / n,
     recTd: sum("rec_td") / n,
     fgMade: sum("fg_made") / n,

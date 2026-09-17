@@ -11,6 +11,8 @@ const RANGES = {
   rush_att: { typicalMin: 6, typicalMax: 28, unit: "rush attempts" },
   rush_td: { typicalMin: 0.5, typicalMax: 2.5, unit: "rushing TDs" },
   rush_long: { typicalMin: 8.5, typicalMax: 35.5, unit: "longest rush yards" },
+  pass_long: { typicalMin: 18.5, typicalMax: 55.5, unit: "longest completion yards" },
+  rec_long: { typicalMin: 12.5, typicalMax: 45.5, unit: "longest reception yards" },
   rec_yds: { typicalMin: 20, typicalMax: 140, unit: "receiving yards" },
   rec: { typicalMin: 2.5, typicalMax: 10.5, unit: "receptions" },
   rec_td: { typicalMin: 0.5, typicalMax: 1.5, unit: "receiving TDs" },
@@ -19,6 +21,7 @@ const RANGES = {
   total_td: { typicalMin: 0.5, typicalMax: 4.5, unit: "total TDs" },
   fg_made: { typicalMin: 0.5, typicalMax: 3.5, unit: "field goals" },
   kicking_pts: { typicalMin: 3.5, typicalMax: 14.5, unit: "kicking points" },
+  xp_made: { typicalMin: 1.5, typicalMax: 7.5, unit: "PATs made" },
 };
 
 function lineSanity({ statId, line, projection, position }) {
@@ -48,7 +51,7 @@ function lineSanity({ statId, line, projection, position }) {
     };
   }
 
-  if (line < range.typicalMin * 0.2 && statId !== "pass_td" && statId !== "rec_td" && statId !== "rush_td" && statId !== "pass_int" && statId !== "total_td" && statId !== "fg_made") {
+  if (line < range.typicalMin * 0.2 && statId !== "pass_td" && statId !== "rec_td" && statId !== "rush_td" && statId !== "pass_int" && statId !== "total_td" && statId !== "fg_made" && statId !== "xp_made") {
     flags.push("Unusual Line");
     return {
       unusual: true,

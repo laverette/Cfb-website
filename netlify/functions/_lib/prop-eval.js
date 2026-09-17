@@ -42,6 +42,13 @@ const STAT_DEFS = [
     side: "offense",
   },
   {
+    id: "pass_long",
+    label: "Longest completion",
+    category: "passing",
+    keys: ["LONG", "LNG"],
+    side: "offense",
+  },
+  {
     id: "rush_yds",
     label: "Rushing yards",
     category: "rushing",
@@ -91,6 +98,13 @@ const STAT_DEFS = [
     side: "offense",
   },
   {
+    id: "rec_long",
+    label: "Longest reception",
+    category: "receiving",
+    keys: ["LONG", "LNG"],
+    side: "offense",
+  },
+  {
     id: "fg_made",
     label: "Field goals",
     category: "kicking",
@@ -102,6 +116,13 @@ const STAT_DEFS = [
     label: "Kicking points",
     category: "kicking",
     keys: ["PTS", "POINTS"],
+    side: "offense",
+  },
+  {
+    id: "xp_made",
+    label: "PATs made",
+    category: "kicking",
+    keys: ["XPM", "XP", "PAT"],
     side: "offense",
   },
   {

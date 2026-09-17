@@ -175,6 +175,7 @@ function extractGameStats(categories, playerId, playerName) {
     pass_att: passing.pass_att,
     pass_comp: passing.pass_comp,
     pass_int: athleteStat(categories, playerId, playerName, "passing", "int"),
+    pass_long: athleteStat(categories, playerId, playerName, "passing", "long"),
     rush_yds: athleteStat(categories, playerId, playerName, "rushing", "yds"),
     rush_td: athleteStat(categories, playerId, playerName, "rushing", "td"),
     rush_att: athleteStat(categories, playerId, playerName, "rushing", "att"),
@@ -182,6 +183,7 @@ function extractGameStats(categories, playerId, playerName) {
     rec_yds: athleteStat(categories, playerId, playerName, "receiving", "yds"),
     rec_td: athleteStat(categories, playerId, playerName, "receiving", "td"),
     rec: athleteStat(categories, playerId, playerName, "receiving", "rec"),
+    rec_long: athleteStat(categories, playerId, playerName, "receiving", "long"),
     ...kickingFromBox(categories, playerId, playerName),
   };
 }
@@ -232,6 +234,7 @@ function extractOverviewTotal(overview, statId) {
     rec_td: ["receiving:TD", "receiving:TDS"],
     fg_made: ["kicking:FGM", "kicking:FG"],
     kicking_pts: ["kicking:PTS", "kicking:POINTS"],
+    xp_made: ["kicking:XPM", "kicking:XP", "kicking:PAT"],
   };
   if (statId === "kicking_pts") {
     for (const k of map.kicking_pts) {

@@ -46,29 +46,54 @@ function share(playerPerGame, teamPerGame) {
 }
 
 /**
- * Longest rush is the max of a game's carries, so it does not scale linearly
- * with volume the way total yards does. For a roughly exponential tail the
- * expected max grows with log(carries), so a back who doubles his workload
- * gains far less than double on his long run.
- *
- * Preferred base is the player's own average per-game long, rescaled for the
- * projected carry count. Without that history, fall back to yards per carry
- * times a log-of-volume factor.
+ * Expected max of a volume of roughly exponential outcomes grows with
+ * log(volume). Prefer the player's own average per-game long, rescaled for the
+ * projected opportunity count; otherwise fall back to yards-per-touch × log.
  */
-function longestRushProjection({ usage, opportunity, rushAtt, ypc }) {
-  const projCarries = Number.isFinite(opportunity) && opportunity > 0 ? opportunity : rushAtt;
-  if (!Number.isFinite(projCarries) || projCarries <= 0) return null;
+function longestStatProjection({ base, histVolume, projVolume, ypx, floorFactor = 1.6 }) {
+  const proj = Number.isFinite(projVolume) && projVolume > 0 ? projVolume : histVolume;
+  if (!Number.isFinite(proj) || proj <= 0) return null;
 
-  const base = usage?.rushLong;
-  if (Number.isFinite(base) && base > 0 && Number.isFinite(rushAtt) && rushAtt > 0) {
-    const scale = Math.log1p(projCarries) / Math.log1p(rushAtt);
+  if (Number.isFinite(base) && base > 0 && Number.isFinite(histVolume) && histVolume > 0) {
+    const scale = Math.log1p(proj) / Math.log1p(histVolume);
     return base * clamp(scale, 0.8, 1.25);
   }
 
-  if (Number.isFinite(ypc) && ypc > 0) {
-    return ypc * (1.6 + 0.9 * Math.log1p(projCarries));
+  if (Number.isFinite(ypx) && ypx > 0) {
+    return ypx * (floorFactor + 0.9 * Math.log1p(proj));
   }
   return null;
+}
+
+function longestRushProjection({ usage, opportunity, rushAtt, ypc }) {
+  return longestStatProjection({
+    base: usage?.rushLong,
+    histVolume: rushAtt,
+    projVolume: opportunity,
+    ypx: ypc,
+    floorFactor: 1.6,
+  });
+}
+
+function longestPassProjection({ usage, opportunity, passComp, ypa }) {
+  const hist = Number.isFinite(usage?.passComp) && usage.passComp > 0 ? usage.passComp : usage?.passAtt;
+  return longestStatProjection({
+    base: usage?.passLong,
+    histVolume: Number.isFinite(passComp) && passComp > 0 ? passComp : hist,
+    projVolume: opportunity,
+    ypx: ypa,
+    floorFactor: 2.4,
+  });
+}
+
+function longestRecProjection({ usage, opportunity, recAvg, ypr }) {
+  return longestStatProjection({
+    base: usage?.recLong,
+    histVolume: recAvg,
+    projVolume: opportunity,
+    ypx: ypr,
+    floorFactor: 2.1,
+  });
 }
 
 /**
@@ -117,9 +142,12 @@ function estimateOpportunity(bundle, def) {
         ? opportunity
         : def.id === "rec_td"
           ? (opportunity || 0) * (usage.recTd && recAvg ? usage.recTd / recAvg : 0.08)
-          : opportunity != null && efficiency != null
-            ? opportunity * efficiency
-            : null;
+          : def.id === "rec_long"
+            ? longestRecProjection({ usage, opportunity, recAvg, ypr })
+            : opportunity != null && efficiency != null
+              ? opportunity * efficiency
+              : null;
+    if (def.id === "rec_long") efficiency = ypr;
   } else if (def.family === "rushing") {
     opportunity = rushAtt;
     efficiency = def.id === "rush_att" ? 1 : ypc;
@@ -143,6 +171,20 @@ function estimateOpportunity(bundle, def) {
     if (def.id === "pass_yds" || def.id === "pass_rush_yds") efficiency = ypa;
     if (def.id === "pass_comp") efficiency = compPct;
     if (def.id === "pass_att") efficiency = 1;
+    const passComp =
+      Number.isFinite(usage.passComp) && usage.passComp > 0
+        ? usage.passComp
+        : opportunity != null && Number.isFinite(compPct)
+          ? opportunity * compPct
+          : null;
+    const longOpp =
+      def.id === "pass_long"
+        ? Number.isFinite(passComp) && passComp > 0
+          ? passComp
+          : opportunity != null && Number.isFinite(compPct)
+            ? opportunity * Math.max(compPct, 0.55)
+            : opportunity
+        : opportunity;
     rawOppProj =
       def.id === "pass_att"
         ? opportunity
@@ -150,9 +192,20 @@ function estimateOpportunity(bundle, def) {
           ? (opportunity || 0) * (usage.passTd && passAtt ? usage.passTd / passAtt : 0.045)
           : def.id === "pass_int"
             ? (opportunity || 0) * (passAtt ? (usage.pass_int || 0.02) : 0.02)
-            : opportunity != null && efficiency != null
-              ? opportunity * efficiency
-              : null;
+            : def.id === "pass_long"
+              ? longestPassProjection({
+                  usage,
+                  opportunity: longOpp,
+                  passComp,
+                  ypa,
+                })
+              : opportunity != null && efficiency != null
+                ? opportunity * efficiency
+                : null;
+    if (def.id === "pass_long") {
+      opportunity = longOpp;
+      efficiency = ypa;
+    }
   } else if (def.id === "rush_rec_yds") {
     const rushPart =
       rushAtt != null && ypc != null ? (carryShare && vol.rushAttPerGame ? vol.rushAttPerGame * carryShare : rushAtt) * ypc : rushYds;
@@ -171,6 +224,7 @@ function estimateOpportunity(bundle, def) {
     const fgMade = usage.fgMade;
     const fgAtt = usage.fgAtt;
     const kickingPts = usage.kickingPts;
+    const xpMade = usage.xpMade;
     if (def.id === "fg_made") {
       opportunity = Number.isFinite(fgAtt) && fgAtt > 0 ? fgAtt : fgMade;
       efficiency =
@@ -181,6 +235,10 @@ function estimateOpportunity(bundle, def) {
           : opportunity != null && efficiency != null
             ? opportunity * efficiency
             : null;
+    } else if (def.id === "xp_made") {
+      opportunity = xpMade;
+      efficiency = 1;
+      rawOppProj = xpMade;
     } else {
       opportunity = kickingPts;
       efficiency = 1;
@@ -219,8 +277,9 @@ function roleTrend(bundle, def) {
     seasonU = season.rushAtt;
     recentU = l3.rushAtt;
   } else if (def.family === "kicking") {
-    seasonU = def.id === "fg_made" ? season.fgMade : season.kickingPts;
-    recentU = def.id === "fg_made" ? l3.fgMade : l3.kickingPts;
+    seasonU =
+      def.id === "fg_made" ? season.fgMade : def.id === "xp_made" ? season.xpMade : season.kickingPts;
+    recentU = def.id === "fg_made" ? l3.fgMade : def.id === "xp_made" ? l3.xpMade : l3.kickingPts;
   } else {
     seasonU = season.passAtt;
     recentU = l3.passAtt;
@@ -250,5 +309,8 @@ module.exports = {
   estimateOpportunity,
   roleTrend,
   playerAverages,
+  longestStatProjection,
   longestRushProjection,
+  longestPassProjection,
+  longestRecProjection,
 };

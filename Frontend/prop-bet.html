@@ -125,7 +125,25 @@
           <button type="button" class="btn btn-gold btn-sm" id="best3Btn" disabled>Find Best 3</button>
           <button type="button" class="btn btn-gold btn-sm" id="bestNBtn" disabled>Find Best 4</button>
           <button type="button" class="btn btn-outline-light btn-sm" id="compareBtn" disabled>Compare</button>
-          <button type="button" class="btn btn-outline-light btn-sm" id="saveBtn" disabled>Save entry</button>
+          <button type="button" class="btn btn-outline-light btn-sm" id="saveBtn" disabled>Save card</button>
+        </div>
+
+        <div id="savePanel" class="prop-save-panel" hidden>
+          <label class="power-field prop-save-title-field">
+            <span>Card name</span>
+            <input id="saveTitle" class="site-select matchup-select" type="text" maxlength="80" enterkeyhint="done" autocomplete="off" placeholder="Week 5 — Saturday card">
+          </label>
+          <p class="prop-save-preview" id="savePreview"></p>
+          <div class="prop-save-actions">
+            <button type="button" class="btn btn-gold btn-sm" id="saveConfirmBtn">Save</button>
+            <button type="button" class="btn btn-outline-light btn-sm" id="saveCopyBtn">Copy link</button>
+            <button type="button" class="btn btn-outline-light btn-sm" id="saveCancelBtn">Cancel</button>
+          </div>
+        </div>
+        <div id="saveStatus" class="prop-save-status" role="status" aria-live="polite" hidden></div>
+
+        <div class="prop-saved-head">
+          <h3 class="prop-saved-title">Saved cards</h3>
         </div>
         <div id="savedEntries" class="prop-saved"></div>
       </aside>

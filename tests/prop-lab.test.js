@@ -209,9 +209,10 @@ describe("prop definitions", () => {
     for (const raw of ["QB", "qb", " QB ", "Quarterback"]) {
       const ids = statsForPosition(raw).map((s) => s.id);
       assert.ok(ids.includes("pass_td"), `${raw} lost passing props`);
-      for (const banned of ["rec", "rec_yds", "rec_td", "rush_rec_yds", "fg_made", "kicking_pts"]) {
+      for (const banned of ["rec", "rec_yds", "rec_td", "rec_long", "rush_rec_yds", "fg_made", "kicking_pts", "xp_made"]) {
         assert.ok(!ids.includes(banned), `QB (${raw}) was offered ${banned}`);
       }
+      assert.ok(ids.includes("pass_long"), `${raw} should offer longest completion`);
     }
   });
 
@@ -829,6 +830,71 @@ describe("rushing / passing / TD props", () => {
     bundle.flags = [];
     const r = evaluateFromBundle(bundle, { statId: "rush_long", line: 10.5, side: "more" });
     assert.ok(r.projection < 20, `season-long max leaked into the projection: ${r.projection}`);
+  });
+
+  it("evaluates longest completion, longest reception, and PATs made", () => {
+    const { usageFromLogs } = require(path.join(root, "bundle"));
+    const qbLogs = Array.from({ length: 8 }, (_, i) =>
+      log(i + 1, "Opp", {
+        pass_yds: 250,
+        pass_att: 32,
+        pass_comp: 20,
+        pass_td: 2,
+        pass_long: 28 + (i % 5) * 4,
+      })
+    );
+    const qb = toneyBundle();
+    qb.player = { id: "qb2", name: "Air Raid", team: "Miami", position: "QB" };
+    qb.gameLogs = qbLogs;
+    qb.priorLogs = [];
+    qb.priorOverview = null;
+    qb.currentOverview = { games: 8 };
+    qb.usage = usageFromLogs(qbLogs);
+    qb.usageL3 = usageFromLogs(qbLogs.slice(-3));
+    qb.flags = [];
+    const passLong = evaluateFromBundle(qb, { statId: "pass_long", line: 24.5, side: "more" });
+    assert.equal(passLong.stat.id, "pass_long");
+    assert.equal(passLong.distribution.dist, "lognormal");
+    assert.ok(passLong.projection > 18 && passLong.projection < 50, `pass_long ${passLong.projection}`);
+
+    const wrLogs = Array.from({ length: 8 }, (_, i) =>
+      log(i + 1, "Opp", { rec: 5, rec_yds: 70, rec_td: 0, rec_long: 22 + (i % 4) * 5 })
+    );
+    const wr = toneyBundle();
+    wr.player = { id: "wr2", name: "Deep Threat", team: "Miami", position: "WR" };
+    wr.gameLogs = wrLogs;
+    wr.priorLogs = [];
+    wr.priorOverview = null;
+    wr.currentOverview = { games: 8 };
+    wr.usage = usageFromLogs(wrLogs);
+    wr.usageL3 = usageFromLogs(wrLogs.slice(-3));
+    wr.flags = [];
+    const recLong = evaluateFromBundle(wr, { statId: "rec_long", line: 19.5, side: "more" });
+    assert.equal(recLong.stat.id, "rec_long");
+    assert.ok(recLong.projection > 12 && recLong.projection < 45, `rec_long ${recLong.projection}`);
+
+    const kLogs = [
+      log(1, "A", { fg_made: 2, fg_att: 2, xp_made: 4, kicking_pts: 10 }),
+      log(2, "B", { fg_made: 1, fg_att: 1, xp_made: 3, kicking_pts: 6 }),
+      log(3, "C", { fg_made: 0, fg_att: 1, xp_made: 5, kicking_pts: 5 }),
+    ];
+    const k = toneyBundle();
+    k.player = { id: "k2", name: "Will Kick", team: "Miami", position: "K" };
+    k.gameLogs = kLogs;
+    k.priorLogs = [];
+    k.priorOverview = null;
+    k.currentOverview = { games: 3 };
+    k.usage = usageFromLogs(kLogs);
+    k.usageL3 = k.usage;
+    k.flags = [];
+    const xp = evaluateFromBundle(k, { statId: "xp_made", line: 3.5, side: "more" });
+    assert.equal(xp.stat.id, "xp_made");
+    assert.ok(xp.projection > 2 && xp.projection < 6, `xp_made ${xp.projection}`);
+
+    const { statsForPosition } = require(path.join(root, "definitions"));
+    assert.ok(statsForPosition("K").some((s) => s.id === "xp_made"));
+    assert.ok(statsForPosition("WR").some((s) => s.id === "rec_long"));
+    assert.ok(!statsForPosition("QB").some((s) => s.id === "rec_long"));
   });
 
   it("evaluates field-goal and kicking-point props", () => {

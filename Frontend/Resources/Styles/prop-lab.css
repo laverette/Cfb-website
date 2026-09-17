@@ -402,16 +402,138 @@ body.power-rankings-body {
 }
 
 .prop-saved {
-  margin-top: 0.65rem;
+  margin-top: 0.35rem;
   font-size: 0.82rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
 }
 
-.prop-saved button {
-  display: block;
+.prop-saved-head {
+  margin-top: 0.85rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid rgba(245, 222, 179, 0.12);
+}
+
+.prop-saved-title {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 650;
+  color: rgba(245, 222, 179, 0.92);
+}
+
+.prop-save-panel {
+  margin-top: 0.55rem;
+  padding: 0.65rem 0.7rem;
+  border: 1px solid rgba(245, 222, 179, 0.2);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.prop-save-title-field {
+  margin: 0 0 0.35rem;
+}
+
+.prop-save-preview {
+  margin: 0 0 0.5rem;
+  font-size: 0.8rem;
+  color: rgba(245, 222, 179, 0.72);
+  line-height: 1.35;
+}
+
+.prop-save-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.prop-save-status {
+  margin-top: 0.45rem;
+  padding: 0.45rem 0.6rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
+.prop-save-status.is-ok {
+  background: rgba(46, 125, 50, 0.22);
+  border: 1px solid rgba(129, 199, 132, 0.35);
+  color: #c8e6c9;
+}
+
+.prop-save-status.is-err {
+  background: rgba(183, 28, 28, 0.22);
+  border: 1px solid rgba(239, 154, 154, 0.35);
+  color: #ffcdd2;
+}
+
+.prop-save-status.is-info {
+  background: rgba(245, 222, 179, 0.08);
+  border: 1px solid rgba(245, 222, 179, 0.2);
+  color: rgba(245, 222, 179, 0.88);
+}
+
+.prop-saved-card {
+  border: 1px solid rgba(245, 222, 179, 0.16);
+  border-radius: 10px;
+  padding: 0.55rem 0.6rem 0.6rem;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.prop-saved-card-top {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  margin-bottom: 0.35rem;
+}
+
+.prop-saved-card-top strong {
+  font-size: 0.9rem;
+  color: #f5deb3;
+}
+
+.prop-saved-meta {
+  font-size: 0.74rem;
+  color: rgba(245, 222, 179, 0.62);
+}
+
+.prop-saved-legs {
+  margin: 0 0 0.45rem;
+  padding: 0;
+  list-style: none;
+  font-size: 0.76rem;
+  color: rgba(245, 222, 179, 0.78);
+  line-height: 1.35;
+}
+
+.prop-saved-legs li {
+  margin: 0.1rem 0;
+}
+
+.prop-saved-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.prop-saved-actions .btn {
+  min-height: 36px;
+  padding: 0.25rem 0.55rem;
+  font-size: 0.78rem;
+}
+
+.prop-saved-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
   width: 100%;
-  text-align: left;
-  min-height: 44px;
-  margin-top: 0.3rem;
+  font-size: 0.78rem;
+  color: rgba(255, 205, 210, 0.92);
+}
+
+.prop-saved button.prop-chip {
+  display: none;
 }
 
 .prop-cards-head {

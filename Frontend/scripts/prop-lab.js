@@ -34,6 +34,9 @@
     summaryOpen: false,
     payoutOdds: "",
     payoutTimer: null,
+    saveBusy: false,
+    deleteConfirmId: null,
+    lastSavedId: null,
   };
 
   function isMobile() {
@@ -1357,11 +1360,242 @@
       <table><thead><tr><th>Player</th><th>Prop</th><th>Line</th><th>Proj</th><th>P(hit)</th><th>L5 hit</th><th>Matchup</th><th>Confidence</th><th>Prop Score</th></tr></thead><tbody>${rows}</tbody></table>`;
   }
 
-  async function saveEntry() {
-    const title = window.prompt("Name this card", `Week ${state.week} — Saturday Card`);
-    if (!title) return;
+  function setSaveStatus(message, kind = "info") {
+    const el = document.getElementById("saveStatus");
+    if (!el) return;
+    if (!message) {
+      el.hidden = true;
+      el.textContent = "";
+      el.className = "prop-save-status";
+      return;
+    }
+    el.hidden = false;
+    el.className = `prop-save-status is-${kind}`;
+    el.textContent = message;
+  }
+
+  function defaultSaveTitle() {
+    return `Week ${state.week || "?"} — ${evaluatedLegs().length}-leg card`;
+  }
+
+  function openSavePanel() {
+    const panel = document.getElementById("savePanel");
+    const title = document.getElementById("saveTitle");
+    const preview = document.getElementById("savePreview");
+    const legs = evaluatedLegs();
+    if (!panel || !legs.length) return;
+    if (!authToken()) {
+      setSaveStatus("Log in to save cards to your account.", "err");
+      return;
+    }
+    if (title && !title.value.trim()) title.value = defaultSaveTitle();
+    if (preview) {
+      const names = legs
+        .slice(0, 4)
+        .map((e) => `${e.player?.name || "Player"} ${String(e.side || "more").toUpperCase()} ${e.stat?.label || e.stat?.id || ""} ${e.line}`)
+        .join(" · ");
+      const more = legs.length > 4 ? ` · +${legs.length - 4} more` : "";
+      preview.textContent = `${legs.length} leg${legs.length === 1 ? "" : "s"}: ${names}${more}`;
+    }
+    panel.hidden = false;
+    setSaveStatus("");
+    title?.focus();
+    title?.select();
+  }
+
+  function closeSavePanel() {
+    const panel = document.getElementById("savePanel");
+    if (panel) panel.hidden = true;
+  }
+
+  function cardSharePayload(legs, analysis, meta = {}) {
+    return {
+      v: 1,
+      title: meta.title || defaultSaveTitle(),
+      seasonYear: meta.seasonYear ?? state.season,
+      weekNumber: meta.weekNumber ?? state.week,
+      modelVersion: meta.modelVersion || legs[0]?.modelVersion || null,
+      analysis: analysis || null,
+      legs: (legs || []).map((e) => ({
+        playerId: e.player?.id,
+        playerName: e.player?.name,
+        team: e.player?.team,
+        position: e.player?.position,
+        opponent: e.opponent?.name || e.opponent,
+        statId: e.stat?.id,
+        statLabel: e.stat?.label,
+        line: e.line,
+        side: e.side,
+        projection: e.projection,
+        pHit: e.pHit,
+        pMore: e.pMore,
+        pLess: e.pLess,
+        confidence: e.confidence,
+        propScore: e.propScore,
+        propScoreLabel: e.propScoreLabel,
+        flags: e.flags,
+        modelVersion: e.modelVersion,
+        frozen: true,
+      })),
+    };
+  }
+
+  function encodeShareCard(payload) {
+    const json = JSON.stringify(payload);
+    const b64 = btoa(unescape(encodeURIComponent(json)))
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/g, "");
+    return `${location.origin}${location.pathname}?card=${b64}`;
+  }
+
+  function decodeShareCard(raw) {
     try {
-      await api(
+      let s = String(raw || "").replace(/-/g, "+").replace(/_/g, "/");
+      while (s.length % 4) s += "=";
+      return JSON.parse(decodeURIComponent(escape(atob(s))));
+    } catch {
+      return null;
+    }
+  }
+
+  function formatCardText(payload) {
+    const lines = [
+      payload.title || "Prop Lab card",
+      `Week ${payload.weekNumber ?? "?"} · ${payload.seasonYear ?? ""}`.trim(),
+    ];
+    for (const l of payload.legs || []) {
+      const side = String(l.side || "more").toUpperCase();
+      const p = Number.isFinite(Number(l.pHit)) ? ` · P(hit) ${(Number(l.pHit) * 100).toFixed(0)}%` : "";
+      lines.push(`• ${l.playerName || "Player"} ${side} ${l.statLabel || l.statId} ${l.line}${p}`);
+    }
+    if (payload.analysis?.value?.verdictLabel) {
+      lines.push(`Verdict: ${payload.analysis.value.verdictLabel}`);
+    }
+    if (payload.analysis?.together?.label) {
+      lines.push(`Together: ${payload.analysis.together.label}`);
+    }
+    return lines.filter(Boolean).join("\n");
+  }
+
+  async function copyText(text) {
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+    } catch {
+      /* fall through */
+    }
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.setAttribute("readonly", "");
+      ta.style.position = "fixed";
+      ta.style.left = "-9999px";
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand("copy");
+      document.body.removeChild(ta);
+      return ok;
+    } catch {
+      return false;
+    }
+  }
+
+  function applyCardPayload(payload, { frozen = true } = {}) {
+    if (!payload || !Array.isArray(payload.legs) || !payload.legs.length) return false;
+    state.legs = payload.legs.map((l) => ({
+      id: uid(),
+      playerId: l.playerId,
+      name: l.playerName,
+      team: l.team,
+      statId: l.statId,
+      statLabel: l.statLabel,
+      line: Number(l.line),
+      side: l.side || "more",
+      loading: false,
+      evaluation: {
+        player: { id: l.playerId, name: l.playerName, team: l.team, position: l.position },
+        opponent: typeof l.opponent === "string" ? { name: l.opponent } : l.opponent || null,
+        stat: { id: l.statId, label: l.statLabel },
+        line: Number(l.line),
+        side: l.side || "more",
+        projection: l.projection,
+        pHit: l.pHit,
+        pMore: l.pMore,
+        pLess: l.pLess,
+        confidence: l.confidence,
+        propScore: l.propScore,
+        propScoreLabel: l.propScoreLabel,
+        flags: l.flags || [],
+        modelVersion: l.modelVersion,
+        frozen,
+      },
+    }));
+    state.analysis = payload.analysis || null;
+    if (payload.weekNumber != null) state.week = Number(payload.weekNumber) || state.week;
+    if (payload.seasonYear != null) state.season = Number(payload.seasonYear) || state.season;
+    renderAll();
+    return true;
+  }
+
+  function applySavedEntry(entry) {
+    const legs = (entry.legs || []).map((l) => {
+      const snap = l.projection_snapshot || {};
+      return {
+        playerId: l.player_id,
+        playerName: l.player_name,
+        team: l.team,
+        position: snap.position,
+        opponent: l.opponent || snap.opponent,
+        statId: l.stat_id,
+        statLabel: snap.statLabel,
+        line: Number(l.line),
+        side: l.side,
+        projection: snap.projection,
+        pHit: snap.pHit,
+        pMore: snap.pMore,
+        pLess: snap.pLess,
+        confidence: snap.confidence,
+        propScore: snap.propScore,
+        propScoreLabel: snap.propScoreLabel,
+        flags: snap.flags,
+        modelVersion: snap.modelVersion || entry.model_version,
+      };
+    });
+    return applyCardPayload(
+      {
+        title: entry.title,
+        seasonYear: entry.season_year,
+        weekNumber: entry.week_number,
+        modelVersion: entry.model_version,
+        analysis: entry.entry_snapshot?.analysis || null,
+        legs,
+      },
+      { frozen: true }
+    );
+  }
+
+  async function saveEntryConfirm() {
+    if (state.saveBusy) return;
+    const legs = evaluatedLegs();
+    if (!legs.length) {
+      setSaveStatus("Add and evaluate at least one leg before saving.", "err");
+      return;
+    }
+    if (!authToken()) {
+      setSaveStatus("Log in to save cards to your account.", "err");
+      return;
+    }
+    const titleInput = document.getElementById("saveTitle");
+    const title = (titleInput?.value || "").trim() || defaultSaveTitle();
+    state.saveBusy = true;
+    const btn = document.getElementById("saveConfirmBtn");
+    if (btn) btn.disabled = true;
+    setSaveStatus("Saving card…", "info");
+    try {
+      const data = await api(
         { action: "save" },
         {
           method: "POST",
@@ -1369,72 +1603,212 @@
             title,
             seasonYear: state.season,
             weekNumber: state.week,
-            legs: evaluatedLegs(),
+            legs,
             analysis: state.analysis,
           },
         }
       );
+      state.lastSavedId = data.entry?.id ?? null;
+      closeSavePanel();
+      setSaveStatus(`Saved “${title}”. Use Copy link on the card to share it.`, "ok");
       await loadSaved();
     } catch (err) {
-      window.alert(err.message || "Could not save. Run sql/prop_lab_schema.sql in Supabase if tables are missing.");
+      setSaveStatus(err.message || "Could not save this card.", "err");
+    } finally {
+      state.saveBusy = false;
+      if (btn) btn.disabled = false;
     }
   }
 
   async function loadSaved() {
     const host = document.getElementById("savedEntries");
-    if (!host || !authToken()) {
-      if (host) host.innerHTML = "<p class='prop-market-note'>Log in to save cards. Re-running an old card uses the current model separately.</p>";
+    if (!host) return;
+    if (!authToken()) {
+      host.innerHTML =
+        "<p class='prop-market-note'>Log in to save cards here. Shared links still open without an account.</p>";
       return;
     }
     try {
       const data = await api({ action: "entries" });
       const rows = data.entries || [];
       if (!rows.length) {
-        host.innerHTML = "<p class='prop-market-note'>No saved cards yet.</p>";
+        host.innerHTML = "<p class='prop-market-note'>No saved cards yet — build a card and hit Save.</p>";
         return;
       }
-      host.innerHTML =
-        "<p class='prop-market-note'>Saved (frozen at save time)</p>" +
-        rows
-          .map(
-            (e) =>
-              `<button type="button" class="prop-chip" data-eid="${escapeHtml(String(e.id))}">${escapeHtml(
-                e.title
-              )} · v${escapeHtml(e.model_version)} · ${escapeHtml(String(e.created_at || "").slice(0, 10))}</button>`
-          )
-          .join("");
-      host.querySelectorAll("[data-eid]").forEach((btn) => {
+      host.innerHTML = rows
+        .map((e) => {
+          const preview = e.entry_snapshot?.legsPreview || [];
+          const legLines = preview.length
+            ? preview
+                .slice(0, 4)
+                .map(
+                  (l) =>
+                    `<li>${escapeHtml(l.playerName || "Player")} · ${escapeHtml(
+                      String(l.side || "more").toUpperCase()
+                    )} ${escapeHtml(l.statLabel || l.statId || "")} ${escapeHtml(String(l.line))}</li>`
+                )
+                .join("") +
+              (preview.length > 4 ? `<li>+${preview.length - 4} more</li>` : "")
+            : `<li>${escapeHtml(String(e.week_number != null ? `Week ${e.week_number}` : "Saved card"))}</li>`;
+          const confirm =
+            String(state.deleteConfirmId) === String(e.id)
+              ? `<div class="prop-saved-confirm">Delete this card?
+                   <button type="button" class="btn btn-gold btn-sm" data-confirm-delete="${escapeHtml(String(e.id))}">Yes, delete</button>
+                   <button type="button" class="btn btn-outline-light btn-sm" data-cancel-delete>Keep</button>
+                 </div>`
+              : `<div class="prop-saved-actions">
+                   <button type="button" class="btn btn-gold btn-sm" data-load="${escapeHtml(String(e.id))}">Load</button>
+                   <button type="button" class="btn btn-outline-light btn-sm" data-copy="${escapeHtml(String(e.id))}">Copy link</button>
+                   <button type="button" class="btn btn-outline-light btn-sm" data-delete="${escapeHtml(String(e.id))}">Delete</button>
+                 </div>`;
+          return `<article class="prop-saved-card" data-eid="${escapeHtml(String(e.id))}">
+            <div class="prop-saved-card-top">
+              <strong>${escapeHtml(e.title || "Untitled card")}</strong>
+              <span class="prop-saved-meta">Week ${escapeHtml(String(e.week_number ?? "?"))} · v${escapeHtml(
+                e.model_version || "?"
+              )} · ${escapeHtml(String(e.created_at || "").slice(0, 10))}</span>
+            </div>
+            <ul class="prop-saved-legs">${legLines}</ul>
+            ${confirm}
+          </article>`;
+        })
+        .join("");
+
+      host.querySelectorAll("[data-load]").forEach((btn) => {
         btn.addEventListener("click", async () => {
-          const row = await api({ action: "entry", id: btn.getAttribute("data-eid") });
-          const entry = row.entry;
-          state.legs = (entry.legs || []).map((l) => {
-            const snap = l.projection_snapshot || {};
-            return {
-              id: uid(),
-              playerId: l.player_id,
-              name: l.player_name,
-              team: l.team,
-              statId: l.stat_id,
-              statLabel: snap.statLabel,
-              line: Number(l.line),
-              side: l.side,
-              loading: false,
-              evaluation: {
-                ...snap,
-                player: { id: l.player_id, name: l.player_name, team: l.team },
+          const id = btn.getAttribute("data-load");
+          setSaveStatus("Loading card…", "info");
+          try {
+            const row = await api({ action: "entry", id });
+            if (!applySavedEntry(row.entry)) {
+              setSaveStatus("That card has no legs to load.", "err");
+              return;
+            }
+            setSaveStatus(`Loaded “${row.entry.title || "card"}” (frozen snapshot).`, "ok");
+            document.getElementById("propCards")?.scrollIntoView({ behavior: "smooth", block: "start" });
+          } catch (err) {
+            setSaveStatus(err.message || "Could not load that card.", "err");
+          }
+        });
+      });
+
+      host.querySelectorAll("[data-copy]").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const id = btn.getAttribute("data-copy");
+          setSaveStatus("Preparing share link…", "info");
+          try {
+            const row = await api({ action: "entry", id });
+            const entry = row.entry;
+            const legs = (entry.legs || []).map((l) => {
+              const snap = l.projection_snapshot || {};
+              return {
+                player: { id: l.player_id, name: l.player_name, team: l.team, position: snap.position },
                 opponent: { name: l.opponent },
                 stat: { id: l.stat_id, label: snap.statLabel },
-                frozen: true,
-              },
-            };
-          });
-          state.analysis = entry.entry_snapshot?.analysis || null;
-          renderAll();
+                line: Number(l.line),
+                side: l.side,
+                projection: snap.projection,
+                pHit: snap.pHit,
+                pMore: snap.pMore,
+                pLess: snap.pLess,
+                confidence: snap.confidence,
+                propScore: snap.propScore,
+                propScoreLabel: snap.propScoreLabel,
+                flags: snap.flags,
+                modelVersion: snap.modelVersion || entry.model_version,
+              };
+            });
+            const payload = cardSharePayload(legs, entry.entry_snapshot?.analysis, {
+              title: entry.title,
+              seasonYear: entry.season_year,
+              weekNumber: entry.week_number,
+              modelVersion: entry.model_version,
+            });
+            const link = encodeShareCard(payload);
+            const text = `${formatCardText(payload)}\n\n${link}`;
+            const ok = await copyText(text);
+            setSaveStatus(
+              ok ? "Copied card summary + share link to clipboard." : `Copy failed — link: ${link}`,
+              ok ? "ok" : "err"
+            );
+          } catch (err) {
+            setSaveStatus(err.message || "Could not copy that card.", "err");
+          }
+        });
+      });
+
+      host.querySelectorAll("[data-delete]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          state.deleteConfirmId = btn.getAttribute("data-delete");
+          loadSaved();
+        });
+      });
+      host.querySelectorAll("[data-cancel-delete]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          state.deleteConfirmId = null;
+          loadSaved();
+        });
+      });
+      host.querySelectorAll("[data-confirm-delete]").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const id = btn.getAttribute("data-confirm-delete");
+          setSaveStatus("Deleting…", "info");
+          try {
+            await api({ action: "delete" }, { method: "POST", body: { id } });
+            state.deleteConfirmId = null;
+            setSaveStatus("Card deleted.", "ok");
+            await loadSaved();
+          } catch (err) {
+            setSaveStatus(err.message || "Could not delete that card.", "err");
+          }
         });
       });
     } catch {
-      host.innerHTML = "<p class='prop-market-note'>Saved entries unavailable until the Prop Lab SQL migration is applied.</p>";
+      host.innerHTML =
+        "<p class='prop-market-note'>Saved cards unavailable. If you just set up Prop Lab, refresh after the database tables are live.</p>";
     }
+  }
+
+  function tryOpenSharedCard() {
+    const params = new URLSearchParams(location.search);
+    const raw = params.get("card");
+    if (!raw) return;
+    const payload = decodeShareCard(raw);
+    if (!applyCardPayload(payload, { frozen: true })) {
+      setSaveStatus("That share link could not be read.", "err");
+      return;
+    }
+    setSaveStatus(`Opened shared card “${payload.title || ""}”. Frozen snapshot — not re-scored.`, "ok");
+    // Drop the huge query param from the address bar without reloading.
+    try {
+      const url = new URL(location.href);
+      url.searchParams.delete("card");
+      history.replaceState({}, "", url.pathname + url.search + url.hash);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  async function copyCurrentCardLink() {
+    const legs = evaluatedLegs();
+    if (!legs.length) {
+      setSaveStatus("Add and evaluate at least one leg before copying.", "err");
+      return;
+    }
+    const titleInput = document.getElementById("saveTitle");
+    const title = (titleInput?.value || "").trim() || defaultSaveTitle();
+    const payload = cardSharePayload(legs, state.analysis, {
+      title,
+      seasonYear: state.season,
+      weekNumber: state.week,
+    });
+    const link = encodeShareCard(payload);
+    const text = `${formatCardText(payload)}\n\n${link}`;
+    const ok = await copyText(text);
+    setSaveStatus(
+      ok ? "Copied card summary + share link. Anyone with the link can open it on this page." : `Copy failed — link: ${link}`,
+      ok ? "ok" : "err"
+    );
   }
 
   function american(n) {
@@ -1586,7 +1960,23 @@
       });
     });
     document.getElementById("compareBtn")?.addEventListener("click", renderCompare);
-    document.getElementById("saveBtn")?.addEventListener("click", saveEntry);
+    document.getElementById("saveBtn")?.addEventListener("click", openSavePanel);
+    document.getElementById("saveConfirmBtn")?.addEventListener("click", saveEntryConfirm);
+    document.getElementById("saveCopyBtn")?.addEventListener("click", copyCurrentCardLink);
+    document.getElementById("saveCancelBtn")?.addEventListener("click", () => {
+      closeSavePanel();
+      setSaveStatus("");
+    });
+    document.getElementById("saveTitle")?.addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter") {
+        ev.preventDefault();
+        saveEntryConfirm();
+      }
+      if (ev.key === "Escape") {
+        closeSavePanel();
+        setSaveStatus("");
+      }
+    });
     document.getElementById("propBoardRefresh")?.addEventListener("click", () => loadBoard(state.boardLoaded));
     document.getElementById("dockAdd")?.addEventListener("click", () => {
       const ready =
@@ -1649,5 +2039,6 @@
       /* catalog stays empty until the function is reachable */
     }
     await loadSaved();
+    tryOpenSharedCard();
   });
 })();

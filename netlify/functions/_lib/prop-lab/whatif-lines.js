@@ -15,6 +15,7 @@ const COUNT_DELTAS = {
   rush_att: [2, 4],
   fg_made: [1],
   kicking_pts: [2, 4],
+  xp_made: [1, 2],
 };
 
 const YARD_DELTAS = {
@@ -22,6 +23,8 @@ const YARD_DELTAS = {
   rush_yds: [10, 20],
   // Long-rush lines sit near 15, so the standard 10/20 steps would straddle zero.
   rush_long: [5, 10],
+  pass_long: [5, 10],
+  rec_long: [5, 10],
   pass_yds: [15, 30],
   rush_rec_yds: [10, 20],
   pass_rush_yds: [15, 30],
