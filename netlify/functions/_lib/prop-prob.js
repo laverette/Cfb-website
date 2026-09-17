@@ -37,6 +37,7 @@ const STAT_SCALE = {
   rush_yds: 30,
   rush_td: 0.55,
   rush_att: 3.2,
+  rush_long: 9,
   rec: 1.55,
   rec_yds: 26,
   rec_td: 0.5,

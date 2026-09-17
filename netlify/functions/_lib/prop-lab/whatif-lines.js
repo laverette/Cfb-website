@@ -20,6 +20,8 @@ const COUNT_DELTAS = {
 const YARD_DELTAS = {
   rec_yds: [10, 20],
   rush_yds: [10, 20],
+  // Long-rush lines sit near 15, so the standard 10/20 steps would straddle zero.
+  rush_long: [5, 10],
   pass_yds: [15, 30],
   rush_rec_yds: [10, 20],
   pass_rush_yds: [15, 30],

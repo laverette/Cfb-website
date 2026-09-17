@@ -12,6 +12,7 @@
     season: 2026,
     week: null,
     stats: [],
+    positionRules: null,
     legs: [],
     analysis: null,
     best3: null,
@@ -169,40 +170,57 @@
     if (!sel) return;
     if (stats) state.stats = stats;
     const prev = sel.value;
-    const eligible = statsForPosition(position, state.stats);
-    sel.innerHTML = '<option value="">Stat</option>';
+
+    // Before a player is chosen there is nothing to filter against, so show the
+    // whole catalog. Once one is chosen, only that position's props are valid.
+    const hasPlayer = Boolean(state.selectedPlayer);
+    const eligible = hasPlayer ? statsForPosition(position, state.stats) : state.stats.slice();
+
+    sel.innerHTML = "";
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = hasPlayer && !eligible.length ? "No props for this position" : "Stat";
+    sel.appendChild(placeholder);
     for (const s of eligible) {
       const opt = document.createElement("option");
       opt.value = s.id;
       opt.textContent = s.label;
       sel.appendChild(opt);
     }
+    sel.disabled = hasPlayer && !eligible.length;
+
     if (eligible.some((s) => s.id === prev)) sel.value = prev;
     else if (eligible.length === 1) sel.value = eligible[0].id;
   }
 
-  function statsForPosition(position, catalog) {
+  function canonicalPosition(position) {
     const pos = String(position || "")
       .toUpperCase()
       .replace(/[^A-Z]/g, "");
-    const canon =
-      pos === "QB"
-        ? "QB"
-        : ["RB", "FB", "HB", "TB"].includes(pos)
-          ? "RB"
-          : ["WR", "SLOT"].includes(pos)
-            ? "WR"
-            : pos === "TE"
-              ? "TE"
-              : ["ATH", "UT"].includes(pos)
-                ? "ATH"
-                : ["K", "PK", "FG"].includes(pos)
-                  ? "K"
-                  : pos || null;
+    if (!pos) return null;
+    const aliases = state.positionRules?.aliases || {};
+    for (const canon of Object.keys(aliases)) {
+      if ((aliases[canon] || []).includes(pos)) return canon;
+    }
+    return pos;
+  }
+
+  // Mirrors statsForPosition on the server: a known position gets exactly its
+  // props, a defensive position gets none, and a missing or unrecognized one
+  // gets every offensive prop but never kicking.
+  function statsForPosition(position, catalog) {
     const list = catalog || [];
-    if (!canon) return list;
-    const hit = list.filter((s) => (s.positions || []).includes(canon));
-    return hit.length ? hit : list;
+    const canon = canonicalPosition(position);
+    const rules = state.positionRules;
+    const nonOffensive = rules?.nonOffensive || [];
+    const skill = rules?.skill || ["QB", "RB", "WR", "TE", "ATH"];
+
+    if (canon && nonOffensive.includes(canon)) return [];
+    if (canon) {
+      const hit = list.filter((s) => (s.positions || []).includes(canon));
+      if (hit.length) return hit;
+    }
+    return list.filter((s) => (s.positions || []).some((p) => skill.includes(p)));
   }
 
   function bindPlayerCombo() {
@@ -1625,6 +1643,7 @@
     }
     try {
       const catalog = await api({ action: "catalog" });
+      if (catalog.positionRules) state.positionRules = catalog.positionRules;
       fillStats(catalog.stats);
     } catch {
       /* catalog stays empty until the function is reachable */

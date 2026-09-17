@@ -15,6 +15,7 @@ const MARKET_TO_STAT = {
   player_rush_yds: "rush_yds",
   player_rush_tds: "rush_td",
   player_rush_attempts: "rush_att",
+  player_rush_longest: "rush_long",
   player_receptions: "rec",
   player_reception_yds: "rec_yds",
   player_reception_tds: "rec_td",

@@ -60,18 +60,26 @@ function weightedCurrent(logs, leagueMean, { equalWeights = false } = {}) {
   return { avg: den ? num / den : null, items };
 }
 
-function seasonAvgFromOverview(bundle, def) {
-  const total = extractOverviewTotal(bundle.currentOverview, def.id);
-  const games = toNum(bundle.currentOverview?.games) || bundle.gameLogs?.length || 0;
+/**
+ * The season overview stores season totals, so a per-game average is
+ * total / games. That is nonsense for a max stat like longest rush, where the
+ * season value is a single best run. Those fall back to the game logs, which
+ * carry a real per-game value.
+ */
+function overviewAvg(overview, def, fallbackGames) {
+  if (def.aggregate === "max") return null;
+  const total = extractOverviewTotal(overview, def.id);
+  const games = toNum(overview?.games) || fallbackGames || 0;
   if (total == null || !games) return null;
   return total / games;
 }
 
+function seasonAvgFromOverview(bundle, def) {
+  return overviewAvg(bundle.currentOverview, def, bundle.gameLogs?.length);
+}
+
 function priorAvgFromOverview(bundle, def) {
-  const total = extractOverviewTotal(bundle.priorOverview, def.id);
-  const games = toNum(bundle.priorOverview?.games) || bundle.priorLogs?.length || 0;
-  if (total == null || !games) return null;
-  return total / games;
+  return overviewAvg(bundle.priorOverview, def, bundle.priorLogs?.length);
 }
 
 function rolePrior(bundle, def, oppEst) {
@@ -86,6 +94,7 @@ function rolePrior(bundle, def, oppEst) {
     rush_yds: 55,
     rush_att: 14,
     rush_td: 0.6,
+    rush_long: 14,
     rec_yds: 45,
     rec: 4.2,
     rec_td: 0.35,
@@ -96,6 +105,7 @@ function rolePrior(bundle, def, oppEst) {
   };
   if (byId[def.id] != null) return byId[def.id];
   if (def.family === "receiving") return 45;
+  if (def.id === "rush_long") return 14;
   if (def.family === "rushing") return 55;
   if (def.family === "passing") return 210;
   if (def.family === "kicking") return def.id === "fg_made" ? 1.4 : 7.5;

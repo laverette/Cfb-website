@@ -1,5 +1,5 @@
 const { PROP_MODEL_VERSION } = require("./version");
-const { PROP_DEFINITIONS, catalogPublic, getPropDef } = require("./definitions");
+const { PROP_DEFINITIONS, catalogPublic, positionRulesPublic, getPropDef } = require("./definitions");
 const { createClient, createUsage } = require("./cfbd-client");
 const { loadPlayerBundle } = require("./bundle");
 const { evaluateFromBundle, relineEvaluation } = require("./evaluate");
@@ -115,6 +115,7 @@ module.exports = {
   PROP_MODEL_VERSION,
   PROP_DEFINITIONS,
   catalogPublic,
+  positionRulesPublic,
   getPropDef,
   createClient,
   createUsage,

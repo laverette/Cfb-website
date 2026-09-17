@@ -63,6 +63,13 @@ const STAT_DEFS = [
     side: "offense",
   },
   {
+    id: "rush_long",
+    label: "Longest rush",
+    category: "rushing",
+    keys: ["LONG", "LNG"],
+    side: "offense",
+  },
+  {
     id: "rec",
     label: "Receptions",
     category: "receiving",

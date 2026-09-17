@@ -10,6 +10,7 @@ const RANGES = {
   rush_yds: { typicalMin: 25, typicalMax: 180, unit: "rushing yards" },
   rush_att: { typicalMin: 6, typicalMax: 28, unit: "rush attempts" },
   rush_td: { typicalMin: 0.5, typicalMax: 2.5, unit: "rushing TDs" },
+  rush_long: { typicalMin: 8.5, typicalMax: 35.5, unit: "longest rush yards" },
   rec_yds: { typicalMin: 20, typicalMax: 140, unit: "receiving yards" },
   rec: { typicalMin: 2.5, typicalMax: 10.5, unit: "receptions" },
   rec_td: { typicalMin: 0.5, typicalMax: 1.5, unit: "receiving TDs" },

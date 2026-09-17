@@ -148,6 +148,29 @@ const PROP_DEFINITIONS = [
     matchupKeys: ["rushTdAllowed", "rushPpa"],
   },
   {
+    // Longest rush is the max over a game's carries, not a sum, so it is
+    // strongly right-skewed and gets a lognormal rather than a normal.
+    id: "rush_long",
+    label: "Longest rush",
+    short: "LONG RUSH",
+    category: "rushing",
+    family: "rushing",
+    dist: "lognormal",
+    sources: ["player_game.rushing.long"],
+    // Season LONG is a max, not a total, so the season-overview average path
+    // must not divide it by games. Everything else aggregates as a sum.
+    aggregate: "max",
+    methodology: "opportunity_efficiency",
+    opportunity: "rush_attempts",
+    efficiency: "explosiveness",
+    minGames: 3,
+    priorSd: 9,
+    floor: 0,
+    ceil: 99,
+    combo: false,
+    matchupKeys: ["rushYdsAllowed", "ypcAllowed", "rushExplosiveness", "stuffRate"],
+  },
+  {
     id: "rec_yds",
     label: "Receiving yards",
     short: "REC YDS",
@@ -308,6 +331,7 @@ const POSITIONS_BY_STAT = {
   rush_yds: ["QB", "RB", "WR", "ATH"],
   rush_att: ["QB", "RB", "WR", "ATH"],
   rush_td: ["QB", "RB", "WR", "ATH"],
+  rush_long: ["QB", "RB", "WR", "ATH"],
   rec_yds: ["WR", "TE", "RB", "ATH"],
   rec: ["WR", "TE", "RB", "ATH"],
   rec_td: ["WR", "TE", "RB", "ATH"],
@@ -321,26 +345,71 @@ for (const d of PROP_DEFINITIONS) {
   d.positions = POSITIONS_BY_STAT[d.id] || ["QB", "RB", "WR", "TE", "ATH"];
 }
 
-function canonicalPosition(pos) {
-  const p = String(pos || "")
-    .toUpperCase()
-    .replace(/[^A-Z]/g, "");
-  if (!p) return null;
-  if (p === "QB") return "QB";
-  if (["RB", "FB", "HB", "TB"].includes(p)) return "RB";
-  if (["WR", "SLOT"].includes(p)) return "WR";
-  if (p === "TE") return "TE";
-  if (["ATH", "UT"].includes(p)) return "ATH";
-  if (["K", "PK", "FG", "KICKER"].includes(p)) return "K";
-  return p;
+/**
+ * CFBD position strings are inconsistent, so the aliases live in one table that
+ * is also shipped to the browser in the catalog response. The client applies
+ * the same rules instead of keeping its own copy that can drift.
+ */
+const POSITION_ALIASES = {
+  QB: ["QB", "QUARTERBACK"],
+  RB: ["RB", "FB", "HB", "TB", "RUNNINGBACK", "TAILBACK", "FULLBACK"],
+  WR: ["WR", "SLOT", "SE", "FL", "WIDERECEIVER", "RECEIVER"],
+  TE: ["TE", "TIGHTEND"],
+  ATH: ["ATH", "UT", "ATHLETE"],
+  K: ["K", "PK", "FG", "KICKER", "PLACEKICKER"],
+};
+
+const ALIAS_LOOKUP = new Map();
+for (const [canon, aliases] of Object.entries(POSITION_ALIASES)) {
+  for (const a of aliases) ALIAS_LOOKUP.set(a, canon);
 }
 
+/** Positions that never take an offensive skill prop. */
+const NON_OFFENSIVE = [
+  "DB", "CB", "S", "FS", "SS", "LB", "ILB", "OLB", "MLB", "EDGE",
+  "DL", "DE", "DT", "NT", "OL", "OT", "OG", "C", "G", "T",
+  "P", "PUNTER", "LS", "SNAPPER",
+];
+const NON_OFFENSIVE_SET = new Set(NON_OFFENSIVE);
+
+function normalizePositionToken(pos) {
+  return String(pos || "")
+    .toUpperCase()
+    .replace(/[^A-Z]/g, "");
+}
+
+function canonicalPosition(pos) {
+  const p = normalizePositionToken(pos);
+  if (!p) return null;
+  return ALIAS_LOOKUP.get(p) || p;
+}
+
+const SKILL_POSITIONS = ["QB", "RB", "WR", "TE", "ATH"];
+
+/**
+ * Stats a position can actually be bet on.
+ *
+ * Three cases, because CFBD position strings are unreliable:
+ *   - known offensive position  -> exactly that position's props
+ *   - known non-offensive       -> nothing, there is no prop to bet
+ *   - missing or unrecognized   -> every offensive prop, but never kicking
+ *
+ * The last case is the one that caused the bug: it used to return the entire
+ * catalog, so a player whose position CFBD omitted was offered receiving
+ * touchdowns and field goals alike.
+ */
 function statsForPosition(position, catalog = PROP_DEFINITIONS) {
   const pos = canonicalPosition(position);
   const list = catalog || PROP_DEFINITIONS;
-  if (!pos) return list.slice();
-  const hit = list.filter((d) => (d.positions || []).includes(pos));
-  return hit.length ? hit : list.slice();
+
+  if (pos && NON_OFFENSIVE_SET.has(pos)) return [];
+
+  if (pos) {
+    const hit = list.filter((d) => (d.positions || []).includes(pos));
+    if (hit.length) return hit;
+  }
+
+  return list.filter((d) => (d.positions || []).some((p) => SKILL_POSITIONS.includes(p)));
 }
 
 function getPropDef(id) {
@@ -359,12 +428,20 @@ function catalogPublic() {
   }));
 }
 
+/** Position rules shipped to the browser so the UI filters exactly as the API does. */
+function positionRulesPublic() {
+  return { aliases: POSITION_ALIASES, nonOffensive: NON_OFFENSIVE, skill: SKILL_POSITIONS };
+}
+
 module.exports = {
   PROP_DEFINITIONS,
   PROP_BY_ID,
   getPropDef,
   catalogPublic,
+  positionRulesPublic,
   canonicalPosition,
   statsForPosition,
   POSITIONS_BY_STAT,
+  POSITION_ALIASES,
+  NON_OFFENSIVE,
 };

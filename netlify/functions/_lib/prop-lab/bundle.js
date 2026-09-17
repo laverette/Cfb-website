@@ -42,8 +42,21 @@ function usageFromLogs(logs) {
   if (!n) return null;
   const sum = (key) =>
     logs.reduce((s, g) => s + (Number.isFinite(g.stats?.[key]) ? g.stats[key] : 0), 0);
+
+  // Longest rush only means something in games the player actually carried it.
+  // Averaging in zeros from games he never touched the ball would drag the
+  // projection toward nothing.
+  const carried = logs.filter((g) => Number(g.stats?.rush_att) > 0 && Number.isFinite(g.stats?.rush_long));
+  const rushLong = carried.length
+    ? carried.reduce((s, g) => s + g.stats.rush_long, 0) / carried.length
+    : null;
+  const rushLongMax = carried.length ? Math.max(...carried.map((g) => g.stats.rush_long)) : null;
+
   return {
     games: n,
+    rushLong,
+    rushLongMax,
+    rushLongGames: carried.length,
     rec: sum("rec") / n,
     recYds: sum("rec_yds") / n,
     rushAtt: sum("rush_att") / n,

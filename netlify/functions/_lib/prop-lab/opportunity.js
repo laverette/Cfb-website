@@ -46,6 +46,32 @@ function share(playerPerGame, teamPerGame) {
 }
 
 /**
+ * Longest rush is the max of a game's carries, so it does not scale linearly
+ * with volume the way total yards does. For a roughly exponential tail the
+ * expected max grows with log(carries), so a back who doubles his workload
+ * gains far less than double on his long run.
+ *
+ * Preferred base is the player's own average per-game long, rescaled for the
+ * projected carry count. Without that history, fall back to yards per carry
+ * times a log-of-volume factor.
+ */
+function longestRushProjection({ usage, opportunity, rushAtt, ypc }) {
+  const projCarries = Number.isFinite(opportunity) && opportunity > 0 ? opportunity : rushAtt;
+  if (!Number.isFinite(projCarries) || projCarries <= 0) return null;
+
+  const base = usage?.rushLong;
+  if (Number.isFinite(base) && base > 0 && Number.isFinite(rushAtt) && rushAtt > 0) {
+    const scale = Math.log1p(projCarries) / Math.log1p(rushAtt);
+    return base * clamp(scale, 0.8, 1.25);
+  }
+
+  if (Number.isFinite(ypc) && ypc > 0) {
+    return ypc * (1.6 + 0.9 * Math.log1p(projCarries));
+  }
+  return null;
+}
+
+/**
  * Opportunity × efficiency. Inferred shares are labeled as estimates.
  */
 function estimateOpportunity(bundle, def) {
@@ -105,9 +131,12 @@ function estimateOpportunity(bundle, def) {
         ? opportunity
         : def.id === "rush_td"
           ? (opportunity || 0) * (usage.rushTd && rushAtt ? usage.rushTd / rushAtt : 0.05)
-          : opportunity != null && efficiency != null
-            ? opportunity * efficiency
-            : null;
+          : def.id === "rush_long"
+            ? longestRushProjection({ usage, opportunity, rushAtt, ypc })
+            : opportunity != null && efficiency != null
+              ? opportunity * efficiency
+              : null;
+    if (def.id === "rush_long") efficiency = ypc;
   } else if (def.family === "passing" || def.family === "qb") {
     opportunity = passAtt;
     if (vol.passAttPerGame && attShare != null) opportunity = vol.passAttPerGame * Math.min(attShare, 1.05);
@@ -216,4 +245,10 @@ function roleTrend(bundle, def) {
   };
 }
 
-module.exports = { teamVolume, estimateOpportunity, roleTrend, playerAverages };
+module.exports = {
+  teamVolume,
+  estimateOpportunity,
+  roleTrend,
+  playerAverages,
+  longestRushProjection,
+};

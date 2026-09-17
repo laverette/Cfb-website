@@ -1,6 +1,28 @@
 const { getSupabase, hasSupabase } = require("../../db");
 const { PROP_MODEL_VERSION } = require("./version");
 
+/** Postgres undefined_table. Means the schema was never applied. */
+const UNDEFINED_TABLE = "42P01";
+
+/**
+ * Turn a raw Postgres failure into something a user can act on. A missing
+ * table otherwise surfaces as 'relation "public.prop_lab_entries" does not
+ * exist', which reads like the app lost the user's data rather than like a
+ * one-time setup step that was skipped.
+ */
+function saveError(error, what) {
+  if (error?.code === UNDEFINED_TABLE) {
+    const err = new Error(
+      "Prop Lab tables are missing from the database. Apply sql/prop_lab_schema.sql in the Supabase SQL editor, then try saving again."
+    );
+    err.code = "SCHEMA_MISSING";
+    return err;
+  }
+  const err = new Error(error?.message || `Failed to save ${what}`);
+  err.code = "SAVE_FAILED";
+  return err;
+}
+
 function snapshotLeg(leg) {
   return {
     playerId: leg.player?.id,
@@ -48,11 +70,7 @@ async function saveEntry({ userId, title, seasonYear, weekNumber, legs, analysis
     })
     .select("id, title, season_year, week_number, model_version, created_at")
     .single();
-  if (error) {
-    const err = new Error(error.message || "Failed to save entry");
-    err.code = "SAVE_FAILED";
-    throw err;
-  }
+  if (error) throw saveError(error, "entry");
   const rows = (legs || []).map((leg, i) => ({
     entry_id: entry.id,
     sort_order: i,
@@ -67,11 +85,7 @@ async function saveEntry({ userId, title, seasonYear, weekNumber, legs, analysis
   }));
   if (rows.length) {
     const { error: legErr } = await supabase.from("prop_lab_legs").insert(rows);
-    if (legErr) {
-      const err = new Error(legErr.message || "Failed to save legs");
-      err.code = "SAVE_FAILED";
-      throw err;
-    }
+    if (legErr) throw saveError(legErr, "legs");
   }
   return entry;
 }

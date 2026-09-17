@@ -13,6 +13,7 @@ const { isOddsApiConfigured } = require("./_lib/odds-api");
 const {
   PROP_MODEL_VERSION,
   catalogPublic,
+  positionRulesPublic,
   searchPlayers,
   evaluateProp,
   evaluateEntry,
@@ -130,6 +131,7 @@ exports.handler = async (event) => {
       return json(200, {
         modelVersion: PROP_MODEL_VERSION,
         stats: catalogPublic(),
+        positionRules: positionRulesPublic(),
       });
     }
 
@@ -388,7 +390,7 @@ exports.handler = async (event) => {
         ? 400
         : err.code === "NO_STATS" || err.code === "NO_STAT_VALUE"
           ? 404
-          : err.code === "SAVE_FAILED" || err.code === "NO_DB"
+          : err.code === "SAVE_FAILED" || err.code === "NO_DB" || err.code === "SCHEMA_MISSING"
             ? 503
             : 502;
     return json(status, {

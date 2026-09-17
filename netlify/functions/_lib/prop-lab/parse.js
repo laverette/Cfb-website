@@ -178,6 +178,7 @@ function extractGameStats(categories, playerId, playerName) {
     rush_yds: athleteStat(categories, playerId, playerName, "rushing", "yds"),
     rush_td: athleteStat(categories, playerId, playerName, "rushing", "td"),
     rush_att: athleteStat(categories, playerId, playerName, "rushing", "att"),
+    rush_long: athleteStat(categories, playerId, playerName, "rushing", "long"),
     rec_yds: athleteStat(categories, playerId, playerName, "receiving", "yds"),
     rec_td: athleteStat(categories, playerId, playerName, "receiving", "td"),
     rec: athleteStat(categories, playerId, playerName, "receiving", "rec"),

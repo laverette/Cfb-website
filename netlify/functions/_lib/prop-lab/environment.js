@@ -68,6 +68,10 @@ function gameEnvironment(bundle, def, marketOdds) {
     notes.push("Low expected total");
   }
 
+  // A max stat like longest rush responds to volume shifts far less than a
+  // season total does, since the expected max grows with log(attempts).
+  if (def.aggregate === "max") adjPct *= 0.5;
+
   adjPct = clamp(adjPct, -0.1, 0.1);
 
   const passVolume =

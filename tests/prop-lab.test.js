@@ -203,6 +203,69 @@ describe("prop definitions", () => {
     assert.ok(!qb.includes("fg_made"));
     assert.ok(!wr.includes("kicking_pts"));
   });
+
+  it("never offers a QB a receiving prop", () => {
+    const { statsForPosition } = require(path.join(root, "definitions"));
+    for (const raw of ["QB", "qb", " QB ", "Quarterback"]) {
+      const ids = statsForPosition(raw).map((s) => s.id);
+      assert.ok(ids.includes("pass_td"), `${raw} lost passing props`);
+      for (const banned of ["rec", "rec_yds", "rec_td", "rush_rec_yds", "fg_made", "kicking_pts"]) {
+        assert.ok(!ids.includes(banned), `QB (${raw}) was offered ${banned}`);
+      }
+    }
+  });
+
+  it("offers no props for defenders, linemen, and punters", () => {
+    const { statsForPosition } = require(path.join(root, "definitions"));
+    for (const pos of ["DB", "CB", "LB", "DE", "OL", "P", "LS"]) {
+      assert.deepEqual(statsForPosition(pos), [], `${pos} was offered props`);
+    }
+  });
+
+  it("an unknown position falls back to offensive props only, never kicking", () => {
+    const { statsForPosition } = require(path.join(root, "definitions"));
+    // A missing position used to return the whole catalog, which is how a
+    // quarterback ended up seeing receiving touchdowns and field goals.
+    for (const pos of ["", null, undefined, "   "]) {
+      const ids = statsForPosition(pos).map((s) => s.id);
+      assert.ok(ids.includes("rush_yds"));
+      assert.ok(!ids.includes("fg_made"), `kicking leaked into unknown position "${pos}"`);
+      assert.ok(!ids.includes("kicking_pts"));
+    }
+  });
+
+  it("ships position rules to the client so both sides filter alike", () => {
+    const { positionRulesPublic, statsForPosition, catalogPublic } = require(path.join(root, "definitions"));
+    const rules = positionRulesPublic();
+    assert.ok(rules.aliases.QB.includes("QUARTERBACK"));
+    assert.ok(rules.nonOffensive.includes("DB"));
+    assert.ok(rules.skill.includes("QB"));
+
+    // Re-implement the client filter from the shipped rules and confirm it
+    // agrees with the server for every position the UI can encounter.
+    const catalog = catalogPublic();
+    const clientFilter = (position) => {
+      const p = String(position || "").toUpperCase().replace(/[^A-Z]/g, "");
+      let canon = p || null;
+      for (const key of Object.keys(rules.aliases)) {
+        if (rules.aliases[key].includes(p)) canon = key;
+      }
+      if (canon && rules.nonOffensive.includes(canon)) return [];
+      if (canon) {
+        const hit = catalog.filter((s) => (s.positions || []).includes(canon));
+        if (hit.length) return hit;
+      }
+      return catalog.filter((s) => (s.positions || []).some((x) => rules.skill.includes(x)));
+    };
+
+    for (const pos of ["QB", "RB", "WR", "TE", "K", "ATH", "DB", "P", "", "Quarterback", "SLOT", "XYZ"]) {
+      assert.deepEqual(
+        clientFilter(pos).map((s) => s.id),
+        statsForPosition(pos, catalog).map((s) => s.id),
+        `client and server disagree for "${pos}"`
+      );
+    }
+  });
 });
 
 describe("early-season shrinkage", () => {
@@ -695,6 +758,77 @@ describe("rushing / passing / TD props", () => {
     assert.ok(result.projection < 32, `completions projection ${result.projection} used a yards-scale prior`);
     assert.ok(result.projection > 10);
     assert.ok(result.projection < 40);
+  });
+
+  it("projects longest rush from per-game longs, not total yards", () => {
+    const { usageFromLogs } = require(path.join(root, "bundle"));
+    const longs = [12, 8, 23, 41, 15, 9, 31, 18, 11, 26];
+    const logs = longs.map((L, i) =>
+      log(i + 1, "Opp", { rush_yds: 70 + i * 3, rush_att: 16, rush_td: 1, rush_long: L })
+    );
+    const bundle = toneyBundle();
+    bundle.player = { id: "rb1", name: "Bell Cow", team: "Miami", position: "RB" };
+    bundle.gameLogs = logs;
+    bundle.priorLogs = [];
+    bundle.priorOverview = null;
+    bundle.currentOverview = { games: 10 };
+    bundle.usage = usageFromLogs(logs);
+    bundle.usageL3 = usageFromLogs(logs.slice(-3));
+    bundle.teamOffense = { games: 10, rushingattempts: 380 };
+    bundle.flags = [];
+
+    const r = evaluateFromBundle(bundle, { statId: "rush_long", line: 14.5, side: "more" });
+    assert.equal(r.stat.id, "rush_long");
+    // Average long is 19.4. A projection near the season rushing total (~85)
+    // would mean it fell through to the generic yards path.
+    assert.ok(r.projection > 12 && r.projection < 28, `longest-rush projection ${r.projection}`);
+    assert.equal(r.distribution.dist, "lognormal");
+
+    // More yardage on the line must never be more likely.
+    let prev = 1;
+    for (const line of [9.5, 14.5, 19.5, 29.5, 49.5]) {
+      const p = evaluateFromBundle(bundle, { statId: "rush_long", line, side: "more" }).pMore;
+      assert.ok(p <= prev + 1e-9, `pMore rose from ${prev} to ${p} at line ${line}`);
+      prev = p;
+    }
+  });
+
+  it("scales longest rush sublinearly with carries", () => {
+    const { longestRushProjection } = require(path.join(root, "opportunity"));
+    const usage = { rushLong: 20 };
+    const same = longestRushProjection({ usage, opportunity: 16, rushAtt: 16, ypc: 4.5 });
+    const double = longestRushProjection({ usage, opportunity: 32, rushAtt: 16, ypc: 4.5 });
+    assert.ok(Math.abs(same - 20) < 0.01, `unchanged volume should hold the base: ${same}`);
+    assert.ok(double > same, "more carries should raise the long");
+    // Doubling carries must not double the long run.
+    assert.ok(double < same * 1.3, `longest rush scaled too fast: ${same} -> ${double}`);
+  });
+
+  it("falls back to yards per carry when a player has no long-rush history", () => {
+    const { longestRushProjection } = require(path.join(root, "opportunity"));
+    const est = longestRushProjection({ usage: {}, opportunity: 16, rushAtt: 16, ypc: 4.5 });
+    assert.ok(est > 10 && est < 30, `fallback longest rush ${est} is not realistic`);
+    assert.equal(longestRushProjection({ usage: {}, opportunity: 0, rushAtt: 0, ypc: null }), null);
+  });
+
+  it("does not average a season-long max over games", () => {
+    const { getPropDef } = require(path.join(root, "definitions"));
+    assert.equal(getPropDef("rush_long").aggregate, "max");
+    // Season overview LONG is a single best run, so the per-game average path
+    // must ignore it rather than dividing it by games played.
+    const bundle = toneyBundle();
+    bundle.player = { id: "rb9", name: "One Big Run", team: "Miami", position: "RB" };
+    bundle.currentOverview = { games: 10, rushing: { LONG: 75, YDS: 400, ATT: 90 } };
+    bundle.gameLogs = Array.from({ length: 10 }, (_, i) =>
+      log(i + 1, "Opp", { rush_yds: 40, rush_att: 9, rush_long: 11 })
+    );
+    bundle.priorLogs = [];
+    bundle.priorOverview = null;
+    bundle.usage = require(path.join(root, "bundle")).usageFromLogs(bundle.gameLogs);
+    bundle.usageL3 = bundle.usage;
+    bundle.flags = [];
+    const r = evaluateFromBundle(bundle, { statId: "rush_long", line: 10.5, side: "more" });
+    assert.ok(r.projection < 20, `season-long max leaked into the projection: ${r.projection}`);
   });
 
   it("evaluates field-goal and kicking-point props", () => {
