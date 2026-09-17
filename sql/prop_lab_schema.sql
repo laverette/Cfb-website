@@ -96,3 +96,17 @@ create index if not exists idx_prop_lab_backtests_model
   on public.prop_lab_backtests (model_version, stat_id, season_year);
 
 alter table public.prop_lab_backtests enable row level security;
+
+-- Short share links for Prop Lab cards (payload lives here, not in the URL).
+create table if not exists public.prop_lab_shares (
+  id text primary key,
+  payload jsonb not null,
+  created_by bigint references public.users(id) on delete set null,
+  created_at timestamptz not null default now(),
+  expires_at timestamptz
+);
+
+create index if not exists idx_prop_lab_shares_expires
+  on public.prop_lab_shares (expires_at);
+
+alter table public.prop_lab_shares enable row level security;

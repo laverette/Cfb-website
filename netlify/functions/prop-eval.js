@@ -7,7 +7,7 @@
 const { json, parseJsonBody } = require("./_http");
 const store = require("./_lib/power/store");
 const { loadCurrentWeek } = require("./db");
-const { requireAuth, requireAdmin } = require("./_auth");
+const { requireAuth, requireAdmin, optionalAuth } = require("./_auth");
 const { buildWeeklyPropBoard } = require("./_lib/prop-board");
 const { isOddsApiConfigured } = require("./_lib/odds-api");
 const {
@@ -260,6 +260,33 @@ exports.handler = async (event) => {
       return json(200, { ok });
     }
 
+    if (action === "share" && method === "POST") {
+      const auth = optionalAuth(event);
+      const userId =
+        auth?.payload?.userId != null ? Number(auth.payload.userId) : null;
+      const payload = body.payload || body.card || null;
+      const row = await propStore.createShare({
+        payload,
+        userId: Number.isFinite(userId) && userId > 0 ? userId : null,
+      });
+      return json(200, {
+        shareId: row.id,
+        expiresAt: row.expires_at || null,
+      });
+    }
+
+    if (action === "share" && method === "GET") {
+      const id = q.id || q.shareId || body.id;
+      const row = await propStore.getShare(id);
+      if (!row) return json(404, { error: "Share link not found or expired" });
+      return json(200, {
+        shareId: row.id,
+        payload: row.payload,
+        createdAt: row.created_at,
+        expiresAt: row.expires_at,
+      }, { "cache-control": "public, max-age=60" });
+    }
+
     if (action === "backtest-report") {
       const admin = requireAdmin(event);
       if (admin && admin.statusCode) return admin;
@@ -386,7 +413,7 @@ exports.handler = async (event) => {
       return json(503, { error: err.message, code: err.code });
     }
     const status =
-      err.code === "BAD_STAT" || err.code === "BAD_LINE"
+      err.code === "BAD_STAT" || err.code === "BAD_LINE" || err.code === "INVALID_SHARE"
         ? 400
         : err.code === "NO_STATS" || err.code === "NO_STAT_VALUE"
           ? 404

@@ -1440,23 +1440,26 @@
     };
   }
 
-  function encodeShareCard(payload) {
-    const json = JSON.stringify(payload);
-    const b64 = btoa(unescape(encodeURIComponent(json)))
-      .replace(/\+/g, "-")
-      .replace(/\//g, "_")
-      .replace(/=+$/g, "");
-    return `${location.origin}${location.pathname}?card=${b64}`;
+  function sharePageUrl(shareId) {
+    // Prefer a stable prop-bet.html path even if the user somehow landed elsewhere.
+    const basePath = /prop-bet\.html$/i.test(location.pathname)
+      ? location.pathname
+      : new URL("prop-bet.html", location.href).pathname;
+    return `${location.origin}${basePath}?share=${encodeURIComponent(shareId)}`;
   }
 
-  function decodeShareCard(raw) {
-    try {
-      let s = String(raw || "").replace(/-/g, "+").replace(/_/g, "/");
-      while (s.length % 4) s += "=";
-      return JSON.parse(decodeURIComponent(escape(atob(s))));
-    } catch {
-      return null;
-    }
+  async function createShareLink(payload) {
+    const data = await api(
+      { action: "share" },
+      { method: "POST", body: { action: "share", payload } }
+    );
+    if (!data.shareId) throw new Error("Share link was not created");
+    return sharePageUrl(data.shareId);
+  }
+
+  async function loadSharePayload(shareId) {
+    const data = await api({ action: "share", id: shareId });
+    return data.payload || null;
   }
 
   function formatCardText(payload) {
@@ -1724,7 +1727,7 @@
               weekNumber: entry.week_number,
               modelVersion: entry.model_version,
             });
-            const link = encodeShareCard(payload);
+            const link = await createShareLink(payload);
             const text = `${formatCardText(payload)}\n\n${link}`;
             const ok = await copyText(text);
             setSaveStatus(
@@ -1769,23 +1772,28 @@
     }
   }
 
-  function tryOpenSharedCard() {
+  async function tryOpenSharedCard() {
     const params = new URLSearchParams(location.search);
-    const raw = params.get("card");
-    if (!raw) return;
-    const payload = decodeShareCard(raw);
-    if (!applyCardPayload(payload, { frozen: true })) {
-      setSaveStatus("That share link could not be read.", "err");
-      return;
-    }
-    setSaveStatus(`Opened shared card “${payload.title || ""}”. Frozen snapshot — not re-scored.`, "ok");
-    // Drop the huge query param from the address bar without reloading.
+    const shareId = params.get("share");
+    if (!shareId) return;
+    setSaveStatus("Opening shared card…", "info");
     try {
-      const url = new URL(location.href);
-      url.searchParams.delete("card");
-      history.replaceState({}, "", url.pathname + url.search + url.hash);
-    } catch {
-      /* ignore */
+      const payload = await loadSharePayload(shareId);
+      if (!applyCardPayload(payload, { frozen: true })) {
+        setSaveStatus("That share link could not be read.", "err");
+        return;
+      }
+      setSaveStatus(`Opened shared card “${payload.title || ""}”. Frozen snapshot — not re-scored.`, "ok");
+      try {
+        const url = new URL(location.href);
+        url.searchParams.delete("share");
+        url.searchParams.delete("card");
+        history.replaceState({}, "", url.pathname + url.search + url.hash);
+      } catch {
+        /* ignore */
+      }
+    } catch (err) {
+      setSaveStatus(err.message || "That share link is missing or expired.", "err");
     }
   }
 
@@ -1802,13 +1810,18 @@
       seasonYear: state.season,
       weekNumber: state.week,
     });
-    const link = encodeShareCard(payload);
-    const text = `${formatCardText(payload)}\n\n${link}`;
-    const ok = await copyText(text);
-    setSaveStatus(
-      ok ? "Copied card summary + share link. Anyone with the link can open it on this page." : `Copy failed — link: ${link}`,
-      ok ? "ok" : "err"
-    );
+    setSaveStatus("Creating share link…", "info");
+    try {
+      const link = await createShareLink(payload);
+      const text = `${formatCardText(payload)}\n\n${link}`;
+      const ok = await copyText(text);
+      setSaveStatus(
+        ok ? "Copied card summary + share link. Anyone with the link can open it on this page." : `Copy failed — link: ${link}`,
+        ok ? "ok" : "err"
+      );
+    } catch (err) {
+      setSaveStatus(err.message || "Could not create a share link.", "err");
+    }
   }
 
   function american(n) {

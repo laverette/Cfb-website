@@ -254,7 +254,7 @@
           <div class="picks-reminders-copy">
             <h2 class="picks-reminders-title" id="picksRemindersTitle">Email reminders</h2>
             <p class="picks-reminders-lead">
-              Get a reminder about 2 hours before picks lock (30 min after Saturday’s first kickoff) if you haven’t submitted yet.
+              Get a Saturday morning email at 9 AM Central if you haven’t submitted your picks yet.
             </p>
             <p class="picks-reminders-status" id="emailRemindersStatus" aria-live="polite"></p>
           </div>
@@ -1981,7 +1981,7 @@
           setEmailReminderUi(enabled, { loggedIn: true });
           if (status) {
             status.textContent = enabled
-              ? 'You’ll get an email if picks aren’t submitted before lock.'
+              ? 'You’ll get a Saturday 9 AM Central email if picks aren’t in yet.'
               : 'Reminders are off. Turn them on anytime.';
           }
         } catch (_) {
@@ -2015,7 +2015,7 @@
           setEmailReminderUi(next, { loggedIn: true });
           if (status) {
             status.textContent = next
-              ? 'Reminders enabled. We’ll email you before picks lock.'
+              ? 'Reminders enabled. Saturday 9 AM Central if you haven’t submitted.'
               : 'Reminders turned off.';
           }
         } catch (err) {

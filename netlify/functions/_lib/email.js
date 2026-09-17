@@ -73,12 +73,12 @@ async function sendEmail({ to, subject, html, text, replyTo }) {
   return body;
 }
 
-function formatLockTimeEt(iso) {
-  if (!iso) return "soon";
+function formatLockTimeCt(iso) {
+  if (!iso) return "Saturday game time";
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "soon";
+  if (Number.isNaN(d.getTime())) return "Saturday game time";
   return d.toLocaleString("en-US", {
-    timeZone: "America/New_York",
+    timeZone: "America/Chicago",
     weekday: "short",
     month: "short",
     day: "numeric",
@@ -98,17 +98,17 @@ function buildPickReminderEmail({
 }) {
   const name = displayName || "there";
   const week = String(weekLabel || "This week").trim();
-  const lockLabel = formatLockTimeEt(locksAt);
-  const subjectBase = `${week} picks lock soon — submit yours`;
+  const lockLabel = formatLockTimeCt(locksAt);
+  const subjectBase = `${week} picks — Saturday reminder`;
   const subject = isTest ? `[TEST] ${subjectBase}` : subjectBase;
-  const preheader = `Picks lock at ${lockLabel}. Submit before the deadline.`;
+  const preheader = `Saturday reminder: submit your ${week} picks before they lock (${lockLabel}).`;
 
   const text = [
     isTest ? "[TEST REMINDER]" : null,
     `Hi ${name},`,
     "",
-    `You haven't submitted your ${week} weekly picks yet.`,
-    `Picks lock at ${lockLabel}.`,
+    `Saturday reminder — you haven't submitted your ${week} weekly picks yet.`,
+    locksAt ? `Picks lock at ${lockLabel}.` : "Picks lock after Saturday's first kickoff window.",
     "",
     `Submit picks: ${picksUrl}`,
     "",
@@ -160,9 +160,12 @@ function buildPickReminderEmail({
                   : ""
               }
               <p style="margin:0 0 8px;color:#ffd700;font-size:12px;letter-spacing:0.12em;text-transform:uppercase;font-family:Arial,Helvetica,sans-serif;font-weight:700;">College Football Predictions</p>
-              <h1 style="margin:0 0 14px;font-size:26px;line-height:1.25;color:#ffd700;font-weight:700;">${escapeHtml(week)} picks lock soon</h1>
+              <h1 style="margin:0 0 14px;font-size:26px;line-height:1.25;color:#ffd700;font-weight:700;">Saturday picks reminder</h1>
               <p style="margin:0 0 18px;font-size:16px;line-height:1.55;color:#f5deb3;">
                 Hi ${escapeHtml(name)} — you still haven’t locked in your board for <strong style="color:#ffe566;">${escapeHtml(week)}</strong>.
+              </p>
+              <p style="margin:0 0 18px;font-size:15px;line-height:1.5;color:#e8d5a3;">
+                Picks lock at <strong style="color:#ffe566;">${escapeHtml(lockLabel)}</strong>.
               </p>
             </td>
           </tr>

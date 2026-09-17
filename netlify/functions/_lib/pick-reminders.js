@@ -1,7 +1,7 @@
 /**
- * Send pick-deadline reminder emails to opted-in users who haven't submitted.
+ * Send Saturday-morning pick reminder emails to opted-in users who haven't submitted.
  *
- * Test one recipient (never blasts everyone):
+ * Scheduled for ~9 AM America/Chicago on Saturdays. Test a single inbox:
  *   GET /api/cron/pick-reminders?secret=CRON_SECRET&to=you@example.com&force=1
  */
 const {
@@ -19,8 +19,26 @@ const {
   buildPickReminderEmail,
 } = require("./email");
 
-/** Send when lock time is this many ms away (default: 2 hours before lock). */
-const REMINDER_WINDOW_MS = Number(process.env.PICK_REMINDER_HOURS_BEFORE || 2) * 60 * 60 * 1000;
+const CENTRAL_TZ = "America/Chicago";
+
+/**
+ * True during the 9 AM Central hour on Saturday.
+ * Netlify cron fires at 14:00 and 15:00 UTC on Saturdays so both CDT and CST
+ * land on local hour 9; this gate ensures only the matching hour sends.
+ */
+function isSaturdayNineAmCentral(now = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: CENTRAL_TZ,
+    weekday: "short",
+    hour: "numeric",
+    hourCycle: "h23",
+  }).formatToParts(now);
+  const weekday = parts.find((p) => p.type === "weekday")?.value;
+  let hour = Number(parts.find((p) => p.type === "hour")?.value);
+  // Some engines report midnight as 24 under h23.
+  if (hour === 24) hour = 0;
+  return weekday === "Sat" && hour === 9;
+}
 
 function weekLabel(week) {
   if (!week) return "This week";
@@ -29,14 +47,6 @@ function weekLabel(week) {
   if (n && y) return `Week ${n} · ${y}`;
   if (n) return `Week ${n}`;
   return "This week";
-}
-
-function withinReminderWindow(locksAt, now = new Date()) {
-  if (!locksAt) return false;
-  const lockMs = new Date(locksAt).getTime();
-  if (!Number.isFinite(lockMs)) return false;
-  const msUntil = lockMs - now.getTime();
-  return msUntil > 0 && msUntil <= REMINDER_WINDOW_MS;
 }
 
 function normalizeTestEmail(value) {
@@ -49,6 +59,7 @@ async function runPickReminders({
   dryRun = false,
   toEmail = null,
   force = false,
+  now = new Date(),
 } = {}) {
   if (!isEmailConfigured()) {
     return {
@@ -69,15 +80,26 @@ async function runPickReminders({
     return { ok: true, skipped: true, reason: "no_games", sent: 0 };
   }
 
-  const locksAt = getEffectiveWeekLockTime(games);
+  const locksAt = getEffectiveWeekLockTime(games, now);
   const testTo = normalizeTestEmail(toEmail);
   const forceSend = Boolean(force) || Boolean(testTo);
 
-  if (!forceSend && !withinReminderWindow(locksAt)) {
+  if (!forceSend && !isSaturdayNineAmCentral(now)) {
     return {
       ok: true,
       skipped: true,
-      reason: "outside_reminder_window",
+      reason: "outside_saturday_9am_ct",
+      locksAt,
+      sent: 0,
+      centralNow: now.toLocaleString("en-US", { timeZone: CENTRAL_TZ }),
+    };
+  }
+
+  if (!forceSend && locksAt && new Date(locksAt).getTime() <= now.getTime()) {
+    return {
+      ok: true,
+      skipped: true,
+      reason: "already_locked",
       locksAt,
       sent: 0,
     };
@@ -124,7 +146,7 @@ async function runPickReminders({
     const mail = buildPickReminderEmail({
       displayName,
       weekLabel: label,
-      locksAt: locksAt || new Date(Date.now() + REMINDER_WINDOW_MS).toISOString(),
+      locksAt: locksAt || null,
       picksUrl,
       settingsUrl,
       isTest: Boolean(testTo),
@@ -169,6 +191,6 @@ async function runPickReminders({
 
 module.exports = {
   runPickReminders,
-  withinReminderWindow,
-  REMINDER_WINDOW_MS,
+  isSaturdayNineAmCentral,
+  CENTRAL_TZ,
 };

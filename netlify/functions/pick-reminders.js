@@ -1,9 +1,13 @@
 /**
- * Scheduled: send pick-deadline reminder emails.
+ * Scheduled: Saturday ~9 AM Central pick-deadline reminder emails.
  * Also callable manually with ?secret=CRON_SECRET for testing.
  *
  * Test a single inbox (does not email anyone else):
  *   /api/cron/pick-reminders?secret=CRON_SECRET&to=you@example.com&force=1
+ *
+ * Cron fires at 14:00 and 15:00 UTC on Saturdays so both CDT (UTC-5) and
+ * CST (UTC-6) map to 9 AM America/Chicago. The handler only sends during
+ * the local 9 AM hour.
  */
 const { json } = require("./_http");
 const { runPickReminders } = require("./_lib/pick-reminders");
@@ -48,5 +52,6 @@ exports.handler = async (event) => {
 };
 
 exports.config = {
-  schedule: "@hourly",
+  // Saturdays 14:00 + 15:00 UTC ≈ 9 AM Central across DST.
+  schedule: "0 14,15 * * 6",
 };

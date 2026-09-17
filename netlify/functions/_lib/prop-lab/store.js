@@ -139,4 +139,78 @@ async function deleteEntry(userId, id) {
   return !error;
 }
 
-module.exports = { saveEntry, listEntries, getEntry, deleteEntry, snapshotLeg };
+function newShareId() {
+  // 16 hex chars — short enough for a URL, hard to guess.
+  const crypto = require("crypto");
+  return crypto.randomBytes(8).toString("hex");
+}
+
+/**
+ * Persist a shareable card snapshot and return a short id. Query-string
+ * base64 payloads blow past browser/CDN URL limits once a card has a few
+ * legs, so shares live in the database instead.
+ */
+async function createShare({ payload, userId = null, ttlDays = 90 } = {}) {
+  if (!hasSupabase()) {
+    const err = new Error("Database not configured");
+    err.code = "NO_DB";
+    throw err;
+  }
+  if (!payload || typeof payload !== "object" || !Array.isArray(payload.legs) || !payload.legs.length) {
+    const err = new Error("Share payload needs at least one leg");
+    err.code = "INVALID_SHARE";
+    throw err;
+  }
+  const supabase = getSupabase();
+  const expiresAt =
+    ttlDays > 0 ? new Date(Date.now() + ttlDays * 24 * 60 * 60 * 1000).toISOString() : null;
+
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    const id = newShareId();
+    const { data, error } = await supabase
+      .from("prop_lab_shares")
+      .insert({
+        id,
+        payload,
+        created_by: userId || null,
+        expires_at: expiresAt,
+      })
+      .select("id, created_at, expires_at")
+      .single();
+    if (!error && data) return data;
+    if (error?.code === UNDEFINED_TABLE) throw saveError(error, "share");
+    if (error?.code !== "23505") throw saveError(error, "share");
+  }
+  const err = new Error("Could not allocate a share id");
+  err.code = "SAVE_FAILED";
+  throw err;
+}
+
+async function getShare(id) {
+  if (!hasSupabase()) return null;
+  const shareId = String(id || "").trim().toLowerCase();
+  if (!/^[a-f0-9]{12,32}$/.test(shareId)) return null;
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from("prop_lab_shares")
+    .select("id, payload, created_at, expires_at")
+    .eq("id", shareId)
+    .maybeSingle();
+  if (error) {
+    if (error.code === UNDEFINED_TABLE) return null;
+    return null;
+  }
+  if (!data) return null;
+  if (data.expires_at && new Date(data.expires_at).getTime() < Date.now()) return null;
+  return data;
+}
+
+module.exports = {
+  saveEntry,
+  listEntries,
+  getEntry,
+  deleteEntry,
+  snapshotLeg,
+  createShare,
+  getShare,
+};
