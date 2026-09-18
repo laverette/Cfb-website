@@ -2,7 +2,13 @@ const { clamp, mean } = require("./math");
 const { analyzeCorrelations } = require("./correlation");
 const { legCaption, compactLegCaption } = require("./format");
 const { jointAllHit } = require("./joint");
-const { entryValue } = require("./value");
+const {
+  entryValue,
+  conservativePHit,
+  realisticPassRate,
+  decorateTogetherPassRate,
+  modelRiskDiscount,
+} = require("./value");
 
 function letterFromAvg(score) {
   if (score >= 82) return "A-";
@@ -113,7 +119,18 @@ function analyzeEntry(legs, opts = {}) {
     92
   );
 
-  const together = jointAllHit(ok, pairs);
+  const togetherModel = jointAllHit(ok, pairs);
+  const conservative = ok.map((l) => ({ ...l, pHit: conservativePHit(l) }));
+  const togetherConservative = jointAllHit(conservative, pairs) || togetherModel;
+  const pass = realisticPassRate(togetherConservative?.p ?? togetherModel?.p, {
+    risk: riskInfo.risk,
+    entryStrength: strength,
+    riskDrivers: riskInfo.drivers,
+    avgConf: riskInfo.avgConf,
+    weakestScore: weakest?.propScore,
+    modelDiscount: modelRiskDiscount(),
+  });
+  const together = decorateTogetherPassRate(togetherModel, pass);
   return {
     grade: letterFromAvg(gradeScore),
     gradeInputs: {
@@ -131,6 +148,8 @@ function analyzeEntry(legs, opts = {}) {
     strongestCaption: legCaption(strongest),
     weakestCaption: legCaption(weakest),
     risk: riskInfo.risk,
+    riskPercent: pass?.riskPercent ?? null,
+    safetyPercent: pass?.safetyPercent ?? null,
     riskDrivers: riskInfo.drivers,
     correlations: pairs,
     entryStrength: strength,
@@ -141,8 +160,12 @@ function analyzeEntry(legs, opts = {}) {
       together,
       risk: riskInfo.risk,
       payout: opts.payout ?? opts.odds,
+      entryStrength: strength,
+      riskDrivers: riskInfo.drivers,
+      avgConf: riskInfo.avgConf,
+      weakestScore: weakest?.propScore,
     }),
-    note: "Entry Strength is a relative quality score. All-hit % is the estimated chance every listed leg cashes, after correlations.",
+    note: "Entry Strength is a relative quality score. Pass rate is the realistic chance every listed leg cashes after risk and bet safety — not the raw model product.",
     strengthTooltip:
       "A relative score based on leg quality, model confidence, correlation, and concentration. It is not the probability that every leg hits.",
   };

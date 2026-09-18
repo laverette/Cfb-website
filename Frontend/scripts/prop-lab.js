@@ -588,9 +588,11 @@
     bar.classList.add("is-on");
     if (text) {
       const value = a.value;
-      const together = a.together?.label ? ` · All hit ${a.together.label}` : "";
+      const together = a.together?.label ? ` · Pass ${a.together.label}` : "";
       const call = value?.verdictLabel ? ` · ${value.verdictLabel}` : "";
-      text.textContent = `${a.grade}${call}${together} · Risk ${a.risk || "—"}`;
+      text.textContent = `${a.grade}${call}${together} · Risk ${a.risk || "—"}${
+        a.safetyPercent != null ? ` · Safety ${a.safetyPercent}%` : ""
+      }`;
     }
   }
 
@@ -658,13 +660,23 @@
       .join("");
     const drivers = (a.riskDrivers || []).map((d) => `<li>${escapeHtml(d)}</li>`).join("");
     const together = a.together;
+    const modelPct =
+      together?.pModel != null
+        ? pctTogether(together.pModel)
+        : together?.p != null
+          ? pctTogether(together.p)
+          : null;
     const togetherNote = together
       ? together.corrUsed
         ? `Independent (if these ${together.n} legs were unrelated): ${escapeHtml(
             pctTogether(together.independent)
-          )}. Correlations adjust that to ${escapeHtml(together.pctLabel)}.`
-        : `These ${together.n} legs look independent, so all-hit is the product of the individual probabilities.`
+          )}. Correlations adjust the model joint to ${escapeHtml(modelPct || "—")}.`
+        : `These ${together.n} legs look independent, so the model joint is the product of the individual probabilities.`
       : "";
+    const riskSafetyNote =
+      together?.riskPercent != null && together?.safetyPercent != null
+        ? `Pass rate folds in risk ${together.riskPercent}% and bet safety ${together.safetyPercent}%.`
+        : "";
     const value = a.value;
     const verdictClass =
       value?.verdict === "play" ? "is-play" : value?.verdict === "lean" ? "is-lean" : value?.verdict === "pass" ? "is-pass" : "";
@@ -685,19 +697,25 @@
       }
       <div class="prop-grade-row">
         <div class="prop-kpi prop-kpi-together">
-          <span>All hit <button type="button" class="prop-info" title="${escapeHtml(
-            together?.tooltip || "Estimated chance every listed leg hits together."
+          <span>Pass rate <button type="button" class="prop-info" title="${escapeHtml(
+            together?.tooltip || "Realistic chance every listed leg hits after risk and bet safety."
           )}">i</button></span>
           <strong>${escapeHtml(together?.pctLabel || "—")}</strong>
-          <em>${escapeHtml(together?.americanLabel || "")}</em>
+          <em>${escapeHtml(together?.americanLabelPass || together?.americanLabel || "")}</em>
         </div>
         <div class="prop-kpi"><span>Entry grade</span><strong>${escapeHtml(a.grade || "—")}</strong></div>
         <div class="prop-kpi"><span>Strength <button type="button" class="prop-info" title="${escapeHtml(
           a.strengthTooltip || "A relative score based on leg quality, confidence, correlation, and concentration. It is not the probability that every leg hits."
         )}">i</button></span><strong>${escapeHtml(String(a.entryStrength ?? "—"))}</strong></div>
-        <div class="prop-kpi"><span>Risk</span><strong>${escapeHtml(a.risk || "—")}</strong></div>
+        <div class="prop-kpi"><span>Risk</span><strong>${escapeHtml(
+          a.riskPercent != null ? `${a.risk || "—"} · ${a.riskPercent}%` : a.risk || "—"
+        )}</strong></div>
+        <div class="prop-kpi"><span>Safety</span><strong>${escapeHtml(
+          a.safetyPercent != null ? `${a.safetyPercent}%` : "—"
+        )}</strong></div>
       </div>
       ${togetherNote ? `<p class="prop-together-note">${togetherNote}</p>` : ""}
+      ${riskSafetyNote ? `<p class="prop-together-note">${escapeHtml(riskSafetyNote)}</p>` : ""}
       <div class="prop-analysis-extra" id="summaryExtra">
         <details ${state.summaryOpen ? "open" : ""} data-extra="value">
           <summary>Why this call</summary>
@@ -1305,7 +1323,7 @@
     const why = (result.why || []).map((w) => `<li>${escapeHtml(w)}</li>`).join("");
     const together = result.together;
     const togetherLine = together?.label
-      ? `<p class="prop-together-note">This ${n}-leg set all-hit: <strong>${escapeHtml(together.label)}</strong></p>`
+      ? `<p class="prop-together-note">This ${n}-leg set pass rate: <strong>${escapeHtml(together.label)}</strong></p>`
       : "";
     panel.innerHTML = `<div class="matchup-panel-head"><h2 class="matchup-panel-title">Best ${n} of ${escapeHtml(String((result.keep || []).length + (result.cut || []).length))}</h2></div>
       <p class="prop-market-note">Mode: ${escapeHtml(result.mode || state.bestMode)} · Why this ${n}-leg set</p>
@@ -1415,6 +1433,8 @@
     return {
       note: analysis.note || null,
       risk: analysis.risk || null,
+      riskPercent: analysis.riskPercent ?? null,
+      safetyPercent: analysis.safetyPercent ?? null,
       grade: analysis.grade || null,
       entryStrength: analysis.entryStrength ?? null,
       together: analysis.together || null,
@@ -1504,7 +1524,7 @@
       lines.push(`Verdict: ${payload.analysis.value.verdictLabel}`);
     }
     if (payload.analysis?.together?.label) {
-      lines.push(`Together: ${payload.analysis.together.label}`);
+      lines.push(`Pass rate: ${payload.analysis.together.label}`);
     }
     return lines.filter(Boolean).join("\n");
   }

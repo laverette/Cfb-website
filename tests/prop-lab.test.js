@@ -463,6 +463,9 @@ describe("joint all-hit probability", () => {
     assert.ok(Math.abs(analysis.together.p - 0.25) < 0.005);
     assert.equal(analysis.together.american, 300);
     assert.equal(analysis.together.americanLabel, "+300");
+    assert.ok(analysis.together.pPass < analysis.together.p);
+    assert.ok(analysis.together.riskPercent > 0);
+    assert.ok(analysis.together.safetyPercent > 0);
   });
 
   it("raises all-hit when same-player legs are positively correlated", () => {
@@ -701,6 +704,75 @@ describe("entry value vs payout odds", () => {
       { payout: "3x" }
     );
     assert.ok(analysis.value.pUse < 0.55);
+  });
+
+  it("discounts pass rate more for high-risk unsafe cards than clean low-risk ones", () => {
+    const { riskPercent, safetyPercent, realisticPassRate } = require(path.join(root, "value"));
+    const clean = analyzeEntry(
+      [
+        qbLeg("a", "Miami", 0.7),
+        qbLeg("b", "Clemson", 0.68),
+        qbLeg("c", "Duke", 0.66),
+        qbLeg("d", "NC State", 0.69),
+      ],
+      { payout: "10x" }
+    );
+    const messy = analyzeEntry(
+      [
+        {
+          ...qbLeg("a", "Miami", 0.7, {
+            confidence: "D",
+            flags: ["Small Sample", "High Variance"],
+          }),
+          player: { id: "same", name: "Same", team: "Miami" },
+          propScore: 52,
+          form: { games: 2 },
+          stat: { id: "rec_td", short: "REC TD" },
+        },
+        {
+          ...qbLeg("b", "Miami", 0.68, { confidence: "D", flags: ["Small Sample"] }),
+          player: { id: "same", name: "Same", team: "Miami" },
+          propScore: 50,
+          form: { games: 2 },
+          stat: { id: "rush_td", short: "RUSH TD" },
+        },
+        {
+          ...qbLeg("c", "Miami", 0.66, { confidence: "D", flags: ["Small Sample"] }),
+          player: { id: "same", name: "Same", team: "Miami" },
+          propScore: 48,
+          form: { games: 2 },
+          stat: { id: "pass_td", short: "PASS TD" },
+        },
+      ],
+      { payout: "5x" }
+    );
+
+    assert.equal(riskPercent("Low"), 18);
+    assert.equal(riskPercent("Very High"), 88);
+    assert.ok(clean.safetyPercent > messy.safetyPercent);
+    assert.ok(clean.together.pPass < clean.together.p);
+    assert.ok(messy.together.pPass / messy.together.p < clean.together.pPass / clean.together.p);
+
+    const risky = realisticPassRate(0.25, {
+      risk: "Very High",
+      entryStrength: 40,
+      riskDrivers: ["a", "b", "c"],
+      avgConf: 2,
+      weakestScore: 45,
+      modelDiscount: 0.9,
+    });
+    const safe = realisticPassRate(0.25, {
+      risk: "Low",
+      entryStrength: 80,
+      riskDrivers: [],
+      avgConf: 6,
+      weakestScore: 72,
+      modelDiscount: 0.9,
+    });
+    assert.ok(risky.p < safe.p);
+    assert.ok(risky.riskPercent > safe.riskPercent);
+    assert.ok(risky.safetyPercent < safe.safetyPercent);
+    assert.ok(safetyPercent({ risk: "Low", entryStrength: 80, avgConf: 6, weakestScore: 72 }) >= 70);
   });
 });
 
