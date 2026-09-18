@@ -803,6 +803,36 @@ describe("entry value vs payout odds", () => {
     assert.equal(analysis.value.verdict, "play");
     assert.notEqual(analysis.risk, "High");
   });
+
+  it("recommends Flex (protected) or Power from EV for a 3-leg card", () => {
+    const { comparePlayModes } = require(path.join(root, "play-modes"));
+    const flexLean = comparePlayModes({
+      probs: [0.55, 0.54, 0.53],
+      pAll: 0.55 * 0.54 * 0.53,
+      risk: "High",
+    });
+    assert.equal(flexLean.available, true);
+    assert.ok(flexLean.power);
+    assert.ok(flexLean.flex);
+    assert.equal(flexLean.flex.id, "flex");
+    assert.match(flexLean.flex.label, /protected/i);
+    assert.ok(flexLean.flex.payouts.some((p) => p.hits === 2));
+
+    // Near coin-flip legs: Flex cash chance is much higher than Power all-hit.
+    assert.ok(flexLean.flex.pCash > flexLean.power.pCash);
+
+    const analysis = analyzeEntry(
+      [
+        qbLeg("a", "Miami", 0.58),
+        qbLeg("b", "Clemson", 0.56),
+        qbLeg("c", "Duke", 0.55),
+      ],
+      { payout: "5x" }
+    );
+    assert.ok(analysis.value.playModes?.available);
+    assert.ok(["power", "flex"].includes(analysis.value.playModes.recommend));
+    assert.ok(analysis.value.playModes.recommendLabel);
+  });
 });
 
 describe("rushing / passing / TD props", () => {

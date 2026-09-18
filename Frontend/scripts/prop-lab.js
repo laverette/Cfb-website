@@ -590,7 +590,8 @@
       const value = a.value;
       const together = a.together?.label ? ` · Pass ${a.together.label}` : "";
       const call = value?.verdictLabel ? ` · ${value.verdictLabel}` : "";
-      text.textContent = `${a.grade}${call}${together} · Risk ${a.risk || "—"}${
+      const mode = value?.playModes?.recommendLabel ? ` · ${value.playModes.recommendLabel}` : "";
+      text.textContent = `${a.grade}${call}${mode}${together} · Risk ${a.risk || "—"}${
         a.safetyPercent != null ? ` · Safety ${a.safetyPercent}%` : ""
       }`;
     }
@@ -678,9 +679,47 @@
         ? `Risk ${together.riskPercent}% and safety ${together.safetyPercent}% nudge the edge; they do not rewrite the pass rate.`
         : "";
     const value = a.value;
+    const playModes = value?.playModes;
     const verdictClass =
       value?.verdict === "play" ? "is-play" : value?.verdict === "lean" ? "is-lean" : value?.verdict === "pass" ? "is-pass" : "";
     const reasons = (value?.reasons || []).map((r) => `<li>${escapeHtml(r)}</li>`).join("");
+    const modeCard = (mode, recommended) => {
+      if (!mode) return "";
+      const rows = (mode.payouts || [])
+        .map(
+          (row) =>
+            `<li><span>${escapeHtml(row.label)}</span><strong>${escapeHtml(pct(row.p))}</strong></li>`
+        )
+        .join("");
+      return `<article class="prop-mode-card${recommended ? " is-recommended" : ""}">
+        <header>
+          <strong>${escapeHtml(mode.label)}</strong>
+          ${recommended ? `<span class="prop-mode-badge">Recommended</span>` : ""}
+        </header>
+        <p class="prop-mode-ev">${escapeHtml(mode.evLabel)} EV</p>
+        <p class="prop-mode-meta">${escapeHtml(mode.multiplierLabel)} · cash chance ${escapeHtml(mode.pCashLabel || "—")}</p>
+        ${rows ? `<ul class="prop-mode-payouts">${rows}</ul>` : ""}
+      </article>`;
+    };
+    const modesHtml =
+      playModes?.available && (playModes.power || playModes.flex)
+        ? `<div class="prop-modes">
+            <div class="prop-modes-head">
+              <strong>Power vs Flex</strong>
+              <button type="button" class="prop-info" title="${escapeHtml(
+                playModes.tooltip ||
+                  "Power needs every leg. Flex (protected) can miss and still cash a smaller payout."
+              )}">i</button>
+            </div>
+            <p class="prop-modes-pick">Prefer <em>${escapeHtml(playModes.recommendLabel || "—")}</em>${
+              playModes.reason ? ` — ${escapeHtml(playModes.reason)}` : ""
+            }</p>
+            <div class="prop-modes-grid">
+              ${modeCard(playModes.power, playModes.recommend === "power")}
+              ${modeCard(playModes.flex, playModes.recommend === "flex")}
+            </div>
+          </div>`
+        : "";
     host.className = "";
     host.innerHTML = `
       ${
@@ -695,6 +734,7 @@
             </div>`
           : ""
       }
+      ${modesHtml}
       <div class="prop-grade-row">
         <div class="prop-kpi prop-kpi-together">
           <span>Pass rate <button type="button" class="prop-info" title="${escapeHtml(

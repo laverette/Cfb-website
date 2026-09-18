@@ -1,6 +1,7 @@
 const { clamp } = require("./math");
 const { jointAllHit, formatTogetherPct, formatAmerican, toAmerican } = require("./joint");
 const { loadCalibratorMeta } = require("./calibration");
+const { comparePlayModes } = require("./play-modes");
 
 const POWER_MULTIPLIER = {
   2: 3,
@@ -345,6 +346,15 @@ function entryValue({
     reasons.push("At least one unusual line was not taken at face value.");
   }
 
+  const playModes = comparePlayModes({
+    probs: conservative.map((l) => l.pHit),
+    pAll: pUse,
+    risk,
+  });
+  if (playModes?.available && playModes.recommendLabel) {
+    reasons.push(`Play type: prefer ${playModes.recommendLabel}. ${playModes.reason || ""}`.trim());
+  }
+
   return {
     verdict,
     verdictLabel,
@@ -363,9 +373,10 @@ function entryValue({
     neededLabel: formatTogetherPct(breakeven),
     modelLabel: formatTogetherPct(pUse),
     summary: `${verdictLabel} · ${formatTogetherPct(pUse)} pass vs ${formatTogetherPct(breakeven)} needed`,
+    playModes,
     reasons,
     tooltip:
-      "Compares the calibrated pass rate with the payout you entered (or PrizePicks Power defaults). Risk and safety nudge the edge mildly and raise the Play bar — they do not rewrite a strong single-leg probability. Educational lean only — not betting advice.",
+      "Compares the calibrated pass rate with the payout you entered (or PrizePicks Power defaults). Also scores Power vs Flex (protected). Educational lean only — not betting advice.",
   };
 }
 
@@ -384,4 +395,5 @@ module.exports = {
   POWER_MULTIPLIER,
   UNUSUAL_LINE_SHRINK,
   RISK_PERCENT,
+  comparePlayModes,
 };
