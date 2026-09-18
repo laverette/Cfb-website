@@ -11,6 +11,7 @@ const {
   listUsersForPickReminders,
   recordPickReminderSent,
   findUserByUsernameOrEmail,
+  getUserWeekSubmission,
 } = require("../db");
 const {
   sendEmail,
@@ -82,6 +83,9 @@ async function runPickReminders({
 
   const locksAt = getEffectiveWeekLockTime(games, now);
   const testTo = normalizeTestEmail(toEmail);
+  // force=1 bypasses the Saturday window / lock checks. It does NOT bypass
+  // "already submitted" on the normal recipient list — only an explicit test
+  // recipient (?to=) can get mail after submitting, for inbox testing.
   const forceSend = Boolean(force) || Boolean(testTo);
 
   if (!forceSend && !isSaturdayNineAmCentral(now)) {
@@ -126,6 +130,7 @@ async function runPickReminders({
       },
     ];
   } else {
+    // Already excludes anyone with user_picks for this week.
     candidates = await listUsersForPickReminders(week.id);
   }
 
@@ -139,9 +144,28 @@ async function runPickReminders({
   const settingsUrl = `${base}/user-profile.html`;
 
   let sent = 0;
+  let skippedSubmitted = 0;
   const errors = [];
 
   for (const user of candidates) {
+    // Final guard: never email someone who submitted between the list query
+    // and this send (or who slipped through on an id-type mismatch).
+    if (!testTo) {
+      try {
+        const status = await getUserWeekSubmission(user.id, week.id, {
+          lock: { picksLocked: false, locksAt },
+        });
+        if (status.hasSubmitted) {
+          skippedSubmitted += 1;
+          continue;
+        }
+      } catch (err) {
+        console.error("pick-reminder submission check failed", user.id, err.message || err);
+        errors.push({ userId: user.id, message: err.message || String(err) });
+        continue;
+      }
+    }
+
     const displayName = user.display_name || user.username || "Player";
     const mail = buildPickReminderEmail({
       displayName,
@@ -184,6 +208,7 @@ async function runPickReminders({
     to: testTo || undefined,
     force: forceSend,
     candidates: candidates.length,
+    skippedSubmitted,
     sent,
     errors: errors.length ? errors : undefined,
   };

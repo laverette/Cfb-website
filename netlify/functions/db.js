@@ -475,21 +475,31 @@ async function markPasswordResetTokenUsed(tokenId) {
 
 async function listUsersForPickReminders(weekId) {
   const supabase = getSupabase();
+  const toId = (v) => {
+    const n = Number(v);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  };
+
   const { data: settingsRows, error: settingsErr } = await supabase
     .from("user_settings")
     .select("user_id")
     .eq("email_notifications", true);
   dbError(settingsErr);
-  const userIds = (settingsRows || []).map((r) => r.user_id).filter(Boolean);
+  const userIds = [
+    ...new Set((settingsRows || []).map((r) => toId(r.user_id)).filter(Boolean)),
+  ];
   if (!userIds.length) return [];
 
+  // Anyone with user_picks for this week has already submitted — never remind them.
+  // Normalize ids to numbers: Supabase may return bigint as string, and Set
+  // equality is strict (5 !== "5").
   const { data: pickRows, error: picksErr } = await supabase
     .from("user_picks")
     .select("user_id")
     .eq("week_id", weekId)
     .in("user_id", userIds);
   dbError(picksErr);
-  const submitted = new Set((pickRows || []).map((r) => r.user_id));
+  const submitted = new Set((pickRows || []).map((r) => toId(r.user_id)).filter(Boolean));
 
   const { data: logRows, error: logErr } = await supabase
     .from("pick_reminder_log")
@@ -497,7 +507,7 @@ async function listUsersForPickReminders(weekId) {
     .eq("week_id", weekId)
     .in("user_id", userIds);
   dbError(logErr);
-  const reminded = new Set((logRows || []).map((r) => r.user_id));
+  const reminded = new Set((logRows || []).map((r) => toId(r.user_id)).filter(Boolean));
 
   const needIds = userIds.filter((id) => !submitted.has(id) && !reminded.has(id));
   if (!needIds.length) return [];
@@ -507,7 +517,10 @@ async function listUsersForPickReminders(weekId) {
     .select("id, email, username, display_name")
     .in("id", needIds);
   dbError(usersErr);
-  return users || [];
+  return (users || []).map((u) => ({
+    ...u,
+    id: toId(u.id) ?? u.id,
+  }));
 }
 
 async function recordPickReminderSent(userId, weekId) {
