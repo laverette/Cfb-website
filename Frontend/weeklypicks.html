@@ -9,7 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
   <link rel="stylesheet" href="styles/site-theme.css">
-  <link rel="stylesheet" href="Resources/Styles/weeklypicks.css?v=25">
+  <link rel="stylesheet" href="Resources/Styles/weeklypicks.css?v=26">
   <link rel="stylesheet" href="styles/picks-hub.css">
   <link rel="stylesheet" href="Resources/Styles/power.css">
   <link rel="stylesheet" href="styles/weeklypicks-mobile.css?v=2">
@@ -2296,6 +2296,7 @@
     function wireShareCardActions(options = {}) {
       bindOnce(document.getElementById('screenshotBtn'), 'click', takeScreenshot);
       bindOnce(document.getElementById('picksScreenshotBtn'), 'click', takeScreenshot);
+      prewarmShareLogos(document.getElementById('picksShareCard'));
 
       const onEdit = async function () {
         const status = window.__PICKS_STATUS__ || {};
@@ -2555,7 +2556,8 @@
       if (!resolved) {
         return `<span class="picks-share-logo-fallback">${safeText((name || '?').slice(0, 3).toUpperCase())}</span>`;
       }
-      // Same-origin proxy so saved screenshots can embed ESPN logos (no CORS).
+      // data-logo-src keeps the raw ESPN URL for post-capture canvas stamping.
+      // Display src uses the same-origin proxy for the on-screen card.
       let src = resolved;
       try {
         const parsed = new URL(resolved, window.location.href);
@@ -2572,7 +2574,7 @@
         fallbackProxied && fallbackProxied !== src
           ? ` onerror="if(!this.dataset.fb){this.dataset.fb='1';this.src='${safeText(fallbackProxied)}';}"`
           : '';
-      return `<img class="picks-share-logo" src="${safeText(src)}" alt="${safeText((name || '').slice(0, 3))}" width="24" height="24" loading="eager" decoding="async"${onError}>`;
+      return `<img class="picks-share-logo" src="${safeText(src)}" data-logo-src="${safeText(resolved)}" alt="${safeText((name || '').slice(0, 3))}" width="24" height="24" loading="eager" decoding="async"${onError}>`;
     }
 
     function resolvePickForGame(savedPicks, form, gameNumber, game) {
@@ -3057,31 +3059,7 @@
       }
     }
 
-    function waitForShareImages(root, timeoutMs = 2500) {
-      const imgs = Array.from(root.querySelectorAll('img'));
-      return Promise.all(
-        imgs.map((img) => {
-          // Already finished (including broken logos with naturalWidth 0) — do not wait forever.
-          if (img.complete) return Promise.resolve();
-          return new Promise((resolve) => {
-            let done = false;
-            const finish = () => {
-              if (done) return;
-              done = true;
-              clearTimeout(timer);
-              img.removeEventListener('load', finish);
-              img.removeEventListener('error', finish);
-              resolve();
-            };
-            const timer = setTimeout(finish, timeoutMs);
-            img.addEventListener('load', finish);
-            img.addEventListener('error', finish);
-          });
-        })
-      );
-    }
-
-    const captureImageDataUrlCache = new Map();
+    const logoBitmapCache = new Map();
 
     function captureFetchUrl(src) {
       const raw = String(src || '').trim();
@@ -3091,6 +3069,7 @@
         if (/(^|\.)espncdn\.com$/i.test(parsed.hostname)) {
           return `/api/logo?src=${encodeURIComponent(parsed.toString())}`;
         }
+        // Same-origin absolute URL for relative /api/logo paths.
         return parsed.toString();
       } catch {
         return raw;
@@ -3121,80 +3100,144 @@
       }
     }
 
-    async function inlineImagesForCapture(root) {
-      const imgs = Array.from(root.querySelectorAll('img.picks-share-logo, img'));
-      // Eager-load: lazy images inside the near-invisible capture host never fire.
-      imgs.forEach((img) => {
-        img.removeAttribute('loading');
-        img.loading = 'eager';
-        img.removeAttribute('decoding');
-      });
+    /**
+     * Load a logo as a drawable (ImageBitmap or HTMLImageElement) via same-origin
+     * /api/logo. Used to stamp logos onto the canvas AFTER html2canvas — which
+     * reliably fails to paint ESPN/proxy images on mobile Safari.
+     */
+    async function loadLogoDrawable(src) {
+      const fetchUrl = captureFetchUrl(src);
+      if (!fetchUrl) return null;
+      if (logoBitmapCache.has(fetchUrl)) return logoBitmapCache.get(fetchUrl);
 
-      await Promise.all(
-        imgs.map(async (img) => {
-          const raw = img.getAttribute('src') || img.currentSrc || '';
-          if (!raw || raw.startsWith('data:')) return;
+      const pending = (async () => {
+        try {
+          const resp = await fetchWithTimeout(fetchUrl, 8000);
+          if (!resp || !resp.ok) return null;
+          const blob = await resp.blob();
+          if (!blob || !blob.size) return null;
 
-          const proxyOrUrl = captureFetchUrl(raw);
-          if (captureImageDataUrlCache.has(proxyOrUrl)) {
-            img.src = captureImageDataUrlCache.get(proxyOrUrl);
-            img.removeAttribute('srcset');
-            return;
+          if (typeof createImageBitmap === 'function') {
+            try {
+              return await createImageBitmap(blob);
+            } catch (_) {}
           }
 
-          const tryEmbed = async (url) => {
-            const resp = await fetchWithTimeout(url, 5000);
-            if (!resp || !resp.ok) throw new Error(`logo ${resp && resp.status}`);
-            const blob = await resp.blob();
-            if (!blob || !blob.size || !(blob.type || '').startsWith('image/')) {
-              throw new Error('logo not image');
-            }
-            const dataUrl = await blobToDataUrl(blob);
-            if (typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image')) {
-              throw new Error('logo data url failed');
-            }
-            return dataUrl;
-          };
+          const dataUrl = await blobToDataUrl(blob);
+          if (typeof dataUrl !== 'string' || !dataUrl.startsWith('data:')) return null;
+          return await new Promise((resolve) => {
+            const im = new Image();
+            im.onload = () => resolve(im);
+            im.onerror = () => resolve(null);
+            im.src = dataUrl;
+          });
+        } catch (_) {
+          return null;
+        }
+      })();
 
-          try {
-            // Prefer same-origin proxy so ESPN CORS never blocks the canvas.
-            const dataUrl = await tryEmbed(proxyOrUrl);
-            captureImageDataUrlCache.set(proxyOrUrl, dataUrl);
-            img.src = dataUrl;
-            img.removeAttribute('srcset');
-            img.removeAttribute('crossorigin');
-            return;
-          } catch (err1) {
-            // Second try: direct ESPN URL (works on some desktops).
-            if (proxyOrUrl !== raw && raw.startsWith('http')) {
-              try {
-                const dataUrl = await tryEmbed(raw);
-                captureImageDataUrlCache.set(proxyOrUrl, dataUrl);
-                img.src = dataUrl;
-                img.removeAttribute('srcset');
-                return;
-              } catch (_) {}
-            }
-            // Keep a same-origin proxy src so html2canvas can still paint it.
-            if (proxyOrUrl.startsWith('/')) {
-              img.src = proxyOrUrl;
-              img.removeAttribute('srcset');
-              img.removeAttribute('crossorigin');
-              return;
-            }
-            // Last resort: abbreviation chip instead of a blank hole.
-            const label = (img.getAttribute('alt') || img.closest('.picks-share-team, .picks-share-pick')?.querySelector('span')?.textContent || '?')
+      logoBitmapCache.set(fetchUrl, pending);
+      return pending;
+    }
+
+    /** Fire-and-forget: warm logo bitmaps while the user looks at the card. */
+    function prewarmShareLogos(root) {
+      if (!root) return;
+      root.querySelectorAll('img.picks-share-logo').forEach((img) => {
+        const src = img.getAttribute('data-logo-src') || img.getAttribute('src') || '';
+        if (src) loadLogoDrawable(src);
+      });
+    }
+
+    function collectLogoSlots(clone) {
+      void clone.offsetWidth;
+      const rootRect = clone.getBoundingClientRect();
+      if (!rootRect.width || !rootRect.height) return [];
+      return Array.from(clone.querySelectorAll('img.picks-share-logo'))
+        .map((img) => {
+          const r = img.getBoundingClientRect();
+          const src =
+            img.getAttribute('data-logo-src') ||
+            img.getAttribute('src') ||
+            img.currentSrc ||
+            '';
+          return {
+            src,
+            x: r.left - rootRect.left,
+            y: r.top - rootRect.top,
+            w: Math.max(r.width, 1),
+            h: Math.max(r.height, 1),
+            label: String(img.getAttribute('alt') || '?')
               .trim()
               .slice(0, 3)
-              .toUpperCase();
-            const fb = document.createElement('span');
-            fb.className = 'picks-share-logo-fallback';
-            fb.textContent = label || '?';
-            img.replaceWith(fb);
+              .toUpperCase(),
+          };
+        })
+        .filter((s) => s.w > 0 && s.h > 0 && (s.src || s.label));
+    }
+
+    async function stampLogosOntoCanvas(canvas, clone, slots) {
+      if (!canvas || !slots || !slots.length) return;
+      const cw = clone.offsetWidth || clone.getBoundingClientRect().width;
+      const ch = clone.offsetHeight || clone.getBoundingClientRect().height;
+      if (!cw || !ch) return;
+      const scaleX = canvas.width / cw;
+      const scaleY = canvas.height / ch;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      await Promise.all(
+        slots.map(async (slot) => {
+          const drawable = slot.src ? await loadLogoDrawable(slot.src) : null;
+          const dx = slot.x * scaleX;
+          const dy = slot.y * scaleY;
+          const dw = slot.w * scaleX;
+          const dh = slot.h * scaleY;
+
+          if (drawable) {
+            ctx.drawImage(drawable, dx, dy, dw, dh);
+            return;
           }
+
+          // Abbreviation chip if the proxy/fetch failed.
+          const radius = Math.min(dw, dh) / 2;
+          ctx.fillStyle = '#3a2f28';
+          ctx.beginPath();
+          ctx.arc(dx + dw / 2, dy + dh / 2, radius, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#f5ebe0';
+          ctx.font = `bold ${Math.max(8, Math.floor(dh * 0.32))}px system-ui,sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(slot.label || '?', dx + dw / 2, dy + dh / 2 + 0.5);
         })
       );
-      await waitForShareImages(root, 4000);
+    }
+
+    /**
+     * Capture the card, then stamp logos onto the canvas (bypasses html2canvas image bugs).
+     */
+    async function renderShareCanvasWithLogos(clone, captureWidth, mobile) {
+      // Two frames so flex/grid layout settles before we measure logo boxes.
+      await new Promise((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(resolve));
+      });
+      const slots = collectLogoSlots(clone);
+      // Hide <img> so html2canvas does not paint broken/blank placeholders we stamp over.
+      clone.querySelectorAll('img.picks-share-logo').forEach((img) => {
+        img.style.visibility = 'hidden';
+      });
+
+      const preload = Promise.all(slots.map((s) => (s.src ? loadLogoDrawable(s.src) : null)));
+      const canvas = await renderShareCanvas(clone, captureWidth, mobile);
+      if (!canvas || !canvas.width) throw new Error('Could not render picks image.');
+      try {
+        await withTimeout(preload, 20000, 'logo-preload-timeout');
+      } catch (err) {
+        console.warn('logo preload partial', err);
+      }
+      await stampLogosOntoCanvas(canvas, clone, slots);
+      return canvas;
     }
 
     function prepareCaptureClone(source, captureWidth) {
@@ -3211,18 +3254,20 @@
           el.remove();
         } catch (_) {}
       });
-      // Do not strip <a> wrappers if any — only unwrap to keep logos.
       clone.querySelectorAll('a').forEach((a) => {
         const parent = a.parentNode;
         if (!parent) return;
         while (a.firstChild) parent.insertBefore(a.firstChild, a);
         a.remove();
       });
-      clone.querySelectorAll('img').forEach((img) => {
+      clone.querySelectorAll('img.picks-share-logo').forEach((img) => {
         img.removeAttribute('loading');
         img.loading = 'eager';
-        // Point ESPN logos at the same-origin proxy immediately.
-        const raw = img.getAttribute('src') || '';
+        // Preserve ESPN URL for canvas stamping; display via proxy if needed.
+        const raw = img.getAttribute('data-logo-src') || img.getAttribute('src') || '';
+        if (raw && !img.getAttribute('data-logo-src')) {
+          img.setAttribute('data-logo-src', raw);
+        }
         const proxied = captureFetchUrl(raw);
         if (proxied && proxied !== raw) img.setAttribute('src', proxied);
         img.removeAttribute('srcset');
@@ -3258,9 +3303,9 @@
           backgroundColor: '#1a1410',
           scale: mobile ? 1.25 : 2,
           useCORS: true,
-          // Logos are inlined as data: URLs (or same-origin /api/logo) so taint is avoided.
           allowTaint: false,
-          imageTimeout: 4000,
+          // Logos are stamped after capture — don't wait on <img> paint.
+          imageTimeout: 1500,
           logging: false,
           scrollX: 0,
           scrollY: 0,
@@ -3271,9 +3316,8 @@
             if (node) {
               node.style.transform = 'none';
               node.style.opacity = '1';
-              node.querySelectorAll('img').forEach((img) => {
-                img.removeAttribute('loading');
-                img.loading = 'eager';
+              node.querySelectorAll('img.picks-share-logo').forEach((img) => {
+                img.style.visibility = 'hidden';
               });
             }
           },
@@ -3306,13 +3350,7 @@
       }
 
       try {
-        // Give logos enough time — 12 games × 2–3 logos need the proxy round-trip.
-        try {
-          await withTimeout(inlineImagesForCapture(clone), 20000, 'logo-inline-timeout');
-        } catch (inlineErr) {
-          console.warn('logo inline partial', inlineErr);
-        }
-        const canvas = await renderShareCanvas(clone, captureWidth, mobile);
+        const canvas = await renderShareCanvasWithLogos(clone, captureWidth, mobile);
         if (!canvas || !canvas.width) throw new Error('Could not render picks image.');
         const fileName = `${week.fileSlug}-${new Date().toISOString().split('T')[0]}.png`;
         await exportCanvasImage(canvas, {
@@ -4300,12 +4338,7 @@
       const clone = prepareCaptureClone(source, captureWidth);
       host.appendChild(clone);
       try {
-        try {
-          await withTimeout(inlineImagesForCapture(clone), 20000, 'logo-inline-timeout');
-        } catch (inlineErr) {
-          console.warn('logo inline skipped', inlineErr);
-        }
-        const canvas = await renderShareCanvas(clone, captureWidth, mobile);
+        const canvas = await renderShareCanvasWithLogos(clone, captureWidth, mobile);
         if (!canvas || !canvas.width) throw new Error('Could not render image.');
         const fileName = `${filePrefix || 'card'}-${week.fileSlug}-${new Date().toISOString().split('T')[0]}.png`;
         await exportCanvasImage(canvas, {
