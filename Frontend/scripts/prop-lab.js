@@ -675,7 +675,7 @@
       : "";
     const riskSafetyNote =
       together?.riskPercent != null && together?.safetyPercent != null
-        ? `Pass rate folds in risk ${together.riskPercent}% and bet safety ${together.safetyPercent}%.`
+        ? `Risk ${together.riskPercent}% and safety ${together.safetyPercent}% nudge the edge; they do not rewrite the pass rate.`
         : "";
     const value = a.value;
     const verdictClass =

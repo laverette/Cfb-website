@@ -132,21 +132,22 @@ function conservativePHit(leg) {
     out = 0.5 + (out - 0.5) * UNUSUAL_LINE_SHRINK;
   }
 
-  // Shrink the edge toward 50% when the bet itself looks unsafe.
+  // Mild edge shrink only — never multiply the whole probability by a harsh
+  // trust factor (that turned a 61% single into an 18% "pass rate").
   let edgeKeep = 1;
-  if (flags.includes("High Variance")) edgeKeep *= 0.8;
-  if (flags.includes("Small Sample")) edgeKeep *= 0.86;
-  if (flags.includes("FCS-Heavy Sample")) edgeKeep *= 0.84;
-  if (/td/i.test(leg.stat?.id || "")) edgeKeep *= 0.88;
+  if (flags.includes("High Variance")) edgeKeep *= 0.88;
+  if (flags.includes("Small Sample")) edgeKeep *= 0.94;
+  if (flags.includes("FCS-Heavy Sample")) edgeKeep *= 0.92;
+  if (/td/i.test(leg.stat?.id || "")) edgeKeep *= 0.93;
 
   const score = Number(leg.propScore);
-  if (Number.isFinite(score) && score < 58) {
-    edgeKeep *= clamp(0.72 + (score / 58) * 0.28, 0.72, 1);
+  if (Number.isFinite(score) && score < 50) {
+    edgeKeep *= clamp(0.88 + (score / 50) * 0.12, 0.88, 1);
   }
 
   const conf = confRank(leg.confidence);
-  if (conf <= 2) edgeKeep *= 0.9;
-  else if (conf >= 6) edgeKeep = Math.min(1, edgeKeep * 1.03);
+  if (conf <= 1) edgeKeep *= 0.94; // D only
+  else if (conf >= 6) edgeKeep = Math.min(1, edgeKeep * 1.02);
 
   out = 0.5 + (out - 0.5) * edgeKeep;
   return clamp(out, 0.01, 0.99);
@@ -171,8 +172,8 @@ function riskPercent(risk) {
 }
 
 /**
- * How safe the card looks overall (0–100). Higher = more trustworthy pass rate.
- * Blends risk label, entry strength, weakest leg, confidence, and driver count.
+ * How safe the card looks overall (0–100). Higher = more trustworthy inputs.
+ * Used for labeling and a mild edge shrink — not to rewrite the pass rate.
  */
 function safetyPercent({
   risk,
@@ -192,9 +193,11 @@ function safetyPercent({
 }
 
 /**
- * Realistic pass / all-hit rate: model joint × trust from risk & safety.
- * High risk or an unsafe card pulls the shown % down; a clean Low-risk card
- * keeps most of the model estimate.
+ * Realistic pass / all-hit rate.
+ *
+ * Risk % and safety label the card and mildly shrink the *edge* away from 50%.
+ * They must not multiply the whole probability (a 61% single at High risk was
+ * being crushed to ~18% and flipping clear +EV plays into Pass).
  */
 function realisticPassRate(
   pModel,
@@ -205,35 +208,40 @@ function realisticPassRate(
     avgConf,
     weakestScore,
     modelDiscount,
+    nLegs = 1,
   } = {}
 ) {
   const p = clamp(Number(pModel), 0.001, 0.999);
   if (!Number.isFinite(Number(pModel))) return null;
 
   const riskPct = riskPercent(risk) / 100;
-  const safetyPct = safetyPercent({
-    risk,
-    entryStrength,
-    riskDrivers,
-    avgConf,
-    weakestScore,
-  }) / 100;
+  const safetyPct =
+    safetyPercent({
+      risk,
+      entryStrength,
+      riskDrivers,
+      avgConf,
+      weakestScore,
+    }) / 100;
   const discount = Number.isFinite(modelDiscount) ? modelDiscount : modelRiskDiscount();
+  const legs = Math.max(1, Number(nLegs) || 1);
 
-  // trust ≈ 0.32–0.97: Low+safe stays close to the model; Very High+unsafe does not.
-  const trust = clamp((1 - riskPct * 0.62) * (0.42 + 0.58 * safetyPct), 0.32, 0.97);
-  let out = p * trust * discount;
+  // Narrow band: keep ~86–99% of the edge. Singles stay near the model.
+  const edgeKeep = clamp(0.96 - riskPct * 0.1 + safetyPct * 0.06, 0.86, 0.995);
+  let out = 0.5 + (p - 0.5) * edgeKeep;
 
-  // Already-longshot parlays should not get inventively lower floors.
-  if (p < 0.06) out = Math.min(out, p * Math.max(0.85, trust));
+  // Synthetic-calibrator discount: gentle on singles, full on multi-leg cards.
+  const disc =
+    legs <= 1 ? Math.max(discount, 0.97) : legs === 2 ? Math.max(discount, 0.93) : discount;
+  out *= disc;
 
   return {
     p: clamp(out, 0.001, 0.97),
     pModel: p,
-    trust: Number(trust.toFixed(4)),
+    trust: Number(edgeKeep.toFixed(4)),
     riskPercent: Math.round(riskPct * 100),
     safetyPercent: Math.round(safetyPct * 100),
-    modelDiscount: discount,
+    modelDiscount: disc,
   };
 }
 
@@ -259,9 +267,8 @@ function decorateTogetherPassRate(together, pass) {
     safetyPercent: pass.safetyPercent,
     trust: pass.trust,
     tooltip:
-      `Realistic pass rate after risk (${pass.riskPercent}%) and bet safety (${pass.safetyPercent}%). ` +
-      `Model all-hit before those adjustments: ${formatTogetherPct(pass.pModel)}. ` +
-      `Educational estimate only — not a sportsbook price.`,
+      `Pass rate stays near the calibrated all-hit chance. Risk (${pass.riskPercent}%) and safety (${pass.safetyPercent}%) only nudge the edge. ` +
+      `Model joint: ${formatTogetherPct(pass.pModel)}. Educational estimate only — not a sportsbook price.`,
   };
 }
 
@@ -290,6 +297,7 @@ function entryValue({
     avgConf,
     weakestScore,
     modelDiscount: discount,
+    nLegs: ok.length,
   });
   const pUse = pass?.p ?? null;
   if (!Number.isFinite(pUse) || !price?.decimal) return null;
@@ -315,10 +323,10 @@ function entryValue({
   reasons.push(
     `Model all-hit ${formatTogetherPct(pRaw)} vs ${formatTogetherPct(breakeven)} needed at ${price.label}.`
   );
-  if (pass && Math.abs(pUse - (pRaw || 0)) > 0.01) {
+  if (pass && Math.abs(pUse - (pRaw || 0)) > 0.015) {
     reasons.push(
-      `Realistic pass rate ${formatTogetherPct(pUse)} after risk ${pass.riskPercent}% and safety ${pass.safetyPercent}%` +
-        (discount < 1 ? " (calibrator not yet refit on graded outcomes)." : ".")
+      `Pass rate ${formatTogetherPct(pUse)} after a mild risk/safety edge shrink` +
+        (pass.modelDiscount < 1 ? " and model-risk discount." : ".")
     );
   }
   const evCents = Math.round(ev * 100);
@@ -329,9 +337,9 @@ function entryValue({
   );
   if (highRisk) reasons.push("Risk is elevated, so the bar to Play is higher.");
   if (pass?.safetyPercent <= 35) {
-    reasons.push("Bet safety is low — pass rate is discounted more aggressively.");
+    reasons.push("Bet safety is low — treat the lean cautiously.");
   } else if (pass?.safetyPercent >= 70 && risk === "Low") {
-    reasons.push("Clean, low-risk card — pass rate stays closer to the model.");
+    reasons.push("Clean, low-risk card — pass rate stays close to the model.");
   }
   if (ok.some((l) => (l.flags || []).includes("Unusual Line"))) {
     reasons.push("At least one unusual line was not taken at face value.");
@@ -340,7 +348,7 @@ function entryValue({
   return {
     verdict,
     verdictLabel,
-    modelRiskDiscount: discount,
+    modelRiskDiscount: pass?.modelDiscount ?? discount,
     calibration: loadCalibratorMeta(),
     pRaw: pRaw == null ? null : Number(Number(pRaw).toFixed(4)),
     pUse: Number(pUse.toFixed(4)),
@@ -357,7 +365,7 @@ function entryValue({
     summary: `${verdictLabel} · ${formatTogetherPct(pUse)} pass vs ${formatTogetherPct(breakeven)} needed`,
     reasons,
     tooltip:
-      "Compares a realistic pass rate (model all-hit adjusted for risk % and bet safety) with the payout you entered (or PrizePicks Power defaults). Educational lean only — not betting advice.",
+      "Compares the calibrated pass rate with the payout you entered (or PrizePicks Power defaults). Risk and safety nudge the edge mildly and raise the Play bar — they do not rewrite a strong single-leg probability. Educational lean only — not betting advice.",
   };
 }
 

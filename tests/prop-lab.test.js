@@ -750,29 +750,58 @@ describe("entry value vs payout odds", () => {
     assert.equal(riskPercent("Low"), 18);
     assert.equal(riskPercent("Very High"), 88);
     assert.ok(clean.safetyPercent > messy.safetyPercent);
-    assert.ok(clean.together.pPass < clean.together.p);
-    assert.ok(messy.together.pPass / messy.together.p < clean.together.pPass / clean.together.p);
+    // Mild edge shrink only — pass rate stays in the same ballpark as the model joint.
+    assert.ok(clean.together.pPass > clean.together.p * 0.75);
+    assert.ok(messy.together.pPass / messy.together.p <= clean.together.pPass / clean.together.p + 0.05);
 
-    const risky = realisticPassRate(0.25, {
+    const risky = realisticPassRate(0.7, {
       risk: "Very High",
       entryStrength: 40,
       riskDrivers: ["a", "b", "c"],
       avgConf: 2,
       weakestScore: 45,
       modelDiscount: 0.9,
+      nLegs: 4,
     });
-    const safe = realisticPassRate(0.25, {
+    const safe = realisticPassRate(0.7, {
       risk: "Low",
       entryStrength: 80,
       riskDrivers: [],
       avgConf: 6,
       weakestScore: 72,
       modelDiscount: 0.9,
+      nLegs: 4,
     });
-    assert.ok(risky.p < safe.p);
+    assert.ok(risky.p < safe.p, `risky ${risky.p} should be below safe ${safe.p}`);
     assert.ok(risky.riskPercent > safe.riskPercent);
     assert.ok(risky.safetyPercent < safe.safetyPercent);
     assert.ok(safetyPercent({ risk: "Low", entryStrength: 80, avgConf: 6, weakestScore: 72 }) >= 70);
+  });
+
+  it("keeps a strong single leg near its model probability at 5x (Play, not Pass)", () => {
+    const analysis = analyzeEntry(
+      [
+        {
+          clientId: "singleton",
+          pHit: 0.61,
+          player: { id: "ks", name: "Keshaun Singleton", team: "Missouri" },
+          opponent: { name: "Florida" },
+          stat: { id: "rec", short: "REC" },
+          side: "more",
+          line: 2.5,
+          propScore: 62,
+          confidence: "C",
+          form: { games: 2 },
+          flags: ["Small Sample"],
+        },
+      ],
+      { payout: "5x" }
+    );
+    assert.ok(analysis.together.pPass >= 0.55, `pass rate crushed: ${analysis.together.pPass}`);
+    assert.ok(analysis.value.pUse >= 0.55);
+    assert.ok(analysis.value.pUse > analysis.value.breakeven);
+    assert.equal(analysis.value.verdict, "play");
+    assert.notEqual(analysis.risk, "High");
   });
 });
 

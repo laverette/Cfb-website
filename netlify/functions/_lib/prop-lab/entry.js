@@ -74,12 +74,16 @@ function summarizeRisk(legs, pairs) {
   const weak = Math.min(...legs.map((l) => l.propScore || 0));
 
   let risk = "Moderate";
-  if (avgConf <= 2 && (highCorr >= 1 || maxSamePlayer >= 3 || small === legs.length)) risk = "High";
+  // Thin samples alone should not mark a 1–2 leg card High — that was
+  // crushing single-leg pass rates (61% → 18%) via the risk %.
+  if (avgConf <= 2 && (highCorr >= 1 || maxSamePlayer >= 3)) risk = "High";
+  if (avgConf <= 2 && small === legs.length && legs.length >= 3) risk = "High";
   if (legs.length >= 5 && (weak < 58 || highCorr >= 2 || maxSamePlayer >= 3)) risk = "High";
   if (legs.length >= 6 && weak < 55 && highCorr >= 1) risk = "Very High";
   if (maxSamePlayer >= 3 && highCorr >= 1) risk = "High";
   if (avgScore >= 74 && weak >= 64 && highCorr === 0 && maxSamePlayer <= 1 && avgConf >= 4) risk = "Low";
   if (games.size === 1 && legs.length >= 3 && risk === "Low") risk = "Moderate";
+  if (legs.length === 1 && risk === "High" && avgConf >= 2 && !hv && !fcs) risk = "Moderate";
 
   return { risk, drivers: drivers.slice(0, 5), maxSamePlayer, highCorr, avgConf };
 }
@@ -129,6 +133,7 @@ function analyzeEntry(legs, opts = {}) {
     avgConf: riskInfo.avgConf,
     weakestScore: weakest?.propScore,
     modelDiscount: modelRiskDiscount(),
+    nLegs: ok.length,
   });
   const together = decorateTogetherPassRate(togetherModel, pass);
   return {
@@ -165,7 +170,7 @@ function analyzeEntry(legs, opts = {}) {
       avgConf: riskInfo.avgConf,
       weakestScore: weakest?.propScore,
     }),
-    note: "Entry Strength is a relative quality score. Pass rate is the realistic chance every listed leg cashes after risk and bet safety — not the raw model product.",
+    note: "Entry Strength is a relative quality score. Pass rate tracks the calibrated chance the card cashes; risk and safety nudge that mildly and raise the bar to Play.",
     strengthTooltip:
       "A relative score based on leg quality, model confidence, correlation, and concentration. It is not the probability that every leg hits.",
   };
