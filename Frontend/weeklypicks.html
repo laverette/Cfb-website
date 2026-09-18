@@ -9,7 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
   <link rel="stylesheet" href="styles/site-theme.css">
-  <link rel="stylesheet" href="Resources/Styles/weeklypicks.css?v=22">
+  <link rel="stylesheet" href="Resources/Styles/weeklypicks.css?v=24">
   <link rel="stylesheet" href="styles/picks-hub.css">
   <link rel="stylesheet" href="Resources/Styles/power.css">
   <link rel="stylesheet" href="styles/weeklypicks-mobile.css?v=2">
@@ -2986,44 +2986,88 @@
     });
 
     // Screenshot functionality
-    async function takeScreenshot(evt) {
-      const fromPicks = evt && evt.currentTarget && evt.currentTarget.id === 'picksScreenshotBtn';
-      if (fromPicks && resultsRecapScope !== 'current') {
-        resultsRecapScope = 'current';
-        syncResultsWeekToggle();
-        await loadResultsRecap({ quiet: true });
-      }
-      const ensureCard = async () => {
-        if (document.getElementById('picksShareCard')) return true;
-        await loadResultsRecap({ quiet: true });
-        return Boolean(document.getElementById('picksShareCard'));
-      };
-      const ready = await ensureCard();
-      if (!ready) {
-        alert('Nothing to save yet.');
-        return;
-      }
-      if (typeof html2canvas === 'undefined') {
+    function withTimeout(promise, ms, label) {
+      let timer;
+      const timeout = new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error(label || `Timed out after ${ms}ms`)), ms);
+      });
+      return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+    }
+
+    function loadHtml2Canvas() {
+      if (typeof html2canvas === 'function') return Promise.resolve(html2canvas);
+      if (window.__html2canvasLoading) return window.__html2canvasLoading;
+      window.__html2canvasLoading = new Promise((resolve, reject) => {
         const script = document.createElement('script');
         script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-        script.onload = function() {
-          captureScreenshot();
+        script.async = true;
+        script.onload = () => {
+          if (typeof html2canvas === 'function') resolve(html2canvas);
+          else reject(new Error('html2canvas failed to load'));
         };
+        script.onerror = () => reject(new Error('Could not load image saver. Check your connection.'));
         document.head.appendChild(script);
-      } else {
-        captureScreenshot();
+      });
+      return window.__html2canvasLoading;
+    }
+
+    async function takeScreenshot(evt) {
+      const clickedBtn = evt && evt.currentTarget;
+      try {
+        if (clickedBtn) {
+          clickedBtn.disabled = true;
+          clickedBtn.dataset.prevLabel = clickedBtn.innerHTML;
+          clickedBtn.innerHTML = 'Saving…';
+        }
+        const fromPicks = clickedBtn && clickedBtn.id === 'picksScreenshotBtn';
+        if (fromPicks && resultsRecapScope !== 'current') {
+          resultsRecapScope = 'current';
+          syncResultsWeekToggle();
+          await withTimeout(loadResultsRecap({ quiet: true }), 8000, 'Could not load picks card');
+        }
+        if (!document.getElementById('picksShareCard')) {
+          await withTimeout(loadResultsRecap({ quiet: true }), 8000, 'Could not load picks card');
+        }
+        if (!document.getElementById('picksShareCard')) {
+          alert('Nothing to save yet.');
+          return;
+        }
+        await loadHtml2Canvas();
+        await captureScreenshot({ triggerBtn: clickedBtn });
+      } catch (err) {
+        console.error('Screenshot failed:', err);
+        alert(err && err.message ? err.message : 'Could not save the image. Try again.');
+      } finally {
+        if (clickedBtn) {
+          clickedBtn.disabled = false;
+          clickedBtn.innerHTML = clickedBtn.dataset.prevLabel || 'Save image';
+          delete clickedBtn.dataset.prevLabel;
+        }
       }
     }
 
-    function waitForShareImages(root) {
+    function waitForShareImages(root, timeoutMs = 2500) {
       const imgs = Array.from(root.querySelectorAll('img'));
-      return Promise.all(imgs.map((img) => {
-        if (img.complete && img.naturalWidth > 0) return Promise.resolve();
-        return new Promise((resolve) => {
-          img.onload = () => resolve();
-          img.onerror = () => resolve();
-        });
-      }));
+      return Promise.all(
+        imgs.map((img) => {
+          // Already finished (including broken logos with naturalWidth 0) — do not wait forever.
+          if (img.complete) return Promise.resolve();
+          return new Promise((resolve) => {
+            let done = false;
+            const finish = () => {
+              if (done) return;
+              done = true;
+              clearTimeout(timer);
+              img.removeEventListener('load', finish);
+              img.removeEventListener('error', finish);
+              resolve();
+            };
+            const timer = setTimeout(finish, timeoutMs);
+            img.addEventListener('load', finish);
+            img.addEventListener('error', finish);
+          });
+        })
+      );
     }
 
     const captureImageDataUrlCache = new Map();
@@ -3051,34 +3095,126 @@
       });
     }
 
-    async function inlineImagesForCapture(root) {
-      const imgs = Array.from(root.querySelectorAll('img'));
-      await Promise.all(imgs.map(async (img) => {
-        const raw = img.currentSrc || img.getAttribute('src') || '';
-        if (!raw || raw.startsWith('data:')) return;
-        const fetchUrl = captureFetchUrl(raw);
-        if (captureImageDataUrlCache.has(fetchUrl)) {
-          img.src = captureImageDataUrlCache.get(fetchUrl);
-          return;
-        }
+    async function fetchWithTimeout(url, ms = 2500) {
+      const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      const timer = setTimeout(() => {
         try {
-          const resp = await fetch(fetchUrl);
-          if (!resp.ok) return;
-          const blob = await resp.blob();
-          if (!blob || !blob.size) return;
-          const dataUrl = await blobToDataUrl(blob);
-          if (typeof dataUrl === 'string' && dataUrl.startsWith('data:')) {
-            captureImageDataUrlCache.set(fetchUrl, dataUrl);
-            img.src = dataUrl;
-          }
-        } catch {
-          /* leave original src */
-        }
-      }));
-      await waitForShareImages(root);
+          ctrl?.abort();
+        } catch (_) {}
+      }, ms);
+      try {
+        const resp = await fetch(url, ctrl ? { signal: ctrl.signal } : undefined);
+        return resp;
+      } finally {
+        clearTimeout(timer);
+      }
     }
 
-    async function captureScreenshot() {
+    async function inlineImagesForCapture(root) {
+      const imgs = Array.from(root.querySelectorAll('img'));
+      await Promise.all(
+        imgs.map(async (img) => {
+          const raw = img.currentSrc || img.getAttribute('src') || '';
+          if (!raw || raw.startsWith('data:')) return;
+          const fetchUrl = captureFetchUrl(raw);
+          if (captureImageDataUrlCache.has(fetchUrl)) {
+            img.src = captureImageDataUrlCache.get(fetchUrl);
+            img.removeAttribute('srcset');
+            img.removeAttribute('loading');
+            return;
+          }
+          try {
+            const resp = await fetchWithTimeout(fetchUrl, 2500);
+            if (!resp || !resp.ok) {
+              img.remove();
+              return;
+            }
+            const blob = await resp.blob();
+            if (!blob || !blob.size) {
+              img.remove();
+              return;
+            }
+            const dataUrl = await blobToDataUrl(blob);
+            if (typeof dataUrl === 'string' && dataUrl.startsWith('data:')) {
+              captureImageDataUrlCache.set(fetchUrl, dataUrl);
+              img.src = dataUrl;
+              img.removeAttribute('srcset');
+              img.removeAttribute('loading');
+            }
+          } catch {
+            try {
+              img.remove();
+            } catch (_) {}
+          }
+        })
+      );
+      await waitForShareImages(root, 2000);
+    }
+
+    function prepareCaptureClone(source, captureWidth) {
+      const clone = source.cloneNode(true);
+      clone.id = `${source.id || 'shareCard'}Capture`;
+      clone.classList.add('is-capture');
+      clone.style.width = `${captureWidth}px`;
+      clone.style.maxWidth = `${captureWidth}px`;
+      clone.style.margin = '0';
+      clone.style.transform = 'none';
+      clone.querySelectorAll('button, a, script, iframe, video, .screenshot-section, .picks-share-actions').forEach((el) => {
+        try {
+          el.remove();
+        } catch (_) {}
+      });
+      return clone;
+    }
+
+    function mountCaptureHost(captureWidth) {
+      const host = document.createElement('div');
+      host.className = 'picks-capture-host';
+      // Keep in the viewport (opacity ~0). Off-screen (-10000px) hangs html2canvas on iOS.
+      host.style.cssText = [
+        'position:fixed',
+        'left:0',
+        'top:0',
+        `width:${captureWidth}px`,
+        'opacity:0.01',
+        'pointer-events:none',
+        'z-index:2147483000',
+        'background:#1a1410',
+        'overflow:hidden',
+      ].join(';');
+      host.setAttribute('aria-hidden', 'true');
+      document.body.appendChild(host);
+      return host;
+    }
+
+    async function renderShareCanvas(clone, captureWidth, mobile) {
+      const h2c = await loadHtml2Canvas();
+      return withTimeout(
+        h2c(clone, {
+          backgroundColor: '#1a1410',
+          scale: mobile ? 1.25 : 2,
+          useCORS: true,
+          allowTaint: true,
+          imageTimeout: 2000,
+          logging: false,
+          scrollX: 0,
+          scrollY: 0,
+          width: captureWidth,
+          windowWidth: captureWidth,
+          onclone: (doc) => {
+            const node = doc.getElementById(clone.id);
+            if (node) {
+              node.style.transform = 'none';
+              node.style.opacity = '1';
+            }
+          },
+        }),
+        mobile ? 12000 : 20000,
+        'Image capture timed out. Try again.'
+      );
+    }
+
+    async function captureScreenshot(opts = {}) {
       const source = document.getElementById('picksShareCard');
       if (!source) {
         alert('Nothing to save yet.');
@@ -3088,56 +3224,36 @@
       const week = shareWeekLabel(recapWeekMeta());
       const mobile = isMobileCapture();
       const captureWidth = mobile ? 720 : 1100;
-      const tempContainer = document.createElement('div');
-      tempContainer.style.position = 'fixed';
-      tempContainer.style.left = '-10000px';
-      tempContainer.style.top = '0';
-      tempContainer.style.width = `${captureWidth}px`;
-      tempContainer.style.background = '#1a1410';
-      tempContainer.style.zIndex = '-1';
-      tempContainer.setAttribute('aria-hidden', 'true');
-      const clone = source.cloneNode(true);
-      clone.id = 'picksShareCardCapture';
-      clone.classList.add('is-capture');
-      clone.style.width = `${captureWidth}px`;
-      clone.style.maxWidth = `${captureWidth}px`;
-      clone.style.margin = '0';
-      tempContainer.appendChild(clone);
-      document.body.appendChild(tempContainer);
+      const host = mountCaptureHost(captureWidth);
+      const clone = prepareCaptureClone(source, captureWidth);
+      host.appendChild(clone);
 
-      const btn =
-        document.getElementById('picksScreenshotBtn') ||
-        document.getElementById('screenshotBtn');
-      const prevLabel = btn ? btn.innerHTML : '';
-      if (btn) {
+      // Button label is owned by takeScreenshot when launched from a click.
+      const btn = opts.triggerBtn || null;
+      const manageBtn = !opts.triggerBtn;
+      const prevLabel = btn && manageBtn ? btn.innerHTML : '';
+      if (btn && manageBtn) {
         btn.disabled = true;
         btn.innerHTML = 'Saving…';
       }
 
       try {
-        await inlineImagesForCapture(clone);
-        const canvas = await html2canvas(clone, {
-          backgroundColor: '#1a1410',
-          scale: mobile ? 1.5 : 2,
-          useCORS: true,
-          allowTaint: false,
-          scrollX: 0,
-          scrollY: 0,
-          width: captureWidth,
-          logging: false,
-        });
+        try {
+          await withTimeout(inlineImagesForCapture(clone), 6000, 'logo-inline-timeout');
+        } catch (inlineErr) {
+          console.warn('logo inline skipped', inlineErr);
+        }
+        const canvas = await renderShareCanvas(clone, captureWidth, mobile);
+        if (!canvas || !canvas.width) throw new Error('Could not render picks image.');
         const fileName = `${week.fileSlug}-${new Date().toISOString().split('T')[0]}.png`;
         await exportCanvasImage(canvas, {
           fileName,
           title: week.shareTitle,
           text: `Check out my ${week.weekPart} picks!`,
         });
-      } catch (err) {
-        console.error('Screenshot failed:', err);
-        alert('Could not save the image. Try again.');
       } finally {
-        if (tempContainer.parentNode) tempContainer.parentNode.removeChild(tempContainer);
-        if (btn) {
+        if (host.parentNode) host.parentNode.removeChild(host);
+        if (btn && manageBtn) {
           btn.disabled = false;
           btn.innerHTML = prevLabel || 'Save image';
         }
@@ -4122,16 +4238,28 @@
       }
     }
 
-    function takeH2hScreenshot() {
-      const ensure = () => captureElementScreenshot('h2hShareCard', 'h2h');
-      if (typeof html2canvas === 'undefined') {
-        const script = document.createElement('script');
-        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-        script.onload = ensure;
-        document.head.appendChild(script);
-      } else {
-        ensure();
-      }
+    function takeH2hScreenshot(evt) {
+      const btn = evt && evt.currentTarget;
+      (async () => {
+        try {
+          if (btn) {
+            btn.disabled = true;
+            btn.dataset.prevLabel = btn.innerHTML;
+            btn.innerHTML = 'Saving…';
+          }
+          await loadHtml2Canvas();
+          await captureElementScreenshot('h2hShareCard', 'h2h');
+        } catch (err) {
+          console.warn('screenshot:', err);
+          alert(err && err.message ? err.message : 'Could not save image.');
+        } finally {
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = btn.dataset.prevLabel || 'Save image';
+            delete btn.dataset.prevLabel;
+          }
+        }
+      })();
     }
 
     async function captureElementScreenshot(elementId, filePrefix) {
@@ -4143,54 +4271,25 @@
       const week = shareWeekLabel();
       const mobile = isMobileCapture();
       const captureWidth = mobile ? 720 : 900;
-      const tempContainer = document.createElement('div');
-      tempContainer.style.position = 'fixed';
-      tempContainer.style.left = '-10000px';
-      tempContainer.style.top = '0';
-      tempContainer.style.width = `${captureWidth}px`;
-      tempContainer.style.background = '#1a1410';
-      tempContainer.style.zIndex = '-1';
-      tempContainer.setAttribute('aria-hidden', 'true');
-      const clone = source.cloneNode(true);
-      clone.classList.add('is-capture');
-      clone.style.width = `${captureWidth}px`;
-      clone.style.maxWidth = `${captureWidth}px`;
-      clone.style.margin = '0';
-      tempContainer.appendChild(clone);
-      document.body.appendChild(tempContainer);
-      const btn = document.getElementById('h2hScreenshotBtn');
-      const prevLabel = btn ? btn.innerHTML : '';
-      if (btn) {
-        btn.disabled = true;
-        btn.innerHTML = 'Saving…';
-      }
+      const host = mountCaptureHost(captureWidth);
+      const clone = prepareCaptureClone(source, captureWidth);
+      host.appendChild(clone);
       try {
-        await inlineImagesForCapture(clone);
-        const canvas = await html2canvas(clone, {
-          backgroundColor: '#1a1410',
-          scale: mobile ? 1.5 : 2,
-          useCORS: true,
-          allowTaint: false,
-          scrollX: 0,
-          scrollY: 0,
-          width: captureWidth,
-          logging: false,
-        });
+        try {
+          await withTimeout(inlineImagesForCapture(clone), 6000, 'logo-inline-timeout');
+        } catch (inlineErr) {
+          console.warn('logo inline skipped', inlineErr);
+        }
+        const canvas = await renderShareCanvas(clone, captureWidth, mobile);
+        if (!canvas || !canvas.width) throw new Error('Could not render image.');
         const fileName = `${filePrefix || 'card'}-${week.fileSlug}-${new Date().toISOString().split('T')[0]}.png`;
         await exportCanvasImage(canvas, {
           fileName,
           title: week.shareTitle || 'Head-to-head',
           text: `Check out my ${week.weekPart || 'weekly'} head-to-head!`,
         });
-      } catch (err) {
-        console.warn('screenshot:', err);
-        alert('Could not save image.');
       } finally {
-        tempContainer.remove();
-        if (btn) {
-          btn.disabled = false;
-          btn.innerHTML = prevLabel || 'Save image';
-        }
+        host.remove();
       }
     }
 
