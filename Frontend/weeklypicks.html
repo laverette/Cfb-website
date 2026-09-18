@@ -9,7 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
   <link rel="stylesheet" href="styles/site-theme.css">
-  <link rel="stylesheet" href="Resources/Styles/weeklypicks.css">
+  <link rel="stylesheet" href="Resources/Styles/weeklypicks.css?v=21">
   <link rel="stylesheet" href="styles/picks-hub.css">
   <link rel="stylesheet" href="Resources/Styles/power.css">
   <link rel="stylesheet" href="styles/weeklypicks-mobile.css?v=2">
@@ -3086,92 +3086,234 @@
       }
 
       const week = shareWeekLabel(recapWeekMeta());
+      const mobile = isMobileCapture();
+      const captureWidth = mobile ? 720 : 1100;
       const tempContainer = document.createElement('div');
       tempContainer.style.position = 'fixed';
       tempContainer.style.left = '-10000px';
       tempContainer.style.top = '0';
-      tempContainer.style.width = '1100px';
+      tempContainer.style.width = `${captureWidth}px`;
       tempContainer.style.background = '#1a1410';
       tempContainer.style.zIndex = '-1';
+      tempContainer.setAttribute('aria-hidden', 'true');
       const clone = source.cloneNode(true);
       clone.id = 'picksShareCardCapture';
       clone.classList.add('is-capture');
-      clone.style.width = '1100px';
-      clone.style.maxWidth = '1100px';
+      clone.style.width = `${captureWidth}px`;
+      clone.style.maxWidth = `${captureWidth}px`;
       clone.style.margin = '0';
       tempContainer.appendChild(clone);
       document.body.appendChild(tempContainer);
+
+      const btn =
+        document.getElementById('picksScreenshotBtn') ||
+        document.getElementById('screenshotBtn');
+      const prevLabel = btn ? btn.innerHTML : '';
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = 'Saving…';
+      }
 
       try {
         await inlineImagesForCapture(clone);
         const canvas = await html2canvas(clone, {
           backgroundColor: '#1a1410',
-          scale: 2,
+          scale: mobile ? 1.5 : 2,
           useCORS: true,
           allowTaint: false,
           scrollX: 0,
           scrollY: 0,
-          width: 1100,
+          width: captureWidth,
           logging: false,
         });
         const fileName = `${week.fileSlug}-${new Date().toISOString().split('T')[0]}.png`;
-        if (navigator.share && navigator.canShare) {
-          canvas.toBlob(function (blob) {
-            if (!blob) {
-              fallbackDownload(canvas, fileName);
-              return;
-            }
-            const file = new File([blob], fileName, { type: 'image/png' });
-            if (navigator.canShare({ files: [file] })) {
-              navigator.share({
-                files: [file],
-                title: week.shareTitle,
-                text: `Check out my ${week.weekPart} picks!`,
-              }).then(() => {
-                showSuccessMessage('Shared.');
-              }).catch((error) => {
-                if (error && error.name === 'AbortError') return;
-                fallbackDownload(canvas, fileName);
-              });
-            } else {
-              fallbackDownload(canvas, fileName);
-            }
-          });
-        } else {
-          fallbackDownload(canvas, fileName);
-        }
+        await exportCanvasImage(canvas, {
+          fileName,
+          title: week.shareTitle,
+          text: `Check out my ${week.weekPart} picks!`,
+        });
       } catch (err) {
         console.error('Screenshot failed:', err);
         alert('Could not save the image. Try again.');
       } finally {
         if (tempContainer.parentNode) tempContainer.parentNode.removeChild(tempContainer);
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = prevLabel || 'Save image';
+        }
       }
     }
 
+    function isMobileCapture() {
+      try {
+        if (window.matchMedia('(max-width: 768px)').matches) return true;
+      } catch (_) {}
+      return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent || '');
+    }
+
+    function canvasToBlob(canvas, type = 'image/png', quality) {
+      return new Promise((resolve) => {
+        if (!canvas || typeof canvas.toBlob !== 'function') {
+          resolve(null);
+          return;
+        }
+        canvas.toBlob((blob) => resolve(blob || null), type, quality);
+      });
+    }
+
+    function canShareFiles(file) {
+      try {
+        return !!(navigator.share && navigator.canShare && navigator.canShare({ files: [file] }));
+      } catch (_) {
+        return false;
+      }
+    }
+
+    async function exportCanvasImage(canvas, { fileName, title, text } = {}) {
+      const name = fileName || `weekly-picks-${new Date().toISOString().split('T')[0]}.png`;
+      const blob = await canvasToBlob(canvas);
+      if (!blob) {
+        // Last resort: data URL download / preview
+        openImageSaveSheet(canvas.toDataURL('image/png'), name);
+        return;
+      }
+
+      const file = new File([blob], name, { type: 'image/png' });
+
+      // Mobile: prefer the native share sheet (Save Image / Photos / Messages).
+      if (isMobileCapture() && canShareFiles(file)) {
+        try {
+          await navigator.share({
+            files: [file],
+            title: title || 'Weekly picks',
+            text: text || 'My weekly picks',
+          });
+          flashScreenshotButtons('Shared.');
+          return;
+        } catch (err) {
+          if (err && err.name === 'AbortError') return;
+          // Fall through to preview sheet
+        }
+      }
+
+      // Desktop (and some Android): real file download works.
+      if (!isMobileCapture()) {
+        const url = URL.createObjectURL(blob);
+        try {
+          const link = document.createElement('a');
+          link.download = name;
+          link.href = url;
+          link.rel = 'noopener';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          flashScreenshotButtons('Downloaded.');
+        } finally {
+          setTimeout(() => URL.revokeObjectURL(url), 2000);
+        }
+        return;
+      }
+
+      // iOS Safari ignores <a download> — show a preview the user can long-press to save.
+      const url = URL.createObjectURL(blob);
+      openImageSaveSheet(url, name, { revokeUrl: url, file });
+    }
+
+    function openImageSaveSheet(src, fileName, { revokeUrl, file } = {}) {
+      closeImageSaveSheet();
+      const sheet = document.createElement('div');
+      sheet.id = 'picksImageSaveSheet';
+      sheet.className = 'picks-image-save-sheet';
+      sheet.setAttribute('role', 'dialog');
+      sheet.setAttribute('aria-modal', 'true');
+      sheet.setAttribute('aria-label', 'Save picks image');
+      sheet.innerHTML = `
+        <div class="picks-image-save-card">
+          <div class="picks-image-save-head">
+            <strong>Save image</strong>
+            <button type="button" class="picks-image-save-close" aria-label="Close">×</button>
+          </div>
+          <p class="picks-image-save-note">Long-press the image and choose <em>Save Image</em>, or use Share.</p>
+          <div class="picks-image-save-frame">
+            <img src="${src}" alt="Picks card preview" draggable="false">
+          </div>
+          <div class="picks-image-save-actions">
+            <button type="button" class="screenshot-button" data-action="share">Share</button>
+            <button type="button" class="screenshot-button edit-picks-button" data-action="close">Done</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(sheet);
+      document.body.classList.add('picks-image-save-open');
+
+      const cleanup = () => {
+        if (revokeUrl) {
+          try {
+            URL.revokeObjectURL(revokeUrl);
+          } catch (_) {}
+        }
+        closeImageSaveSheet();
+      };
+
+      sheet.querySelector('.picks-image-save-close')?.addEventListener('click', cleanup);
+      sheet.querySelector('[data-action="close"]')?.addEventListener('click', cleanup);
+      sheet.addEventListener('click', (ev) => {
+        if (ev.target === sheet) cleanup();
+      });
+      sheet.querySelector('[data-action="share"]')?.addEventListener('click', async () => {
+        if (file && canShareFiles(file)) {
+          try {
+            await navigator.share({
+              files: [file],
+              title: 'Weekly picks',
+              text: 'My weekly picks',
+            });
+            cleanup();
+            return;
+          } catch (err) {
+            if (err && err.name === 'AbortError') return;
+          }
+        }
+        // Share without files: open image URL if possible
+        try {
+          if (navigator.share) {
+            await navigator.share({ title: 'Weekly picks', url: window.location.href });
+          }
+        } catch (_) {}
+      });
+    }
+
+    function closeImageSaveSheet() {
+      const sheet = document.getElementById('picksImageSaveSheet');
+      if (sheet) sheet.remove();
+      document.body.classList.remove('picks-image-save-open');
+    }
+
+    function flashScreenshotButtons(message) {
+      const buttons = [
+        document.getElementById('screenshotBtn'),
+        document.getElementById('picksScreenshotBtn'),
+        document.getElementById('h2hScreenshotBtn'),
+      ].filter(Boolean);
+      buttons.forEach((btn) => {
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '✅ ' + message;
+        btn.style.backgroundColor = '#4CAF50';
+        setTimeout(() => {
+          btn.innerHTML = originalText;
+          btn.style.backgroundColor = '';
+        }, 2500);
+      });
+    }
+
     function fallbackDownload(canvas, fileName) {
-      const link = document.createElement('a');
-      link.download = fileName || `weekly-picks-${new Date().toISOString().split('T')[0]}.png`;
-      link.href = canvas.toDataURL();
-      
-      // Trigger download
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      showSuccessMessage('Downloaded! Check your Downloads folder.');
+      exportCanvasImage(canvas, { fileName }).catch(() => {
+        alert('Could not save the image. Try again.');
+      });
     }
 
     function showSuccessMessage(message) {
-      const btn = document.getElementById('screenshotBtn');
-      if (!btn) return;
-      const originalText = btn.innerHTML;
-      btn.innerHTML = '✅ ' + message;
-      btn.style.backgroundColor = '#4CAF50';
-      btn.setAttribute('aria-live', 'polite');
-      setTimeout(() => {
-        btn.innerHTML = originalText;
-        btn.style.backgroundColor = '';
-      }, 3000);
+      flashScreenshotButtons(message);
     }
 
     // Hamburger Menu Toggle
@@ -3945,47 +4087,56 @@
         return;
       }
       const week = shareWeekLabel();
+      const mobile = isMobileCapture();
+      const captureWidth = mobile ? 720 : 900;
       const tempContainer = document.createElement('div');
       tempContainer.style.position = 'fixed';
       tempContainer.style.left = '-10000px';
       tempContainer.style.top = '0';
-      tempContainer.style.width = '900px';
+      tempContainer.style.width = `${captureWidth}px`;
       tempContainer.style.background = '#1a1410';
       tempContainer.style.zIndex = '-1';
+      tempContainer.setAttribute('aria-hidden', 'true');
       const clone = source.cloneNode(true);
       clone.classList.add('is-capture');
-      clone.style.width = '900px';
-      clone.style.maxWidth = '900px';
+      clone.style.width = `${captureWidth}px`;
+      clone.style.maxWidth = `${captureWidth}px`;
       clone.style.margin = '0';
       tempContainer.appendChild(clone);
       document.body.appendChild(tempContainer);
+      const btn = document.getElementById('h2hScreenshotBtn');
+      const prevLabel = btn ? btn.innerHTML : '';
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = 'Saving…';
+      }
       try {
         await inlineImagesForCapture(clone);
         const canvas = await html2canvas(clone, {
           backgroundColor: '#1a1410',
-          scale: 2,
+          scale: mobile ? 1.5 : 2,
           useCORS: true,
           allowTaint: false,
           scrollX: 0,
           scrollY: 0,
-          width: 900,
+          width: captureWidth,
           logging: false,
         });
         const fileName = `${filePrefix || 'card'}-${week.fileSlug}-${new Date().toISOString().split('T')[0]}.png`;
-        canvas.toBlob((blob) => {
-          if (!blob) return;
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = fileName;
-          a.click();
-          URL.revokeObjectURL(url);
-        }, 'image/png');
+        await exportCanvasImage(canvas, {
+          fileName,
+          title: week.shareTitle || 'Head-to-head',
+          text: `Check out my ${week.weekPart || 'weekly'} head-to-head!`,
+        });
       } catch (err) {
         console.warn('screenshot:', err);
         alert('Could not save image.');
       } finally {
         tempContainer.remove();
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = prevLabel || 'Save image';
+        }
       }
     }
 
