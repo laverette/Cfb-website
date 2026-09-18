@@ -2646,8 +2646,18 @@ body.picks-results-open #picksEmailOptIn {
     color: rgba(255, 255, 255, 0.55);
     text-align: center;
 }
-body.picks-image-save-open {
-    overflow: hidden;
+.picks-image-save-sheet--retry {
+    align-items: center;
+}
+.picks-image-save-card--retry {
+    width: min(100%, 320px);
+    padding: 1rem;
+    text-align: center;
+}
+.picks-image-save-card--retry .screenshot-button {
+    width: 100%;
+    max-width: none;
+    margin-top: 0.35rem;
 }
 
 @media (min-width: 769px) {

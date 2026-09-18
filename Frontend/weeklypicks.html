@@ -9,7 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
   <link rel="stylesheet" href="styles/site-theme.css">
-  <link rel="stylesheet" href="Resources/Styles/weeklypicks.css?v=24">
+  <link rel="stylesheet" href="Resources/Styles/weeklypicks.css?v=25">
   <link rel="stylesheet" href="styles/picks-hub.css">
   <link rel="stylesheet" href="Resources/Styles/power.css">
   <link rel="stylesheet" href="styles/weeklypicks-mobile.css?v=2">
@@ -2555,13 +2555,24 @@
       if (!resolved) {
         return `<span class="picks-share-logo-fallback">${safeText((name || '?').slice(0, 3).toUpperCase())}</span>`;
       }
+      // Same-origin proxy so saved screenshots can embed ESPN logos (no CORS).
+      let src = resolved;
+      try {
+        const parsed = new URL(resolved, window.location.href);
+        if (/(^|\.)espncdn\.com$/i.test(parsed.hostname)) {
+          src = `/api/logo?src=${encodeURIComponent(parsed.toString())}`;
+        }
+      } catch (_) {}
       const fallback = espnLogoUrl(espnId);
-      const onError =
+      const fallbackProxied =
         fallback && fallback !== resolved
-          ? ` onerror="if(!this.dataset.fb){this.dataset.fb='1';this.src='${safeText(fallback)}';}"`
+          ? `/api/logo?src=${encodeURIComponent(fallback)}`
           : '';
-      // No crossorigin — ESPN logos don't send CORS headers and break when it's set.
-      return `<img class="picks-share-logo" src="${safeText(resolved)}" alt="" width="24" height="24" loading="lazy" decoding="async"${onError}>`;
+      const onError =
+        fallbackProxied && fallbackProxied !== src
+          ? ` onerror="if(!this.dataset.fb){this.dataset.fb='1';this.src='${safeText(fallbackProxied)}';}"`
+          : '';
+      return `<img class="picks-share-logo" src="${safeText(src)}" alt="${safeText((name || '').slice(0, 3))}" width="24" height="24" loading="eager" decoding="async"${onError}>`;
     }
 
     function resolvePickForGame(savedPicks, form, gameNumber, game) {
@@ -3111,44 +3122,79 @@
     }
 
     async function inlineImagesForCapture(root) {
-      const imgs = Array.from(root.querySelectorAll('img'));
+      const imgs = Array.from(root.querySelectorAll('img.picks-share-logo, img'));
+      // Eager-load: lazy images inside the near-invisible capture host never fire.
+      imgs.forEach((img) => {
+        img.removeAttribute('loading');
+        img.loading = 'eager';
+        img.removeAttribute('decoding');
+      });
+
       await Promise.all(
         imgs.map(async (img) => {
-          const raw = img.currentSrc || img.getAttribute('src') || '';
+          const raw = img.getAttribute('src') || img.currentSrc || '';
           if (!raw || raw.startsWith('data:')) return;
-          const fetchUrl = captureFetchUrl(raw);
-          if (captureImageDataUrlCache.has(fetchUrl)) {
-            img.src = captureImageDataUrlCache.get(fetchUrl);
+
+          const proxyOrUrl = captureFetchUrl(raw);
+          if (captureImageDataUrlCache.has(proxyOrUrl)) {
+            img.src = captureImageDataUrlCache.get(proxyOrUrl);
             img.removeAttribute('srcset');
-            img.removeAttribute('loading');
             return;
           }
-          try {
-            const resp = await fetchWithTimeout(fetchUrl, 2500);
-            if (!resp || !resp.ok) {
-              img.remove();
-              return;
-            }
+
+          const tryEmbed = async (url) => {
+            const resp = await fetchWithTimeout(url, 5000);
+            if (!resp || !resp.ok) throw new Error(`logo ${resp && resp.status}`);
             const blob = await resp.blob();
-            if (!blob || !blob.size) {
-              img.remove();
-              return;
+            if (!blob || !blob.size || !(blob.type || '').startsWith('image/')) {
+              throw new Error('logo not image');
             }
             const dataUrl = await blobToDataUrl(blob);
-            if (typeof dataUrl === 'string' && dataUrl.startsWith('data:')) {
-              captureImageDataUrlCache.set(fetchUrl, dataUrl);
-              img.src = dataUrl;
-              img.removeAttribute('srcset');
-              img.removeAttribute('loading');
+            if (typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image')) {
+              throw new Error('logo data url failed');
             }
-          } catch {
-            try {
-              img.remove();
-            } catch (_) {}
+            return dataUrl;
+          };
+
+          try {
+            // Prefer same-origin proxy so ESPN CORS never blocks the canvas.
+            const dataUrl = await tryEmbed(proxyOrUrl);
+            captureImageDataUrlCache.set(proxyOrUrl, dataUrl);
+            img.src = dataUrl;
+            img.removeAttribute('srcset');
+            img.removeAttribute('crossorigin');
+            return;
+          } catch (err1) {
+            // Second try: direct ESPN URL (works on some desktops).
+            if (proxyOrUrl !== raw && raw.startsWith('http')) {
+              try {
+                const dataUrl = await tryEmbed(raw);
+                captureImageDataUrlCache.set(proxyOrUrl, dataUrl);
+                img.src = dataUrl;
+                img.removeAttribute('srcset');
+                return;
+              } catch (_) {}
+            }
+            // Keep a same-origin proxy src so html2canvas can still paint it.
+            if (proxyOrUrl.startsWith('/')) {
+              img.src = proxyOrUrl;
+              img.removeAttribute('srcset');
+              img.removeAttribute('crossorigin');
+              return;
+            }
+            // Last resort: abbreviation chip instead of a blank hole.
+            const label = (img.getAttribute('alt') || img.closest('.picks-share-team, .picks-share-pick')?.querySelector('span')?.textContent || '?')
+              .trim()
+              .slice(0, 3)
+              .toUpperCase();
+            const fb = document.createElement('span');
+            fb.className = 'picks-share-logo-fallback';
+            fb.textContent = label || '?';
+            img.replaceWith(fb);
           }
         })
       );
-      await waitForShareImages(root, 2000);
+      await waitForShareImages(root, 4000);
     }
 
     function prepareCaptureClone(source, captureWidth) {
@@ -3159,10 +3205,28 @@
       clone.style.maxWidth = `${captureWidth}px`;
       clone.style.margin = '0';
       clone.style.transform = 'none';
-      clone.querySelectorAll('button, a, script, iframe, video, .screenshot-section, .picks-share-actions').forEach((el) => {
+      clone.style.opacity = '1';
+      clone.querySelectorAll('button, script, iframe, video, .screenshot-section, .picks-share-actions').forEach((el) => {
         try {
           el.remove();
         } catch (_) {}
+      });
+      // Do not strip <a> wrappers if any — only unwrap to keep logos.
+      clone.querySelectorAll('a').forEach((a) => {
+        const parent = a.parentNode;
+        if (!parent) return;
+        while (a.firstChild) parent.insertBefore(a.firstChild, a);
+        a.remove();
+      });
+      clone.querySelectorAll('img').forEach((img) => {
+        img.removeAttribute('loading');
+        img.loading = 'eager';
+        // Point ESPN logos at the same-origin proxy immediately.
+        const raw = img.getAttribute('src') || '';
+        const proxied = captureFetchUrl(raw);
+        if (proxied && proxied !== raw) img.setAttribute('src', proxied);
+        img.removeAttribute('srcset');
+        img.removeAttribute('crossorigin');
       });
       return clone;
     }
@@ -3194,8 +3258,9 @@
           backgroundColor: '#1a1410',
           scale: mobile ? 1.25 : 2,
           useCORS: true,
-          allowTaint: true,
-          imageTimeout: 2000,
+          // Logos are inlined as data: URLs (or same-origin /api/logo) so taint is avoided.
+          allowTaint: false,
+          imageTimeout: 4000,
           logging: false,
           scrollX: 0,
           scrollY: 0,
@@ -3206,10 +3271,14 @@
             if (node) {
               node.style.transform = 'none';
               node.style.opacity = '1';
+              node.querySelectorAll('img').forEach((img) => {
+                img.removeAttribute('loading');
+                img.loading = 'eager';
+              });
             }
           },
         }),
-        mobile ? 12000 : 20000,
+        mobile ? 15000 : 25000,
         'Image capture timed out. Try again.'
       );
     }
@@ -3228,7 +3297,6 @@
       const clone = prepareCaptureClone(source, captureWidth);
       host.appendChild(clone);
 
-      // Button label is owned by takeScreenshot when launched from a click.
       const btn = opts.triggerBtn || null;
       const manageBtn = !opts.triggerBtn;
       const prevLabel = btn && manageBtn ? btn.innerHTML : '';
@@ -3238,10 +3306,11 @@
       }
 
       try {
+        // Give logos enough time — 12 games × 2–3 logos need the proxy round-trip.
         try {
-          await withTimeout(inlineImagesForCapture(clone), 6000, 'logo-inline-timeout');
+          await withTimeout(inlineImagesForCapture(clone), 20000, 'logo-inline-timeout');
         } catch (inlineErr) {
-          console.warn('logo inline skipped', inlineErr);
+          console.warn('logo inline partial', inlineErr);
         }
         const canvas = await renderShareCanvas(clone, captureWidth, mobile);
         if (!canvas || !canvas.width) throw new Error('Could not render picks image.');
@@ -3298,27 +3367,25 @@
     }
 
     /**
-     * Opens the system share sheet with the PNG so the user can Save Image
-     * to Camera Roll / Photos. Must run from a direct tap (user gesture).
-     * Share files only — adding a URL makes iOS treat it like a link share.
+     * Opens the system sheet with the PNG only (no URL / no text), so iOS/Android
+     * offer Save Image → Camera Roll / Photos — not "Save to Files".
      */
-    async function shareImageToCameraRoll(file, { title } = {}) {
+    async function shareImageToCameraRoll(file) {
       if (!file || !navigator.share) return { ok: false, reason: 'unsupported' };
-      const attempts = [{ files: [file] }];
-      if (title) attempts.push({ files: [file], title: String(title) });
-      for (const payload of attempts) {
-        try {
-          if (navigator.canShare && !navigator.canShare(payload)) continue;
-          await navigator.share(payload);
-          return { ok: true };
-        } catch (err) {
-          if (err && err.name === 'AbortError') return { ok: true, aborted: true };
+      const payload = { files: [file] };
+      try {
+        if (typeof navigator.canShare === 'function' && !navigator.canShare(payload)) {
+          return { ok: false, reason: 'unsupported' };
         }
+        await navigator.share(payload);
+        return { ok: true };
+      } catch (err) {
+        if (err && err.name === 'AbortError') return { ok: true, aborted: true };
+        return { ok: false, reason: 'share_failed' };
       }
-      return { ok: false, reason: 'share_failed' };
     }
 
-    async function exportCanvasImage(canvas, { fileName, title, text } = {}) {
+    async function exportCanvasImage(canvas, { fileName } = {}) {
       const name = fileName || `weekly-picks-${new Date().toISOString().split('T')[0]}.png`;
       let blob = await canvasToBlob(canvas);
       if (!blob) {
@@ -3335,7 +3402,6 @@
         return;
       }
 
-      // Ensure MIME is image/png for Photos / Camera Roll share targets.
       if (blob.type !== 'image/png') {
         blob = new Blob([blob], { type: 'image/png' });
       }
@@ -3343,21 +3409,26 @@
         type: 'image/png',
         lastModified: Date.now(),
       });
-      const url = URL.createObjectURL(blob);
 
-      // Mobile: never use <a download> (that goes to Files/Downloads).
-      // Show a sheet with Save to Photos — that tap keeps the user gesture iOS needs.
+      // Mobile: one system prompt only — Save Image to Photos / Camera Roll.
+      // No custom popup, no Downloads / "Save as file".
       if (isMobileCapture()) {
-        openImageSaveSheet(url, name, {
-          revokeUrl: url,
-          file,
-          title: title || 'Weekly picks',
-          text: text || 'My weekly picks',
-        });
+        if (!canShareImageFile(file)) {
+          alert('This browser cannot save images to Photos. Try Safari on iPhone or Chrome on Android.');
+          return;
+        }
+        const result = await shareImageToCameraRoll(file);
+        if (result.ok) {
+          if (!result.aborted) flashScreenshotButtons('Saved.');
+          return;
+        }
+        // iOS often drops the tap gesture after async capture — one retry button, nothing else.
+        openPhotosRetry(file);
         return;
       }
 
-      // Desktop: download file.
+      // Desktop only: download the PNG.
+      const url = URL.createObjectURL(blob);
       try {
         const link = document.createElement('a');
         link.download = name;
@@ -3372,85 +3443,39 @@
       }
     }
 
-    function openImageSaveSheet(src, fileName, { revokeUrl, file, title, text } = {}) {
+    /** Single tap to re-open the Photos share sheet if the first auto-prompt was blocked. */
+    function openPhotosRetry(file) {
       closeImageSaveSheet();
-      const ios = isIosCapture();
-      const canShare = canShareImageFile(file);
       const sheet = document.createElement('div');
       sheet.id = 'picksImageSaveSheet';
-      sheet.className = 'picks-image-save-sheet';
+      sheet.className = 'picks-image-save-sheet picks-image-save-sheet--retry';
       sheet.setAttribute('role', 'dialog');
       sheet.setAttribute('aria-modal', 'true');
-      sheet.setAttribute('aria-label', 'Save picks image to photos');
-      const note = canShare
-        ? ios
-          ? 'Tap <strong>Save to Photos</strong>, then choose <em>Save Image</em> to add it to your Camera Roll.'
-          : 'Tap <strong>Save to Photos</strong>, then choose Photos / Gallery / Camera roll.'
-        : ios
-          ? 'Press and hold the image, then tap <em>Add to Photos</em> / <em>Save Image</em>.'
-          : 'Press and hold the image, then save it to your gallery.';
+      sheet.setAttribute('aria-label', 'Save to Photos');
       sheet.innerHTML = `
-        <div class="picks-image-save-card">
-          <div class="picks-image-save-head">
-            <strong>Save to Photos</strong>
-            <button type="button" class="picks-image-save-close" aria-label="Close">×</button>
-          </div>
-          <p class="picks-image-save-note">${note}</p>
-          <div class="picks-image-save-frame">
-            <img src="${src}" alt="Picks card — press and hold to save" draggable="false">
-          </div>
-          <div class="picks-image-save-actions${canShare ? '' : ' is-single'}">
-            ${
-              canShare
-                ? `<button type="button" class="screenshot-button" data-action="photos">Save to Photos</button>`
-                : ''
-            }
-            <button type="button" class="screenshot-button edit-picks-button" data-action="close">Done</button>
-          </div>
-          <p class="picks-image-save-hint">This saves to your camera roll — not Downloads.</p>
+        <div class="picks-image-save-card picks-image-save-card--retry">
+          <p class="picks-image-save-note">Tap below, then choose <em>Save Image</em>.</p>
+          <button type="button" class="screenshot-button" data-action="photos">Save to Photos</button>
         </div>
       `;
       document.body.appendChild(sheet);
       document.body.classList.add('picks-image-save-open');
 
-      const cleanup = () => {
-        if (revokeUrl) {
-          try {
-            URL.revokeObjectURL(revokeUrl);
-          } catch (_) {}
-        }
-        closeImageSaveSheet();
-      };
-
-      sheet.querySelector('.picks-image-save-close')?.addEventListener('click', cleanup);
-      sheet.querySelector('[data-action="close"]')?.addEventListener('click', cleanup);
+      const finish = () => closeImageSaveSheet();
       sheet.addEventListener('click', (ev) => {
-        if (ev.target === sheet) cleanup();
+        if (ev.target === sheet) finish();
       });
-
-      const photosBtn = sheet.querySelector('[data-action="photos"]');
-      if (photosBtn) {
-        photosBtn.addEventListener('click', async () => {
-          photosBtn.disabled = true;
-          const prev = photosBtn.textContent;
-          photosBtn.textContent = 'Opening…';
-          const result = await shareImageToCameraRoll(file, { title });
-          photosBtn.disabled = false;
-          photosBtn.textContent = prev;
-          if (result.ok) {
-            if (!result.aborted) flashScreenshotButtons('Saved.');
-            cleanup();
-            return;
-          }
-          // Share failed — keep sheet open so they can long-press the image.
-          const noteEl = sheet.querySelector('.picks-image-save-note');
-          if (noteEl) {
-            noteEl.innerHTML = ios
-              ? 'Share sheet unavailable. Press and hold the image, then tap <em>Add to Photos</em>.'
-              : 'Share sheet unavailable. Press and hold the image, then save to your gallery.';
-          }
-        });
-      }
+      sheet.querySelector('[data-action="photos"]')?.addEventListener('click', async (ev) => {
+        ev.stopPropagation();
+        const btn = ev.currentTarget;
+        btn.disabled = true;
+        const result = await shareImageToCameraRoll(file);
+        btn.disabled = false;
+        if (result.ok) {
+          if (!result.aborted) flashScreenshotButtons('Saved.');
+          finish();
+        }
+      });
     }
 
     function closeImageSaveSheet() {
@@ -4276,7 +4301,7 @@
       host.appendChild(clone);
       try {
         try {
-          await withTimeout(inlineImagesForCapture(clone), 6000, 'logo-inline-timeout');
+          await withTimeout(inlineImagesForCapture(clone), 20000, 'logo-inline-timeout');
         } catch (inlineErr) {
           console.warn('logo inline skipped', inlineErr);
         }
