@@ -9,7 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
   <link rel="stylesheet" href="styles/site-theme.css">
-  <link rel="stylesheet" href="Resources/Styles/weeklypicks.css?v=21">
+  <link rel="stylesheet" href="Resources/Styles/weeklypicks.css?v=22">
   <link rel="stylesheet" href="styles/picks-hub.css">
   <link rel="stylesheet" href="Resources/Styles/power.css">
   <link rel="stylesheet" href="styles/weeklypicks-mobile.css?v=2">
@@ -3151,6 +3151,13 @@
       return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent || '');
     }
 
+    function isIosCapture() {
+      const ua = navigator.userAgent || '';
+      if (/iPhone|iPad|iPod/i.test(ua)) return true;
+      // iPadOS desktop UA
+      return navigator.platform === 'MacIntel' && (navigator.maxTouchPoints || 0) > 1;
+    }
+
     function canvasToBlob(canvas, type = 'image/png', quality) {
       return new Promise((resolve) => {
         if (!canvas || typeof canvas.toBlob !== 'function') {
@@ -3161,86 +3168,130 @@
       });
     }
 
-    function canShareFiles(file) {
+    function canShareImageFile(file) {
+      if (!navigator.share || typeof File === 'undefined' || !file) return false;
       try {
-        return !!(navigator.share && navigator.canShare && navigator.canShare({ files: [file] }));
+        if (typeof navigator.canShare !== 'function') {
+          // Older iOS: canShare missing but files share often still works.
+          return isIosCapture() || /Android/i.test(navigator.userAgent || '');
+        }
+        return navigator.canShare({ files: [file] });
       } catch (_) {
         return false;
       }
     }
 
-    async function exportCanvasImage(canvas, { fileName, title, text } = {}) {
-      const name = fileName || `weekly-picks-${new Date().toISOString().split('T')[0]}.png`;
-      const blob = await canvasToBlob(canvas);
-      if (!blob) {
-        // Last resort: data URL download / preview
-        openImageSaveSheet(canvas.toDataURL('image/png'), name);
-        return;
-      }
-
-      const file = new File([blob], name, { type: 'image/png' });
-
-      // Mobile: prefer the native share sheet (Save Image / Photos / Messages).
-      if (isMobileCapture() && canShareFiles(file)) {
+    /**
+     * Opens the system share sheet with the PNG so the user can Save Image
+     * to Camera Roll / Photos. Must run from a direct tap (user gesture).
+     * Share files only — adding a URL makes iOS treat it like a link share.
+     */
+    async function shareImageToCameraRoll(file, { title } = {}) {
+      if (!file || !navigator.share) return { ok: false, reason: 'unsupported' };
+      const attempts = [{ files: [file] }];
+      if (title) attempts.push({ files: [file], title: String(title) });
+      for (const payload of attempts) {
         try {
-          await navigator.share({
-            files: [file],
-            title: title || 'Weekly picks',
-            text: text || 'My weekly picks',
-          });
-          flashScreenshotButtons('Shared.');
-          return;
+          if (navigator.canShare && !navigator.canShare(payload)) continue;
+          await navigator.share(payload);
+          return { ok: true };
         } catch (err) {
-          if (err && err.name === 'AbortError') return;
-          // Fall through to preview sheet
+          if (err && err.name === 'AbortError') return { ok: true, aborted: true };
         }
       }
-
-      // Desktop (and some Android): real file download works.
-      if (!isMobileCapture()) {
-        const url = URL.createObjectURL(blob);
-        try {
-          const link = document.createElement('a');
-          link.download = name;
-          link.href = url;
-          link.rel = 'noopener';
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          flashScreenshotButtons('Downloaded.');
-        } finally {
-          setTimeout(() => URL.revokeObjectURL(url), 2000);
-        }
-        return;
-      }
-
-      // iOS Safari ignores <a download> — show a preview the user can long-press to save.
-      const url = URL.createObjectURL(blob);
-      openImageSaveSheet(url, name, { revokeUrl: url, file });
+      return { ok: false, reason: 'share_failed' };
     }
 
-    function openImageSaveSheet(src, fileName, { revokeUrl, file } = {}) {
+    async function exportCanvasImage(canvas, { fileName, title, text } = {}) {
+      const name = fileName || `weekly-picks-${new Date().toISOString().split('T')[0]}.png`;
+      let blob = await canvasToBlob(canvas);
+      if (!blob) {
+        try {
+          const dataUrl = canvas.toDataURL('image/png');
+          const resp = await fetch(dataUrl);
+          blob = await resp.blob();
+        } catch (_) {
+          blob = null;
+        }
+      }
+      if (!blob || !blob.size) {
+        alert('Could not build the image. Try again.');
+        return;
+      }
+
+      // Ensure MIME is image/png for Photos / Camera Roll share targets.
+      if (blob.type !== 'image/png') {
+        blob = new Blob([blob], { type: 'image/png' });
+      }
+      const file = new File([blob], name.replace(/\.jpe?g$/i, '.png'), {
+        type: 'image/png',
+        lastModified: Date.now(),
+      });
+      const url = URL.createObjectURL(blob);
+
+      // Mobile: never use <a download> (that goes to Files/Downloads).
+      // Show a sheet with Save to Photos — that tap keeps the user gesture iOS needs.
+      if (isMobileCapture()) {
+        openImageSaveSheet(url, name, {
+          revokeUrl: url,
+          file,
+          title: title || 'Weekly picks',
+          text: text || 'My weekly picks',
+        });
+        return;
+      }
+
+      // Desktop: download file.
+      try {
+        const link = document.createElement('a');
+        link.download = name;
+        link.href = url;
+        link.rel = 'noopener';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        flashScreenshotButtons('Downloaded.');
+      } finally {
+        setTimeout(() => URL.revokeObjectURL(url), 2500);
+      }
+    }
+
+    function openImageSaveSheet(src, fileName, { revokeUrl, file, title, text } = {}) {
       closeImageSaveSheet();
+      const ios = isIosCapture();
+      const canShare = canShareImageFile(file);
       const sheet = document.createElement('div');
       sheet.id = 'picksImageSaveSheet';
       sheet.className = 'picks-image-save-sheet';
       sheet.setAttribute('role', 'dialog');
       sheet.setAttribute('aria-modal', 'true');
-      sheet.setAttribute('aria-label', 'Save picks image');
+      sheet.setAttribute('aria-label', 'Save picks image to photos');
+      const note = canShare
+        ? ios
+          ? 'Tap <strong>Save to Photos</strong>, then choose <em>Save Image</em> to add it to your Camera Roll.'
+          : 'Tap <strong>Save to Photos</strong>, then choose Photos / Gallery / Camera roll.'
+        : ios
+          ? 'Press and hold the image, then tap <em>Add to Photos</em> / <em>Save Image</em>.'
+          : 'Press and hold the image, then save it to your gallery.';
       sheet.innerHTML = `
         <div class="picks-image-save-card">
           <div class="picks-image-save-head">
-            <strong>Save image</strong>
+            <strong>Save to Photos</strong>
             <button type="button" class="picks-image-save-close" aria-label="Close">×</button>
           </div>
-          <p class="picks-image-save-note">Long-press the image and choose <em>Save Image</em>, or use Share.</p>
+          <p class="picks-image-save-note">${note}</p>
           <div class="picks-image-save-frame">
-            <img src="${src}" alt="Picks card preview" draggable="false">
+            <img src="${src}" alt="Picks card — press and hold to save" draggable="false">
           </div>
-          <div class="picks-image-save-actions">
-            <button type="button" class="screenshot-button" data-action="share">Share</button>
+          <div class="picks-image-save-actions${canShare ? '' : ' is-single'}">
+            ${
+              canShare
+                ? `<button type="button" class="screenshot-button" data-action="photos">Save to Photos</button>`
+                : ''
+            }
             <button type="button" class="screenshot-button edit-picks-button" data-action="close">Done</button>
           </div>
+          <p class="picks-image-save-hint">This saves to your camera roll — not Downloads.</p>
         </div>
       `;
       document.body.appendChild(sheet);
@@ -3260,27 +3311,30 @@
       sheet.addEventListener('click', (ev) => {
         if (ev.target === sheet) cleanup();
       });
-      sheet.querySelector('[data-action="share"]')?.addEventListener('click', async () => {
-        if (file && canShareFiles(file)) {
-          try {
-            await navigator.share({
-              files: [file],
-              title: 'Weekly picks',
-              text: 'My weekly picks',
-            });
+
+      const photosBtn = sheet.querySelector('[data-action="photos"]');
+      if (photosBtn) {
+        photosBtn.addEventListener('click', async () => {
+          photosBtn.disabled = true;
+          const prev = photosBtn.textContent;
+          photosBtn.textContent = 'Opening…';
+          const result = await shareImageToCameraRoll(file, { title });
+          photosBtn.disabled = false;
+          photosBtn.textContent = prev;
+          if (result.ok) {
+            if (!result.aborted) flashScreenshotButtons('Saved.');
             cleanup();
             return;
-          } catch (err) {
-            if (err && err.name === 'AbortError') return;
           }
-        }
-        // Share without files: open image URL if possible
-        try {
-          if (navigator.share) {
-            await navigator.share({ title: 'Weekly picks', url: window.location.href });
+          // Share failed — keep sheet open so they can long-press the image.
+          const noteEl = sheet.querySelector('.picks-image-save-note');
+          if (noteEl) {
+            noteEl.innerHTML = ios
+              ? 'Share sheet unavailable. Press and hold the image, then tap <em>Add to Photos</em>.'
+              : 'Share sheet unavailable. Press and hold the image, then save to your gallery.';
           }
-        } catch (_) {}
-      });
+        });
+      }
     }
 
     function closeImageSaveSheet() {

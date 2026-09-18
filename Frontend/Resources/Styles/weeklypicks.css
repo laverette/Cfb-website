@@ -2632,10 +2632,19 @@ body.picks-results-open #picksEmailOptIn {
     grid-template-columns: 1fr 1fr;
     gap: 0.55rem;
 }
+.picks-image-save-actions.is-single {
+    grid-template-columns: 1fr;
+}
 .picks-image-save-actions .screenshot-button {
     width: 100%;
     max-width: none;
     margin: 0;
+}
+.picks-image-save-hint {
+    margin: 0.55rem 0 0;
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.55);
+    text-align: center;
 }
 body.picks-image-save-open {
     overflow: hidden;
