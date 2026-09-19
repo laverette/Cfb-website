@@ -456,6 +456,8 @@ body.has-mobile-dock {
     padding: 0.08rem 0.4rem;
   }
   .picks-share-teams { display: none; }
+  .picks-share-card.is-capture .picks-share-teams { display: flex !important; }
+  .picks-share-card.is-capture .picks-share-matchup { display: none !important; }
   .picks-share-matchup {
     margin: 0 0 0.25rem;
     font-size: 0.72rem;

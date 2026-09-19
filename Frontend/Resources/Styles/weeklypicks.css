@@ -2424,10 +2424,25 @@ body.picks-results-open #picksEmailOptIn {
     padding: 0.55rem 0.6rem 0.6rem;
 }
 
+/* Capture always uses the full matchup row (ignore mobile “text-only” share layout). */
+.picks-share-card.is-capture .picks-share-teams {
+    display: flex !important;
+}
+
+.picks-share-card.is-capture .picks-share-matchup {
+    display: none !important;
+}
+
 .picks-share-card.is-capture .picks-share-logo,
 .picks-share-card.is-capture .picks-share-logo-fallback {
     width: 36px;
     height: 36px;
+}
+
+.picks-share-card.is-capture .picks-share-pick .picks-share-logo,
+.picks-share-card.is-capture .picks-share-pick .picks-share-logo-fallback {
+    width: 22px;
+    height: 22px;
 }
 
 @media (min-width: 720px) {

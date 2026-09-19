@@ -9,10 +9,10 @@
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
   <link rel="stylesheet" href="styles/site-theme.css">
-  <link rel="stylesheet" href="Resources/Styles/weeklypicks.css?v=26">
+  <link rel="stylesheet" href="Resources/Styles/weeklypicks.css?v=27">
   <link rel="stylesheet" href="styles/picks-hub.css">
   <link rel="stylesheet" href="Resources/Styles/power.css">
-  <link rel="stylesheet" href="styles/weeklypicks-mobile.css?v=2">
+  <link rel="stylesheet" href="styles/weeklypicks-mobile.css?v=3">
 </head>
 <body>
   <script>
@@ -3111,7 +3111,7 @@
       if (logoBitmapCache.has(fetchUrl)) return logoBitmapCache.get(fetchUrl);
 
       const pending = (async () => {
-        try {
+        const attempt = async () => {
           const resp = await fetchWithTimeout(fetchUrl, 8000);
           if (!resp || !resp.ok) return null;
           const blob = await resp.blob();
@@ -3131,13 +3131,24 @@
             im.onerror = () => resolve(null);
             im.src = dataUrl;
           });
+        };
+
+        try {
+          const first = await attempt();
+          if (first) return first;
+          // One retry — logo-proxy cold starts often fail the first hit on mobile.
+          await new Promise((r) => setTimeout(r, 400));
+          return await attempt();
         } catch (_) {
           return null;
         }
       })();
 
       logoBitmapCache.set(fetchUrl, pending);
-      return pending;
+      const result = await pending;
+      // Never cache failures — cold proxy starts / flaky mobile nets must retry.
+      if (!result) logoBitmapCache.delete(fetchUrl);
+      return result;
     }
 
     /** Fire-and-forget: warm logo bitmaps while the user looks at the card. */
@@ -3155,7 +3166,17 @@
       if (!rootRect.width || !rootRect.height) return [];
       return Array.from(clone.querySelectorAll('img.picks-share-logo'))
         .map((img) => {
+          // Skip logos in display:none ancestors (e.g. mobile on-screen card).
+          let node = img;
+          while (node && node !== clone) {
+            const cs = window.getComputedStyle(node);
+            if (cs.display === 'none' || cs.visibility === 'hidden') {
+              return null;
+            }
+            node = node.parentElement;
+          }
           const r = img.getBoundingClientRect();
+          if (r.width < 2 || r.height < 2) return null;
           const src =
             img.getAttribute('data-logo-src') ||
             img.getAttribute('src') ||
@@ -3165,34 +3186,34 @@
             src,
             x: r.left - rootRect.left,
             y: r.top - rootRect.top,
-            w: Math.max(r.width, 1),
-            h: Math.max(r.height, 1),
+            w: r.width,
+            h: r.height,
             label: String(img.getAttribute('alt') || '?')
               .trim()
               .slice(0, 3)
               .toUpperCase(),
           };
         })
-        .filter((s) => s.w > 0 && s.h > 0 && (s.src || s.label));
+        .filter((s) => s && s.w > 0 && s.h > 0 && (s.src || s.label));
     }
 
-    async function stampLogosOntoCanvas(canvas, clone, slots) {
+    async function stampLogosOntoCanvas(canvas, clone, slots, captureWidth) {
       if (!canvas || !slots || !slots.length) return;
-      const cw = clone.offsetWidth || clone.getBoundingClientRect().width;
-      const ch = clone.offsetHeight || clone.getBoundingClientRect().height;
-      if (!cw || !ch) return;
-      const scaleX = canvas.width / cw;
-      const scaleY = canvas.height / ch;
+      const cw = clone.offsetWidth || captureWidth || clone.getBoundingClientRect().width;
+      if (!cw) return;
+      // html2canvas uses one uniform scale — never mix separate X/Y ratios (that
+      // drifts stamps into the middle of cards when height measurement disagrees).
+      const scale = canvas.width / cw;
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
 
       await Promise.all(
         slots.map(async (slot) => {
           const drawable = slot.src ? await loadLogoDrawable(slot.src) : null;
-          const dx = slot.x * scaleX;
-          const dy = slot.y * scaleY;
-          const dw = slot.w * scaleX;
-          const dh = slot.h * scaleY;
+          const dx = slot.x * scale;
+          const dy = slot.y * scale;
+          const dw = slot.w * scale;
+          const dh = slot.h * scale;
 
           if (drawable) {
             ctx.drawImage(drawable, dx, dy, dw, dh);
@@ -3236,7 +3257,7 @@
       } catch (err) {
         console.warn('logo preload partial', err);
       }
-      await stampLogosOntoCanvas(canvas, clone, slots);
+      await stampLogosOntoCanvas(canvas, clone, slots, captureWidth);
       return canvas;
     }
 
@@ -3249,6 +3270,13 @@
       clone.style.margin = '0';
       clone.style.transform = 'none';
       clone.style.opacity = '1';
+      // Inline overrides beat mobile media queries that hide the logo row.
+      clone.querySelectorAll('.picks-share-teams').forEach((el) => {
+        el.style.display = 'flex';
+      });
+      clone.querySelectorAll('.picks-share-matchup').forEach((el) => {
+        el.style.display = 'none';
+      });
       clone.querySelectorAll('button, script, iframe, video, .screenshot-section, .picks-share-actions').forEach((el) => {
         try {
           el.remove();
@@ -3280,16 +3308,20 @@
       const host = document.createElement('div');
       host.className = 'picks-capture-host';
       // Keep in the viewport (opacity ~0). Off-screen (-10000px) hangs html2canvas on iOS.
+      // overflow:visible + no max-height so the full card is laid out (not clipped to the
+      // phone viewport — that was shifting logo stamps into the middle of each game).
       host.style.cssText = [
         'position:fixed',
         'left:0',
         'top:0',
         `width:${captureWidth}px`,
+        'height:auto',
+        'max-height:none',
         'opacity:0.01',
         'pointer-events:none',
         'z-index:2147483000',
         'background:#1a1410',
-        'overflow:hidden',
+        'overflow:visible',
       ].join(';');
       host.setAttribute('aria-hidden', 'true');
       document.body.appendChild(host);
@@ -3298,10 +3330,12 @@
 
     async function renderShareCanvas(clone, captureWidth, mobile) {
       const h2c = await loadHtml2Canvas();
+      const scale = mobile ? 1.25 : 2;
+      const height = Math.ceil(clone.scrollHeight || clone.offsetHeight || 0);
       return withTimeout(
         h2c(clone, {
           backgroundColor: '#1a1410',
-          scale: mobile ? 1.25 : 2,
+          scale,
           useCORS: true,
           allowTaint: false,
           // Logos are stamped after capture — don't wait on <img> paint.
@@ -3310,12 +3344,20 @@
           scrollX: 0,
           scrollY: 0,
           width: captureWidth,
+          ...(height > 0 ? { height } : {}),
           windowWidth: captureWidth,
+          ...(height > 0 ? { windowHeight: height } : {}),
           onclone: (doc) => {
             const node = doc.getElementById(clone.id);
             if (node) {
               node.style.transform = 'none';
               node.style.opacity = '1';
+              node.querySelectorAll('.picks-share-teams').forEach((el) => {
+                el.style.display = 'flex';
+              });
+              node.querySelectorAll('.picks-share-matchup').forEach((el) => {
+                el.style.display = 'none';
+              });
               node.querySelectorAll('img.picks-share-logo').forEach((img) => {
                 img.style.visibility = 'hidden';
               });
