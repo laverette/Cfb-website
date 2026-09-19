@@ -2296,7 +2296,6 @@
     function wireShareCardActions(options = {}) {
       bindOnce(document.getElementById('screenshotBtn'), 'click', takeScreenshot);
       bindOnce(document.getElementById('picksScreenshotBtn'), 'click', takeScreenshot);
-      prewarmShareLogos(document.getElementById('picksShareCard'));
 
       const onEdit = async function () {
         const status = window.__PICKS_STATUS__ || {};
@@ -3288,18 +3287,11 @@
         while (a.firstChild) parent.insertBefore(a.firstChild, a);
         a.remove();
       });
-      clone.querySelectorAll('img.picks-share-logo').forEach((img) => {
-        img.removeAttribute('loading');
-        img.loading = 'eager';
-        // Preserve ESPN URL for canvas stamping; display via proxy if needed.
-        const raw = img.getAttribute('data-logo-src') || img.getAttribute('src') || '';
-        if (raw && !img.getAttribute('data-logo-src')) {
-          img.setAttribute('data-logo-src', raw);
-        }
-        const proxied = captureFetchUrl(raw);
-        if (proxied && proxied !== raw) img.setAttribute('src', proxied);
-        img.removeAttribute('srcset');
-        img.removeAttribute('crossorigin');
+      // Logos are unreliable in saved images (CORS / html2canvas) — drop them for capture.
+      clone.querySelectorAll('img.picks-share-logo, .picks-share-logo-fallback').forEach((el) => {
+        try {
+          el.remove();
+        } catch (_) {}
       });
       return clone;
     }
@@ -3392,7 +3384,7 @@
       }
 
       try {
-        const canvas = await renderShareCanvasWithLogos(clone, captureWidth, mobile);
+        const canvas = await renderShareCanvas(clone, captureWidth, mobile);
         if (!canvas || !canvas.width) throw new Error('Could not render picks image.');
         const fileName = `${week.fileSlug}-${new Date().toISOString().split('T')[0]}.png`;
         await exportCanvasImage(canvas, {
@@ -4380,7 +4372,7 @@
       const clone = prepareCaptureClone(source, captureWidth);
       host.appendChild(clone);
       try {
-        const canvas = await renderShareCanvasWithLogos(clone, captureWidth, mobile);
+        const canvas = await renderShareCanvas(clone, captureWidth, mobile);
         if (!canvas || !canvas.width) throw new Error('Could not render image.');
         const fileName = `${filePrefix || 'card'}-${week.fileSlug}-${new Date().toISOString().split('T')[0]}.png`;
         await exportCanvasImage(canvas, {
@@ -5133,18 +5125,19 @@
       const dates = datesForLiveScores();
 
       if (fast) {
-        // First paint: single ESPN scoreboard request
+        // First paint + auto-refresh: ESPN only (no CFBD — saves API quota).
         const espnBrowser = await fetchEspnScoresBrowser(dates, { currentOnly: true });
         return espnBrowser.length ? espnBrowser : null;
       }
 
-      const [espnBrowser, apiGames, cfbdGames] = await Promise.all([
+      // Full refresh: browser ESPN + server /api/live-scores (grading).
+      // Do NOT also call CFBD from the browser — that duplicated every live-scores CFBD hit.
+      const [espnBrowser, apiGames] = await Promise.all([
         fetchEspnScoresBrowser(dates),
         fetchLiveScoresApi(dates),
-        fetchCfbdScoresFallback(),
       ]);
 
-      const merged = mergeLiveScoreLists(espnBrowser, apiGames, cfbdGames);
+      const merged = mergeLiveScoreLists(espnBrowser, apiGames);
       return merged.length ? merged : null;
     }
 

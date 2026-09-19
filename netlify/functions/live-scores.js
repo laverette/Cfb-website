@@ -12,6 +12,10 @@ const ESPN_SB =
   "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard";
 const CFBD_BASE = "https://api.collegefootballdata.com";
 
+/** Short in-memory cache so polling /api/live-scores does not re-hit CFBD every time. */
+const cfbdGamesCache = new Map(); // key -> { at, games }
+const CFBD_GAMES_TTL_MS = 5 * 60 * 1000;
+
 function readCfbdKey() {
   return (process.env.CFBD_API_KEY && String(process.env.CFBD_API_KEY).trim()) || "";
 }
@@ -240,38 +244,37 @@ function normalizeCfbdGame(g) {
 async function fetchCfbdScores({ season, week }) {
   const key = readCfbdKey();
   if (!key) return [];
+  // Opt out: set CFBD_LIVE_SCORES=0 in Netlify to stop live-score CFBD usage entirely.
+  const enabled = String(process.env.CFBD_LIVE_SCORES || "1").trim();
+  if (enabled === "0" || enabled.toLowerCase() === "false") return [];
+
+  // /scoreboard needs Patreon Tier 1+ and still burns quota on 401 — never call it.
+  // Only /games when we know the slate (used for finals / grading fill-in).
+  if (!season || !week) return [];
+
+  const cacheKey = `${season}:${week}`;
+  const cached = cfbdGamesCache.get(cacheKey);
+  if (cached && Date.now() - cached.at < CFBD_GAMES_TTL_MS) {
+    return cached.games;
+  }
+
   const headers = { Authorization: `Bearer ${key}` };
   const byId = new Map();
 
-  if (season && week) {
-    try {
-      const url = `${CFBD_BASE}/games?year=${encodeURIComponent(season)}&week=${encodeURIComponent(week)}&seasonType=regular`;
-      const games = await fetchJson(url, headers);
-      (Array.isArray(games) ? games : []).forEach((raw) => {
-        const g = normalizeCfbdGame(raw);
-        if (g && Number.isFinite(g.id)) byId.set(g.id, g);
-      });
-    } catch (err) {
-      console.warn("cfbd games", err.status || err.message);
-    }
-  }
-
   try {
-    const board = await fetchJson(
-      `${CFBD_BASE}/scoreboard?classification=fbs`,
-      headers
-    );
-    (Array.isArray(board) ? board : []).forEach((raw) => {
+    const url = `${CFBD_BASE}/games?year=${encodeURIComponent(season)}&week=${encodeURIComponent(week)}&seasonType=regular`;
+    const games = await fetchJson(url, headers);
+    (Array.isArray(games) ? games : []).forEach((raw) => {
       const g = normalizeCfbdGame(raw);
-      if (!g || !Number.isFinite(g.id)) return;
-      const prev = byId.get(g.id) || {};
-      byId.set(g.id, { ...prev, ...g, source: g.source || prev.source });
+      if (g && Number.isFinite(g.id)) byId.set(g.id, g);
     });
   } catch (err) {
-    console.warn("cfbd scoreboard", err.status || err.message);
+    console.warn("cfbd games", err.status || err.message);
   }
 
-  return Array.from(byId.values());
+  const out = Array.from(byId.values());
+  cfbdGamesCache.set(cacheKey, { at: Date.now(), games: out });
+  return out;
 }
 
 exports.handler = async (event) => {

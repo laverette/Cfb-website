@@ -40,6 +40,41 @@ const ALLOWED_PREFIXES = [
 
 const DEFAULT_TIMEOUT_MS = 12_000;
 
+/** Process-local response cache — Netlify warm instances reuse this between invokes. */
+const responseCache = new Map(); // key -> { at, statusCode, headers, body }
+const MAX_CACHE_ENTRIES = 80;
+
+function cacheTtlMs(cfbdPath) {
+  const p = String(cfbdPath || "");
+  if (p.startsWith("/teams")) return 6 * 60 * 60 * 1000; // 6h
+  if (p.startsWith("/calendar") || p.startsWith("/conferences")) return 12 * 60 * 60 * 1000;
+  if (p === "/games" || p.startsWith("/games")) return 5 * 60 * 1000; // 5m (scores can change)
+  if (p.startsWith("/records") || p.startsWith("/roster") || p.startsWith("/ratings")) {
+    return 30 * 60 * 1000;
+  }
+  if (p.startsWith("/scoreboard") || p.startsWith("/live")) return 0; // never cache live
+  return 10 * 60 * 1000;
+}
+
+function cacheGet(key) {
+  const hit = responseCache.get(key);
+  if (!hit) return null;
+  if (Date.now() - hit.at > hit.ttl) {
+    responseCache.delete(key);
+    return null;
+  }
+  return hit;
+}
+
+function cacheSet(key, entry) {
+  if (!entry.ttl || entry.ttl <= 0) return;
+  if (responseCache.size >= MAX_CACHE_ENTRIES) {
+    const oldest = responseCache.keys().next().value;
+    if (oldest != null) responseCache.delete(oldest);
+  }
+  responseCache.set(key, entry);
+}
+
 function json(statusCode, body, extraHeaders = {}) {
   return {
     statusCode,
@@ -121,6 +156,19 @@ exports.handler = async (event) => {
 
   const query = new URLSearchParams(event.queryStringParameters || {});
   const upstreamUrl = buildUpstreamUrl(cfbdPath, query);
+  const cacheKey = upstreamUrl.toString();
+  const ttl = cacheTtlMs(cfbdPath);
+  const cached = ttl > 0 ? cacheGet(cacheKey) : null;
+  if (cached) {
+    return {
+      statusCode: cached.statusCode,
+      headers: {
+        ...cached.headers,
+        "x-cfbd-cache": "HIT",
+      },
+      body: cached.body,
+    };
+  }
 
   const controller = new AbortController();
   const timeoutMs = Number(event.queryStringParameters?.timeoutMs) || DEFAULT_TIMEOUT_MS;
@@ -141,7 +189,7 @@ exports.handler = async (event) => {
     const payload = isJson ? await resp.json().catch(() => null) : await resp.text();
 
     if (!resp.ok) {
-      // Preserve useful upstream errors (401/403/404/429/etc)
+      // Preserve useful upstream errors (401/403/404/429/etc) — do not cache errors.
       return json(resp.status, {
         error: "CFBD upstream error.",
         status: resp.status,
@@ -151,13 +199,18 @@ exports.handler = async (event) => {
       });
     }
 
+    const headers = {
+      "content-type": isJson ? "application/json; charset=utf-8" : "text/plain; charset=utf-8",
+      "cache-control": ttl > 0 ? `public, max-age=${Math.floor(ttl / 1000)}` : "no-store",
+      "x-cfbd-cache": "MISS",
+    };
+    const body = isJson ? JSON.stringify(payload) : String(payload);
+    cacheSet(cacheKey, { at: Date.now(), ttl, statusCode: 200, headers, body });
+
     return {
       statusCode: 200,
-      headers: {
-        "content-type": isJson ? "application/json; charset=utf-8" : "text/plain; charset=utf-8",
-        "cache-control": "no-store",
-      },
-      body: isJson ? JSON.stringify(payload) : String(payload),
+      headers,
+      body,
     };
   } catch (err) {
     if (err?.name === "AbortError") {
