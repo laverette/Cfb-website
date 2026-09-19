@@ -193,37 +193,105 @@
             return null;
         }
 
-        /** CFBD scoreboard via Netlify proxy (needs CFBD_API_KEY on the server). */
+        /** CFBD — live scoreboard needs Patreon; fall back to /games (often no live points). */
         async function fetchCfbdHoustonGame() {
-            const board = await cfbdProxyRequest('/scoreboard', { classification: 'fbs' });
-            const list = Array.isArray(board) ? board : [];
-            const games = list.map((g) => {
-                if (g && typeof g.homeTeam === 'object') {
+            let scoreboardNote = null;
+
+            // 1) Live scoreboard (Tier 1+)
+            try {
+                const board = await cfbdProxyRequest('/scoreboard', { classification: 'fbs' });
+                const list = Array.isArray(board) ? board : [];
+                const games = list.map((g) => {
+                    if (g && typeof g.homeTeam === 'object') {
+                        return {
+                            source: 'cfbd-scoreboard',
+                            awayTeam: g.awayTeam?.name || g.awayTeam?.school || null,
+                            homeTeam: g.homeTeam?.name || g.homeTeam?.school || null,
+                            awayPoints: g.awayTeam?.points != null ? Number(g.awayTeam.points) : null,
+                            homePoints: g.homeTeam?.points != null ? Number(g.homeTeam.points) : null,
+                            completed: /final|completed/i.test(String(g.status || '')),
+                            statusRaw: g.status || null,
+                            period: g.period ?? null,
+                            clock: g.clock || null,
+                        };
+                    }
                     return {
-                        source: 'cfbd-scoreboard',
-                        awayTeam: g.awayTeam?.name || g.awayTeam?.school || null,
-                        homeTeam: g.homeTeam?.name || g.homeTeam?.school || null,
-                        awayPoints: g.awayTeam?.points != null ? Number(g.awayTeam.points) : null,
-                        homePoints: g.homeTeam?.points != null ? Number(g.homeTeam.points) : null,
-                        completed: /final|completed/i.test(String(g.status || '')),
+                        source: 'cfbd-games',
+                        awayTeam: g.away_team ?? g.awayTeam ?? null,
+                        homeTeam: g.home_team ?? g.homeTeam ?? null,
+                        awayPoints: g.away_points ?? g.awayPoints ?? null,
+                        homePoints: g.home_points ?? g.homePoints ?? null,
+                        completed: Boolean(g.completed),
                         statusRaw: g.status || null,
                         period: g.period ?? null,
                         clock: g.clock || null,
                     };
+                });
+                const hit = pickHoustonLiveGame(games);
+                if (hit) return hit;
+            } catch (err) {
+                const msg = String(err?.message || err || '');
+                if (/401|patreon|unauthorized|tier/i.test(msg) || err?.status === 401) {
+                    scoreboardNote = 'CFBD /scoreboard locked (needs Patreon Tier 1+)';
+                } else {
+                    throw err;
                 }
-                return {
-                    source: 'cfbd-games',
-                    awayTeam: g.away_team ?? g.awayTeam ?? null,
-                    homeTeam: g.home_team ?? g.homeTeam ?? null,
-                    awayPoints: g.away_points ?? g.awayPoints ?? null,
-                    homePoints: g.home_points ?? g.homePoints ?? null,
-                    completed: Boolean(g.completed),
-                    statusRaw: g.status || null,
-                    period: g.period ?? null,
-                    clock: g.clock || null,
-                };
-            });
-            return pickHoustonLiveGame(games);
+            }
+
+            // 2) /games fallback — matchup exists but usually no mid-game points on free tier
+            const year = new Date().getFullYear();
+            let found = null;
+            let lastGamesErr = null;
+            for (const week of [3, 4, 2, 5, 1, 6]) {
+                try {
+                    const games = await cfbdProxyRequest('/games', {
+                        year,
+                        week,
+                        team: 'Houston',
+                        seasonType: 'regular',
+                    });
+                    const list = Array.isArray(games) ? games : [];
+                    const mapped = list
+                        .filter((g) => {
+                            const a = String(g.awayTeam || g.away_team || '');
+                            const h = String(g.homeTeam || g.home_team || '');
+                            return /houston/i.test(a + h) && !/sam houston/i.test(a + h);
+                        })
+                        .map((g) => ({
+                            source: 'cfbd-games',
+                            awayTeam: g.away_team ?? g.awayTeam ?? null,
+                            homeTeam: g.home_team ?? g.homeTeam ?? null,
+                            awayPoints: g.away_points ?? g.awayPoints ?? null,
+                            homePoints: g.home_points ?? g.homePoints ?? null,
+                            completed: Boolean(g.completed),
+                            statusRaw: g.completed
+                                ? 'FINAL'
+                                : scoreboardNote
+                                  ? `${scoreboardNote} · /games has matchup, no live points`
+                                  : 'scheduled (no live points from CFBD /games)',
+                            period: g.period ?? null,
+                            clock: g.clock || null,
+                        }));
+                    const vsTech = mapped.find((g) =>
+                        /texas tech/i.test(`${g.awayTeam} ${g.homeTeam}`)
+                    );
+                    found = vsTech || pickHoustonLiveGame(mapped) || found;
+                    if (found && (found.awayPoints != null || found.homePoints != null || found.completed)) {
+                        return found;
+                    }
+                } catch (err) {
+                    lastGamesErr = err;
+                }
+            }
+
+            if (found) return found;
+            if (lastGamesErr) throw lastGamesErr;
+            if (scoreboardNote) {
+                const err = new Error(scoreboardNote);
+                err.status = 401;
+                throw err;
+            }
+            return null;
         }
 
         let liveScorePollTimer = null;
@@ -288,7 +356,14 @@
             const resp = await fetch(url.toString(), { method: 'GET', headers: { 'accept': 'application/json' } });
             const body = await resp.json().catch(() => null);
             if (!resp.ok) {
-                const message = (body && (body.error || body.message)) || `CFBD proxy error (${resp.status})`;
+                const upstreamMsg =
+                    body &&
+                    body.upstream &&
+                    (body.upstream.message || body.upstream.error);
+                const message =
+                    upstreamMsg ||
+                    (body && (body.error || body.message)) ||
+                    `CFBD proxy error (${resp.status})`;
                 const err = new Error(message);
                 err.status = resp.status;
                 err.details = body;
