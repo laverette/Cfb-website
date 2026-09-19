@@ -684,18 +684,11 @@
         el.textContent = 'My board is your recap. League is this week’s standings.';
         return;
       }
-      if (status.picksLocked) {
-        el.textContent = 'Picks are locked · open Results to see your board';
-        el.classList.add('is-locked');
-        return;
-      }
       el.classList.remove('is-locked');
-      if (status.locksAt) {
-        el.textContent = `Locks ${formatGameDate(status.locksAt)}`;
-      } else if (status.hasSubmitted) {
-        el.textContent = 'Picks are in. You can still edit until lock.';
+      if (status.hasSubmitted) {
+        el.textContent = 'Picks are in. You can edit anytime.';
       } else {
-        el.textContent = 'Tap a team to pick it. You can change anytime until lock.';
+        el.textContent = 'Tap a team to pick it. You can change anytime.';
       }
     }
 
@@ -2141,11 +2134,9 @@
       if (!form) return;
       document.querySelectorAll('.already-submitted-message').forEach((el) => el.remove());
 
-      const weekNumber = weekLabelParts(activeWeekMeta).weekNumber || '';
       const submittedDate = status.lastSubmitted
         ? new Date(status.lastSubmitted).toLocaleString()
         : '';
-      const lockLabel = status.locksAt ? formatGameDate(status.locksAt) : '';
       const messageDiv = document.createElement('div');
       messageDiv.className = 'already-submitted-message';
       messageDiv.style.cssText = `
@@ -2162,17 +2153,9 @@
 
       let title = 'Picks saved';
       let body = '';
-      if (status.picksLocked && status.hasSubmitted) {
-        title = 'Picks locked';
-        body = `Your Week ${weekNumber} picks are locked — the Saturday lock deadline has passed.`;
-      } else if (status.picksLocked) {
-        title = 'Picks locked';
-        body = 'Picks locked 30 minutes after Saturday’s first kickoff — new submissions are closed.';
-      } else if (status.hasSubmitted) {
+      if (status.hasSubmitted) {
         title = 'Picks saved';
-        body = lockLabel
-          ? `You can change these until ${lockLabel} (30 min after Saturday’s first kickoff).`
-          : 'You can still change these picks anytime for now.';
+        body = 'You can change these picks anytime.';
       }
       messageDiv.innerHTML = `
         <h3 style="margin: 0 0 0.5rem 0; color: #1E1E1E;">${title}</h3>
@@ -2185,7 +2168,7 @@
     function showAlreadySubmittedMessage(lastSubmitted) {
       showPicksStatusBanner({
         hasSubmitted: true,
-        picksLocked: true,
+        picksLocked: false,
         lastSubmitted,
       });
     }
@@ -2300,7 +2283,8 @@
       const onEdit = async function () {
         const status = window.__PICKS_STATUS__ || {};
         if (status.picksLocked || status.canEdit === false) {
-          alert('Picks are locked. The Saturday lock deadline has passed.');
+          // Locking disabled server-side; keep a soft guard only if API ever says locked.
+          alert('Could not edit picks right now. Try again.');
           return;
         }
         try {
@@ -2409,15 +2393,9 @@
     }
 
     function buildPicksSubmittedCardHtml({ gameCount, canEdit, locksAt, lastSubmitted }) {
-      const lockLabel = locksAt ? formatGameDate(locksAt) : '';
       const submittedDate = lastSubmitted ? new Date(lastSubmitted).toLocaleString() : '';
-      const locked = !canEdit;
       const countLabel = gameCount ? `${gameCount} game${gameCount === 1 ? '' : 's'}` : 'Your slate';
-      const body = locked
-        ? 'Picks are locked. Open Results to see which games you got right.'
-        : lockLabel
-          ? `You can still edit until ${lockLabel} (30 min after Saturday’s first kickoff).`
-          : 'You can still edit these picks.';
+      const body = 'You can still edit these picks anytime.';
       return `
         <div class="picks-submitted-card" id="picksSubmittedCard">
           <p class="picks-submitted-kicker">Picks in</p>
@@ -2673,7 +2651,6 @@
         : (Array.isArray(window.__DB_GAMES__) ? window.__DB_GAMES__ : []);
       const scores = liveScores || cachedLiveScores || null;
       const safeUser = safeText(userName || 'Guest');
-      const lockLabel = locksAt ? formatGameDate(locksAt) : '';
       let gamesHtml = '';
       let correctCount = 0;
       let wrongCount = 0;
@@ -2779,20 +2756,12 @@
         recordHtml = `<p class="picks-share-record">${safeText(bits.join(' · '))}</p>`;
       }
 
-      const isCurrentWeek =
-        !weekMeta ||
-        activeWeekId == null ||
-        Number(weekMeta.id) === Number(activeWeekId);
       const editBlock = canEdit
         ? `
             <button id="editPicksBtn" class="screenshot-button edit-picks-button" type="button">Edit Picks</button>
-            <p class="screenshot-note">${lockLabel ? `You can edit until ${safeText(lockLabel)} (30 min after Saturday’s first kickoff).` : 'You can still edit these picks.'}</p>
+            <p class="screenshot-note">You can still edit these picks anytime.</p>
           `
-        : isCurrentWeek
-          ? `
-            <p class="screenshot-note">Picks are locked for this week.</p>
-          `
-          : '';
+        : '';
 
       const footerBits = [`${gameCount} picks`];
       if (finalCount > 0) footerBits.push(`${correctCount}–${wrongCount} final`);
@@ -2937,20 +2906,21 @@
           return;
         }
         if (result.code === 'PICKS_LOCKED') {
+          // Locking is disabled; treat as a soft failure if an old deploy responds this way.
           window.__PICKS_STATUS__ = {
             ...(window.__PICKS_STATUS__ || {}),
             hasSubmitted: true,
-            picksLocked: true,
-            canEdit: false,
-            locksAt: result.locksAt,
+            picksLocked: false,
+            canEdit: true,
+            locksAt: null,
             lastSubmitted: new Date().toISOString(),
           };
           await showSavedPicksForWeek({
-            canEdit: false,
-            locksAt: result.locksAt,
+            canEdit: true,
+            locksAt: null,
             lastSubmitted: window.__PICKS_STATUS__.lastSubmitted,
           });
-          alert(result.message || 'Picks are locked. The Saturday lock deadline has passed.');
+          alert(result.message || 'Could not save picks. Try again.');
           return;
         }
         if (!response.ok) {
@@ -2958,17 +2928,16 @@
           return;
         }
         clearPicksDraft();
-        const stillOpen = !(result.locksAt && Date.now() >= new Date(result.locksAt).getTime());
         window.__PICKS_STATUS__ = {
           hasSubmitted: true,
-          canEdit: stillOpen,
-          picksLocked: !stillOpen,
+          canEdit: true,
+          picksLocked: false,
           lastSubmitted: new Date().toISOString(),
-          locksAt: result.locksAt || null,
+          locksAt: null,
         };
         await showSavedPicksForWeek({
-          canEdit: stillOpen,
-          locksAt: result.locksAt || null,
+          canEdit: true,
+          locksAt: null,
           lastSubmitted: window.__PICKS_STATUS__.lastSubmitted,
         });
       } catch (submitError) {

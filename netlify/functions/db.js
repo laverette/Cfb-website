@@ -624,7 +624,7 @@ function picksLockedError(locksAt) {
   return err;
 }
 
-/** Picks stay open until 30 minutes after the first Saturday kickoff (ET). */
+/** Formerly: lock 30 min after first Saturday kickoff. Locking disabled — picks stay open. */
 const WEEKLY_PICKS_LOCK_AFTER_MS = 30 * 60 * 1000;
 
 function isSaturdayInEastern(date) {
@@ -636,24 +636,13 @@ function isSaturdayInEastern(date) {
 }
 
 /**
- * Lock = first Saturday kickoff (America/New_York) + 30 minutes.
- * If the slate has no Saturday games, fall back to earliest kickoff + 30 minutes.
+ * Locking is off: always unlocked so users can submit/edit anytime.
+ * locksAt is null so clients and reminders do not treat a deadline as active.
  */
-function weekLockFromGames(games, now = new Date()) {
-  const dates = (games || [])
-    .map((g) => g.game_date)
-    .filter((d) => d != null && String(d).trim() !== "")
-    .map((d) => new Date(d))
-    .filter((d) => Number.isFinite(d.getTime()))
-    .sort((a, b) => a.getTime() - b.getTime());
-  const saturday = dates.find((d) => isSaturdayInEastern(d));
-  const anchor = saturday || dates[0] || null;
-  const locksAt = anchor
-    ? new Date(anchor.getTime() + WEEKLY_PICKS_LOCK_AFTER_MS).toISOString()
-    : null;
+function weekLockFromGames(_games, _now = new Date()) {
   return {
-    picksLocked: Boolean(locksAt && now.getTime() >= new Date(locksAt).getTime()),
-    locksAt,
+    picksLocked: false,
+    locksAt: null,
   };
 }
 
@@ -671,9 +660,7 @@ async function submitUserPicks({ userId, weekId, picks }) {
   }
 
   const lock = weekLockFromGames(games);
-  if (lock.picksLocked) {
-    throw picksLockedError(lock.locksAt);
-  }
+  // Locking disabled — never reject for PICKS_LOCKED.
 
   const existing = await getUserWeekSubmission(userId, weekId, { lock });
 

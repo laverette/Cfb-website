@@ -98,17 +98,16 @@ function buildPickReminderEmail({
 }) {
   const name = displayName || "there";
   const week = String(weekLabel || "This week").trim();
-  const lockLabel = formatLockTimeCt(locksAt);
   const subjectBase = `${week} picks — Saturday reminder`;
   const subject = isTest ? `[TEST] ${subjectBase}` : subjectBase;
-  const preheader = `Saturday reminder: submit your ${week} picks before they lock (${lockLabel}).`;
+  const preheader = `Saturday reminder: submit your ${week} picks.`;
 
   const text = [
     isTest ? "[TEST REMINDER]" : null,
     `Hi ${name},`,
     "",
     `Saturday reminder — you haven't submitted your ${week} weekly picks yet.`,
-    locksAt ? `Picks lock at ${lockLabel}.` : "Picks lock after Saturday's first kickoff window.",
+    "Picks stay open — submit or edit anytime.",
     "",
     `Submit picks: ${picksUrl}`,
     "",
@@ -162,24 +161,11 @@ function buildPickReminderEmail({
               <p style="margin:0 0 8px;color:#ffd700;font-size:12px;letter-spacing:0.12em;text-transform:uppercase;font-family:Arial,Helvetica,sans-serif;font-weight:700;">College Football Predictions</p>
               <h1 style="margin:0 0 14px;font-size:26px;line-height:1.25;color:#ffd700;font-weight:700;">Saturday picks reminder</h1>
               <p style="margin:0 0 18px;font-size:16px;line-height:1.55;color:#f5deb3;">
-                Hi ${escapeHtml(name)} — you still haven’t locked in your board for <strong style="color:#ffe566;">${escapeHtml(week)}</strong>.
+                Hi ${escapeHtml(name)} — you still haven’t submitted your board for <strong style="color:#ffe566;">${escapeHtml(week)}</strong>.
               </p>
               <p style="margin:0 0 18px;font-size:15px;line-height:1.5;color:#e8d5a3;">
-                Picks lock at <strong style="color:#ffe566;">${escapeHtml(lockLabel)}</strong>.
+                Picks stay open — submit or edit anytime.
               </p>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:0 28px 8px;">
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:rgba(0,0,0,0.28);border:1px solid rgba(255,215,0,0.28);border-radius:12px;">
-                <tr>
-                  <td style="padding:16px 18px;font-family:Arial,Helvetica,sans-serif;">
-                    <p style="margin:0 0 4px;color:#bfa88a;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;font-weight:700;">Deadline</p>
-                    <p style="margin:0;color:#ffd700;font-size:18px;font-weight:800;line-height:1.3;">${escapeHtml(lockLabel)}</p>
-                    <p style="margin:8px 0 0;color:#d4b896;font-size:13px;line-height:1.4;">Picks lock 30 minutes after Saturday’s first kickoff.</p>
-                  </td>
-                </tr>
-              </table>
             </td>
           </tr>
           <tr>
