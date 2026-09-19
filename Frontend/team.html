@@ -6,7 +6,7 @@
     <title>Team Details</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
     <link rel="stylesheet" href="styles/site-theme.css">
-    <link rel="stylesheet" href="Resources/Styles/teams.css?v=2">
+    <link rel="stylesheet" href="Resources/Styles/teams.css?v=3">
 </head>
 <body>
     <!-- Site Header -->
@@ -42,7 +42,7 @@
             <!-- Live score A/B test (Houston page) — ESPN vs CFBD side by side -->
             <div class="live-score-compare" id="liveScoreCompare" hidden>
                 <h2 class="section-title gold-heading">Live score test</h2>
-                <p class="live-score-compare-note">Comparing ESPN vs CollegeFootballData for tonight’s game. Refreshing every 20s.</p>
+                <p class="live-score-compare-note">ESPN is fetched directly in the browser; CFBD goes through the Netlify proxy. Refreshing every 20s.</p>
                 <div class="live-score-compare-grid">
                     <div class="live-score-card" data-source="espn">
                         <div class="live-score-card-label">ESPN</div>
@@ -79,6 +79,8 @@
         // ---------------------------------------------------------------------
 
         function isHoustonTeamPage(teamSchool, requestedName, requestedKey) {
+            // ESPN team id for Houston Cougars
+            if (String(requestedKey || '') === '248') return true;
             const blob = `${teamSchool || ''} ${requestedName || ''} ${requestedKey || ''}`.toLowerCase();
             if (/sam\s*houston/.test(blob)) return false;
             return /\bhouston\b/.test(blob);
@@ -94,8 +96,10 @@
         function gameInvolvesHouston(g) {
             const a = normTeamName(g?.awayTeam);
             const h = normTeamName(g?.homeTeam);
-            const hit = (n) => n.includes('houston') && !n.includes('sam houston');
-            return hit(a) || hit(h);
+            const blob = `${a} ${h}`;
+            if (blob.includes('sam houston')) return false;
+            // Match full name or common ESPN abbreviations.
+            return blob.includes('houston') || /(^|\s)hou(\s|$)/.test(blob);
         }
 
         function pickHoustonLiveGame(games) {
@@ -116,14 +120,110 @@
 
         function formatLiveScoreCard(game, sourceLabel) {
             if (!game) {
-                return `<span class="is-empty">No Houston game in ${sourceLabel} feed right now.</span>`;
+                return `No Houston game found in ${sourceLabel} right now.`;
             }
             const away = game.awayTeam || 'Away';
             const home = game.homeTeam || 'Home';
             const ap = game.awayPoints != null ? game.awayPoints : '—';
             const hp = game.homePoints != null ? game.homePoints : '—';
             const status = game.statusRaw || game.statusState || (game.completed ? 'FINAL' : '—');
-            return `${away} <strong>${ap}</strong> — ${home} <strong>${hp}</strong><span class="live-score-status">${status} · source=${game.source || sourceLabel}</span>`;
+            return `${away} <strong>${ap}</strong> — ${home} <strong>${hp}</strong><span class="live-score-status">${status}</span>`;
+        }
+
+        function setLiveScoreCard(el, html, kind) {
+            if (!el) return;
+            el.className = 'live-score-card-body' + (kind ? ` is-${kind}` : '');
+            el.innerHTML = html;
+        }
+
+        /** ESPN scoreboard — browser can call this directly (CORS *). */
+        async function fetchEspnHoustonGame() {
+            const urls = [
+                'https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?groups=80&limit=300',
+            ];
+            // Also try today's date slate (YYYYMMDD UTC).
+            const now = new Date();
+            const ymd = `${now.getUTCFullYear()}${String(now.getUTCMonth() + 1).padStart(2, '0')}${String(now.getUTCDate()).padStart(2, '0')}`;
+            urls.push(
+                `https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=${ymd}&groups=80&limit=300`
+            );
+
+            const games = [];
+            let lastErr = null;
+            for (const url of urls) {
+                try {
+                    const resp = await fetch(url, { headers: { accept: 'application/json' } });
+                    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                    const data = await resp.json();
+                    for (const evt of data.events || []) {
+                        const comp = Array.isArray(evt.competitions) ? evt.competitions[0] : null;
+                        if (!comp) continue;
+                        const competitors = Array.isArray(comp.competitors) ? comp.competitors : [];
+                        const home = competitors.find((c) => c.homeAway === 'home');
+                        const away = competitors.find((c) => c.homeAway === 'away');
+                        if (!home || !away) continue;
+                        const statusState = String(evt?.status?.type?.state || '').toLowerCase();
+                        const detail = String(evt?.status?.type?.detail || evt?.status?.type?.shortDetail || '');
+                        const period = evt?.status?.period != null ? Number(evt.status.period) : null;
+                        const clock = evt?.status?.displayClock || null;
+                        let statusRaw = detail || evt?.status?.type?.name || statusState;
+                        if (statusState === 'in' && Number.isFinite(period) && period > 0 && clock) {
+                            statusRaw = `Q${period} ${clock}`;
+                        }
+                        games.push({
+                            source: 'espn-direct',
+                            awayTeam: away.team?.location || away.team?.displayName || null,
+                            homeTeam: home.team?.location || home.team?.displayName || null,
+                            awayPoints: away.score === '' || away.score == null ? null : Number(away.score),
+                            homePoints: home.score === '' || home.score == null ? null : Number(home.score),
+                            completed: statusState === 'post',
+                            statusState,
+                            statusRaw,
+                            period,
+                            clock,
+                        });
+                    }
+                } catch (err) {
+                    lastErr = err;
+                }
+            }
+            const hit = pickHoustonLiveGame(games);
+            if (hit) return hit;
+            if (lastErr && !games.length) throw lastErr;
+            return null;
+        }
+
+        /** CFBD scoreboard via Netlify proxy (needs CFBD_API_KEY on the server). */
+        async function fetchCfbdHoustonGame() {
+            const board = await cfbdProxyRequest('/scoreboard', { classification: 'fbs' });
+            const list = Array.isArray(board) ? board : [];
+            const games = list.map((g) => {
+                if (g && typeof g.homeTeam === 'object') {
+                    return {
+                        source: 'cfbd-scoreboard',
+                        awayTeam: g.awayTeam?.name || g.awayTeam?.school || null,
+                        homeTeam: g.homeTeam?.name || g.homeTeam?.school || null,
+                        awayPoints: g.awayTeam?.points != null ? Number(g.awayTeam.points) : null,
+                        homePoints: g.homeTeam?.points != null ? Number(g.homeTeam.points) : null,
+                        completed: /final|completed/i.test(String(g.status || '')),
+                        statusRaw: g.status || null,
+                        period: g.period ?? null,
+                        clock: g.clock || null,
+                    };
+                }
+                return {
+                    source: 'cfbd-games',
+                    awayTeam: g.away_team ?? g.awayTeam ?? null,
+                    homeTeam: g.home_team ?? g.homeTeam ?? null,
+                    awayPoints: g.away_points ?? g.awayPoints ?? null,
+                    homePoints: g.home_points ?? g.homePoints ?? null,
+                    completed: Boolean(g.completed),
+                    statusRaw: g.status || null,
+                    period: g.period ?? null,
+                    clock: g.clock || null,
+                };
+            });
+            return pickHoustonLiveGame(games);
         }
 
         let liveScorePollTimer = null;
@@ -133,31 +233,39 @@
             const cfbdEl = document.getElementById('liveScoreCfbd');
             if (!espnEl || !cfbdEl) return;
 
-            try {
-                const url = new URL('/api/live-scores', window.location.origin);
-                const resp = await fetch(url.toString(), { headers: { accept: 'application/json' } });
-                const data = await resp.json().catch(() => ({}));
-                if (!resp.ok) throw new Error(data.error || data.message || `HTTP ${resp.status}`);
+            setLiveScoreCard(espnEl, 'Loading ESPN…', 'empty');
+            setLiveScoreCard(cfbdEl, 'Loading CFBD…', 'empty');
 
-                const espnGame = pickHoustonLiveGame(data.espn);
-                const cfbdGame = pickHoustonLiveGame(data.cfbd);
+            const [espnRes, cfbdRes] = await Promise.allSettled([
+                fetchEspnHoustonGame(),
+                fetchCfbdHoustonGame(),
+            ]);
 
-                espnEl.className = 'live-score-card-body' + (espnGame ? '' : ' is-empty');
-                cfbdEl.className = 'live-score-card-body' + (cfbdGame ? '' : ' is-empty');
-                espnEl.innerHTML = formatLiveScoreCard(espnGame, 'ESPN');
-                cfbdEl.innerHTML = formatLiveScoreCard(cfbdGame, 'CFBD');
+            if (espnRes.status === 'fulfilled') {
+                const g = espnRes.value;
+                setLiveScoreCard(espnEl, formatLiveScoreCard(g, 'ESPN'), g ? '' : 'empty');
+            } else {
+                const msg = espnRes.reason?.message || String(espnRes.reason || 'failed');
+                setLiveScoreCard(espnEl, `ESPN error: ${msg}`, 'error');
+            }
 
-                const meta = data.meta || {};
-                const note = document.querySelector('.live-score-compare-note');
-                if (note) {
-                    note.textContent = `Comparing ESPN (${meta.espnCount ?? '—'} games) vs CFBD (${meta.cfbdCount ?? '—'} games). Refreshing every 20s.`;
-                }
-            } catch (err) {
-                espnEl.className = 'live-score-card-body is-error';
-                cfbdEl.className = 'live-score-card-body is-error';
-                const msg = err && err.message ? err.message : 'Failed to load';
-                espnEl.textContent = msg;
-                cfbdEl.textContent = msg;
+            if (cfbdRes.status === 'fulfilled') {
+                const g = cfbdRes.value;
+                setLiveScoreCard(cfbdEl, formatLiveScoreCard(g, 'CFBD'), g ? '' : 'empty');
+            } else {
+                const msg = cfbdRes.reason?.message || String(cfbdRes.reason || 'failed');
+                setLiveScoreCard(
+                    cfbdEl,
+                    `CFBD error: ${msg} (needs netlify dev / CFBD_API_KEY)`,
+                    'error'
+                );
+            }
+
+            const note = document.querySelector('.live-score-compare-note');
+            if (note) {
+                const espnOk = espnRes.status === 'fulfilled' && espnRes.value;
+                const cfbdOk = cfbdRes.status === 'fulfilled' && cfbdRes.value;
+                note.textContent = `ESPN ${espnOk ? '✓ live' : '✗'} · CFBD ${cfbdOk ? '✓ live' : '✗'} · refresh every 20s · fetched separately (not merged)`;
             }
         }
 
@@ -398,6 +506,10 @@
                         CFBD data could not be loaded. Make sure you're running via Netlify (or \`netlify dev\`) and that \`CFBD_API_KEY\` is set.
                     </p>
                 `;
+                // Still show the live-score A/B if this is Houston — ESPN can work without CFBD.
+                if (isHoustonTeamPage('', requestedName, requestedKey)) {
+                    startHoustonLiveScoreCompare();
+                }
                 return;
             }
 
@@ -708,8 +820,16 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
+            const params = getTeamParamsFromURL();
+            // Start live-score A/B immediately from the URL (don't wait on CFBD team load).
+            if (isHoustonTeamPage('', params.name, params.teamKey)) {
+                startHoustonLiveScoreCompare();
+            }
             loadTeamPage().catch(() => {
                 document.getElementById('teamHeader').innerHTML = '<h1>Team Not Found</h1>';
+                if (isHoustonTeamPage('', params.name, params.teamKey)) {
+                    startHoustonLiveScoreCompare();
+                }
             });
         });
     </script>

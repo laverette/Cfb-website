@@ -305,15 +305,23 @@ exports.handler = async (event) => {
     cfbd.forEach(push);
     const merged = Array.from(byKey.values());
 
+    const skipGrade =
+      q.lite === "1" ||
+      q.lite === "true" ||
+      q.skipGrade === "1" ||
+      q.skipGrade === "true";
+
     // Grade finals before the response returns so Netlify doesn't freeze the work.
     // Keep a soft time budget so the scores API stays snappy.
-    try {
-      await Promise.race([
-        scheduleGradeFromLiveGames(merged),
-        new Promise((resolve) => setTimeout(resolve, 8_000)),
-      ]);
-    } catch (err) {
-      console.warn("live-scores grade:", err.message || err);
+    if (!skipGrade) {
+      try {
+        await Promise.race([
+          scheduleGradeFromLiveGames(merged),
+          new Promise((resolve) => setTimeout(resolve, 8_000)),
+        ]);
+      } catch (err) {
+        console.warn("live-scores grade:", err.message || err);
+      }
     }
 
     return json(
@@ -329,6 +337,7 @@ exports.handler = async (event) => {
           week: Number.isFinite(week) ? week : null,
           espnCount: espn.length,
           cfbdCount: cfbd.length,
+          graded: !skipGrade,
         },
       },
       {
