@@ -242,7 +242,8 @@
             const year = new Date().getFullYear();
             let found = null;
             let lastGamesErr = null;
-            for (const week of [3, 4, 2, 5, 1, 6]) {
+            // Only probe the current slate week first (HOU @ TTU is week 3 in 2026).
+            for (const week of [3, 4]) {
                 try {
                     const games = await cfbdProxyRequest('/games', {
                         year,
@@ -279,6 +280,7 @@
                     if (found && (found.awayPoints != null || found.homePoints != null || found.completed)) {
                         return found;
                     }
+                    if (found) return found;
                 } catch (err) {
                     lastGamesErr = err;
                 }
@@ -304,36 +306,36 @@
             setLiveScoreCard(espnEl, 'Loading ESPN…', 'empty');
             setLiveScoreCard(cfbdEl, 'Loading CFBD…', 'empty');
 
-            const [espnRes, cfbdRes] = await Promise.allSettled([
-                fetchEspnHoustonGame(),
-                fetchCfbdHoustonGame(),
-            ]);
+            // Update each card as soon as its source returns — don't let a slow
+            // CFBD Patreon/401 path keep ESPN stuck on "Loading…".
+            const espnPromise = fetchEspnHoustonGame().then(
+                (g) => {
+                    setLiveScoreCard(espnEl, formatLiveScoreCard(g, 'ESPN'), g ? '' : 'empty');
+                    return { ok: Boolean(g) };
+                },
+                (err) => {
+                    const msg = err?.message || String(err || 'failed');
+                    setLiveScoreCard(espnEl, `ESPN error: ${msg}`, 'error');
+                    return { ok: false };
+                }
+            );
 
-            if (espnRes.status === 'fulfilled') {
-                const g = espnRes.value;
-                setLiveScoreCard(espnEl, formatLiveScoreCard(g, 'ESPN'), g ? '' : 'empty');
-            } else {
-                const msg = espnRes.reason?.message || String(espnRes.reason || 'failed');
-                setLiveScoreCard(espnEl, `ESPN error: ${msg}`, 'error');
-            }
+            const cfbdPromise = fetchCfbdHoustonGame().then(
+                (g) => {
+                    setLiveScoreCard(cfbdEl, formatLiveScoreCard(g, 'CFBD'), g ? '' : 'empty');
+                    return { ok: Boolean(g) };
+                },
+                (err) => {
+                    const msg = err?.message || String(err || 'failed');
+                    setLiveScoreCard(cfbdEl, `CFBD: ${msg}`, 'error');
+                    return { ok: false };
+                }
+            );
 
-            if (cfbdRes.status === 'fulfilled') {
-                const g = cfbdRes.value;
-                setLiveScoreCard(cfbdEl, formatLiveScoreCard(g, 'CFBD'), g ? '' : 'empty');
-            } else {
-                const msg = cfbdRes.reason?.message || String(cfbdRes.reason || 'failed');
-                setLiveScoreCard(
-                    cfbdEl,
-                    `CFBD error: ${msg} (needs netlify dev / CFBD_API_KEY)`,
-                    'error'
-                );
-            }
-
+            const [espnRes, cfbdRes] = await Promise.all([espnPromise, cfbdPromise]);
             const note = document.querySelector('.live-score-compare-note');
             if (note) {
-                const espnOk = espnRes.status === 'fulfilled' && espnRes.value;
-                const cfbdOk = cfbdRes.status === 'fulfilled' && cfbdRes.value;
-                note.textContent = `ESPN ${espnOk ? '✓ live' : '✗'} · CFBD ${cfbdOk ? '✓ live' : '✗'} · refresh every 20s · fetched separately (not merged)`;
+                note.textContent = `ESPN ${espnRes.ok ? '✓ live' : '✗'} · CFBD ${cfbdRes.ok ? '✓ live' : '✗'} · refresh every 20s · fetched separately (not merged)`;
             }
         }
 
