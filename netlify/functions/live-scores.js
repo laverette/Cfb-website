@@ -320,6 +320,9 @@ exports.handler = async (event) => {
       200,
       {
         games: merged,
+        // Unmerged feeds so clients can A/B which source is working.
+        espn,
+        cfbd,
         meta: {
           dates,
           season: Number.isFinite(season) ? season : null,

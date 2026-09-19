@@ -6,7 +6,7 @@
     <title>Team Details</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
     <link rel="stylesheet" href="styles/site-theme.css">
-    <link rel="stylesheet" href="Resources/Styles/teams.css">
+    <link rel="stylesheet" href="Resources/Styles/teams.css?v=2">
 </head>
 <body>
     <!-- Site Header -->
@@ -39,6 +39,22 @@
         </div>
 
         <div class="team-content">
+            <!-- Live score A/B test (Houston page) — ESPN vs CFBD side by side -->
+            <div class="live-score-compare" id="liveScoreCompare" hidden>
+                <h2 class="section-title gold-heading">Live score test</h2>
+                <p class="live-score-compare-note">Comparing ESPN vs CollegeFootballData for tonight’s game. Refreshing every 20s.</p>
+                <div class="live-score-compare-grid">
+                    <div class="live-score-card" data-source="espn">
+                        <div class="live-score-card-label">ESPN</div>
+                        <div class="live-score-card-body" id="liveScoreEspn">Loading…</div>
+                    </div>
+                    <div class="live-score-card" data-source="cfbd">
+                        <div class="live-score-card-label">CFBD</div>
+                        <div class="live-score-card-body" id="liveScoreCfbd">Loading…</div>
+                    </div>
+                </div>
+            </div>
+
             <div class="team-stats-section">
                 <h2 class="section-title gold-heading">Team Statistics</h2>
                 <div class="stats-grid" id="statsGrid">
@@ -61,6 +77,98 @@
         // CFBD integration (Phase 6 for current static site)
         // Uses Netlify Function proxy (no API key exposure in browser).
         // ---------------------------------------------------------------------
+
+        function isHoustonTeamPage(teamSchool, requestedName, requestedKey) {
+            const blob = `${teamSchool || ''} ${requestedName || ''} ${requestedKey || ''}`.toLowerCase();
+            if (/sam\s*houston/.test(blob)) return false;
+            return /\bhouston\b/.test(blob);
+        }
+
+        function normTeamName(s) {
+            return String(s || '')
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, ' ')
+                .trim();
+        }
+
+        function gameInvolvesHouston(g) {
+            const a = normTeamName(g?.awayTeam);
+            const h = normTeamName(g?.homeTeam);
+            const hit = (n) => n.includes('houston') && !n.includes('sam houston');
+            return hit(a) || hit(h);
+        }
+
+        function pickHoustonLiveGame(games) {
+            const list = Array.isArray(games) ? games.filter(gameInvolvesHouston) : [];
+            if (!list.length) return null;
+            const score = (g) => {
+                const period = Number(g.period);
+                const hasPoints = g.awayPoints != null || g.homePoints != null;
+                const inPlay =
+                    g.completed ||
+                    g.statusState === 'in' ||
+                    (Number.isFinite(period) && period > 0) ||
+                    /final|in_progress|live|halftime/i.test(String(g.statusRaw || ''));
+                return (g.completed ? 16 : 0) + (inPlay ? 8 : 0) + (hasPoints ? 4 : 0);
+            };
+            return list.slice().sort((a, b) => score(b) - score(a))[0];
+        }
+
+        function formatLiveScoreCard(game, sourceLabel) {
+            if (!game) {
+                return `<span class="is-empty">No Houston game in ${sourceLabel} feed right now.</span>`;
+            }
+            const away = game.awayTeam || 'Away';
+            const home = game.homeTeam || 'Home';
+            const ap = game.awayPoints != null ? game.awayPoints : '—';
+            const hp = game.homePoints != null ? game.homePoints : '—';
+            const status = game.statusRaw || game.statusState || (game.completed ? 'FINAL' : '—');
+            return `${away} <strong>${ap}</strong> — ${home} <strong>${hp}</strong><span class="live-score-status">${status} · source=${game.source || sourceLabel}</span>`;
+        }
+
+        let liveScorePollTimer = null;
+
+        async function refreshHoustonLiveScores() {
+            const espnEl = document.getElementById('liveScoreEspn');
+            const cfbdEl = document.getElementById('liveScoreCfbd');
+            if (!espnEl || !cfbdEl) return;
+
+            try {
+                const url = new URL('/api/live-scores', window.location.origin);
+                const resp = await fetch(url.toString(), { headers: { accept: 'application/json' } });
+                const data = await resp.json().catch(() => ({}));
+                if (!resp.ok) throw new Error(data.error || data.message || `HTTP ${resp.status}`);
+
+                const espnGame = pickHoustonLiveGame(data.espn);
+                const cfbdGame = pickHoustonLiveGame(data.cfbd);
+
+                espnEl.className = 'live-score-card-body' + (espnGame ? '' : ' is-empty');
+                cfbdEl.className = 'live-score-card-body' + (cfbdGame ? '' : ' is-empty');
+                espnEl.innerHTML = formatLiveScoreCard(espnGame, 'ESPN');
+                cfbdEl.innerHTML = formatLiveScoreCard(cfbdGame, 'CFBD');
+
+                const meta = data.meta || {};
+                const note = document.querySelector('.live-score-compare-note');
+                if (note) {
+                    note.textContent = `Comparing ESPN (${meta.espnCount ?? '—'} games) vs CFBD (${meta.cfbdCount ?? '—'} games). Refreshing every 20s.`;
+                }
+            } catch (err) {
+                espnEl.className = 'live-score-card-body is-error';
+                cfbdEl.className = 'live-score-card-body is-error';
+                const msg = err && err.message ? err.message : 'Failed to load';
+                espnEl.textContent = msg;
+                cfbdEl.textContent = msg;
+            }
+        }
+
+        function startHoustonLiveScoreCompare() {
+            const panel = document.getElementById('liveScoreCompare');
+            if (!panel) return;
+            panel.hidden = false;
+            refreshHoustonLiveScores();
+            if (liveScorePollTimer) clearInterval(liveScorePollTimer);
+            liveScorePollTimer = setInterval(refreshHoustonLiveScores, 20000);
+        }
 
         async function cfbdProxyRequest(path, params = {}) {
             const url = new URL('/.netlify/functions/cfbd', window.location.origin);
@@ -302,6 +410,10 @@
             const teamSchool = team.school || requestedName || requestedKey;
             const conference = team.conference || '';
             const logoUrl = logoFromCfbd(team);
+
+            if (isHoustonTeamPage(teamSchool, requestedName, requestedKey)) {
+                startHoustonLiveScoreCompare();
+            }
 
             // Update page title
             document.title = `${teamName} - Team Details`;
