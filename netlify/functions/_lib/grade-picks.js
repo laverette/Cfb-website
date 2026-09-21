@@ -648,6 +648,19 @@ async function listWeeksToGrade() {
   const weekIds = new Set();
   if (current?.id) weekIds.add(Number(current.id));
 
+  // Prefer weeks that still have ungraded games, not just weeks.is_completed=false
+  // (a week can stay "open" forever if grading never wrote results).
+  const { data: openGames, error: openGamesErr } = await supabase
+    .from("games")
+    .select("week_id")
+    .eq("is_completed", false)
+    .order("week_id", { ascending: false })
+    .limit(50);
+  dbError(openGamesErr);
+  for (const row of openGames || []) {
+    if (row?.week_id) weekIds.add(Number(row.week_id));
+  }
+
   const { data: openWeeks, error } = await supabase
     .from("weeks")
     .select("id")
@@ -685,14 +698,18 @@ async function runGradePicks({ weekId = null, liveGames = null, force = false } 
 }
 
 async function scheduleGradeFromLiveGames(liveGames) {
-  const hasFinal = (Array.isArray(liveGames) ? liveGames : []).some(
-    (g) => extractFinalFromLive(g) != null
-  );
-  if (!hasFinal) return;
   try {
     const current = await loadCurrentWeek();
     if (!current?.id) return;
-    await syncWeekGrades(Number(current.id), liveGames);
+
+    // Always attempt grading for the open slate. Incoming live payloads from
+    // /api/live-scores can lack finals when ESPN is blocked from Netlify or
+    // CFBD is empty — syncWeekGrades fills those via date-scoped ESPN + CFBD.
+    // Skipping when hasFinal is false left finished weeks stuck on "pending".
+    const hasFinal = (Array.isArray(liveGames) ? liveGames : []).some(
+      (g) => extractFinalFromLive(g) != null
+    );
+    await syncWeekGrades(Number(current.id), hasFinal ? liveGames : null);
   } catch (err) {
     console.warn("grade-picks background:", err.message || err);
   }

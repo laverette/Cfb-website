@@ -315,12 +315,13 @@ exports.handler = async (event) => {
       q.skipGrade === "true";
 
     // Grade finals before the response returns so Netlify doesn't freeze the work.
-    // Keep a soft time budget so the scores API stays snappy.
+    // Budget enough time to grade a full slate (12 games × many picks) — 8s was
+    // aborting mid-write and leaving the week stuck pending after finals.
     if (!skipGrade) {
       try {
         await Promise.race([
           scheduleGradeFromLiveGames(merged),
-          new Promise((resolve) => setTimeout(resolve, 8_000)),
+          new Promise((resolve) => setTimeout(resolve, 20_000)),
         ]);
       } catch (err) {
         console.warn("live-scores grade:", err.message || err);

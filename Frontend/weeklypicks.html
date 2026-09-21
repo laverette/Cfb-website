@@ -5173,7 +5173,9 @@
     async function refreshInlineScores() {
       if (!cachedDbGames) return;
 
-      const liveScores = await fetchLiveScores({ fast: true });
+      // Use date boards (not current-only) so finalized games still resolve after
+      // they drop off ESPN's live scoreboard — otherwise everything looks pending.
+      const liveScores = await fetchLiveScores({ fast: false });
       if (liveScores) {
         cachedLiveScores = liveScores;
         renderDbGamesIntoForm(cachedDbGames, liveScores);
@@ -5193,9 +5195,10 @@
         clearInterval(liveScoresRefreshInterval);
       }
 
+      // Full refresh hits /api/live-scores (server grading) + date-scoped ESPN.
       liveScoresRefreshInterval = setInterval(async () => {
         await refreshInlineScores();
-      }, 45000);
+      }, 90_000);
     }
 
     function stopLiveScoresAutoRefresh() {
