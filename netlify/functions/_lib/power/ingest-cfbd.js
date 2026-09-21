@@ -4,6 +4,7 @@
  */
 
 const CFBD_BASE = "https://api.collegefootballdata.com";
+const { recordApiUsage } = require("./api-usage");
 
 async function cfbdGet(path, query, apiKey, signal) {
   const url = new URL(CFBD_BASE + path);
@@ -15,6 +16,7 @@ async function cfbdGet(path, query, apiKey, signal) {
     headers: { authorization: `Bearer ${apiKey}`, accept: "application/json" },
     signal,
   });
+  recordApiUsage({ feature: "power-rankings", source: "cfbd", calls: 1 });
   if (!resp.ok) {
     const text = await resp.text().catch(() => "");
     throw new Error(`CFBD ${path} failed (${resp.status}): ${text.slice(0, 180)}`);

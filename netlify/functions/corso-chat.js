@@ -19,6 +19,7 @@ const MAX_STORYLINE_TEAMS = 24;
 const MAX_PRIOR_GAMES_PER_TEAM = 8;
 const CFBD_BASE = "https://api.collegefootballdata.com";
 const MISTRAL_URL = "https://api.mistral.ai/v1/conversations";
+const { recordApiUsage } = require("./_lib/api-usage");
 
 function corsHeaders() {
   return {
@@ -165,6 +166,7 @@ async function buildSeasonStorylineBrief(weekContext) {
       },
       signal: controller.signal,
     });
+    recordApiUsage({ feature: "corso", source: "cfbd", calls: 1 });
     if (!resp.ok) {
       console.warn("corso-chat CFBD games:", resp.status);
       return null;

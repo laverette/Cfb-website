@@ -7,6 +7,7 @@
  */
 const { json } = require("./_http");
 const { scheduleGradeFromLiveGames } = require("./_lib/grade-picks");
+const { recordApiUsage } = require("./_lib/api-usage");
 
 const ESPN_SB =
   "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard";
@@ -264,6 +265,7 @@ async function fetchCfbdScores({ season, week }) {
   try {
     const url = `${CFBD_BASE}/games?year=${encodeURIComponent(season)}&week=${encodeURIComponent(week)}&seasonType=regular`;
     const games = await fetchJson(url, headers);
+    recordApiUsage({ feature: "live-scores", source: "cfbd", calls: 1 });
     (Array.isArray(games) ? games : []).forEach((raw) => {
       const g = normalizeCfbdGame(raw);
       if (g && Number.isFinite(g.id)) byId.set(g.id, g);

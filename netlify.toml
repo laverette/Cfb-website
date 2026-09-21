@@ -179,6 +179,11 @@
   status = 200
 
 [[redirects]]
+  from = "/api/admin/api-usage"
+  to = "/.netlify/functions/admin-api-usage"
+  status = 200
+
+[[redirects]]
   from = "/api/admin/games/save-week-games"
   to = "/.netlify/functions/admin-save-week-games"
   status = 200

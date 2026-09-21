@@ -47,13 +47,14 @@
       <button type="button" class="lb-tab" data-scope="week" id="lbThisWeekTab" role="tab" aria-selected="false" hidden>This Week</button>
       <button type="button" class="lb-tab" data-scope="lastweek" id="lbLastWeekTab" role="tab" aria-selected="false" hidden>Last Week</button>
       <button type="button" class="lb-tab active" data-scope="season" role="tab" aria-selected="true">This Season</button>
-      <button type="button" class="lb-tab" data-scope="year" role="tab" aria-selected="false">Yearly</button>
       <button type="button" class="lb-tab" data-scope="all" role="tab" aria-selected="false">All Time</button>
     </div>
 
     <div class="lb-year-row" id="yearRow" hidden>
-      <label for="yearSelect">Season year</label>
-      <select id="yearSelect" class="site-select"></select>
+      <label for="yearSelect">Filter by year</label>
+      <select id="yearSelect" class="site-select" aria-label="Filter all-time leaderboard by year">
+        <option value="">All time</option>
+      </select>
     </div>
 
     <section id="podiumSection" class="lb-podium" hidden></section>
@@ -127,6 +128,8 @@
     let activeScope = 'season';
     let availableYears = [];
     let currentSeasonYear = null;
+    let allTimeYearFilter = ''; // '' = all time; '2026' = that season only
+    let pendingYearFromUrl = null;
     let currentWeekId = null;
     let currentWeekLabel = 'This Week';
     let previousWeekId = null;
@@ -212,7 +215,7 @@
       const key = `${scope}:${year || ''}:${weekId || ''}`;
       if (boardCache[key]) return boardCache[key];
       const params = new URLSearchParams({ scope });
-      if (scope === 'year' && year) params.set('year', String(year));
+      if ((scope === 'year' || scope === 'all') && year) params.set('year', String(year));
       if (scope === 'week' && weekId) params.set('weekId', String(weekId));
       const resp = await fetch(`/api/leaderboard?${params}`, { headers: { accept: 'application/json' } });
       const data = await resp.json().catch(() => ({}));
@@ -476,9 +479,13 @@
 
     function fillYearSelect(years, selected) {
       const sel = document.getElementById('yearSelect');
-      sel.innerHTML = (years || []).map((y) =>
-        `<option value="${y}" ${Number(y) === Number(selected) ? 'selected' : ''}>${y}</option>`
-      ).join('');
+      const opts = ['<option value="">All time</option>'];
+      (years || []).forEach((y) => {
+        const on = selected !== '' && selected != null && Number(y) === Number(selected);
+        opts.push(`<option value="${y}" ${on ? 'selected' : ''}>${y}</option>`);
+      });
+      sel.innerHTML = opts.join('');
+      if (selected === '' || selected == null) sel.value = '';
     }
 
     async function loadActiveBoard() {
@@ -487,13 +494,24 @@
       document.getElementById('podiumSection').hidden = true;
       document.getElementById('highlightsSection').hidden = true;
       const yearRow = document.getElementById('yearRow');
-      yearRow.hidden = activeScope !== 'year';
+      yearRow.hidden = activeScope !== 'all';
 
       try {
-        const year = activeScope === 'year'
-          ? Number(document.getElementById('yearSelect').value) || currentSeasonYear
-          : null;
-        const apiScope = (activeScope === 'lastweek' || activeScope === 'week') ? 'week' : activeScope;
+        if (activeScope === 'all' && pendingYearFromUrl != null) {
+          allTimeYearFilter = String(pendingYearFromUrl);
+          pendingYearFromUrl = null;
+        }
+
+        const yearFilter =
+          activeScope === 'all' && allTimeYearFilter !== ''
+            ? Number(allTimeYearFilter)
+            : null;
+        const apiScope =
+          activeScope === 'lastweek' || activeScope === 'week'
+            ? 'week'
+            : activeScope === 'all' && Number.isFinite(yearFilter)
+              ? 'year'
+              : activeScope;
         const weekId = activeScope === 'lastweek'
           ? previousWeekId
           : activeScope === 'week'
@@ -507,11 +525,15 @@
           body.innerHTML = '<p class="lb-empty">No active week yet.</p>';
           return;
         }
-        const data = await fetchBoard(apiScope, year, weekId);
+        const data = await fetchBoard(
+          apiScope,
+          apiScope === 'year' ? yearFilter : null,
+          weekId
+        );
         availableYears = data.availableYears || availableYears;
         currentSeasonYear = data.currentSeasonYear || currentSeasonYear;
-        if (activeScope === 'year') {
-          fillYearSelect(availableYears, data.year || currentSeasonYear);
+        if (activeScope === 'all') {
+          fillYearSelect(availableYears, allTimeYearFilter);
         }
         renderBoard(data);
 
@@ -541,11 +563,16 @@
           b.setAttribute('aria-selected', b === btn ? 'true' : 'false');
         });
         activeScope = btn.getAttribute('data-scope') || 'all';
+        if (activeScope === 'all') {
+          // Opening All Time always starts on full all-time stats.
+          allTimeYearFilter = '';
+        }
         loadActiveBoard();
       });
     });
 
     document.getElementById('yearSelect').addEventListener('change', () => {
+      allTimeYearFilter = String(document.getElementById('yearSelect').value || '');
       boardCache = {};
       loadActiveBoard();
     });
@@ -558,8 +585,19 @@
     });
 
     function applyScopeFromUrl() {
-      const scope = String(new URLSearchParams(window.location.search).get('scope') || '').toLowerCase();
-      const allowed = new Set(['all', 'year', 'season', 'lastweek', 'week']);
+      const params = new URLSearchParams(window.location.search);
+      let scope = String(params.get('scope') || '').toLowerCase();
+      const yearParam = params.get('year');
+      // Legacy ?scope=year → All Time tab with optional year filter
+      if (scope === 'year') {
+        scope = 'all';
+        if (yearParam != null && String(yearParam).trim() !== '') {
+          pendingYearFromUrl = String(yearParam).trim();
+        }
+      } else if (scope === 'all' && yearParam != null && String(yearParam).trim() !== '') {
+        pendingYearFromUrl = String(yearParam).trim();
+      }
+      const allowed = new Set(['all', 'season', 'lastweek', 'week']);
       if (!allowed.has(scope)) return false;
       activeScope = scope;
       document.querySelectorAll('.lb-tab').forEach((btn) => {

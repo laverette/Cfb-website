@@ -5,6 +5,7 @@
 
 const CFBD_BASE = "https://api.collegefootballdata.com";
 const { getSupabase } = require("../db");
+const { recordApiUsage } = require("./api-usage");
 
 const SEASON_YEAR = 2026;
 const CAREER_START_YEAR = 2018;
@@ -38,6 +39,7 @@ async function cfbdGet(path, query, apiKey, signal) {
     headers: { authorization: `Bearer ${apiKey}`, accept: "application/json" },
     signal,
   });
+  recordApiUsage({ feature: "player-profile", source: "cfbd", calls: 1 });
   if (!resp.ok) {
     const text = await resp.text().catch(() => "");
     const err = new Error(`CFBD ${path} failed (${resp.status}): ${text.slice(0, 180)}`);

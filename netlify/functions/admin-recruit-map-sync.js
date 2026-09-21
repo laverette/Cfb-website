@@ -10,6 +10,7 @@
 const { getSupabase, dbError } = require("./db");
 const { json, parseJsonBody } = require("./_http");
 const { requireAdmin } = require("./_auth");
+const { recordApiUsage } = require("./_lib/api-usage");
 
 const CFBD_BASE = "https://api.collegefootballdata.com";
 const DEFAULT_RETRY_AFTER = 120;
@@ -50,6 +51,7 @@ async function cfbdFetch(path, apiKey) {
       accept: "application/json",
     },
   });
+  recordApiUsage({ feature: "recruit-map", source: "cfbd", calls: 1 });
 
   if (res.status === 429) {
     const retryAfterSeconds = parseRetryAfterSeconds(

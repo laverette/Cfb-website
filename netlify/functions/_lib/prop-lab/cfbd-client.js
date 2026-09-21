@@ -1,5 +1,6 @@
 const CFBD_BASE = "https://api.collegefootballdata.com";
 const { cached } = require("./cache");
+const { recordApiUsage } = require("../api-usage");
 
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
@@ -55,6 +56,7 @@ function createClient(apiKey, { signal, usage } = {}) {
       headers: { authorization: `Bearer ${apiKey}`, accept: "application/json" },
       signal,
     });
+    recordApiUsage({ feature: "prop-lab", source: "cfbd", calls: 1 });
     if (!resp.ok) {
       const text = await resp.text().catch(() => "");
       const err = new Error(`CFBD ${path} failed (${resp.status}): ${text.slice(0, 180)}`);

@@ -550,6 +550,109 @@
       text-align: center;
       margin: 0;
     }
+    .api-usage-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.65rem 1rem;
+      align-items: end;
+      margin-bottom: 0.85rem;
+    }
+    .api-usage-toolbar .form-group { margin: 0; min-width: 7rem; }
+    .api-usage-kpis {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.65rem;
+      margin-bottom: 1rem;
+    }
+    .api-usage-kpi {
+      padding: 0.75rem 0.85rem;
+      border-radius: 10px;
+      border: 1px solid var(--admin-border-soft);
+      background: rgba(0, 0, 0, 0.28);
+    }
+    .api-usage-kpi span {
+      display: block;
+      font-family: var(--admin-display);
+      font-size: 0.78rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--admin-muted);
+      margin-bottom: 0.2rem;
+    }
+    .api-usage-kpi strong {
+      font-family: var(--admin-display);
+      font-size: 1.45rem;
+      font-weight: 800;
+      color: var(--admin-accent);
+      letter-spacing: 0.02em;
+    }
+    .api-usage-chart {
+      display: flex;
+      flex-direction: column;
+      gap: 0.55rem;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+    .api-usage-row {
+      display: grid;
+      grid-template-columns: minmax(7.5rem, 11rem) 1fr auto;
+      gap: 0.65rem;
+      align-items: center;
+    }
+    .api-usage-label {
+      font-family: var(--admin-display);
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      color: var(--admin-text);
+      font-size: 0.95rem;
+      line-height: 1.15;
+    }
+    .api-usage-bar-track {
+      height: 1.15rem;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--admin-border-soft);
+      overflow: hidden;
+    }
+    .api-usage-bar {
+      height: 100%;
+      width: 0;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--admin-accent), var(--admin-accent-hot));
+      box-shadow: 0 0 12px rgba(232, 197, 71, 0.25);
+      transition: width 0.45s ease;
+    }
+    .api-usage-bar.is-odds {
+      background: linear-gradient(90deg, #6ea8fe, #3d7bfd);
+      box-shadow: 0 0 12px rgba(110, 168, 254, 0.22);
+    }
+    .api-usage-count {
+      font-variant-numeric: tabular-nums;
+      font-size: 0.88rem;
+      color: var(--admin-muted);
+      min-width: 4.5rem;
+      text-align: right;
+    }
+    .api-usage-empty {
+      color: var(--admin-muted);
+      margin: 0.5rem 0 0;
+      font-size: 0.92rem;
+    }
+    .api-usage-note {
+      margin: 0.85rem 0 0;
+      color: var(--admin-muted);
+      font-size: 0.82rem;
+    }
+    @media (max-width: 640px) {
+      .api-usage-kpis { grid-template-columns: 1fr; }
+      .api-usage-row {
+        grid-template-columns: 1fr auto;
+        grid-template-rows: auto auto;
+      }
+      .api-usage-label { grid-column: 1 / -1; }
+      .api-usage-bar-track { grid-column: 1; }
+    }
     .saved-slate {
       display: flex;
       flex-direction: column;
@@ -668,6 +771,7 @@
     <div class="admin-jump-wrap">
       <nav class="admin-jump" aria-label="Admin sections">
         <a href="#section-week" data-section="section-week">Active week</a>
+        <a href="#section-api-usage" data-section="section-api-usage">API usage</a>
         <a href="#section-power" data-section="section-power">Power rankings</a>
         <a href="#section-proplab" data-section="section-proplab">Prop Lab backtest</a>
         <a href="#section-heisman" data-section="section-heisman">Heisman</a>
@@ -699,6 +803,38 @@
         </div>
       </div>
       <div id="weekStatus"></div>
+    </div>
+
+    <!-- API usage -->
+    <div class="admin-section" id="section-api-usage">
+      <h2>API usage by feature</h2>
+      <p class="section-lead">
+        Upstream CFBD (and Odds API) network calls attributed to each product feature.
+        Cache hits are tracked separately and do not burn quota.
+      </p>
+      <div class="api-usage-toolbar">
+        <div class="form-group">
+          <label for="apiUsageDays">Window</label>
+          <select id="apiUsageDays" onchange="loadApiUsageChart()">
+            <option value="7">Last 7 days</option>
+            <option value="14" selected>Last 14 days</option>
+            <option value="30">Last 30 days</option>
+          </select>
+        </div>
+        <div class="form-group" style="align-self:end;">
+          <button type="button" class="btn btn-secondary" id="btnApiUsageRefresh" onclick="loadApiUsageChart()">Refresh</button>
+        </div>
+      </div>
+      <div class="api-usage-kpis" id="apiUsageKpis" hidden>
+        <div class="api-usage-kpi"><span>Network calls</span><strong id="apiUsageTotalCalls">0</strong></div>
+        <div class="api-usage-kpi"><span>Cache hits</span><strong id="apiUsageTotalHits">0</strong></div>
+        <div class="api-usage-kpi"><span>Top feature</span><strong id="apiUsageTopFeature">—</strong></div>
+      </div>
+      <div id="apiUsageStatus" class="loading">Loading API usage…</div>
+      <ul class="api-usage-chart" id="apiUsageChart" hidden></ul>
+      <p class="api-usage-note" id="apiUsageNote" hidden>
+        Counts start after deploy. Only real upstream requests increment “network calls.”
+      </p>
     </div>
 
     <!-- Power Rankings -->
@@ -2731,6 +2867,95 @@
       loadSavedGamesForSelection();
     });
 
+    async function loadApiUsageChart() {
+      const status = document.getElementById('apiUsageStatus');
+      const chart = document.getElementById('apiUsageChart');
+      const kpis = document.getElementById('apiUsageKpis');
+      const note = document.getElementById('apiUsageNote');
+      const daysSel = document.getElementById('apiUsageDays');
+      const days = Number(daysSel && daysSel.value) || 14;
+
+      if (status) {
+        status.hidden = false;
+        status.className = 'loading';
+        status.textContent = 'Loading API usage…';
+      }
+      if (chart) {
+        chart.hidden = true;
+        chart.innerHTML = '';
+      }
+      if (kpis) kpis.hidden = true;
+      if (note) note.hidden = true;
+
+      try {
+        const res = await fetch(
+          `${API_BASE}/api/admin/api-usage?days=${encodeURIComponent(String(days))}`,
+          { headers: { ...adminAuthHeaders(false), Accept: 'application/json' } }
+        );
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(data.error || data.message || `Failed (${res.status})`);
+        }
+
+        const features = Array.isArray(data.features) ? data.features : [];
+        const totalCalls = Number(data.totalCalls) || 0;
+        const totalHits = Number(data.totalCacheHits) || 0;
+        const top = features[0];
+
+        const totalCallsEl = document.getElementById('apiUsageTotalCalls');
+        const totalHitsEl = document.getElementById('apiUsageTotalHits');
+        const topFeatureEl = document.getElementById('apiUsageTopFeature');
+        if (totalCallsEl) totalCallsEl.textContent = String(totalCalls);
+        if (totalHitsEl) totalHitsEl.textContent = String(totalHits);
+        if (topFeatureEl) {
+          topFeatureEl.textContent = top
+            ? `${top.label || top.feature} (${top.calls})`
+            : '—';
+        }
+        if (kpis) kpis.hidden = false;
+
+        if (!features.length || totalCalls + totalHits === 0) {
+          if (status) {
+            status.className = 'api-usage-empty';
+            status.textContent =
+              'No API usage logged yet for this window. Counts appear as features hit CFBD / Odds after deploy.';
+          }
+          if (note) note.hidden = false;
+          return;
+        }
+
+        const maxCalls = Math.max(...features.map((f) => Number(f.calls) || 0), 1);
+        if (chart) {
+          chart.hidden = false;
+          chart.innerHTML = features
+            .map((f) => {
+              const calls = Number(f.calls) || 0;
+              const hits = Number(f.cacheHits) || 0;
+              const pct = Math.max(2, Math.round((calls / maxCalls) * 100));
+              const isOdds = String(f.feature || '').includes('odds');
+              const hitNote = hits > 0 ? ` · ${hits} cache` : '';
+              return `
+                <li class="api-usage-row">
+                  <span class="api-usage-label">${escapeHtml(f.label || f.feature)}</span>
+                  <div class="api-usage-bar-track" title="${calls} network calls${hitNote}">
+                    <div class="api-usage-bar${isOdds ? ' is-odds' : ''}" style="width:${pct}%"></div>
+                  </div>
+                  <span class="api-usage-count">${calls}${hitNote}</span>
+                </li>`;
+            })
+            .join('');
+        }
+        if (status) status.hidden = true;
+        if (note) note.hidden = false;
+      } catch (err) {
+        if (status) {
+          status.className = 'api-usage-empty';
+          status.textContent = err && err.message ? err.message : 'Could not load API usage';
+        }
+        if (kpis) kpis.hidden = true;
+      }
+    }
+
     document.addEventListener('DOMContentLoaded', async () => {
       if (!localStorage.getItem('authToken') || !localStorage.getItem('currentUser')) {
         showAdminAuthWall('Please log in with an admin account.');
@@ -2742,6 +2967,7 @@
       syncCfbdFetchFocusUi();
       await loadCurrentWeek();
       await refreshWeeks();
+      loadApiUsageChart();
     });
 
     window.addEventListener('storage', function (e) {

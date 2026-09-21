@@ -17,9 +17,10 @@ const {
 const CFBD_BASE = "https://api.collegefootballdata.com";
 const ESPN_SB =
   "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard";
-
 const GRADE_THROTTLE_MS = 60_000;
 let lastGradeRunAt = 0;
+
+const { recordApiUsage } = require("./api-usage");
 
 function readCfbdKey() {
   return (process.env.CFBD_API_KEY && String(process.env.CFBD_API_KEY).trim()) || "";
@@ -339,6 +340,7 @@ async function fetchLiveScoresForWeek(week, games = []) {
           `${CFBD_BASE}/games?year=${season}&week=${w}&seasonType=regular`,
           headers
         );
+        recordApiUsage({ feature: "grade-picks", source: "cfbd", calls: 1 });
         (Array.isArray(cfbdGames) ? cfbdGames : []).forEach((g) => {
           push({
             id: g.id != null ? Number(g.id) : null,
@@ -374,6 +376,7 @@ async function fetchLiveScoresForWeek(week, games = []) {
             `${CFBD_BASE}/games?id=${encodeURIComponent(cfbdId)}`,
             headers
           );
+          recordApiUsage({ feature: "grade-picks", source: "cfbd", calls: 1 });
           const row = Array.isArray(rows) ? rows[0] : rows;
           if (!row) return;
           push({

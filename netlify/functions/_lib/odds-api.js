@@ -4,6 +4,7 @@
  */
 const ODDS_BASE = "https://api.the-odds-api.com/v4";
 const SPORT = "americanfootball_ncaaf";
+const { recordApiUsage } = require("./api-usage");
 
 /** Odds API market key → our STAT_DEFS id */
 const MARKET_TO_STAT = {
@@ -74,6 +75,7 @@ async function oddsGet(path, query = {}, signal) {
   } catch {
     body = { raw: text };
   }
+  recordApiUsage({ feature: "prop-odds", source: "odds", calls: 1 });
   if (!resp.ok) {
     const err = new Error(
       (body && (body.message || body.error_code || body.error)) ||

@@ -452,6 +452,7 @@
     async function cfbdProxyRequest(path, params = {}) {
       const url = new URL('/.netlify/functions/cfbd', window.location.origin);
       url.searchParams.set('path', path);
+      url.searchParams.set('feature', 'weekly-picks');
       Object.entries(params).forEach(([k, v]) => {
         if (v === undefined || v === null) return;
         url.searchParams.set(k, String(v));

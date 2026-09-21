@@ -8,6 +8,7 @@
  * API key is ONLY read from process.env.CFBD_API_KEY and is never returned to the browser.
  */
 const CFBD_BASE_URL = "https://api.collegefootballdata.com";
+const { featureFromRequest, recordApiUsage } = require("./_lib/api-usage");
 
 const ALLOWED_PREFIXES = [
   "/games",
@@ -155,11 +156,15 @@ exports.handler = async (event) => {
   }
 
   const query = new URLSearchParams(event.queryStringParameters || {});
+  query.delete("feature");
+  query.delete("usageFeature");
   const upstreamUrl = buildUpstreamUrl(cfbdPath, query);
   const cacheKey = upstreamUrl.toString();
   const ttl = cacheTtlMs(cfbdPath);
+  const usageFeature = featureFromRequest(event, "cfbd-proxy");
   const cached = ttl > 0 ? cacheGet(cacheKey) : null;
   if (cached) {
+    await recordApiUsage({ feature: usageFeature, source: "cfbd", cacheHits: 1 });
     return {
       statusCode: cached.statusCode,
       headers: {
@@ -190,6 +195,8 @@ exports.handler = async (event) => {
 
     if (!resp.ok) {
       // Preserve useful upstream errors (401/403/404/429/etc) — do not cache errors.
+      // Still count toward CFBD quota when the upstream responded.
+      await recordApiUsage({ feature: usageFeature, source: "cfbd", calls: 1 });
       return json(resp.status, {
         error: "CFBD upstream error.",
         status: resp.status,
@@ -206,6 +213,7 @@ exports.handler = async (event) => {
     };
     const body = isJson ? JSON.stringify(payload) : String(payload);
     cacheSet(cacheKey, { at: Date.now(), ttl, statusCode: 200, headers, body });
+    await recordApiUsage({ feature: usageFeature, source: "cfbd", calls: 1 });
 
     return {
       statusCode: 200,

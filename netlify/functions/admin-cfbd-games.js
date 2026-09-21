@@ -8,6 +8,7 @@
 const CFBD_BASE = "https://api.collegefootballdata.com";
 const { json } = require("./_http");
 const { requireAdmin } = require("./_auth");
+const { recordApiUsage } = require("./_lib/api-usage");
 
 function numOrNull(v) {
   if (v == null || v === "") return null;
@@ -93,6 +94,7 @@ async function fetchRankBySchool({ headers, year, week, seasonType }) {
       seasonType
     )}`;
     const res = await fetch(url, { headers });
+    recordApiUsage({ feature: "admin-slate", source: "cfbd", calls: 1 });
     if (!res.ok) continue;
     const payload = await res.json();
     const weeks = Array.isArray(payload) ? payload : [];
@@ -106,6 +108,7 @@ async function fetchRankBySchool({ headers, year, week, seasonType }) {
     seasonType
   )}`;
   const yearRes = await fetch(yearUrl, { headers });
+  recordApiUsage({ feature: "admin-slate", source: "cfbd", calls: 1 });
   if (yearRes.ok) {
     const payload = await yearRes.json();
     const weeks = Array.isArray(payload) ? payload : [];
@@ -177,6 +180,7 @@ exports.handler = async (event) => {
       fetch(linesUrl, { headers }),
       fetchRankBySchool({ headers, year, week, seasonType }),
     ]);
+    recordApiUsage({ feature: "admin-slate", source: "cfbd", calls: 3 });
 
     if (!gamesRes.ok) {
       const detail = await gamesRes.text();

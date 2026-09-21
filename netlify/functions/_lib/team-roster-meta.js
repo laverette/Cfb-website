@@ -7,6 +7,7 @@ const ESPN_SITE =
   "https://site.api.espn.com/apis/site/v2/sports/football/college-football";
 const ESPN_TEAMS_URL = `${ESPN_SITE}/teams?limit=500`;
 const CFBD_BASE = "https://api.collegefootballdata.com";
+const { recordApiUsage } = require("./api-usage");
 
 const FETCH_HEADERS = {
   accept: "application/json, text/plain, */*",
@@ -200,6 +201,7 @@ async function fetchCfbdUsage(team, year, apiKey) {
       authorization: `Bearer ${apiKey}`,
     },
   });
+  recordApiUsage({ feature: "team-roster", source: "cfbd", calls: 1 });
   if (!resp.ok) return [];
   const data = await resp.json().catch(() => []);
   return Array.isArray(data) ? data : [];

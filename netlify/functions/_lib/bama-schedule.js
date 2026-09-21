@@ -11,6 +11,7 @@ const ESPN_SCHEDULE_BASE =
 const DEFAULT_TEAM = "Alabama";
 const CFBD_TIMEOUT_MS = 12_000;
 const CFBD_RETRY_STATUSES = new Set([429, 502, 503, 504]);
+const { recordApiUsage } = require("./api-usage");
 
 const FETCH_HEADERS = {
   accept: "application/json, text/plain, */*",
@@ -111,6 +112,7 @@ async function cfbdGet(path, query, apiKey, signal) {
         headers: { ...FETCH_HEADERS, authorization: `Bearer ${apiKey}` },
         signal,
       });
+      recordApiUsage({ feature: "schedule-predict", source: "cfbd", calls: 1 });
       if (!resp.ok) {
         const text = await resp.text().catch(() => "");
         const err = new Error(`CFBD ${path} failed (${resp.status}): ${text.slice(0, 180)}`);
