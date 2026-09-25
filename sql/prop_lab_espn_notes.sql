@@ -1,0 +1,30 @@
+-- Prop Lab ESPN fallback notes
+-- ----------------------------
+-- No new required table. ESPN-normalized game logs, schedules, and athlete
+-- id maps are stored in the existing prop_lab_cfbd_cache table using keys:
+--
+--   player-gamelog:v1:{season}:{player}:{team}
+--   team-schedule:v1:{season}:{team}
+--   espn:gamelog:{athleteId}:{season}
+--   espn:summary:{eventId}
+--   espn:schedule:{teamId}:{season}
+--   espn:roster:{teamId}:{season}
+--   espn:athlete-map:cfbd:{cfbdPlayerId}:{season}
+--   espn:athlete-map:name:{normalizedName}:{team}:{season}
+--   espn:teams-index
+--
+-- Ensure sql/prop_lab_schema.sql has been applied (prop_lab_cfbd_cache).
+--
+-- Optional dedicated mapping table (not required):
+--
+-- create table if not exists public.player_source_ids (
+--   player_name text not null,
+--   team text not null,
+--   season integer not null,
+--   cfbd_player_id text,
+--   espn_player_id text,
+--   updated_at timestamptz not null default now(),
+--   primary key (player_name, team, season)
+-- );
+
+select 1;

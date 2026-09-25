@@ -4,9 +4,9 @@
   "description": "Netlify site + functions for CFB picks frontend",
   "scripts": {
     "export:recruits": "node scripts/export-recruit-map-data.js",
-    "test": "node --test tests/power-model.test.js tests/prop-lab.test.js tests/prop-lab-coherence.test.js tests/prop-lab-backtest.test.js tests/prop-lab-21.test.js tests/prop-lab-calibration.test.js tests/pick-reminders.test.js tests/weeklypicks-mobile.test.js",
+    "test": "node --test tests/power-model.test.js tests/prop-lab.test.js tests/prop-lab-coherence.test.js tests/prop-lab-backtest.test.js tests/prop-lab-21.test.js tests/prop-lab-calibration.test.js tests/player-data-espn.test.js tests/pick-reminders.test.js tests/weeklypicks-mobile.test.js",
     "test:power": "node --test tests/power-model.test.js",
-    "test:props": "node --test tests/prop-lab.test.js tests/prop-lab-coherence.test.js tests/prop-lab-backtest.test.js tests/prop-lab-21.test.js tests/prop-lab-calibration.test.js",
+    "test:props": "node --test tests/prop-lab.test.js tests/prop-lab-coherence.test.js tests/prop-lab-backtest.test.js tests/prop-lab-21.test.js tests/prop-lab-calibration.test.js tests/player-data-espn.test.js",
     "test:reminders": "node --test tests/pick-reminders.test.js",
     "backtest:props": "node scripts/run-prop-lab-backtest.js",
     "calibrate:props": "node scripts/fit-prop-lab-calibrator.js",

@@ -108,6 +108,12 @@ exports.handler = async (event) => {
   const body = method === "POST" ? parseJsonBody(event) || {} : {};
   const action = String(body.action || q.action || "evaluate").toLowerCase();
   const apiKey = readCfbdKey();
+  const dataSourceMode = String(
+    process.env.PROP_LAB_DATA_SOURCE || process.env.DATA_SOURCE || "auto"
+  )
+    .trim()
+    .toLowerCase();
+  const espnOnly = dataSourceMode === "espn";
   const cfbdActions = new Set([
     "search",
     "board",
@@ -116,7 +122,9 @@ exports.handler = async (event) => {
     "backtest",
   ]);
   if (action === "entry" && method === "POST") cfbdActions.add("entry");
-  if (cfbdActions.has(action) && !apiKey) {
+  // ESPN-only mode can evaluate without a CFBD key. Search/board still prefer CFBD.
+  const requiresCfbdKey = cfbdActions.has(action) && !(espnOnly && (action === "evaluate" || action === "evaluate-entry" || action === "entry"));
+  if (requiresCfbdKey && !apiKey) {
     return json(503, { error: "CFBD_API_KEY not configured" });
   }
 

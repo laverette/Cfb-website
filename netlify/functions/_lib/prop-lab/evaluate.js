@@ -519,20 +519,22 @@ function evaluateFromBundle(bundle, {
     whatIfLines: suggestWhatIfLines(def.id, lineNum),
     cache: bundle.apiUsage || null,
     cacheSummary: {
-      playerBundle: !bundle.apiUsage
-        ? "N/A"
-        : bundle.apiUsage.cacheMisses
-          ? bundle.apiUsage.cacheHits
-            ? "MIXED"
-            : "MISS"
-          : bundle.apiUsage.cacheHits
-            ? "HIT"
-            : "N/A",
-      schedule: (bundle.apiUsage?.paths || []).some((p) => String(p).includes("/games"))
-        ? bundle.apiUsage.cacheMisses
-          ? "MISS/MIXED"
-          : "HIT"
-        : "N/A",
+      playerBundle: bundle.dataSource?.cache ||
+        (!bundle.apiUsage
+          ? "N/A"
+          : bundle.apiUsage.cacheMisses
+            ? bundle.apiUsage.cacheHits
+              ? "MIXED"
+              : "MISS"
+            : bundle.apiUsage.cacheHits
+              ? "HIT"
+              : "N/A"),
+      schedule: bundle.dataSource?.schedule?.cache ||
+        ((bundle.apiUsage?.paths || []).some((p) => String(p).includes("/games"))
+          ? bundle.apiUsage.cacheMisses
+            ? "MISS/MIXED"
+            : "HIT"
+          : "N/A"),
       teamMetrics: (bundle.apiUsage?.paths || []).some((p) => String(p).includes("/stats"))
         ? bundle.apiUsage.cacheMisses
           ? "MISS/MIXED"
@@ -542,7 +544,12 @@ function evaluateFromBundle(bundle, {
       oddsApiRequests: 0,
       cacheHits: bundle.apiUsage?.cacheHits || 0,
       cacheMisses: bundle.apiUsage?.cacheMisses || 0,
+      dataSource: bundle.dataSource?.label || null,
+      dataSourceRaw: bundle.dataSource?.gameLogs?.source || null,
+      originalSource: bundle.dataSource?.gameLogs?.originalSource || null,
     },
+    dataSource: bundle.dataSource?.label || null,
+    dataSourceDetail: bundle.dataSource || null,
     playerData: {
       season: bundle.currentOverview || null,
       prior: bundle.priorOverview || null,

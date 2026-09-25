@@ -51,15 +51,20 @@ function findTeamRating(teams, name) {
   return scored[0]?.t || null;
 }
 
+function normalizePlayerName(name) {
+  return String(name || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\b(jr|sr|ii|iii|iv|v)\b\.?/g, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function playerNameMatch(a, b) {
-  const na = String(a || "")
-    .toLowerCase()
-    .replace(/[^a-z0-9 ]/g, "")
-    .trim();
-  const nb = String(b || "")
-    .toLowerCase()
-    .replace(/[^a-z0-9 ]/g, "")
-    .trim();
+  const na = normalizePlayerName(a);
+  const nb = normalizePlayerName(b);
   if (!na || !nb) return false;
   if (na === nb) return true;
   const pa = na.split(" ");
@@ -70,4 +75,11 @@ function playerNameMatch(a, b) {
   return na.includes(nb) || nb.includes(na);
 }
 
-module.exports = { sameTeam, normalizeTeam, aliasTeam, findTeamRating, playerNameMatch };
+module.exports = {
+  sameTeam,
+  normalizeTeam,
+  aliasTeam,
+  findTeamRating,
+  playerNameMatch,
+  normalizePlayerName,
+};

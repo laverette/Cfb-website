@@ -7,6 +7,12 @@ const { analyzeEntry, bestN, compareLegs } = require("./entry");
 const { probabilityAtLine } = require("./simulate");
 const { currentSeasonWeight } = require("./shrinkage");
 const { searchPlayers } = require("../prop-eval");
+const { getPlayerGameLog, getTeamScheduleData, readProviderMode } = require("./data/player-stats");
+const {
+  _resetCfbdCircuit,
+  _forceOpenCfbdCircuit,
+  cfbdCircuitInfo,
+} = require("./data/circuit-breaker");
 
 async function evaluateProp({
   playerId,
@@ -130,4 +136,10 @@ module.exports = {
   probabilityAtLine,
   currentSeasonWeight,
   searchPlayers,
+  getPlayerGameLog,
+  getTeamScheduleData,
+  readProviderMode,
+  cfbdCircuitInfo,
+  _resetCfbdCircuit,
+  _forceOpenCfbdCircuit,
 };

@@ -1,9 +1,7 @@
 const { createClient } = require("./cfbd-client");
 const { searchPlayers } = require("../prop-eval");
 const {
-  parseSchedule,
   nextUnplayed,
-  parsePlayerGameLogs,
   extractOverviewTotal,
   extractStatValue,
   indexTeamSeasonStats,
@@ -13,21 +11,21 @@ const {
 } = require("./parse");
 const { sameTeam, findTeamRating } = require("./names");
 const { toNum } = require("./math");
+const {
+  getPlayerGameLog,
+  getTeamScheduleData,
+  readProviderMode,
+} = require("./data/player-stats");
+const { forcesEspn } = require("./data/provider-mode");
+const { dataLog } = require("./data/log");
 
 async function loadOverview(cfbd, playerId, year) {
+  if (!cfbd || forcesEspn()) return null;
   let data = await cfbd.getOptional("/player/season/overview", { year, playerId });
   if (!data) {
     data = await cfbd.getOptional("/player/season/overview", { year, player_id: playerId });
   }
   return data;
-}
-
-function scheduleIndex(schedule) {
-  const map = new Map();
-  for (const g of schedule || []) {
-    if (g.gameId != null) map.set(String(g.gameId), g);
-  }
-  return map;
 }
 
 function attachValues(logs, statId) {
@@ -95,6 +93,17 @@ function last3Usage(logs) {
   return usageFromLogs(recent);
 }
 
+function dataSourceLabel(meta) {
+  const src = meta?.source || null;
+  const original = meta?.originalSource || null;
+  if (src === "cache" && original === "espn") return "ESPN fallback (cache)";
+  if (src === "cache" && original === "cfbd") return "CFBD (cache)";
+  if (src === "cache") return `Cache (${original || "unknown"})`;
+  if (src === "espn") return "ESPN fallback";
+  if (src === "cfbd") return "CFBD";
+  return src || "unknown";
+}
+
 /**
  * Load a reusable player/game bundle. Line changes must not refetch this.
  */
@@ -111,19 +120,27 @@ async function loadPlayerBundle({
   signal,
   asOfWeek = null,
 }) {
-  const client = cfbd || createClient(apiKey, { signal });
+  const providerMode = readProviderMode();
+  const client =
+    cfbd ||
+    (apiKey && !forcesEspn(providerMode) ? createClient(apiKey, { signal }) : null);
   const seasonYear = Number(season) || new Date().getFullYear();
-  const pid = String(playerId);
+  const pid = playerId != null ? String(playerId) : "";
 
-  const [currentOv, priorOv, scheduleRaw, teamStatsAll, advAll, ppaAll] = await Promise.all([
-    loadOverview(client, pid, seasonYear),
-    loadOverview(client, pid, seasonYear - 1),
-    team
-      ? client.getOptional("/games", { year: seasonYear, team, seasonType: "regular" })
+  const playerNameHint = name || null;
+
+  const [currentOv, priorOv, teamStatsAll, advAll, ppaAll] = await Promise.all([
+    pid ? loadOverview(client, pid, seasonYear) : Promise.resolve(null),
+    pid ? loadOverview(client, pid, seasonYear - 1) : Promise.resolve(null),
+    client
+      ? client.getOptional("/stats/season", { year: seasonYear, seasonType: "regular" })
       : Promise.resolve(null),
-    client.getOptional("/stats/season", { year: seasonYear, seasonType: "regular" }),
-    client.getOptional("/stats/season/advanced", { year: seasonYear, startWeek: 1 }),
-    client.getOptional("/ppa/teams", { year: seasonYear, excludeGarbageTime: true }),
+    client
+      ? client.getOptional("/stats/season/advanced", { year: seasonYear, startWeek: 1 })
+      : Promise.resolve(null),
+    client
+      ? client.getOptional("/ppa/teams", { year: seasonYear, excludeGarbageTime: true })
+      : Promise.resolve(null),
   ]);
 
   const playerTeam =
@@ -132,14 +149,35 @@ async function loadPlayerBundle({
     pick(priorOv, "team", "teamName") ||
     null;
 
-  let schedule = parseSchedule(scheduleRaw, playerTeam);
-  if ((!schedule.length || !scheduleRaw) && playerTeam) {
-    const alt = await client.getOptional("/games", {
-      year: seasonYear,
-      team: playerTeam,
-      seasonType: "regular",
-    });
-    schedule = parseSchedule(alt, playerTeam);
+  const resolvedName =
+    playerNameHint ||
+    pick(currentOv, "name", "athleteName") ||
+    pick(priorOv, "name", "athleteName") ||
+    "Player";
+  const posHint = pick(currentOv, "position") || pick(priorOv, "position") || null;
+  const jerseyHint = pick(currentOv, "jersey") || null;
+
+  let schedule = [];
+  let scheduleMeta = { source: null, cache: "MISS" };
+  if (playerTeam) {
+    try {
+      const schedResult = await getTeamScheduleData({
+        team: playerTeam,
+        season: seasonYear,
+        cfbd: client,
+        signal,
+        mode: providerMode,
+      });
+      schedule = schedResult.schedule || [];
+      scheduleMeta = {
+        source: schedResult.source,
+        originalSource: schedResult.originalSource,
+        cache: schedResult.cache,
+      };
+    } catch (err) {
+      dataLog("PlayerData", `Schedule load failed: ${err.message}`);
+      schedule = [];
+    }
   }
 
   if (asOfWeek != null) {
@@ -160,57 +198,98 @@ async function loadPlayerBundle({
         }
       : nextUnplayed(schedule, week);
 
-  const [playerBox, priorBox, priorScheduleRaw, lines] = await Promise.all([
-    playerTeam
-      ? client.getOptional("/games/players", {
-          year: seasonYear,
-          team: playerTeam,
-          seasonType: "regular",
-        })
-      : Promise.resolve(null),
-    playerTeam
-      ? client.getOptional("/games/players", {
-          year: seasonYear - 1,
-          team: pick(priorOv, "team", "teamName") || playerTeam,
-          seasonType: "regular",
-        })
-      : Promise.resolve(null),
-    client.getOptional("/games", {
-      year: seasonYear - 1,
-      team: pick(priorOv, "team", "teamName") || playerTeam,
-      seasonType: "regular",
-    }),
-    nextGame?.week
-      ? client.getOptional("/lines", {
+  let gameLogs = [];
+  let priorLogs = [];
+  let gameLogMeta = { source: null, cache: "MISS" };
+  let priorLogMeta = { source: null, cache: "MISS" };
+
+  if (playerTeam) {
+    try {
+      const current = await getPlayerGameLog({
+        playerId: pid || null,
+        playerName: resolvedName,
+        team: playerTeam,
+        season: seasonYear,
+        position: posHint,
+        jersey: jerseyHint,
+        cfbd: client,
+        signal,
+        mode: providerMode,
+      });
+      gameLogs = current.games || [];
+      gameLogMeta = current.meta || {
+        source: current.source,
+        originalSource: current.originalSource,
+        cache: current.cache,
+      };
+      if ((!schedule.length || scheduleMeta.source == null) && current.schedule?.length) {
+        schedule = current.schedule;
+        scheduleMeta = {
+          source: current.source,
+          originalSource: current.originalSource,
+          cache: current.cache,
+        };
+      }
+    } catch (err) {
+      if (err.code === "PLAYER_DATA_UNAVAILABLE") {
+        dataLog("PlayerData", err.message);
+      } else {
+        dataLog("PlayerData", `Current game log failed: ${err.message}`);
+      }
+      gameLogs = [];
+      gameLogMeta = { source: null, cache: "MISS", error: err.code || err.message };
+    }
+
+    const priorTeam = pick(priorOv, "team", "teamName") || playerTeam;
+    try {
+      const prior = await getPlayerGameLog({
+        playerId: pid || null,
+        playerName: resolvedName,
+        team: priorTeam,
+        season: seasonYear - 1,
+        position: posHint,
+        jersey: jerseyHint,
+        cfbd: client,
+        signal,
+        mode: providerMode,
+      });
+      priorLogs = prior.games || [];
+      priorLogMeta = prior.meta || {
+        source: prior.source,
+        originalSource: prior.originalSource,
+        cache: prior.cache,
+      };
+    } catch (err) {
+      dataLog("PlayerData", `Prior game log failed: ${err.message}`);
+      priorLogs = [];
+    }
+  }
+
+  let lines = null;
+  if (client && playerTeam) {
+    lines = nextGame?.week
+      ? await client.getOptional("/lines", {
           year: seasonYear,
           week: nextGame.week,
           team: playerTeam,
           seasonType: "regular",
         })
-      : client.getOptional("/lines", { year: seasonYear, team: playerTeam, seasonType: "regular" }),
-  ]);
-
-  const priorSchedule = parseSchedule(
-    priorScheduleRaw,
-    pick(priorOv, "team", "teamName") || playerTeam
-  );
-
-  let gameLogs = parsePlayerGameLogs(playerBox, {
-    playerId: pid,
-    playerName: name || pick(currentOv, "name", "athleteName"),
-    team: playerTeam,
-    scheduleById: scheduleIndex(schedule),
-  });
-  let priorLogs = parsePlayerGameLogs(priorBox, {
-    playerId: pid,
-    playerName: name || pick(priorOv, "name", "athleteName") || pick(currentOv, "name"),
-    team: pick(priorOv, "team", "teamName") || playerTeam,
-    scheduleById: scheduleIndex(priorSchedule),
-  });
+      : await client.getOptional("/lines", {
+          year: seasonYear,
+          team: playerTeam,
+          seasonType: "regular",
+        });
+  }
 
   if (asOfWeek != null) {
     gameLogs = gameLogs.filter((g) => g.week == null || Number(g.week) < Number(asOfWeek));
   }
+
+  // Recompute nextGame if schedule arrived via game-log path after opponent resolve.
+  const resolvedNext =
+    opponent && String(opponent).trim()
+      ? schedule.find((g) => sameTeam(g.opponent, opponent)) || nextGame
+      : nextUnplayed(schedule, week) || nextGame;
 
   const teamStatsIndex = indexTeamSeasonStats(teamStatsAll);
   const advIndex = indexAdvanced(Array.isArray(advAll) ? advAll : advAll ? [advAll] : []);
@@ -224,7 +303,7 @@ async function loadPlayerBundle({
 
   const teamOffense = lookupTeamMap(teamStatsIndex, playerTeam) || {};
   const teamAdv = lookupTeamMap(advIndex, playerTeam);
-  const oppName = nextGame?.opponent || null;
+  const oppName = resolvedNext?.opponent || null;
   const oppDefense = lookupTeamMap(teamStatsIndex, oppName) || {};
   const oppAdv = lookupTeamMap(advIndex, oppName);
   const teamPpa = lookupTeamMap(ppaIndex, playerTeam);
@@ -242,33 +321,42 @@ async function loadPlayerBundle({
   const fcsGames = gameLogs.filter((g) => g.isFcs).length;
   if (gameLogs.length && fcsGames / gameLogs.length >= 0.4) flags.push("FCS-Heavy Sample");
 
-  const pos = pick(currentOv, "position") || pick(priorOv, "position") || null;
+  const pos = posHint;
   const classYear = pick(currentOv, "year", "class") || null;
   if (classYear && /fr|freshman/i.test(String(classYear))) flags.push("New Starter");
 
   const currentTeam = pick(currentOv, "team", "teamName");
-  const priorTeam = pick(priorOv, "team", "teamName");
-  if (currentTeam && priorTeam && !sameTeam(currentTeam, priorTeam)) flags.push("Transfer");
+  const priorTeamName = pick(priorOv, "team", "teamName");
+  if (currentTeam && priorTeamName && !sameTeam(currentTeam, priorTeamName)) flags.push("Transfer");
+
+  const dataSource = {
+    mode: providerMode,
+    gameLogs: gameLogMeta,
+    priorLogs: priorLogMeta,
+    schedule: scheduleMeta,
+    label: dataSourceLabel(gameLogMeta),
+    cache: gameLogMeta.cache || "MISS",
+  };
 
   return {
     player: {
       id: pid,
-      name: name || pick(currentOv, "name", "athleteName") || "Player",
+      name: resolvedName,
       team: playerTeam,
       position: pos,
       year: classYear,
-      jersey: pick(currentOv, "jersey") || null,
+      jersey: jerseyHint,
     },
     seasonYear,
-    week: nextGame?.week ?? week ?? null,
-    opponent: nextGame
+    week: resolvedNext?.week ?? week ?? null,
+    opponent: resolvedNext
       ? {
-          name: nextGame.opponent,
-          week: nextGame.week,
-          homeAway: nextGame.homeAway,
-          startDate: nextGame.startDate || null,
-          isFcs: Boolean(nextGame.oppIsFcs),
-          fromSchedule: Boolean(nextGame.gameId || nextGame.opponent),
+          name: resolvedNext.opponent,
+          week: resolvedNext.week,
+          homeAway: resolvedNext.homeAway,
+          startDate: resolvedNext.startDate || null,
+          isFcs: Boolean(resolvedNext.oppIsFcs),
+          fromSchedule: Boolean(resolvedNext.gameId || resolvedNext.opponent),
         }
       : null,
     schedule,
@@ -306,7 +394,8 @@ async function loadPlayerBundle({
     oppRating,
     market: consensusLine,
     flags,
-    apiUsage: client.usage,
+    apiUsage: client?.usage || { requests: 0, cacheHits: 0, cacheMisses: 0, paths: [] },
+    dataSource,
   };
 }
 
@@ -353,4 +442,5 @@ module.exports = {
   usageFromLogs,
   last3Usage,
   searchAndResolve,
+  dataSourceLabel,
 };

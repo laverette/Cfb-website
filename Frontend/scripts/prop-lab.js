@@ -1040,6 +1040,8 @@
     const md = e.modelDebug || {};
     pre.textContent = JSON.stringify(
       {
+        dataSource: md.dataSource || md.cacheSummary?.dataSource || null,
+        cache: md.cacheSummary?.playerBundle || md.cacheSummary || md.cache || e.apiUsage,
         projectionMean: md.projectionMean ?? e.projection,
         median: md.median ?? e.median,
         sd: md.sd ?? e.distribution?.sd,
@@ -1057,7 +1059,7 @@
         confidenceReasons: md.confidenceReasons || e.confidenceReasons,
         propScore: md.propScore || e.propScoreComponents,
         fcs: md.fcs || e.fcs,
-        cache: md.cacheSummary || md.cache || e.apiUsage,
+        cacheDetail: md.cacheSummary || md.cache || e.apiUsage,
         lineSanity: md.lineSanity || e.lineSanity,
         currentYearWeight: md.currentYearWeight || e.debug?.currentYearWeight,
         priorYearWeight: md.priorYearWeight || e.debug?.priorYearWeight,
