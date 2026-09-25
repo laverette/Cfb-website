@@ -961,7 +961,7 @@
             </select>
           </div>
         </div>
-        <div class="form-row-2">
+        <div class="form-row-3">
           <div class="form-group">
             <label>Division</label>
             <select id="cfbdClassification">
@@ -970,8 +970,16 @@
               <option value="all">All divisions</option>
             </select>
           </div>
+          <div class="form-group">
+            <label>Data source</label>
+            <select id="cfbdGamesSource" title="Use ESPN when CFBD quota is exhausted">
+              <option value="auto" selected>Auto (CFBD → ESPN)</option>
+              <option value="espn">ESPN only</option>
+              <option value="cfbd">CFBD only</option>
+            </select>
+          </div>
           <div class="form-group" style="align-self: end;">
-            <button type="button" class="btn btn-primary" onclick="fetchCfbdGames()">Fetch CFBD games</button>
+            <button type="button" class="btn btn-primary" onclick="fetchCfbdGames()">Fetch games</button>
           </div>
         </div>
 
@@ -2624,13 +2632,16 @@
       const week_number = parseInt(document.getElementById('cfbdWeekNumber').value, 10);
       const season_type = document.getElementById('cfbdSeasonType').value;
       const classification = document.getElementById('cfbdClassification').value || 'fbs';
+      const source = document.getElementById('cfbdGamesSource')?.value || 'auto';
       const focus = (document.getElementById('cfbdFetchFocus')?.value || 'all').trim();
       if (focus === 'conferences' && !getSelectedFetchConferences().length) {
         return alert('Pick at least one conference, or switch Fetch focus to All / Top 25.');
       }
-      document.getElementById('cfbdFetchStatus').innerHTML = '<div class="loading">Loading CFBD…</div>';
+      const loadingLabel =
+        source === 'espn' ? 'Loading ESPN…' : source === 'cfbd' ? 'Loading CFBD…' : 'Loading schedule…';
+      document.getElementById('cfbdFetchStatus').innerHTML = `<div class="loading">${loadingLabel}</div>`;
       try {
-        const q = new URLSearchParams({ season_year, week_number, season_type, classification });
+        const q = new URLSearchParams({ season_year, week_number, season_type, classification, source });
         const res = await fetch(`${API_BASE}/api/admin/cfbd-games?${q}`, {
           headers: adminAuthHeaders(false),
         });
@@ -2645,12 +2656,18 @@
         const visible = getFilteredCfbdGames();
         const divLabel = data.classification || classification;
         const rankMeta = data.rankings || {};
+        const src = String(data.source || source || 'cfbd').toUpperCase();
+        const fallbackNote = data.fallbackReason
+          ? ` · fell back from CFBD (${escapeHtml(String(data.fallbackReason).slice(0, 80))})`
+          : '';
         const rankNote =
-          rankMeta.teamsRanked > 0
+          rankMeta.gamesWithRankedTeam > 0
             ? ` · ${rankMeta.gamesWithRankedTeam || 0} with Top 25 (${escapeHtml(rankMeta.poll || 'poll')})`
-            : ' · no rankings found for this week yet';
+            : rankMeta.teamsRanked > 0
+              ? ` · ${rankMeta.gamesWithRankedTeam || 0} with Top 25 (${escapeHtml(rankMeta.poll || 'poll')})`
+              : ' · no rankings found for this week yet';
         document.getElementById('cfbdFetchStatus').innerHTML =
-          `<div class="status-message status-success">${cfbdGamesCache.length} games loaded (${escapeHtml(divLabel)})${rankNote}. Focus: <strong>${escapeHtml(focusLabel)}</strong> → showing <strong>${visible.length}</strong>. None selected — pick games below.</div>`;
+          `<div class="status-message status-success">${cfbdGamesCache.length} games loaded via <strong>${escapeHtml(src)}</strong> (${escapeHtml(divLabel)})${rankNote}${fallbackNote}. Focus: <strong>${escapeHtml(focusLabel)}</strong> → showing <strong>${visible.length}</strong>. None selected — pick games below.</div>`;
         renderCfbdList();
       } catch (e) {
         document.getElementById('cfbdFetchStatus').innerHTML =
