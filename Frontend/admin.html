@@ -972,9 +972,9 @@
           </div>
           <div class="form-group">
             <label>Data source</label>
-            <select id="cfbdGamesSource" title="Use ESPN when CFBD quota is exhausted">
-              <option value="auto" selected>Auto (CFBD → ESPN)</option>
-              <option value="espn">ESPN only</option>
+            <select id="cfbdGamesSource" title="ESPN is primary for Weekly Picks schedules (saves CFBD quota)">
+              <option value="espn" selected>ESPN (recommended)</option>
+              <option value="auto">Auto (ESPN → CFBD emergency)</option>
               <option value="cfbd">CFBD only</option>
             </select>
           </div>
@@ -2638,6 +2638,377 @@
       return 'all games';
     }
 
+    const ESPN_SB_ADMIN =
+      'https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard';
+
+    function formatEspnDateAdmin(date) {
+      if (date == null) return null;
+      if (typeof date === 'string') {
+        const compact = date.replace(/-/g, '');
+        if (/^\d{8}$/.test(compact)) return compact;
+        const d = new Date(date);
+        if (Number.isNaN(d.getTime())) return null;
+        return formatEspnDateAdmin(d);
+      }
+      if (!(date instanceof Date) || Number.isNaN(date.getTime())) return null;
+      const y = date.getUTCFullYear();
+      const mo = String(date.getUTCMonth() + 1).padStart(2, '0');
+      const day = String(date.getUTCDate()).padStart(2, '0');
+      return `${y}${mo}${day}`;
+    }
+
+    function espnSeasonTypeAdmin(seasonType) {
+      const t = String(seasonType || 'regular').toLowerCase();
+      if (t === 'postseason' || t === 'post') return 3;
+      if (t === 'preseason' || t === 'pre') return 1;
+      return 2;
+    }
+
+    function espnGroupsAdmin(classification) {
+      if (classification === 'fbs') return ['80'];
+      if (classification === 'fcs') return ['81'];
+      if (!classification || classification === 'all') return ['80', '81'];
+      return [null];
+    }
+
+    function eachYmdInclusiveAdmin(startIso, endIso, maxDays = 14) {
+      const start = new Date(startIso);
+      const end = new Date(endIso);
+      if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return [];
+      const out = [];
+      const cur = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate()));
+      const last = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), end.getUTCDate()));
+      for (let i = 0; i < maxDays && cur <= last; i += 1) {
+        out.push(formatEspnDateAdmin(cur));
+        cur.setUTCDate(cur.getUTCDate() + 1);
+      }
+      return out.filter(Boolean);
+    }
+
+    async function fetchEspnJsonBrowser(url) {
+      try {
+        if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+          console.log('[ESPN Schedule] Request URL:', url);
+        }
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 12000);
+        const resp = await fetch(url, {
+          method: 'GET',
+          headers: { accept: 'application/json' },
+          signal: ctrl.signal,
+        });
+        clearTimeout(timer);
+        if (!resp.ok) {
+          if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+            console.log('[ESPN Schedule] Status:', resp.status);
+          }
+          return { ok: false, status: resp.status, body: null, url };
+        }
+        const body = await resp.json().catch(() => null);
+        if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+          console.log(
+            '[ESPN Schedule] Status:',
+            resp.status,
+            'Event count:',
+            Array.isArray(body?.events) ? body.events.length : 0
+          );
+        }
+        return { ok: true, status: resp.status, body, url };
+      } catch {
+        return { ok: false, status: 0, body: null, url };
+      }
+    }
+
+    /**
+     * Fetch ESPN scoreboard events in the browser (CORS allows *).
+     * Preferred: calendar window → per-day dates=YYYYMMDD (hyphen ranges return 400).
+     * Fallback: week + seasontype.
+     */
+    async function fetchEspnScoreboardBrowser({ year, week, seasonType, classification }) {
+      const espnType = espnSeasonTypeAdmin(seasonType);
+      const groups = espnGroupsAdmin(classification);
+      const byId = new Map();
+      const diagnostics = [];
+      let requestRange = null;
+      let strategy = null;
+
+      function ingest(payload, { requireWeekMatch = false, label = '' } = {}) {
+        const events = Array.isArray(payload?.events) ? payload.events : [];
+        let added = 0;
+        for (const evt of events) {
+          if (requireWeekMatch) {
+            const evtWeek = Number(evt?.week?.number ?? payload?.week?.number);
+            if (Number.isFinite(evtWeek) && evtWeek !== Number(week)) continue;
+          }
+          const id = evt?.id != null ? String(evt.id) : null;
+          if (!id || byId.has(id)) continue;
+          byId.set(id, evt);
+          added += 1;
+        }
+        diagnostics.push(`${label}: events=${events.length} kept=+${added}`);
+        return added;
+      }
+
+      async function pull(params, opts) {
+        const url = `${ESPN_SB_ADMIN}?${params}`;
+        const res = await fetchEspnJsonBrowser(url);
+        if (!res.ok) {
+          diagnostics.push(`${opts.label}: HTTP ${res.status}`);
+          return 0;
+        }
+        return ingest(res.body, opts);
+      }
+
+      // A) Calendar day-walk (preferred — ESPN rejects dates=start-end with 400)
+      const probe = await fetchEspnJsonBrowser(
+        `${ESPN_SB_ADMIN}?seasontype=${espnType}&dates=${year}&groups=80&limit=1`
+      );
+      const calendar = probe.body?.leagues?.[0]?.calendar;
+      const buckets = Array.isArray(calendar) ? calendar : [];
+      const seasonBucket =
+        buckets.find((b) => String(b.value) === String(espnType)) ||
+        buckets.find((b) => /regular/i.test(String(b.label || ''))) ||
+        null;
+      const entries = Array.isArray(seasonBucket?.entries) ? seasonBucket.entries : [];
+      const entry =
+        entries.find((e) => Number(e.value) === Number(week)) ||
+        entries.find((e) => String(e.label || '').toLowerCase() === `week ${week}`);
+      if (entry?.startDate && entry?.endDate) {
+        const dates = eachYmdInclusiveAdmin(entry.startDate, entry.endDate, 14);
+        requestRange = `${dates[0] || '?'}..${dates[dates.length - 1] || '?'} (${entry.label || 'Week ' + week})`;
+        diagnostics.push(`browser calendar ${requestRange}`);
+        for (const ymd of dates) {
+          for (const group of groups) {
+            const params = new URLSearchParams({ dates: ymd, limit: '300' });
+            if (group != null) params.set('groups', String(group));
+            await pull(params, {
+              label: `browser date(${ymd})+group(${group ?? 'none'})`,
+              requireWeekMatch: false,
+            });
+          }
+        }
+        if (byId.size) strategy = 'calendar-days';
+      } else {
+        diagnostics.push('browser calendar: week window not found');
+      }
+
+      // B) Week-param fallback
+      if (!byId.size) {
+        for (const group of groups) {
+          const params = new URLSearchParams({
+            seasontype: String(espnType),
+            week: String(week),
+            dates: String(year),
+            limit: '300',
+          });
+          if (group != null) params.set('groups', String(group));
+          await pull(params, {
+            label: `browser week+dates+group(${group ?? 'none'})`,
+            requireWeekMatch: true,
+          });
+        }
+        if (byId.size) strategy = 'week-param';
+      }
+
+      if (!byId.size) {
+        for (const group of groups) {
+          const params = new URLSearchParams({
+            seasontype: String(espnType),
+            week: String(week),
+            limit: '300',
+          });
+          if (group != null) params.set('groups', String(group));
+          await pull(params, {
+            label: `browser week+group(${group ?? 'none'})`,
+            requireWeekMatch: true,
+          });
+        }
+        if (byId.size) strategy = 'week-param-noyear';
+      }
+
+      if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+        console.log('[ESPN Schedule] Strategy:', strategy, 'Raw events:', byId.size, 'Range:', requestRange);
+      }
+
+      return { events: [...byId.values()], diagnostics, requestRange, strategy };
+    }
+
+    /** Keep only fields the server needs to map ESPN → admin games (cuts ~1MB+ payloads). */
+    function slimEspnEventsForAdmin(events) {
+      return (Array.isArray(events) ? events : []).map((evt) => {
+        const comp = Array.isArray(evt?.competitions) ? evt.competitions[0] : null;
+        const competitors = Array.isArray(comp?.competitors) ? comp.competitors : [];
+        return {
+          id: evt?.id,
+          date: evt?.date,
+          week: evt?.week ? { number: evt.week.number } : undefined,
+          status: evt?.status
+            ? { type: { completed: evt.status.type?.completed, state: evt.status.type?.state, name: evt.status.type?.name, detail: evt.status.type?.detail } }
+            : undefined,
+          competitions: comp
+            ? [
+                {
+                  date: comp.date,
+                  venue: comp.venue ? { fullName: comp.venue.fullName } : undefined,
+                  odds: Array.isArray(comp.odds)
+                    ? comp.odds.map((o) => ({
+                        spread: o.spread,
+                        provider: o.provider ? { name: o.provider.name } : undefined,
+                      }))
+                    : undefined,
+                  status: comp.status
+                    ? {
+                        type: {
+                          completed: comp.status.type?.completed,
+                          state: comp.status.type?.state,
+                          name: comp.status.type?.name,
+                          detail: comp.status.type?.detail,
+                        },
+                      }
+                    : undefined,
+                  competitors: competitors.map((c) => ({
+                    homeAway: c.homeAway,
+                    id: c.id,
+                    curatedRank: c.curatedRank ? { current: c.curatedRank.current } : undefined,
+                    team: c.team
+                      ? {
+                          id: c.team.id,
+                          location: c.team.location,
+                          name: c.team.name,
+                          displayName: c.team.displayName,
+                          abbreviation: c.team.abbreviation,
+                          shortDisplayName: c.team.shortDisplayName,
+                          conferenceId: c.team.conferenceId,
+                          logo: c.team.logo,
+                          logos: Array.isArray(c.team.logos)
+                            ? c.team.logos.slice(0, 2).map((l) => ({ href: l.href }))
+                            : undefined,
+                        }
+                      : undefined,
+                  })),
+                },
+              ]
+            : [],
+        };
+      });
+    }
+
+    async function postEspnEventsForNormalize({
+      events,
+      season_year,
+      week_number,
+      season_type,
+      classification,
+      fallbackReason,
+      strategy,
+      requestRange,
+      diagnostics,
+    }) {
+      const slim = slimEspnEventsForAdmin(events);
+      const res = await fetch(`${API_BASE}/api/admin/cfbd-games`, {
+        method: 'POST',
+        headers: adminAuthHeaders(true),
+        body: JSON.stringify({
+          source: 'espn',
+          season_year,
+          week_number,
+          season_type,
+          classification,
+          events: slim,
+          fallbackReason: fallbackReason || 'Browser ESPN fetch',
+          strategy,
+          requestRange,
+          diagnostics,
+        }),
+      });
+      if (checkAdminFetch(res)) return { authFail: true };
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(
+          data.error || data.detail || 'Unable to load this week\'s ESPN schedule.'
+        );
+      }
+      return { data };
+    }
+
+    function applyCfbdGamesPayload(data, { source, classification }) {
+      // Preserve checkbox selections across schedule refresh (do not wipe admin picks).
+      const prevSelected = new Set(cfbdSelectedIds);
+      cfbdGamesCache = data.games || [];
+      const validIds = new Set(
+        cfbdGamesCache.map((g) => Number(g.cfbd_game_id)).filter((n) => Number.isFinite(n))
+      );
+      cfbdSelectedIds = new Set([...prevSelected].filter((id) => validIds.has(Number(id))));
+      populateConferenceFilter(data.conferences || []);
+      populateDayFilter();
+      const focusLabel = applyFetchFocusFilters();
+      const visible = getFilteredCfbdGames();
+      const divLabel = data.classification || classification;
+      const rankMeta = data.rankings || {};
+      const meta = data.meta || {};
+      const src = String(data.source || source || 'espn').toUpperCase();
+      const viaNote = data.via === 'browser' ? ' · via browser' : data.cached ? ' · cached' : '';
+      const rangeNote = meta.requestRange
+        ? ` · range ${escapeHtml(String(meta.requestRange))}`
+        : '';
+      const rawNote =
+        meta.rawEventCount != null
+          ? ` · ESPN events ${meta.rawEventCount} → ${cfbdGamesCache.length}`
+          : '';
+      const fallbackNote = data.fallbackReason
+        ? ` · ${escapeHtml(String(data.fallbackReason).slice(0, 100))}`
+        : '';
+      const rankNote =
+        rankMeta.gamesWithRankedTeam > 0
+          ? ` · ${rankMeta.gamesWithRankedTeam || 0} with Top 25 (${escapeHtml(rankMeta.poll || 'poll')})`
+          : rankMeta.teamsRanked > 0
+            ? ` · ${rankMeta.gamesWithRankedTeam || 0} with Top 25 (${escapeHtml(rankMeta.poll || 'poll')})`
+            : ' · no rankings found for this week yet';
+      const selectedNote = cfbdSelectedIds.size
+        ? ` · <strong>${cfbdSelectedIds.size}</strong> still selected`
+        : '. None selected — pick games below';
+      document.getElementById('cfbdFetchStatus').innerHTML =
+        `<div class="status-message status-success">${cfbdGamesCache.length} games loaded via <strong>${escapeHtml(src)}</strong> (${escapeHtml(divLabel)})${viaNote}${rangeNote}${rawNote}${rankNote}${fallbackNote}. Focus: <strong>${escapeHtml(focusLabel)}</strong> → showing <strong>${visible.length}</strong>${selectedNote}</div>`;
+      renderCfbdList();
+    }
+
+    async function fetchCfbdGamesViaBrowserEspn({
+      season_year,
+      week_number,
+      season_type,
+      classification,
+      fallbackReason,
+    }) {
+      document.getElementById('cfbdFetchStatus').innerHTML =
+        '<div class="loading">Loading ESPN schedule from browser…</div>';
+      const { events, diagnostics, requestRange, strategy } = await fetchEspnScoreboardBrowser({
+        year: season_year,
+        week: week_number,
+        seasonType: season_type,
+        classification,
+      });
+      if (!events.length) {
+        throw new Error(
+          `Unable to load this week's ESPN schedule for ${season_year} week ${week_number}. Tried: ${diagnostics.join(' | ')}`
+        );
+      }
+      document.getElementById('cfbdFetchStatus').innerHTML =
+        `<div class="loading">Normalizing ${events.length} ESPN games…</div>`;
+      const posted = await postEspnEventsForNormalize({
+        events,
+        season_year,
+        week_number,
+        season_type,
+        classification,
+        fallbackReason,
+        strategy,
+        requestRange,
+        diagnostics,
+      });
+      if (posted.authFail) return null;
+      return posted.data;
+    }
+
     async function fetchCfbdGames() {
       // Keep fetch inputs aligned with the week currently being edited.
       try {
@@ -2649,7 +3020,7 @@
       const week_number = parseInt(document.getElementById('cfbdWeekNumber').value, 10);
       const season_type = document.getElementById('cfbdSeasonType').value;
       const classification = document.getElementById('cfbdClassification').value || 'fbs';
-      const source = document.getElementById('cfbdGamesSource')?.value || 'auto';
+      const source = document.getElementById('cfbdGamesSource')?.value || 'espn';
       const focus = (document.getElementById('cfbdFetchFocus')?.value || 'all').trim();
       if (!Number.isFinite(season_year) || !Number.isFinite(week_number) || week_number < 1) {
         return alert('Set a valid season year and week number (or select a week above).');
@@ -2661,43 +3032,74 @@
         source === 'espn' ? 'Loading ESPN…' : source === 'cfbd' ? 'Loading CFBD…' : 'Loading schedule…';
       document.getElementById('cfbdFetchStatus').innerHTML = `<div class="loading">${loadingLabel}</div>`;
       try {
-        const q = new URLSearchParams({ season_year, week_number, season_type, classification, source });
+        // ESPN / auto: browser-first (Netlify egress is frequently HTTP 403 from ESPN).
+        if (source === 'espn' || source === 'auto') {
+          try {
+            const data = await fetchCfbdGamesViaBrowserEspn({
+              season_year,
+              week_number,
+              season_type,
+              classification,
+              fallbackReason: 'Browser ESPN fetch',
+            });
+            if (!data) return;
+            applyCfbdGamesPayload(data, { source: 'espn', classification });
+            return;
+          } catch (browserErr) {
+            // Fall through to server (may have cache / CFBD emergency for auto).
+            console.warn('Browser ESPN fetch failed, trying server:', browserErr.message);
+          }
+        }
+
+        const q = new URLSearchParams({
+          season_year,
+          week_number,
+          season_type,
+          classification,
+          source,
+          refresh: '1',
+        });
         const res = await fetch(`${API_BASE}/api/admin/cfbd-games?${q}`, {
           headers: adminAuthHeaders(false),
         });
         if (checkAdminFetch(res)) return;
         const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.error || data.detail || res.statusText);
-        cfbdGamesCache = data.games || [];
-        cfbdSelectedIds.clear();
-        populateConferenceFilter(data.conferences || []);
-        populateDayFilter();
-        const focusLabel = applyFetchFocusFilters();
-        const visible = getFilteredCfbdGames();
-        const divLabel = data.classification || classification;
-        const rankMeta = data.rankings || {};
-        const src = String(data.source || source || 'cfbd').toUpperCase();
-        const fallbackNote = data.fallbackReason
-          ? ` · fell back from CFBD (${escapeHtml(String(data.fallbackReason).slice(0, 80))})`
-          : '';
-        const rankNote =
-          rankMeta.gamesWithRankedTeam > 0
-            ? ` · ${rankMeta.gamesWithRankedTeam || 0} with Top 25 (${escapeHtml(rankMeta.poll || 'poll')})`
-            : rankMeta.teamsRanked > 0
-              ? ` · ${rankMeta.gamesWithRankedTeam || 0} with Top 25 (${escapeHtml(rankMeta.poll || 'poll')})`
-              : ' · no rankings found for this week yet';
-        document.getElementById('cfbdFetchStatus').innerHTML =
-          `<div class="status-message status-success">${cfbdGamesCache.length} games loaded via <strong>${escapeHtml(src)}</strong> (${escapeHtml(divLabel)})${rankNote}${fallbackNote}. Focus: <strong>${escapeHtml(focusLabel)}</strong> → showing <strong>${visible.length}</strong>. None selected — pick games below.</div>`;
-        renderCfbdList();
+        if (!res.ok) {
+          const blocked =
+            source !== 'cfbd' &&
+            (res.status === 403 ||
+              data.code === 'ESPN_BLOCKED' ||
+              /HTTP 403/i.test(String(data.error || '')));
+          if (blocked) {
+            const browserData = await fetchCfbdGamesViaBrowserEspn({
+              season_year,
+              week_number,
+              season_type,
+              classification,
+              fallbackReason:
+                data.fallbackReason ||
+                data.error ||
+                'ESPN blocked on server; used browser fetch',
+            });
+            if (!browserData) return;
+            applyCfbdGamesPayload(browserData, { source: 'espn', classification });
+            return;
+          }
+          throw new Error(
+            data.error || data.detail || 'Unable to load this week\'s ESPN schedule.'
+          );
+        }
+        applyCfbdGamesPayload(data, { source, classification });
       } catch (e) {
         document.getElementById('cfbdFetchStatus').innerHTML =
-          `<div class="status-message status-error">${e.message}</div>`;
-        cfbdGamesCache = [];
-        cfbdSelectedIds.clear();
-        document.getElementById('cfbdList').innerHTML = '<p class="cfbd-empty">No games loaded.</p>';
-        const meta = document.getElementById('cfbdListMeta');
-        if (meta) meta.textContent = 'Fetch a schedule to begin.';
-        updateCfbdSelectionUi();
+          `<div class="status-message status-error">${escapeHtml(e.message || 'Unable to load this week\'s ESPN schedule.')}</div>`;
+        // Keep prior available-game cache / selections on error — do not wipe.
+        if (!cfbdGamesCache.length) {
+          document.getElementById('cfbdList').innerHTML = '<p class="cfbd-empty">No games loaded.</p>';
+          const meta = document.getElementById('cfbdListMeta');
+          if (meta) meta.textContent = 'Fetch a schedule to begin.';
+          updateCfbdSelectionUi();
+        }
       }
     }
 
