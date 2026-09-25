@@ -172,6 +172,7 @@ async function getEspnPlayerGameLog({
     position,
     jersey,
     cfbdPlayerId: playerId,
+    espnPlayerId: playerId && String(playerId).startsWith("espn:") ? String(playerId).slice(5) : null,
     signal,
   });
 
@@ -260,9 +261,71 @@ async function getEspnPlayerGameLog({
   };
 }
 
+/**
+ * ESPN player search (used when CFBD search fails / is unavailable).
+ * Endpoint: site.web.api.espn.com/apis/common/v3/search?type=player
+ */
+async function searchEspnPlayers({ q, team, limit = 20, signal } = {}) {
+  const searchTerm = String(q || "").trim();
+  if (searchTerm.length < 2) return [];
+
+  const url =
+    `https://site.web.api.espn.com/apis/common/v3/search?` +
+    `query=${encodeURIComponent(searchTerm)}&limit=${Math.min(25, Number(limit) || 20)}&type=player`;
+
+  const { value } = await cachedEspnGet(
+    `espn:search:${searchTerm.toLowerCase()}:${limit}`,
+    10 * 60 * 1000,
+    url,
+    { signal }
+  );
+
+  const { schoolFromEspnTeam } = require("./parse");
+  const { aliasTeam, normalizeTeam } = require("../../names");
+  const teamNeedle = team ? aliasTeam(team) || normalizeTeam(team) : "";
+
+  const items = Array.isArray(value?.items) ? value.items : [];
+  const out = [];
+  for (const it of items) {
+    if (String(it.type || "").toLowerCase() !== "player") continue;
+    if (String(it.sport || "").toLowerCase() !== "football") continue;
+    if (String(it.league || it.defaultLeagueSlug || "").toLowerCase() !== "college-football") {
+      continue;
+    }
+    const id = it.id != null ? String(it.id) : null;
+    if (!id) continue;
+
+    const teamRel = it.teamRelationships?.[0]?.team || it.team || null;
+    let teamName = schoolFromEspnTeam(teamRel);
+    if (!teamName && it.label) {
+      const m = String(it.label).match(/NCAAF\s*[-–]\s*(.+)$/i);
+      if (m) teamName = m[1].trim();
+    }
+    if (teamNeedle && teamName) {
+      const tn = aliasTeam(teamName) || normalizeTeam(teamName);
+      if (tn !== teamNeedle && !tn.includes(teamNeedle) && !teamNeedle.includes(tn)) continue;
+    }
+
+    out.push({
+      id: `espn:${id}`,
+      espnId: id,
+      name: it.displayName || it.shortName || "Player",
+      team: teamName,
+      position: it.position?.abbreviation || it.position?.displayName || null,
+      jersey: it.jersey != null ? String(it.jersey) : null,
+      year: null,
+      source: "espn",
+    });
+  }
+
+  dataLog("ESPN", `Search "${searchTerm}" → ${out.length} CFB players`);
+  return out.slice(0, limit);
+}
+
 module.exports = {
   getEspnPlayerGameLog,
   getEspnTeamSchedule,
+  searchEspnPlayers,
   resolveEspnAthlete,
   resolveEspnTeamId,
   parseAthleteGameLog,

@@ -120,6 +120,11 @@ function scheduleIndex(schedule) {
 }
 
 async function loadFromCfbd(cfbd, { playerId, playerName, team, season }) {
+  if (playerId && String(playerId).toLowerCase().startsWith("espn:")) {
+    const err = new Error("Player id is ESPN-sourced; skipping CFBD");
+    err.code = "PLAYER_STATS_MISSING";
+    throw err;
+  }
   assertCfbdAvailable();
   if (!cfbd) {
     const err = new Error("CFBD client not available");

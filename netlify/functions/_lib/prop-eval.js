@@ -219,44 +219,86 @@ function listAvailableStats(overview) {
   }));
 }
 
-async function searchPlayers({ q, team, year, apiKey, signal }) {
+async function searchPlayers({ q, team, year, apiKey, signal, mode } = {}) {
   const searchTerm = String(q || "").trim();
   if (searchTerm.length < 2) return [];
   const seasonYear = Number(year) || new Date().getFullYear();
-  let hits = await cfbdGetOptional(
-    "/player/search",
-    {
-      searchTerm,
-      team: team || undefined,
-      year: seasonYear,
-    },
-    apiKey,
-    signal
-  );
-  if (!Array.isArray(hits) || !hits.length) {
-    hits = await cfbdGetOptional(
+  const {
+    readProviderMode,
+    allowsCfbd,
+    allowsEspn,
+    forcesEspn,
+  } = require("./prop-lab/data/provider-mode");
+  const { isCfbdCircuitOpen } = require("./prop-lab/data/circuit-breaker");
+  const { dataLog } = require("./prop-lab/data/log");
+  const providerMode = mode || readProviderMode();
+
+  async function fromCfbd() {
+    if (!apiKey || !allowsCfbd(providerMode) || forcesEspn(providerMode)) return [];
+    if (isCfbdCircuitOpen()) {
+      dataLog("PlayerData", "CFBD circuit open — skipping CFBD search");
+      return [];
+    }
+    let hits = await cfbdGetOptional(
       "/player/search",
       {
         searchTerm,
         team: team || undefined,
-        year: seasonYear - 1,
+        year: seasonYear,
       },
       apiKey,
       signal
     );
+    if (!Array.isArray(hits) || !hits.length) {
+      hits = await cfbdGetOptional(
+        "/player/search",
+        {
+          searchTerm,
+          team: team || undefined,
+          year: seasonYear - 1,
+        },
+        apiKey,
+        signal
+      );
+    }
+    if (!Array.isArray(hits)) return [];
+    return hits
+      .slice(0, 20)
+      .map((h) => ({
+        id: h.id != null ? String(h.id) : null,
+        name:
+          h.name ||
+          `${h.firstName || ""} ${h.lastName || ""}`.trim() ||
+          "Player",
+        team: h.team || h.teamName || null,
+        position: h.position || null,
+        jersey: h.jersey != null ? String(h.jersey) : null,
+        year: h.year || null,
+        source: "cfbd",
+      }))
+      .filter((h) => h.id);
   }
-  if (!Array.isArray(hits)) return [];
-  return hits.slice(0, 20).map((h) => ({
-    id: h.id != null ? String(h.id) : null,
-    name:
-      h.name ||
-      `${h.firstName || ""} ${h.lastName || ""}`.trim() ||
-      "Player",
-    team: h.team || h.teamName || null,
-    position: h.position || null,
-    jersey: h.jersey != null ? String(h.jersey) : null,
-    year: h.year || null,
-  })).filter((h) => h.id);
+
+  async function fromEspn() {
+    if (!allowsEspn(providerMode)) return [];
+    try {
+      const { searchEspnPlayers } = require("./prop-lab/data/espn");
+      return await searchEspnPlayers({ q: searchTerm, team, limit: 20, signal });
+    } catch (err) {
+      dataLog("PlayerData", `ESPN search failed: ${err.message}`);
+      return [];
+    }
+  }
+
+  if (forcesEspn(providerMode)) {
+    return fromEspn();
+  }
+
+  const cfbdHits = await fromCfbd();
+  if (cfbdHits.length) return cfbdHits;
+
+  dataLog("PlayerData", `CFBD search empty for "${searchTerm}" — trying ESPN`);
+  return fromEspn();
 }
 
 async function loadSeasonOverview(playerId, year, apiKey, signal) {

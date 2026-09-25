@@ -122,8 +122,12 @@ exports.handler = async (event) => {
     "backtest",
   ]);
   if (action === "entry" && method === "POST") cfbdActions.add("entry");
-  // ESPN-only mode can evaluate without a CFBD key. Search/board still prefer CFBD.
-  const requiresCfbdKey = cfbdActions.has(action) && !(espnOnly && (action === "evaluate" || action === "evaluate-entry" || action === "entry"));
+  // ESPN can cover search + evaluate when CFBD key is missing or mode=espn.
+  const espnCapable = new Set(["search", "evaluate", "evaluate-entry", "entry"]);
+  const requiresCfbdKey =
+    cfbdActions.has(action) &&
+    !(espnCapable.has(action) && (espnOnly || !apiKey));
+  // Search/evaluate still run without a CFBD key (ESPN fallback). Board/backtest need CFBD.
   if (requiresCfbdKey && !apiKey) {
     return json(503, { error: "CFBD_API_KEY not configured" });
   }

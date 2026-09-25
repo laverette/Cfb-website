@@ -296,7 +296,9 @@
           (p, i) =>
             `<li role="option" id="playerOpt${i}" data-idx="${i}" data-id="${escapeHtml(p.id)}" data-team="${escapeHtml(
               p.team || ""
-            )}" data-name="${escapeHtml(p.name)}" data-position="${escapeHtml(p.position || "")}">${escapeHtml(p.name)} <span>${escapeHtml(
+            )}" data-name="${escapeHtml(p.name)}" data-position="${escapeHtml(p.position || "")}" data-jersey="${escapeHtml(
+              p.jersey || ""
+            )}" data-source="${escapeHtml(p.source || "")}">${escapeHtml(p.name)} <span>${escapeHtml(
               [p.team, p.position].filter(Boolean).join(" · ")
             )}</span></li>`
         )
@@ -308,7 +310,9 @@
             id: li.getAttribute("data-id"),
             team: li.getAttribute("data-team"),
             name: li.getAttribute("data-name"),
-            position: li.getAttribute("data-position"),
+            position: li.getAttribute("data-position") || null,
+            jersey: li.getAttribute("data-jersey") || null,
+            source: li.getAttribute("data-source") || null,
           });
           closeSheet();
         });

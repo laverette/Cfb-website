@@ -142,6 +142,16 @@ function scoreAthleteMatch(athlete, { name, position, jersey }) {
 /**
  * Resolve an ESPN athlete id. Ambiguous matches return { ambiguous: true }.
  */
+function extractEspnPlayerId(raw) {
+  const s = String(raw || "").trim();
+  if (!s) return null;
+  if (s.toLowerCase().startsWith("espn:")) {
+    const id = s.slice(5).trim();
+    return /^\d+$/.test(id) ? id : null;
+  }
+  return null;
+}
+
 async function resolveEspnAthlete({
   name,
   team,
@@ -149,9 +159,27 @@ async function resolveEspnAthlete({
   position,
   jersey,
   cfbdPlayerId,
+  espnPlayerId,
   signal,
 } = {}) {
   const seasonYear = Number(season) || new Date().getFullYear();
+  const providedEspnId =
+    extractEspnPlayerId(espnPlayerId) ||
+    extractEspnPlayerId(cfbdPlayerId) ||
+    (/^\d+$/.test(String(espnPlayerId || "")) ? String(espnPlayerId) : null);
+  if (providedEspnId) {
+    dataLog("ESPN", `Using provided athlete id ${providedEspnId}`);
+    return {
+      espnPlayerId: providedEspnId,
+      confidence: "provided",
+      ambiguous: false,
+      playerName: name || null,
+      team: team || null,
+      position: position || null,
+      jersey: jersey || null,
+    };
+  }
+
   const mapKey = cfbdPlayerId
     ? `espn:athlete-map:cfbd:${cfbdPlayerId}:${seasonYear}`
     : `espn:athlete-map:name:${normalizePlayerName(name)}:${aliasTeam(team) || normalizeTeam(team)}:${seasonYear}`;
@@ -276,6 +304,7 @@ async function writeMappedAthlete(cacheKey, payload) {
 module.exports = {
   resolveEspnTeamId,
   resolveEspnAthlete,
+  extractEspnPlayerId,
   flattenRoster,
   scoreAthleteMatch,
   normalizePlayerName,
