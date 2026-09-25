@@ -198,6 +198,79 @@ function espnGroupsForClassification(classification) {
   return [null];
 }
 
+/** Map ESPN long conference names to CFBD-style short labels used by the admin picker. */
+function shortConferenceName(name) {
+  const raw = String(name || "").trim();
+  if (!raw) return null;
+  const key = raw.toLowerCase().replace(/\s+conference$/i, "").trim();
+  const map = {
+    "atlantic coast": "ACC",
+    acc: "ACC",
+    southeastern: "SEC",
+    sec: "SEC",
+    "big ten": "Big Ten",
+    "big 12": "Big 12",
+    "big twelve": "Big 12",
+    "pac-12": "Pac-12",
+    pac12: "Pac-12",
+    "pac-12 conference": "Pac-12",
+    american: "American Athletic",
+    "american athletic": "American Athletic",
+    "conference usa": "Conference USA",
+    "c-usa": "Conference USA",
+    "mid-american": "Mid-American",
+    mac: "Mid-American",
+    "mountain west": "Mountain West",
+    "sun belt": "Sun Belt",
+    independent: "Independent",
+    "fbs independents": "FBS Independents",
+  };
+  if (map[key]) return map[key];
+  if (map[raw.toLowerCase()]) return map[raw.toLowerCase()];
+  // Strip trailing "Conference" for anything else.
+  return raw.replace(/\s+Conference$/i, "").trim() || raw;
+}
+
+function isoToYmd(iso) {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) {
+    const m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})/);
+    return m ? `${m[1]}${m[2]}${m[3]}` : null;
+  }
+  const y = d.getUTCFullYear();
+  const mo = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  return `${y}${mo}${day}`;
+}
+
+function eachYmdInclusive(startIso, endIso, maxDays = 10) {
+  const start = new Date(startIso);
+  const end = new Date(endIso);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return [];
+  const out = [];
+  const cur = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate()));
+  const last = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), end.getUTCDate()));
+  for (let i = 0; i < maxDays && cur <= last; i += 1) {
+    out.push(isoToYmd(cur.toISOString()));
+    cur.setUTCDate(cur.getUTCDate() + 1);
+  }
+  return out.filter(Boolean);
+}
+
+async function fetchEspnJson(url) {
+  const res = await fetch(url, { headers: FETCH_HEADERS });
+  recordApiUsage({ feature: "admin-slate", source: "espn", calls: 1 });
+  const text = await res.text().catch(() => "");
+  let body = null;
+  try {
+    body = text ? JSON.parse(text) : null;
+  } catch {
+    body = null;
+  }
+  return { ok: res.ok, status: res.status, body, text: text.slice(0, 200) };
+}
+
 async function resolveConferenceName(year, conferenceId) {
   const id = String(conferenceId || "").trim();
   if (!id) return null;
@@ -210,18 +283,40 @@ async function resolveConferenceName(year, conferenceId) {
       return null;
     }
     const body = await res.json();
-    const name =
-      body?.name ||
-      body?.shortName ||
-      body?.abbreviation ||
-      body?.displayName ||
-      null;
+    const name = shortConferenceName(
+      body?.name || body?.shortName || body?.abbreviation || body?.displayName || null
+    );
     confNameCache.set(id, name);
     return name;
   } catch {
     confNameCache.set(id, null);
     return null;
   }
+}
+
+async function loadEspnWeekWindow({ year, week, seasonType }) {
+  const espnType = espnSeasonType(seasonType);
+  // Pull calendar from a lightweight scoreboard call.
+  const probe = await fetchEspnJson(
+    `${ESPN_SB}?seasontype=${espnType}&dates=${year}&groups=80&limit=1`
+  );
+  const calendar = probe.body?.leagues?.[0]?.calendar;
+  const buckets = Array.isArray(calendar) ? calendar : [];
+  const seasonBucket =
+    buckets.find((b) => String(b.value) === String(espnType)) ||
+    buckets.find((b) => /regular/i.test(String(b.label || ""))) ||
+    null;
+  const entries = Array.isArray(seasonBucket?.entries) ? seasonBucket.entries : [];
+  const entry =
+    entries.find((e) => Number(e.value) === Number(week)) ||
+    entries.find((e) => String(e.label || "").toLowerCase() === `week ${week}`);
+  if (!entry) return null;
+  return {
+    startDate: entry.startDate,
+    endDate: entry.endDate,
+    label: entry.label || `Week ${week}`,
+    dates: eachYmdInclusive(entry.startDate, entry.endDate, 12),
+  };
 }
 
 function pickEspnSpread(comp) {
@@ -292,7 +387,37 @@ async function fetchEspnWeekGames({ year, week, seasonType, classification }) {
   const espnType = espnSeasonType(seasonType);
   const groups = espnGroupsForClassification(classification);
   const byId = new Map();
+  const diagnostics = [];
 
+  function ingest(payload, { requireWeekMatch = true, label = "" } = {}) {
+    const events = Array.isArray(payload?.events) ? payload.events : [];
+    let added = 0;
+    for (const evt of events) {
+      if (requireWeekMatch) {
+        const evtWeek = numOrNull(evt?.week?.number ?? payload?.week?.number);
+        if (evtWeek != null && Number(evtWeek) !== Number(week)) continue;
+      }
+      const id = evt?.id != null ? String(evt.id) : null;
+      if (!id || byId.has(id)) continue;
+      byId.set(id, evt);
+      added += 1;
+    }
+    diagnostics.push(`${label}: http-ok events=${events.length} kept=+${added}`);
+    return added;
+  }
+
+  async function pull(params, opts) {
+    const url = `${ESPN_SB}?${params}`;
+    const res = await fetchEspnJson(url);
+    if (!res.ok) {
+      diagnostics.push(`${opts.label}: HTTP ${res.status}`);
+      console.warn("admin-cfbd-games ESPN:", opts.label, res.status, res.text);
+      return 0;
+    }
+    return ingest(res.body, opts);
+  }
+
+  // Strategy 1: classic week + season year + group filter
   for (const group of groups) {
     const params = new URLSearchParams({
       seasontype: String(espnType),
@@ -301,29 +426,71 @@ async function fetchEspnWeekGames({ year, week, seasonType, classification }) {
       limit: "300",
     });
     if (group != null) params.set("groups", String(group));
-    const url = `${ESPN_SB}?${params}`;
-    const res = await fetch(url, { headers: FETCH_HEADERS });
-    recordApiUsage({ feature: "admin-slate", source: "espn", calls: 1 });
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      const err = new Error(`ESPN scoreboard failed (${res.status}): ${text.slice(0, 160)}`);
-      err.status = res.status;
-      // If one group fails, try the next; only throw if nothing loaded.
-      console.warn("admin-cfbd-games ESPN:", err.message);
-      continue;
-    }
-    const payload = await res.json();
-    for (const evt of Array.isArray(payload?.events) ? payload.events : []) {
-      // Keep only events for the requested week when ESPN includes extras.
-      const evtWeek = numOrNull(evt?.week?.number ?? payload?.week?.number);
-      if (evtWeek != null && Number(evtWeek) !== Number(week)) continue;
-      byId.set(String(evt.id), evt);
+    await pull(params, {
+      label: `week+dates+group(${group ?? "none"})`,
+      requireWeekMatch: true,
+    });
+  }
+
+  // Strategy 2: week + group, no dates=year (ESPN sometimes ignores year-only dates)
+  if (!byId.size) {
+    for (const group of groups) {
+      const params = new URLSearchParams({
+        seasontype: String(espnType),
+        week: String(week),
+        limit: "300",
+      });
+      if (group != null) params.set("groups", String(group));
+      await pull(params, {
+        label: `week+group(${group ?? "none"})`,
+        requireWeekMatch: true,
+      });
     }
   }
 
+  // Strategy 3: walk the ESPN calendar date range for that week
   if (!byId.size) {
-    const err = new Error("ESPN returned no games for this week");
+    const window = await loadEspnWeekWindow({ year, week, seasonType });
+    if (window?.dates?.length) {
+      diagnostics.push(
+        `calendar ${window.label}: ${window.dates[0]}..${window.dates[window.dates.length - 1]}`
+      );
+      for (const ymd of window.dates) {
+        for (const group of groups) {
+          const params = new URLSearchParams({
+            dates: ymd,
+            limit: "300",
+          });
+          if (group != null) params.set("groups", String(group));
+          // Date-window results are already scoped to the week; don't drop on week mismatch.
+          await pull(params, {
+            label: `date(${ymd})+group(${group ?? "none"})`,
+            requireWeekMatch: false,
+          });
+        }
+      }
+    } else {
+      diagnostics.push("calendar: week window not found");
+    }
+  }
+
+  // Strategy 4: ungrouped week board
+  if (!byId.size) {
+    const params = new URLSearchParams({
+      seasontype: String(espnType),
+      week: String(week),
+      dates: String(year),
+      limit: "300",
+    });
+    await pull(params, { label: "week+dates ungrouped", requireWeekMatch: true });
+  }
+
+  if (!byId.size) {
+    const err = new Error(
+      `ESPN returned no games for ${year} week ${week} (${seasonType}). Tried: ${diagnostics.join(" | ")}`
+    );
     err.status = 404;
+    err.diagnostics = diagnostics;
     throw err;
   }
 

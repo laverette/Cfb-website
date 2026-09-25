@@ -1169,6 +1169,17 @@
       if (!a || !b) return false;
       if (a === b) return true;
       if (a.includes(b) || b.includes(a)) return true;
+      // ESPN ↔ CFBD naming drift
+      const aliases = [
+        ['american', 'american athletic'],
+        ['atlantic coast', 'acc'],
+        ['southeastern', 'sec'],
+        ['mid-american', 'mac'],
+        ['conference usa', 'c-usa'],
+      ];
+      for (const [x, y] of aliases) {
+        if ((a.includes(x) && b.includes(y)) || (a.includes(y) && b.includes(x))) return true;
+      }
       // Independents naming drift between CFBD seasons
       if (
         (a.includes('independent') && b.includes('independent')) ||
@@ -2628,12 +2639,21 @@
     }
 
     async function fetchCfbdGames() {
+      // Keep fetch inputs aligned with the week currently being edited.
+      try {
+        syncCfbdWeekFromSelection();
+      } catch {
+        /* ignore */
+      }
       const season_year = parseInt(document.getElementById('cfbdSeasonYear').value, 10);
       const week_number = parseInt(document.getElementById('cfbdWeekNumber').value, 10);
       const season_type = document.getElementById('cfbdSeasonType').value;
       const classification = document.getElementById('cfbdClassification').value || 'fbs';
       const source = document.getElementById('cfbdGamesSource')?.value || 'auto';
       const focus = (document.getElementById('cfbdFetchFocus')?.value || 'all').trim();
+      if (!Number.isFinite(season_year) || !Number.isFinite(week_number) || week_number < 1) {
+        return alert('Set a valid season year and week number (or select a week above).');
+      }
       if (focus === 'conferences' && !getSelectedFetchConferences().length) {
         return alert('Pick at least one conference, or switch Fetch focus to All / Top 25.');
       }
