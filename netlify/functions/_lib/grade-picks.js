@@ -15,21 +15,24 @@ const {
 } = require("../db");
 
 const CFBD_BASE = "https://api.collegefootballdata.com";
-const ESPN_SB =
-  "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard";
 const GRADE_THROTTLE_MS = 60_000;
 let lastGradeRunAt = 0;
 
 const { recordApiUsage } = require("./api-usage");
+const {
+  isEspnEventId,
+  toInt: espnToInt,
+  normalizeEspnEvent,
+  fetchEspnResultsForGames,
+  fetchEspnSummaryResult,
+} = require("./espn-game-results");
 
 function readCfbdKey() {
   return (process.env.CFBD_API_KEY && String(process.env.CFBD_API_KEY).trim()) || "";
 }
 
 function toInt(v) {
-  if (v == null || v === "") return null;
-  const n = Number(v);
-  return Number.isFinite(n) ? n : null;
+  return espnToInt(v);
 }
 
 function resolveWinner(game, homePoints, awayPoints) {
@@ -92,6 +95,22 @@ function teamsMatchName(a, b) {
  */
 function matchLiveScoreToGame(game, live) {
   if (!game || !live) return null;
+  const storedId = game.cfbd_game_id != null ? Number(game.cfbd_game_id) : null;
+  const liveId = live.id != null ? Number(live.id) : toInt(live.espnEventId);
+
+  // Primary: ESPN event id stored in cfbd_game_id matches ESPN live event.id
+  if (
+    Number.isFinite(storedId) &&
+    Number.isFinite(liveId) &&
+    storedId === liveId
+  ) {
+    if (live.source === "espn") return { swapped: false };
+    // Legacy CFBD id equality (never treat ESPN event ids as CFBD ids)
+    if (!isEspnEventId(storedId) && live.source !== "espn") {
+      return { swapped: false };
+    }
+  }
+
   const homeId = Number(game.home_team_espn_id);
   const awayId = Number(game.away_team_espn_id);
   const liveHome = toInt(live.homeEspnId ?? live.home_espn_id);
@@ -105,17 +124,7 @@ function matchLiveScoreToGame(game, live) {
     if (homeId === liveHome && awayId === liveAway) return { swapped: false };
     if (homeId === liveAway && awayId === liveHome) return { swapped: true };
   }
-  const cfbdId = game.cfbd_game_id != null ? Number(game.cfbd_game_id) : null;
-  const liveId = live.id != null ? Number(live.id) : null;
-  // CFBD game ids only — never treat ESPN event ids as CFBD ids.
-  if (
-    Number.isFinite(cfbdId) &&
-    Number.isFinite(liveId) &&
-    cfbdId === liveId &&
-    live.source !== "espn"
-  ) {
-    return { swapped: false };
-  }
+
   const gHome = game.home_team_name;
   const gAway = game.away_team_name;
   const lHome = live.homeTeam ?? live.home_team;
@@ -131,6 +140,7 @@ function matchLiveScoreToGame(game, live) {
 
 function extractFinalFromLive(live) {
   if (!live) return null;
+  if (live.canceled || live.postponed) return null;
   const statusRaw = String(live.statusRaw || live.status_raw || "");
   const statusState = String(live.statusState || live.status_state || "").toLowerCase();
   const completed = Boolean(
@@ -146,9 +156,28 @@ function extractFinalFromLive(live) {
   return { homePoints, awayPoints, completed: true };
 }
 
+function extractCanceledFromLive(live) {
+  if (!live) return false;
+  if (live.canceled) return true;
+  const statusRaw = String(live.statusRaw || live.status_raw || "");
+  return /cancel/i.test(statusRaw);
+}
+
 /** Orient live scores to our slate's home/away; prefer finals over stubs. */
 function findLiveForGame(game, liveScores) {
-  if (!Array.isArray(liveScores) || !game) return null;
+  if (!game || !liveScores) return null;
+
+  // Fast path: ESPN event id index (attached by fetchLiveScoresForWeek)
+  const eid = toInt(game.cfbd_game_id);
+  if (eid != null && liveScores._byEventId instanceof Map) {
+    const direct = liveScores._byEventId.get(String(eid));
+    if (direct) {
+      const match = matchLiveScoreToGame(game, direct);
+      if (match) return { live: direct, swapped: Boolean(match.swapped) };
+    }
+  }
+
+  if (!Array.isArray(liveScores)) return null;
   let best = null;
   let bestSwapped = false;
   for (const ls of liveScores) {
@@ -196,33 +225,6 @@ async function fetchJson(url, headers = {}) {
   return resp.json();
 }
 
-function normalizeEspnEvent(evt) {
-  const comp = Array.isArray(evt?.competitions) ? evt.competitions[0] : null;
-  if (!comp) return null;
-  const competitors = Array.isArray(comp.competitors) ? comp.competitors : [];
-  const home = competitors.find((c) => c.homeAway === "home");
-  const away = competitors.find((c) => c.homeAway === "away");
-  if (!home || !away) return null;
-  const statusState = String(evt?.status?.type?.state || "").toLowerCase();
-  const statusName = String(evt?.status?.type?.name || "");
-  const detail = String(evt?.status?.type?.detail || "");
-  const completed =
-    statusState === "post" || /final/i.test(statusName) || /final/i.test(detail);
-  return {
-    id: evt.id != null ? Number(evt.id) : null,
-    source: "espn",
-    awayTeam: away.team?.location || away.team?.displayName || null,
-    homeTeam: home.team?.location || home.team?.displayName || null,
-    awayEspnId: toInt(away.team?.id ?? away.id),
-    homeEspnId: toInt(home.team?.id ?? home.id),
-    awayPoints: toInt(away.score),
-    homePoints: toInt(home.score),
-    completed,
-    statusState,
-    statusRaw: statusName || detail,
-  };
-}
-
 function liveScoreKey(g) {
   // Unordered name key so ESPN + CFBD rows for the same game compete in preferLiveScore
   // (team id systems differ — CFBD ids are stored in our espn_id columns).
@@ -255,79 +257,51 @@ function preferLiveScore(a, b) {
   return score(b) > score(a) ? b : a;
 }
 
-function ymdEtFromIso(iso) {
-  if (!iso) return null;
-  const d = new Date(iso);
-  if (!Number.isFinite(d.getTime())) return null;
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/New_York",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(d);
-  const y = parts.find((p) => p.type === "year")?.value;
-  const m = parts.find((p) => p.type === "month")?.value;
-  const day = parts.find((p) => p.type === "day")?.value;
-  return y && m && day ? `${y}${m}${day}` : null;
-}
-
 async function fetchLiveScoresForWeek(week, games = []) {
   if (!week) return [];
   const season = Number(week.season_year);
   const weekNum = Number(week.week_number);
   const byKey = new Map();
+  const byEventId = new Map();
 
   const push = (g) => {
     if (!g) return;
     const key = liveScoreKey(g);
     byKey.set(key, preferLiveScore(byKey.get(key), g));
-  };
-
-  const dates = new Set();
-  const addYmd = (ymd) => {
-    if (ymd && /^\d{8}$/.test(ymd)) dates.add(ymd);
-  };
-  const addAdjacentEtDays = (ymd) => {
-    if (!ymd || !/^\d{8}$/.test(ymd)) return;
-    addYmd(ymd);
-    // Late / delayed games can land on ESPN's next calendar day board.
-    try {
-      const y = Number(ymd.slice(0, 4));
-      const m = Number(ymd.slice(4, 6));
-      const d = Number(ymd.slice(6, 8));
-      const base = new Date(Date.UTC(y, m - 1, d, 16, 0, 0)); // noon-ish ET
-      const next = new Date(base.getTime() + 24 * 60 * 60 * 1000);
-      const prev = new Date(base.getTime() - 24 * 60 * 60 * 1000);
-      addYmd(ymdEtFromIso(next.toISOString()));
-      addYmd(ymdEtFromIso(prev.toISOString()));
-    } catch {
-      /* ignore */
+    const eid = toInt(g.id ?? g.espnEventId);
+    if (eid != null) {
+      const prev = byEventId.get(String(eid));
+      byEventId.set(String(eid), preferLiveScore(prev, g));
     }
   };
-  (games || []).forEach((g) => {
-    addAdjacentEtDays(ymdEtFromIso(g.game_date || g.gameDate));
-  });
-  const dateList = [...dates].slice(0, 7);
-  const espnUrls = [
-    `${ESPN_SB}?groups=80&limit=300`,
-    ...dateList.map((date) => `${ESPN_SB}?dates=${encodeURIComponent(date)}&groups=80&limit=300`),
-  ];
 
-  await Promise.all(
-    espnUrls.map(async (url) => {
-      try {
-        const data = await fetchJson(url);
-        (Array.isArray(data?.events) ? data.events : []).forEach((evt) => {
-          push(normalizeEspnEvent(evt));
-        });
-      } catch (err) {
-        console.warn("grade-picks espn:", err.message || err, url);
-      }
-    })
-  );
+  // ESPN-first (fresh scoreboard by game dates + summary fallback for misses).
+  try {
+    console.log(
+      `[Weekly Picks] Starting result sync for week ${weekNum} ${season} (${(games || []).length} games)`
+    );
+    const espnMap = await fetchEspnResultsForGames(games, {
+      week: weekNum,
+      seasonYear: season,
+    });
+    let finals = 0;
+    for (const row of espnMap.values()) {
+      push(row);
+      if (row.completed) finals += 1;
+    }
+    console.log(
+      `[Weekly Picks] ESPN events indexed: ${espnMap.size}; finals in index: ${finals}`
+    );
+  } catch (err) {
+    console.warn("[Weekly Picks] ESPN result fetch failed:", err.message || err);
+  }
 
+  // Legacy CFBD week board for historical CFBD-selected games only.
   const key = readCfbdKey();
-  if (key && Number.isFinite(season) && Number.isFinite(weekNum)) {
+  const hasLegacyCfbdGames = (games || []).some(
+    (g) => toInt(g.cfbd_game_id) != null && !isEspnEventId(g.cfbd_game_id)
+  );
+  if (key && hasLegacyCfbdGames && Number.isFinite(season) && Number.isFinite(weekNum)) {
     const headers = { Authorization: `Bearer ${key}` };
     const weekCandidates = [
       ...new Set(
@@ -360,12 +334,12 @@ async function fetchLiveScoresForWeek(week, games = []) {
       }
     }
 
-    // Direct CFBD id lookups when we still lack a *final* (not just any live stub).
+    // Direct CFBD id lookups — only for real CFBD ids (never ESPN event ids).
     const scoresNow = () => Array.from(byKey.values());
     const missingFinal = (games || []).filter((g) => {
       if (g.is_completed) return false;
       const cfbdId = toInt(g.cfbd_game_id);
-      if (!cfbdId) return false;
+      if (!cfbdId || isEspnEventId(cfbdId)) return false;
       return finalFromMatched(findLiveForGame(g, scoresNow())) == null;
     });
     await Promise.all(
@@ -398,7 +372,10 @@ async function fetchLiveScoresForWeek(week, games = []) {
     );
   }
 
-  return Array.from(byKey.values());
+  // Attach event-id index on the array for syncWeekGrades direct lookup.
+  const list = Array.from(byKey.values());
+  list._byEventId = byEventId;
+  return list;
 }
 
 async function loadGameResult(gameId) {
@@ -410,6 +387,51 @@ async function loadGameResult(gameId) {
     .maybeSingle();
   dbError(error);
   return data || null;
+}
+
+async function applyGameCanceled(game) {
+  // Void: mark completed with no winner; leave is_correct null (not incorrect).
+  const supabase = getSupabase();
+  const now = new Date().toISOString();
+  if (!game.is_completed) {
+    const { error: gameErr } = await supabase
+      .from("games")
+      .update({ is_completed: true })
+      .eq("id", game.id);
+    dbError(gameErr);
+  }
+  const { error: resultErr } = await supabase.from("game_results").upsert(
+    {
+      game_id: game.id,
+      home_team_score: null,
+      away_team_score: null,
+      winning_team_espn_id: null,
+      winning_team_name: null,
+      game_finalized_at: now,
+    },
+    { onConflict: "game_id" }
+  );
+  dbError(resultErr);
+
+  const picks = await selectAllPages(() =>
+    supabase
+      .from("user_picks")
+      .select("id, user_id, is_correct, is_tie")
+      .eq("game_id", game.id)
+  );
+  let graded = 0;
+  const affectedUsers = new Set();
+  for (const pick of picks) {
+    if (pick.is_correct == null && !pick.is_tie) continue;
+    const { error } = await supabase
+      .from("user_picks")
+      .update({ is_correct: null, is_tie: false })
+      .eq("id", pick.id);
+    dbError(error);
+    graded += 1;
+    affectedUsers.add(Number(pick.user_id));
+  }
+  return { graded, affectedUsers, weekId: game.week_id, canceled: true };
 }
 
 async function applyGameFinal(game, homePoints, awayPoints) {
@@ -582,7 +604,15 @@ async function syncWeekGrades(weekId, liveScores = null) {
     .maybeSingle();
   dbError(weekErr);
 
+  const unresolved = games.filter((g) => !g.is_completed);
+  console.log(
+    `[Weekly Picks] Found ${unresolved.length} unresolved games (week ${weekRow?.week_number})`
+  );
+
   let scores = Array.isArray(liveScores) ? [...liveScores] : null;
+  if (liveScores && liveScores._byEventId) {
+    scores._byEventId = liveScores._byEventId;
+  }
   if (!scores) {
     scores = await fetchLiveScoresForWeek(weekRow, games);
   } else {
@@ -595,44 +625,109 @@ async function syncWeekGrades(weekId, liveScores = null) {
     if (missing.length) {
       const extra = await fetchLiveScoresForWeek(weekRow, missing);
       const byKey = new Map();
+      const byEventId = new Map(scores._byEventId || []);
       const push = (g) => {
         if (!g) return;
         const key = liveScoreKey(g);
         byKey.set(key, preferLiveScore(byKey.get(key), g));
+        const eid = toInt(g.id ?? g.espnEventId);
+        if (eid != null) {
+          byEventId.set(String(eid), preferLiveScore(byEventId.get(String(eid)), g));
+        }
       };
       scores.forEach(push);
       (extra || []).forEach(push);
+      if (extra?._byEventId instanceof Map) {
+        for (const [k, v] of extra._byEventId.entries()) {
+          byEventId.set(k, preferLiveScore(byEventId.get(k), v));
+        }
+      }
       scores = Array.from(byKey.values());
+      scores._byEventId = byEventId;
     }
   }
 
   let picksUpdated = 0;
+  let gamesNewlyFinal = 0;
+  let stillPending = 0;
+  let errors = 0;
   const affectedUsers = new Set();
 
   for (const game of games) {
-    let homePoints = null;
-    let awayPoints = null;
+    try {
+      let homePoints = null;
+      let awayPoints = null;
 
-    const matched = findLiveForGame(game, scores);
-    const final = finalFromMatched(matched);
-    if (final) {
-      homePoints = final.homePoints;
-      awayPoints = final.awayPoints;
-    } else if (game.is_completed) {
-      const stored = await loadGameResult(game.id);
-      if (stored) {
-        homePoints = toInt(stored.home_team_score);
-        awayPoints = toInt(stored.away_team_score);
+      let matched = findLiveForGame(game, scores);
+
+      // Per-game ESPN summary fallback when scoreboard miss
+      if (
+        !matched &&
+        !game.is_completed &&
+        isEspnEventId(game.cfbd_game_id)
+      ) {
+        const summary = await fetchEspnSummaryResult(game.cfbd_game_id);
+        if (summary) {
+          matched = { live: summary, swapped: false };
+          console.log(
+            `[Weekly Picks] Matched ESPN event ${game.cfbd_game_id} via summary`
+          );
+        }
       }
-    }
-    if (homePoints == null || awayPoints == null) continue;
 
-    const result = await applyGameFinal(game, homePoints, awayPoints);
-    picksUpdated += result.graded || 0;
-    if (result.affectedUsers) {
-      result.affectedUsers.forEach((uid) => affectedUsers.add(uid));
+      if (matched?.live && extractCanceledFromLive(matched.live)) {
+        console.log(
+          `[Weekly Picks] ${game.away_team_name} @ ${game.home_team_name} = CANCELED (void)`
+        );
+        const result = await applyGameCanceled(game);
+        picksUpdated += result.graded || 0;
+        if (result.affectedUsers) {
+          result.affectedUsers.forEach((uid) => affectedUsers.add(uid));
+        }
+        game.is_completed = true;
+        gamesNewlyFinal += 1;
+        continue;
+      }
+
+      if (matched?.live?.postponed) {
+        stillPending += 1;
+        continue;
+      }
+
+      const final = finalFromMatched(matched);
+      if (final) {
+        homePoints = final.homePoints;
+        awayPoints = final.awayPoints;
+        console.log(
+          `[Weekly Picks] Matched ESPN event ${game.cfbd_game_id}; ${game.away_team_name} @ ${game.home_team_name} = FINAL ${awayPoints}-${homePoints}`
+        );
+      } else if (game.is_completed) {
+        const stored = await loadGameResult(game.id);
+        if (stored) {
+          homePoints = toInt(stored.home_team_score);
+          awayPoints = toInt(stored.away_team_score);
+        }
+      }
+      if (homePoints == null || awayPoints == null) {
+        if (!game.is_completed) stillPending += 1;
+        continue;
+      }
+
+      const wasComplete = game.is_completed;
+      const result = await applyGameFinal(game, homePoints, awayPoints);
+      picksUpdated += result.graded || 0;
+      if (result.affectedUsers) {
+        result.affectedUsers.forEach((uid) => affectedUsers.add(uid));
+      }
+      game.is_completed = true;
+      if (!wasComplete) gamesNewlyFinal += 1;
+    } catch (err) {
+      errors += 1;
+      console.error(
+        `[Weekly Picks] Error grading game ${game.id} (${game.away_team_name} @ ${game.home_team_name}):`,
+        err.message || err
+      );
     }
-    game.is_completed = true;
   }
 
   if (picksUpdated > 0 || games.some((g) => g.is_completed)) {
@@ -642,7 +737,18 @@ async function syncWeekGrades(weekId, liveScores = null) {
   }
 
   const gamesGraded = games.filter((g) => g.is_completed).length;
-  return { weekId, gamesGraded, picksUpdated, affectedUsers: affectedUsers.size };
+  console.log(
+    `[Weekly Picks] Sync complete week=${weekId} final=${gamesNewlyFinal} pending=${stillPending} picks=${picksUpdated} errors=${errors}`
+  );
+  return {
+    weekId,
+    gamesGraded,
+    gamesNewlyFinal,
+    stillPending,
+    picksUpdated,
+    errors,
+    affectedUsers: affectedUsers.size,
+  };
 }
 
 async function listWeeksToGrade() {
@@ -724,4 +830,8 @@ module.exports = {
   scheduleGradeFromLiveGames,
   matchLiveScoreToGame,
   extractFinalFromLive,
+  extractCanceledFromLive,
+  resolveWinner,
+  isEspnEventId,
+  normalizeEspnEvent,
 };

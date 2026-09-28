@@ -918,8 +918,10 @@
         <div class="btn-row" style="margin:0;">
           <button type="button" class="btn btn-secondary" onclick="refreshWeeks()">Refresh</button>
           <button type="button" class="btn btn-primary" onclick="setActiveFromSelection()">Set active</button>
+          <button type="button" class="btn btn-secondary" onclick="adminGradeCompletedGames()" title="Fetch fresh ESPN finals and grade user picks">Grade Completed Games</button>
         </div>
       </div>
+      <div id="gradePicksStatus" style="margin-top:0.5rem;"></div>
 
       <details class="admin-details">
         <summary>Create a new week</summary>
@@ -2422,6 +2424,41 @@
       document.getElementById('seasonYear').value = w.season_year;
       document.getElementById('weekNumber').value = w.week_number;
       await setCurrentWeekFromInputs();
+    }
+
+    async function adminGradeCompletedGames() {
+      const status = document.getElementById('gradePicksStatus');
+      const weekId = selectedWeekId();
+      if (status) status.innerHTML = '<div class="loading">Grading completed games from ESPN…</div>';
+      try {
+        const body = { force: true };
+        if (weekId) body.weekId = weekId;
+        const res = await fetch(`${API_BASE}/api/admin/grade-picks`, {
+          method: 'POST',
+          headers: adminAuthHeaders(true),
+          body: JSON.stringify(body),
+        });
+        if (checkAdminFetch(res)) return;
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || res.statusText);
+        const weeks = Array.isArray(data.weeks) ? data.weeks : [];
+        const summary = weeks
+          .map(
+            (w) =>
+              `week ${w.weekId}: ${w.gamesNewlyFinal ?? w.gamesGraded ?? 0} final, ${w.picksUpdated || 0} picks, ${w.stillPending || 0} pending`
+          )
+          .join(' · ');
+        if (status) {
+          status.innerHTML =
+            `<div class="status-message status-success">Graded. ${escapeHtml(summary || ('picksUpdated=' + (data.picksUpdated || 0)))}</div>`;
+        }
+        await loadSavedGamesForSelection();
+      } catch (e) {
+        if (status) {
+          status.innerHTML =
+            `<div class="status-message status-error">${escapeHtml(e.message || 'Grade failed')}</div>`;
+        }
+      }
     }
 
     function formatKickoff(iso) {
