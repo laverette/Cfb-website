@@ -8,8 +8,11 @@ const { cached } = require("../../cache");
 
 const FETCH_HEADERS = {
   accept: "application/json, text/plain, */*",
+  "accept-language": "en-US,en;q=0.9",
   "user-agent":
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+  referer: "https://www.espn.com/college-football/scoreboard",
+  origin: "https://www.espn.com",
 };
 
 const SITE = "https://site.api.espn.com/apis/site/v2/sports/football/college-football";

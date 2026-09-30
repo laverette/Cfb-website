@@ -44,9 +44,9 @@ async function fetchTeamScheduleRaw(team, season, { signal } = {}) {
     err.code = "ESPN_TEAM_UNRESOLVED";
     throw err;
   }
-  const url = `${SITE}/teams/${teamId}/schedule?season=${seasonYear}`;
+  const url = `${SITE}/teams/${teamId}/schedule?season=${seasonYear}&seasontype=2`;
   const { value, cacheSource } = await cachedEspnGet(
-    `espn:schedule:${teamId}:${seasonYear}`,
+    `espn:schedule:${teamId}:${seasonYear}:st2`,
     Math.min(ttlForSeason(seasonYear), 4 * HOUR),
     url,
     { signal }

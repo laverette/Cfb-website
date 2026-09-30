@@ -427,7 +427,7 @@ async function getTeamScheduleData({ team, season, cfbd, signal, mode } = {}) {
   const key = scheduleCacheKey(team, seasonYear);
 
   const fresh = await readFreshCache(key);
-  if (fresh && !fresh.stale && Array.isArray(fresh.value?.schedule)) {
+  if (fresh && !fresh.stale && Array.isArray(fresh.value?.schedule) && fresh.value.schedule.length) {
     return {
       schedule: fresh.value.schedule,
       source: "cache",
@@ -458,17 +458,24 @@ async function getTeamScheduleData({ team, season, cfbd, signal, mode } = {}) {
   }
 
   if (allowsEspn(providerMode)) {
-    const espnSched = await espn.getEspnTeamSchedule(team, seasonYear, { signal });
-    const payload = {
-      schedule: espnSched.schedule,
-      source: "espn",
-      originalSource: "espn",
-    };
-    await writeDbPayload(key, payload, Math.min(ttlForLogs(seasonYear), 4 * HOUR));
-    return { ...payload, cache: "MISS" };
+    try {
+      const espnSched = await espn.getEspnTeamSchedule(team, seasonYear, { signal });
+      if (Array.isArray(espnSched.schedule) && espnSched.schedule.length) {
+        const payload = {
+          schedule: espnSched.schedule,
+          source: "espn",
+          originalSource: "espn",
+        };
+        await writeDbPayload(key, payload, Math.min(ttlForLogs(seasonYear), 4 * HOUR));
+        return { ...payload, cache: "MISS" };
+      }
+      dataLog("PlayerData", `ESPN schedule empty for ${team} ${seasonYear}`);
+    } catch (err) {
+      dataLog("PlayerData", `ESPN schedule failed: ${err.message}`);
+    }
   }
 
-  if (fresh?.stale && Array.isArray(fresh.value?.schedule)) {
+  if (fresh?.stale && Array.isArray(fresh.value?.schedule) && fresh.value.schedule.length) {
     return {
       schedule: fresh.value.schedule,
       source: "cache",

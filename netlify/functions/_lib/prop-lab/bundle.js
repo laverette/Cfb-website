@@ -16,6 +16,12 @@ const {
   getTeamScheduleData,
   readProviderMode,
 } = require("./data/player-stats");
+const { resolveOpponent } = require("./data/opponent-resolve");
+const {
+  getOpponentDefenseProfile,
+  mergeProfileIntoTeamStatsIndex,
+  mergeLeagueSampleIntoIndex,
+} = require("./data/defense-profile");
 const { forcesEspn } = require("./data/provider-mode");
 const { dataLog } = require("./data/log");
 
@@ -119,6 +125,7 @@ async function loadPlayerBundle({
   powerTeams,
   signal,
   asOfWeek = null,
+  espnEventId = null,
 }) {
   const providerMode = readProviderMode();
   const client =
@@ -187,16 +194,80 @@ async function loadPlayerBundle({
     }));
   }
 
-  const nextGame =
-    opponent && String(opponent).trim()
-      ? schedule.find((g) => sameTeam(g.opponent, opponent)) || {
-          opponent: String(opponent).trim(),
-          week: week ?? null,
-          homeAway: null,
-          completed: false,
-          oppIsFcs: false,
+  // Opponent resolution (ESPN schedule primary) — independent of defensive stats provider.
+  let opponentResolution = null;
+  let nextGame = null;
+  if (opponent && String(opponent).trim()) {
+    nextGame =
+      schedule.find((g) => sameTeam(g.opponent, opponent)) || {
+        opponent: String(opponent).trim(),
+        week: week ?? null,
+        homeAway: null,
+        completed: false,
+        oppIsFcs: false,
+      };
+    opponentResolution = {
+      status: "ok",
+      source: "manual",
+      strategy: "caller_provided",
+      opponent: { name: String(opponent).trim(), espnId: null },
+      week: nextGame.week,
+      homeAway: nextGame.homeAway,
+    };
+  } else if (playerTeam) {
+    try {
+      opponentResolution = await resolveOpponent({
+        team: playerTeam,
+        season: seasonYear,
+        week,
+        espnEventId,
+        cfbd: client,
+        signal,
+      });
+      if (opponentResolution?.status === "ok" && opponentResolution.opponent?.name) {
+        nextGame = {
+          gameId: opponentResolution.gameId || opponentResolution.espnEventId,
+          week: opponentResolution.week ?? week ?? null,
+          season: opponentResolution.season || seasonYear,
+          opponent: opponentResolution.opponent.name,
+          homeAway: opponentResolution.homeAway,
+          completed: Boolean(opponentResolution.completed),
+          startDate: opponentResolution.startDate || null,
+          oppIsFcs: Boolean(opponentResolution.oppIsFcs),
+          espnEventId: opponentResolution.espnEventId || null,
+          opponentEspnId: opponentResolution.opponent.espnId || null,
+        };
+      } else if (opponentResolution?.status === "bye") {
+        nextGame = null;
+      } else {
+        // Last resort: local schedule list (may be empty if providers failed earlier)
+        nextGame = nextUnplayed(schedule, week);
+        if (nextGame?.opponent) {
+          opponentResolution = {
+            status: "ok",
+            source: scheduleMeta.source || "cache",
+            strategy: "local_schedule_fallback",
+            opponent: { name: nextGame.opponent, espnId: null },
+            week: nextGame.week,
+            homeAway: nextGame.homeAway,
+            gameId: nextGame.gameId != null ? String(nextGame.gameId) : null,
+          };
         }
-      : nextUnplayed(schedule, week);
+      }
+    } catch (err) {
+      dataLog("OpponentResolver", `resolve failed: ${err.message}`);
+      nextGame = nextUnplayed(schedule, week);
+      opponentResolution = {
+        status: nextGame?.opponent ? "ok" : "unresolved",
+        source: "local_schedule",
+        strategy: "exception_fallback",
+        opponent: nextGame?.opponent
+          ? { name: nextGame.opponent, espnId: null }
+          : null,
+        error: err.message,
+      };
+    }
+  }
 
   let gameLogs = [];
   let priorLogs = [];
@@ -285,13 +356,22 @@ async function loadPlayerBundle({
     gameLogs = gameLogs.filter((g) => g.week == null || Number(g.week) < Number(asOfWeek));
   }
 
-  // Recompute nextGame if schedule arrived via game-log path after opponent resolve.
+  // Prefer dedicated opponent resolver; keep schedule-based recompute as backup.
   const resolvedNext =
-    opponent && String(opponent).trim()
-      ? schedule.find((g) => sameTeam(g.opponent, opponent)) || nextGame
-      : nextUnplayed(schedule, week) || nextGame;
+    opponentResolution?.status === "bye"
+      ? null
+      : opponentResolution?.status === "ok" && opponentResolution.opponent?.name
+        ? nextGame
+        : opponent && String(opponent).trim()
+          ? schedule.find((g) => sameTeam(g.opponent, opponent)) || nextGame
+          : nextUnplayed(schedule, week) || nextGame;
 
-  const teamStatsIndex = indexTeamSeasonStats(teamStatsAll);
+  const bundleWeek =
+    opponentResolution?.status === "bye"
+      ? opponentResolution.week ?? week ?? null
+      : resolvedNext?.week ?? opponentResolution?.week ?? week ?? null;
+
+  let teamStatsIndex = indexTeamSeasonStats(teamStatsAll);
   const advIndex = indexAdvanced(Array.isArray(advAll) ? advAll : advAll ? [advAll] : []);
   const ppaIndex = new Map();
   if (Array.isArray(ppaAll)) {
@@ -303,11 +383,72 @@ async function loadPlayerBundle({
 
   const teamOffense = lookupTeamMap(teamStatsIndex, playerTeam) || {};
   const teamAdv = lookupTeamMap(advIndex, playerTeam);
-  const oppName = resolvedNext?.opponent || null;
-  const oppDefense = lookupTeamMap(teamStatsIndex, oppName) || {};
+  const oppName =
+    opponentResolution?.opponent?.name || resolvedNext?.opponent || null;
+  let oppDefense = lookupTeamMap(teamStatsIndex, oppName) || {};
   const oppAdv = lookupTeamMap(advIndex, oppName);
   const teamPpa = lookupTeamMap(ppaIndex, playerTeam);
   const oppPpa = lookupTeamMap(ppaIndex, oppName);
+
+  let defenseDataSource = Object.keys(oppDefense).length ? "cfbd" : null;
+  let oppDefenseRanks = null;
+  let matchupDataConfidence = Object.keys(oppDefense).length ? "high" : null;
+  let defenseProfileMeta = null;
+
+  // Schedule (ESPN) ≠ stats (CFBD). When CFBD defensive season stats are missing,
+  // reconstruct opponent-allowed production from ESPN.
+  if (
+    oppName &&
+    opponentResolution?.status !== "bye" &&
+    Object.keys(oppDefense).length === 0 &&
+    opponentResolution?.status === "ok"
+  ) {
+    try {
+      const peerIds = [];
+      if (opponentResolution?.opponent?.espnId) {
+        peerIds.push(String(opponentResolution.opponent.espnId));
+      }
+      const profile = await getOpponentDefenseProfile({
+        opponentName: oppName,
+        opponentEspnId: opponentResolution?.opponent?.espnId || null,
+        season: seasonYear,
+        week: resolvedNext?.week ?? opponentResolution?.week ?? week ?? null,
+        beforeDate: resolvedNext?.startDate || opponentResolution?.startDate || null,
+        preferBoxscore: asOfWeek != null,
+        peerEspnIds: peerIds,
+        signal,
+      });
+      if (profile?.stats && Object.keys(profile.stats).length) {
+        oppDefense = profile.stats;
+        oppDefenseRanks = profile.ranks || null;
+        defenseDataSource = profile.source || "espn";
+        matchupDataConfidence = profile.confidence || "medium";
+        defenseProfileMeta = {
+          source: profile.source,
+          games: profile.games,
+          confidence: profile.confidence,
+          opponentEspnId: profile.opponentEspnId || null,
+        };
+        teamStatsIndex = mergeProfileIntoTeamStatsIndex(
+          teamStatsIndex,
+          oppName,
+          profile
+        );
+        if (profile.leagueSample?.length) {
+          teamStatsIndex = mergeLeagueSampleIntoIndex(
+            teamStatsIndex,
+            profile.leagueSample
+          );
+        }
+        dataLog(
+          "DefenseProfile",
+          `Loaded ${oppName} via ${profile.source} games=${profile.games} keys=${Object.keys(profile.stats).length}`
+        );
+      }
+    } catch (err) {
+      dataLog("DefenseProfile", `Failed for ${oppName}: ${err.message}`);
+    }
+  }
 
   const playerRating = findTeamRating(powerTeams, playerTeam);
   const oppRating = findTeamRating(powerTeams, oppName);
@@ -334,9 +475,19 @@ async function loadPlayerBundle({
     gameLogs: gameLogMeta,
     priorLogs: priorLogMeta,
     schedule: scheduleMeta,
+    opponent: {
+      status: opponentResolution?.status || (oppName ? "ok" : "unresolved"),
+      source: opponentResolution?.source || scheduleMeta.source || null,
+      strategy: opponentResolution?.strategy || null,
+      espnTeamId: opponentResolution?.playerEspnId || null,
+      espnEventId: opponentResolution?.espnEventId || resolvedNext?.espnEventId || null,
+      debug: opponentResolution?.debug || null,
+    },
     label: dataSourceLabel(gameLogMeta),
     cache: gameLogMeta.cache || "MISS",
   };
+
+  const byeWeek = opponentResolution?.status === "bye";
 
   return {
     player: {
@@ -348,17 +499,34 @@ async function loadPlayerBundle({
       jersey: jerseyHint,
     },
     seasonYear,
-    week: resolvedNext?.week ?? week ?? null,
-    opponent: resolvedNext
+    week: bundleWeek,
+    opponent:
+      byeWeek
+        ? null
+        : oppName
+          ? {
+              name: oppName,
+              week: bundleWeek,
+              homeAway: resolvedNext?.homeAway ?? opponentResolution?.homeAway ?? null,
+              startDate: resolvedNext?.startDate || opponentResolution?.startDate || null,
+              isFcs: Boolean(resolvedNext?.oppIsFcs || opponentResolution?.oppIsFcs),
+              fromSchedule: true,
+              espnId: opponentResolution?.opponent?.espnId || resolvedNext?.opponentEspnId || null,
+              espnEventId:
+                opponentResolution?.espnEventId || resolvedNext?.espnEventId || null,
+              source: opponentResolution?.source || scheduleMeta.source || null,
+            }
+          : null,
+    opponentResolution: opponentResolution
       ? {
-          name: resolvedNext.opponent,
-          week: resolvedNext.week,
-          homeAway: resolvedNext.homeAway,
-          startDate: resolvedNext.startDate || null,
-          isFcs: Boolean(resolvedNext.oppIsFcs),
-          fromSchedule: Boolean(resolvedNext.gameId || resolvedNext.opponent),
+          status: opponentResolution.status,
+          reason: opponentResolution.reason || null,
+          source: opponentResolution.source || null,
+          strategy: opponentResolution.strategy || null,
+          debug: opponentResolution.debug || null,
         }
       : null,
+    byeWeek,
     schedule,
     gameLogs,
     priorLogs,
@@ -385,6 +553,7 @@ async function loadPlayerBundle({
     teamOffense,
     teamAdv,
     oppDefense,
+    oppDefenseRanks,
     oppAdv,
     teamPpa,
     oppPpa,
@@ -394,6 +563,9 @@ async function loadPlayerBundle({
     oppRating,
     market: consensusLine,
     flags,
+    defenseDataSource,
+    matchupDataConfidence,
+    defenseProfileMeta,
     apiUsage: client?.usage || { requests: 0, cacheHits: 0, cacheMisses: 0, paths: [] },
     dataSource,
   };

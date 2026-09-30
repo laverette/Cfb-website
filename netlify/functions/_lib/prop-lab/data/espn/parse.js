@@ -355,11 +355,11 @@ function mapScheduleEvent(evt, seasonYear, team) {
   const statusState = String(status.state || "").toLowerCase();
   const homePts = toNum(home.score?.value ?? home.score);
   const awayPts = toNum(away.score?.value ?? away.score);
+  // Never infer completed from scores alone — scheduled games can expose 0/null.
   const completed =
     Boolean(status.completed) ||
     statusState === "post" ||
-    /final/i.test(String(status.name || status.detail || "")) ||
-    (homePts != null && awayPts != null);
+    /final/i.test(String(status.name || status.detail || ""));
 
   return {
     id: evt.id != null ? Number(evt.id) || String(evt.id) : null,

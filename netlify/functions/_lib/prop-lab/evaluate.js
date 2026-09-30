@@ -576,7 +576,21 @@ function evaluateFromBundle(bundle, {
     modelVersion: PROP_MODEL_VERSION,
     player: bundle.player,
     opponent: bundle.opponent,
-    scheduleWarning: bundle.opponent ? null : `No scheduled game found for Week ${bundle.week ?? ""}`.trim(),
+    scheduleWarning: bundle.byeWeek
+      ? `Bye week — no game scheduled for Week ${bundle.week ?? ""}`.trim()
+      : bundle.opponent
+        ? null
+        : bundle.opponentResolution?.reason === "OPPONENT_NOT_FOUND"
+          ? `Opponent adjustment unavailable — could not resolve opponent for Week ${bundle.week ?? ""}`
+          : `No scheduled game found for Week ${bundle.week ?? ""}`.trim(),
+    opponentAdjustmentAvailable: Boolean(
+      bundle.opponent && !matchup.missing && Math.abs(matchup.adjPct) >= 0
+    ),
+    matchupUnavailableNote: matchup.missing
+      ? "Opponent adjustment unavailable"
+      : null,
+    opponentResolution: bundle.opponentResolution || null,
+    byeWeek: Boolean(bundle.byeWeek),
     highProbLowConf: probs.pHit >= 0.8 && ["C", "D"].includes(conf.letter),
     stat: { id: def.id, label: def.label, short: def.short, category: def.category },
     line: lineNum,
@@ -643,7 +657,39 @@ function evaluateFromBundle(bundle, {
       headline: matchup.headline,
       adjPctDisplay: matchup.adjPctDisplay,
       opponent: bundle.opponent,
+      missing: matchup.missing,
+      snapshot: matchup.snapshot
+        ? {
+            passYds: matchup.snapshot.passYds,
+            rushYds: matchup.snapshot.rushYds,
+            ypa: matchup.snapshot.ypa,
+            ypc: matchup.snapshot.ypc,
+            defenseRating: matchup.snapshot.defenseRating,
+          }
+        : null,
       percentilePass: matchup.factors?.find((f) => /pass yards/i.test(f.label))?.defensePct ?? matchup.factors?.find((f) => /pass yards/i.test(f.label))?.pct ?? null,
+      resolution: bundle.opponentResolution || null,
+      defenseSource:
+        bundle.defenseDataSource ||
+        (Object.keys(bundle.oppDefense || {}).length
+          ? "cfbd"
+          : matchup.missing
+            ? "unavailable"
+            : "power_fallback"),
+      matchupDataConfidence: bundle.matchupDataConfidence || null,
+      defenseProfile: bundle.defenseProfileMeta || null,
+      resolutionDebug: {
+        playerTeam: bundle.player?.team || null,
+        espnTeamId: bundle.dataSource?.opponent?.espnTeamId || null,
+        targetWeek: bundle.week,
+        espnGame: bundle.opponent
+          ? `${bundle.player?.team || "?"} ${bundle.opponent.homeAway === "home" ? "vs" : "@"} ${bundle.opponent.name}`
+          : null,
+        opponent: bundle.opponent?.name || null,
+        opponentEspnId: bundle.opponent?.espnId || null,
+        opponentSource: bundle.opponentResolution?.strategy || bundle.opponent?.source || null,
+        defensiveStatsSource: bundle.defenseDataSource || null,
+      },
     },
     environment: env,
     breakdown,
@@ -663,6 +709,9 @@ function evaluateFromBundle(bundle, {
       efficiency: oppEst.efficiency,
       rawProjection: projectionRaw,
       opponentAdjustment: matchup.adjPct,
+      matchupDelta,
+      afterUsage,
+      projectionAfterMatchup: afterUsage + matchupDelta,
       gameScriptAdjustment: env.adjPct,
       finalProjection: projection,
       sd,

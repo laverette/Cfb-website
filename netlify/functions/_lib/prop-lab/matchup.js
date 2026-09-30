@@ -1,5 +1,6 @@
 const { clamp, percentileRank, mean, zScore, toNum } = require("./math");
 const { lookupTeamMap } = require("./parse");
+const { FBS_RANK_DENOM } = require("./data/defense-profile");
 
 function collect(map, pathFn) {
   const vals = [];
@@ -25,6 +26,7 @@ function defenseSnapshot(bundle, oppKey) {
   const adv = lookupTeamMap(bundle.leagueAdvanced, oppKey) || bundle.oppAdv;
   const ppa = bundle.oppPpa;
   const defPpa = ppa?.defense || ppa;
+  const ranks = bundle.oppDefenseRanks || null;
   return {
     passYds: statNum(stats, ["passyardsallowed", "netpassingyardsallowed", "passingyardsallowed"]),
     rushYds: statNum(stats, ["rushingyardsallowed"]),
@@ -33,6 +35,9 @@ function defenseSnapshot(bundle, oppKey) {
     passTd: statNum(stats, ["passingtdsallowed", "passingtouchdownsallowed"]),
     rushTd: statNum(stats, ["rushingtdsallowed", "rushingtouchdownsallowed"]),
     sacks: statNum(stats, ["sacks"]),
+    receptionsAllowed: statNum(stats, ["receptionsallowed"]),
+    receivingYdsAllowed: statNum(stats, ["receivingyardsallowed"]),
+    pointsAllowed: statNum(stats, ["pointsallowed"]),
     ppaPass: toNum(defPpa?.passingPPA ?? defPpa?.passing?.ppa ?? adv?.defense?.passingPlays?.ppa),
     ppaRush: toNum(defPpa?.rushingPPA ?? adv?.defense?.rushingPlays?.ppa),
     successPass: toNum(adv?.defense?.passingPlays?.successRate),
@@ -44,6 +49,40 @@ function defenseSnapshot(bundle, oppKey) {
     ranking: bundle.oppRating?.ranking ?? null,
     rawPower: bundle.oppRating?.rawPower ?? null,
     defenseRating: bundle.oppRating?.defenseRating ?? null,
+    espnRanks: ranks,
+    defenseSource: bundle.defenseDataSource || null,
+    matchupDataConfidence: bundle.matchupDataConfidence || null,
+  };
+}
+
+/**
+ * ESPN rank fallback when CFBD league pools are empty.
+ * Lower rank on yards-allowed = tougher defense = negative offense adj.
+ */
+function factorFromEspnRank(rank, denom = FBS_RANK_DENOM, { cap = 0.12 } = {}) {
+  if (!Number.isFinite(rank) || rank < 1) {
+    return { z: 0, pct: null, adj: 0, used: false };
+  }
+  const n = Math.max(2, Number(denom) || FBS_RANK_DENOM);
+  // rank 1 (fewest yards allowed) → defensePct ~1, adj negative for offense
+  const defensePct = clamp(1 - (rank - 1) / (n - 1), 0, 1);
+  const centered = (rank - (n + 1) / 2) / (n / 4);
+  const adj = clamp(centered * 0.045, -cap, cap);
+  let quality = "Average";
+  if (defensePct >= 0.8) quality = "Elite";
+  else if (defensePct >= 0.65) quality = "Strong";
+  else if (defensePct <= 0.2) quality = "Poor";
+  else if (defensePct <= 0.35) quality = "Below average";
+  return {
+    z: centered,
+    pct: 1 - defensePct,
+    adj,
+    used: true,
+    value: rank,
+    mean: (n + 1) / 2,
+    defensePct,
+    quality,
+    fromEspnRank: true,
   };
 }
 
@@ -62,21 +101,28 @@ function leaguePools(bundle) {
   };
 }
 
-function factor(value, pool, { invert = false, cap = 0.12 } = {}) {
-  if (!Number.isFinite(value) || !pool?.length) return { z: 0, pct: null, adj: 0, used: false };
-  const z = zScore(value, pool);
-  const pct = percentileRank(value, pool);
-  const signed = invert ? -z : z;
-  const adj = clamp(signed * 0.045, -cap, cap);
-  const defensePct = pct == null ? null : invert ? pct : 1 - pct;
-  let quality = "Average";
-  if (defensePct != null) {
-    if (defensePct >= 0.8) quality = "Elite";
-    else if (defensePct >= 0.65) quality = "Strong";
-    else if (defensePct <= 0.2) quality = "Poor";
-    else if (defensePct <= 0.35) quality = "Below average";
+function factor(value, pool, { invert = false, cap = 0.12, espnRank = null, rankDenom = FBS_RANK_DENOM } = {}) {
+  // Need a real peer set — a single-team index (opponent only) yields z≈0.
+  const usablePool = Array.isArray(pool) && pool.length >= 8 ? pool : null;
+  if (Number.isFinite(value) && usablePool) {
+    const z = zScore(value, usablePool);
+    const pct = percentileRank(value, usablePool);
+    const signed = invert ? -z : z;
+    const adj = clamp(signed * 0.045, -cap, cap);
+    const defensePct = pct == null ? null : invert ? pct : 1 - pct;
+    let quality = "Average";
+    if (defensePct != null) {
+      if (defensePct >= 0.8) quality = "Elite";
+      else if (defensePct >= 0.65) quality = "Strong";
+      else if (defensePct <= 0.2) quality = "Poor";
+      else if (defensePct <= 0.35) quality = "Below average";
+    }
+    return { z, pct, adj, used: true, value, mean: mean(usablePool), defensePct, quality, invert };
   }
-  return { z, pct, adj, used: true, value, mean: mean(pool), defensePct, quality, invert };
+  if (Number.isFinite(espnRank) && !invert) {
+    return factorFromEspnRank(espnRank, rankDenom, { cap });
+  }
+  return { z: 0, pct: null, adj: 0, used: false };
 }
 
 function matchupHeadline(adjPct) {
@@ -97,10 +143,17 @@ function matchupAdjustment(bundle, def) {
   const factors = [];
   let missing = 0;
 
+  const ranks = snap.espnRanks || {};
+  const rankDenom = ranks.denom || FBS_RANK_DENOM;
+
   if (def.family === "passing" || def.family === "qb" || def.id === "rec_yds" || def.id === "rec" || def.id === "rec_td") {
     factors.push({
       label: "Pass yards allowed",
-      ...factor(snap.passYds, pools.passYds, { cap: 0.1 }),
+      ...factor(snap.passYds, pools.passYds, {
+        cap: 0.1,
+        espnRank: ranks.passYds,
+        rankDenom,
+      }),
     });
     factors.push({
       label: "Pass PPA/EPA allowed",
@@ -114,7 +167,11 @@ function matchupAdjustment(bundle, def) {
   if (def.family === "rushing" || def.id === "rush_rec_yds" || def.id === "pass_rush_yds") {
     factors.push({
       label: "Rush yards allowed",
-      ...factor(snap.rushYds, pools.rushYds, { cap: 0.1 }),
+      ...factor(snap.rushYds, pools.rushYds, {
+        cap: 0.1,
+        espnRank: ranks.rushYds,
+        rankDenom,
+      }),
     });
     factors.push({
       label: "Rush PPA allowed",
@@ -219,4 +276,5 @@ module.exports = {
   defenseSnapshot,
   opponentQualityForGame,
   matchupHeadline,
+  factorFromEspnRank,
 };
