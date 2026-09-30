@@ -529,6 +529,60 @@ body.power-rankings-body {
   background: rgba(255, 215, 0, 0.06);
 }
 
+.prop-shared-banner-wrap {
+  margin: 0 0 0.85rem;
+}
+
+.prop-shared-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem 1rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 215, 0, 0.35);
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.12), rgba(40, 28, 12, 0.55));
+}
+
+.prop-shared-banner strong {
+  display: block;
+  font-family: "Barlow Condensed", sans-serif;
+  font-size: 1.15rem;
+  letter-spacing: 0.03em;
+  color: #ffd700;
+}
+
+.prop-shared-banner p {
+  margin: 0.15rem 0 0;
+  font-size: 0.84rem;
+  color: rgba(245, 222, 179, 0.82);
+  line-height: 1.35;
+}
+
+.prop-shared-banner.is-loading,
+.prop-shared-banner.is-err {
+  border-color: rgba(245, 222, 179, 0.28);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.prop-shared-banner.is-err strong {
+  color: #f5b4a0;
+}
+
+.prop-shared-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+body.prop-shared-mode .prop-lab-builder .matchup-panel-title::after {
+  content: " · viewing shared card";
+  font-size: 0.72em;
+  font-weight: 600;
+  color: rgba(255, 215, 0, 0.75);
+}
+
 .prop-share-box .power-field {
   margin: 0 0 0.4rem;
 }

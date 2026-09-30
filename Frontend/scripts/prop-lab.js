@@ -35,8 +35,13 @@
     payoutOdds: "",
     payoutTimer: null,
     saveBusy: false,
+    shareBusy: false,
     deleteConfirmId: null,
     lastSavedId: null,
+    lastShareId: null,
+    lastShareFingerprint: null,
+    /** @type {null | { shareId: string, title?: string, createdAt?: string, loading?: boolean, error?: string|null }} */
+    sharedView: null,
   };
 
   function isMobile() {
@@ -1518,8 +1523,39 @@
       safetyPercent: analysis.safetyPercent ?? null,
       grade: analysis.grade || null,
       entryStrength: analysis.entryStrength ?? null,
-      together: analysis.together || null,
-      value: analysis.value || null,
+      together: analysis.together
+        ? {
+            n: analysis.together.n,
+            p: analysis.together.p,
+            label: analysis.together.label,
+            pctLabel: analysis.together.pctLabel,
+            americanLabel: analysis.together.americanLabel,
+            method: analysis.together.method,
+          }
+        : null,
+      value: analysis.value
+        ? {
+            verdict: analysis.value.verdict,
+            verdictLabel: analysis.value.verdictLabel,
+            summary: analysis.value.summary,
+            modelLabel: analysis.value.modelLabel,
+            neededLabel: analysis.value.neededLabel,
+            evLabel: analysis.value.evLabel,
+            edge: analysis.value.edge,
+            pUse: analysis.value.pUse,
+            payout: analysis.value.payout
+              ? {
+                  label: analysis.value.payout.label,
+                  americanLabel: analysis.value.payout.americanLabel,
+                  multiplier: analysis.value.payout.multiplier,
+                  source: analysis.value.payout.source,
+                }
+              : null,
+            reasons: Array.isArray(analysis.value.reasons)
+              ? analysis.value.reasons.slice(0, 6)
+              : [],
+          }
+        : null,
       riskDrivers: analysis.riskDrivers || [],
       correlations: Array.isArray(analysis.correlations)
         ? analysis.correlations.map((c) => ({
@@ -1536,41 +1572,142 @@
     };
   }
 
-  function cardSharePayload(legs, analysis, meta = {}) {
+  function snapshotEvaluation(e) {
+    if (!e || e.error) return null;
+    const opponent =
+      typeof e.opponent === "string"
+        ? { name: e.opponent }
+        : e.opponent
+          ? {
+              name: e.opponent.name || null,
+              week: e.opponent.week ?? null,
+              homeAway: e.opponent.homeAway || null,
+              startDate: e.opponent.startDate || null,
+              isFcs: Boolean(e.opponent.isFcs),
+              espnId: e.opponent.espnId || null,
+              source: e.opponent.source || null,
+            }
+          : null;
     return {
-      v: 1,
+      playerId: e.player?.id,
+      playerName: e.player?.name,
+      team: e.player?.team,
+      position: e.player?.position,
+      opponent,
+      statId: e.stat?.id,
+      statLabel: e.stat?.label,
+      statShort: e.stat?.short || null,
+      line: e.line,
+      side: e.side,
+      projection: e.projection,
+      median: e.median ?? null,
+      range: e.range || null,
+      pHit: e.pHit,
+      pMore: e.pMore,
+      pLess: e.pLess,
+      confidence: e.confidence,
+      confidenceScore: e.confidenceScore ?? null,
+      propScore: e.propScore,
+      propScoreLabel: e.propScoreLabel,
+      flags: e.flags || [],
+      why: Array.isArray(e.why) ? e.why.slice(0, 3) : [],
+      caution: Array.isArray(e.caution) ? e.caution.slice(0, 3) : [],
+      hitCountLabel: e.hitCountLabel || null,
+      scheduleWarning: e.scheduleWarning || null,
+      matchup: e.matchup
+        ? {
+            headline: e.matchup.headline || null,
+            note: e.matchup.note || null,
+            adjPct: e.matchup.adjPct ?? null,
+            adjPctDisplay: e.matchup.adjPctDisplay ?? null,
+            factors: Array.isArray(e.matchup.factors)
+              ? e.matchup.factors.slice(0, 4).map((f) => ({
+                  label: f.label,
+                  quality: f.quality || null,
+                  adj: f.adj ?? null,
+                  defensePct: f.defensePct ?? null,
+                }))
+              : [],
+            missing: Boolean(e.matchup.missing),
+          }
+        : null,
+      form: e.form
+        ? {
+            season: e.form.season ?? null,
+            l3: e.form.l3 ?? null,
+            prior: e.form.prior ?? null,
+            games: e.form.games ?? null,
+            hitRate: e.form.hitRate ?? null,
+            hitRateL5: e.form.hitRateL5 ?? null,
+          }
+        : null,
+      usage: e.usage
+        ? {
+            role: e.usage.role || null,
+            roleDetail: e.usage.roleDetail || null,
+            inferred: Boolean(e.usage.inferred),
+            recShare: e.usage.recShare ?? null,
+            carryShare: e.usage.carryShare ?? null,
+            attShare: e.usage.attShare ?? null,
+          }
+        : null,
+      environment: e.environment
+        ? {
+            blowoutRisk: e.environment.blowoutRisk || null,
+            notes: Array.isArray(e.environment.notes) ? e.environment.notes.slice(0, 3) : [],
+            homeAway: e.environment.homeAway || null,
+          }
+        : null,
+      distribution: e.distribution
+        ? { sd: e.distribution.sd ?? null, dist: e.distribution.dist || null }
+        : null,
+      modelVersion: e.modelVersion,
+      frozen: true,
+    };
+  }
+
+  /** Shared by Save card + Share link — do not invent a second representation. */
+  function serializePropCard(legs, analysis, meta = {}) {
+    return {
+      v: 2,
       title: meta.title || defaultSaveTitle(),
       seasonYear: meta.seasonYear ?? state.season,
       weekNumber: meta.weekNumber ?? state.week,
       modelVersion: meta.modelVersion || legs[0]?.modelVersion || null,
-      // Keep analysis lean — full evaluate dumps blow past useful share sizes
-      // and slow open-on-friend-device to a crawl.
+      payoutOdds: meta.payoutOdds ?? state.payoutOdds ?? null,
+      sharedAt: new Date().toISOString(),
       analysis: slimAnalysis(analysis),
-      legs: (legs || []).map((e) => ({
-        playerId: e.player?.id,
-        playerName: e.player?.name,
-        team: e.player?.team,
-        position: e.player?.position,
-        opponent: e.opponent?.name || e.opponent,
-        statId: e.stat?.id,
-        statLabel: e.stat?.label,
-        line: e.line,
-        side: e.side,
-        projection: e.projection,
-        pHit: e.pHit,
-        pMore: e.pMore,
-        pLess: e.pLess,
-        confidence: e.confidence,
-        propScore: e.propScore,
-        propScoreLabel: e.propScoreLabel,
-        flags: e.flags,
-        modelVersion: e.modelVersion,
-      })),
+      legs: (legs || []).map((e) => snapshotEvaluation(e)).filter(Boolean),
     };
   }
 
+  function cardSharePayload(legs, analysis, meta = {}) {
+    return serializePropCard(legs, analysis, meta);
+  }
+
+  function cardFingerprint(payload) {
+    try {
+      return JSON.stringify({
+        title: payload.title,
+        week: payload.weekNumber,
+        season: payload.seasonYear,
+        payout: payload.payoutOdds || "",
+        legs: (payload.legs || []).map((l) => [
+          l.playerId,
+          l.statId,
+          l.line,
+          l.side,
+          l.projection,
+          l.pHit,
+          l.propScore,
+        ]),
+      });
+    } catch {
+      return String(Date.now());
+    }
+  }
+
   function sharePageUrl(shareId) {
-    // Prefer a stable prop-bet.html path even if the user somehow landed elsewhere.
     const basePath = /prop-bet\.html$/i.test(location.pathname)
       ? location.pathname
       : new URL("prop-bet.html", location.href).pathname;
@@ -1583,12 +1720,114 @@
       { method: "POST", body: { action: "share", payload } }
     );
     if (!data.shareId) throw new Error("Share link was not created");
+    state.lastShareId = data.shareId;
     return sharePageUrl(data.shareId);
   }
 
   async function loadSharePayload(shareId) {
     const data = await api({ action: "share", id: shareId });
-    return data.payload || null;
+    return {
+      payload: data.payload || null,
+      shareId: data.shareId || shareId,
+      createdAt: data.createdAt || null,
+      expiresAt: data.expiresAt || null,
+      modelVersion: data.modelVersion || null,
+    };
+  }
+
+  function formatSharedDate(iso) {
+    if (!iso) return null;
+    try {
+      return new Intl.DateTimeFormat("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      }).format(new Date(iso));
+    } catch {
+      return null;
+    }
+  }
+
+  function renderSharedBanner() {
+    const host = document.getElementById("sharedCardBanner");
+    if (!host) return;
+    const view = state.sharedView;
+    if (!view) {
+      host.hidden = true;
+      host.innerHTML = "";
+      document.body.classList.remove("prop-shared-mode");
+      return;
+    }
+    document.body.classList.add("prop-shared-mode");
+    host.hidden = false;
+    if (view.loading) {
+      host.innerHTML = `<div class="prop-shared-banner is-loading"><strong>Opening shared card…</strong><p>Loading the saved snapshot — no live model refresh.</p></div>`;
+      return;
+    }
+    if (view.error) {
+      host.innerHTML = `<div class="prop-shared-banner is-err">
+        <strong>Shared card unavailable</strong>
+        <p>${escapeHtml(view.error)}</p>
+        <button type="button" class="btn btn-gold btn-sm" id="sharedOpenLabBtn">Open Prop Lab</button>
+      </div>`;
+      document.getElementById("sharedOpenLabBtn")?.addEventListener("click", exitSharedView);
+      return;
+    }
+    const when = formatSharedDate(view.createdAt || view.sharedAt);
+    host.innerHTML = `<div class="prop-shared-banner">
+      <div>
+        <strong>Shared Prop Card</strong>
+        <p>${escapeHtml(view.title || "Prop Lab card")}${
+          when ? ` · Shared ${escapeHtml(when)}` : ""
+        } · Analysis captured when shared (not live-refreshed)</p>
+      </div>
+      <div class="prop-shared-actions">
+        <button type="button" class="btn btn-gold btn-sm" id="copySharedToBuilderBtn">Copy to My Builder</button>
+        <button type="button" class="btn btn-outline-light btn-sm" id="exitSharedBtn">Exit shared view</button>
+      </div>
+    </div>`;
+    document.getElementById("copySharedToBuilderBtn")?.addEventListener("click", copySharedToBuilder);
+    document.getElementById("exitSharedBtn")?.addEventListener("click", exitSharedView);
+  }
+
+  function exitSharedView() {
+    state.sharedView = null;
+    state.legs = [];
+    state.analysis = null;
+    renderSharedBanner();
+    renderAll();
+    try {
+      const url = new URL(location.href);
+      url.searchParams.delete("share");
+      url.searchParams.delete("card");
+      history.replaceState({}, "", url.pathname + url.search + url.hash);
+    } catch {
+      /* ignore */
+    }
+    setSaveStatus("");
+  }
+
+  function copySharedToBuilder() {
+    if (!state.legs.length) return;
+    state.sharedView = null;
+    renderSharedBanner();
+    // Keep legs/analysis; leave share param so refresh can reopen, or strip:
+    try {
+      const url = new URL(location.href);
+      url.searchParams.delete("share");
+      history.replaceState({}, "", url.pathname + url.search + url.hash);
+    } catch {
+      /* ignore */
+    }
+    setSaveStatus("Copied into your builder — you can edit lines and sides freely.", "ok");
+    renderAll();
+  }
+
+  function setShareButtonLabel(text, disabled = false) {
+    const btn = document.getElementById("shareLinkBtn");
+    if (!btn) return;
+    btn.textContent = text;
+    if (disabled != null) btn.disabled = disabled;
   }
 
   function formatCardText(payload) {
@@ -1635,39 +1874,88 @@
     }
   }
 
-  function applyCardPayload(payload, { frozen = true } = {}) {
+  function applyCardPayload(payload, { frozen = true, sharedMeta = null } = {}) {
     if (!payload || !Array.isArray(payload.legs) || !payload.legs.length) return false;
-    state.legs = payload.legs.map((l) => ({
-      id: uid(),
-      playerId: l.playerId,
-      name: l.playerName,
-      team: l.team,
-      statId: l.statId,
-      statLabel: l.statLabel,
-      line: Number(l.line),
-      side: l.side || "more",
-      loading: false,
-      evaluation: {
-        player: { id: l.playerId, name: l.playerName, team: l.team, position: l.position },
-        opponent: typeof l.opponent === "string" ? { name: l.opponent } : l.opponent || null,
-        stat: { id: l.statId, label: l.statLabel },
+    state.legs = payload.legs.map((l) => {
+      const opponent =
+        typeof l.opponent === "string"
+          ? { name: l.opponent }
+          : l.opponent && typeof l.opponent === "object"
+            ? l.opponent
+            : null;
+      return {
+        id: uid(),
+        playerId: l.playerId,
+        name: l.playerName,
+        team: l.team,
+        statId: l.statId,
+        statLabel: l.statLabel,
         line: Number(l.line),
         side: l.side || "more",
-        projection: l.projection,
-        pHit: l.pHit,
-        pMore: l.pMore,
-        pLess: l.pLess,
-        confidence: l.confidence,
-        propScore: l.propScore,
-        propScoreLabel: l.propScoreLabel,
-        flags: l.flags || [],
-        modelVersion: l.modelVersion,
-        frozen,
-      },
-    }));
+        loading: false,
+        evaluation: {
+          player: {
+            id: l.playerId,
+            name: l.playerName,
+            team: l.team,
+            position: l.position,
+          },
+          opponent,
+          stat: {
+            id: l.statId,
+            label: l.statLabel,
+            short: l.statShort || null,
+          },
+          line: Number(l.line),
+          side: l.side || "more",
+          projection: l.projection,
+          median: l.median ?? null,
+          range: l.range || null,
+          pHit: l.pHit,
+          pMore: l.pMore,
+          pLess: l.pLess,
+          confidence: l.confidence,
+          confidenceScore: l.confidenceScore ?? null,
+          propScore: l.propScore,
+          propScoreLabel: l.propScoreLabel,
+          flags: l.flags || [],
+          why: l.why || [],
+          caution: l.caution || [],
+          hitCountLabel: l.hitCountLabel || null,
+          scheduleWarning: l.scheduleWarning || null,
+          matchup: l.matchup || null,
+          form: l.form || null,
+          usage: l.usage || null,
+          environment: l.environment || null,
+          distribution: l.distribution || null,
+          modelVersion: l.modelVersion || payload.modelVersion,
+          frozen,
+        },
+      };
+    });
     state.analysis = payload.analysis || null;
-    if (payload.weekNumber != null) state.week = Number(payload.weekNumber) || state.week;
+    if (payload.payoutOdds) {
+      state.payoutOdds = String(payload.payoutOdds);
+      const payoutEl = document.getElementById("payoutOdds");
+      if (payoutEl) payoutEl.value = state.payoutOdds;
+    }
+    if (payload.weekNumber != null) {
+      state.week = Number(payload.weekNumber) || state.week;
+      const weekSel = document.getElementById("labWeek");
+      if (weekSel && state.week != null) weekSel.value = String(state.week);
+    }
     if (payload.seasonYear != null) state.season = Number(payload.seasonYear) || state.season;
+    if (sharedMeta) {
+      state.sharedView = {
+        shareId: sharedMeta.shareId,
+        title: payload.title || sharedMeta.title || "Shared card",
+        createdAt: sharedMeta.createdAt || payload.sharedAt || null,
+        sharedAt: payload.sharedAt || null,
+        loading: false,
+        error: null,
+      };
+    }
+    renderSharedBanner();
     renderAll();
     return true;
   }
@@ -1900,31 +2188,68 @@
   async function tryOpenSharedCard() {
     const params = new URLSearchParams(location.search);
     const shareId = params.get("share");
-    if (!shareId) return;
+    if (!shareId) return false;
+    state.sharedView = { shareId, loading: true, error: null };
+    renderSharedBanner();
+    const entryHost = document.getElementById("entryList");
+    const cardsHost = document.getElementById("propCards");
+    if (entryHost) {
+      entryHost.innerHTML =
+        "<li class='prop-leg'><p class='prop-market-note'>Loading shared card snapshot…</p></li>";
+    }
+    if (cardsHost) {
+      cardsHost.innerHTML =
+        "<article class='prop-card'><p class='prop-loading'>Loading shared card…</p><p class='prop-market-note'>Snapshot only — no CFBD/ESPN refresh.</p></article>";
+    }
     setSaveStatus("Opening shared card…", "info");
     try {
-      const payload = await loadSharePayload(shareId);
-      if (!applyCardPayload(payload, { frozen: true })) {
+      const packed = await loadSharePayload(shareId);
+      const payload = packed.payload;
+      if (
+        !applyCardPayload(payload, {
+          frozen: true,
+          sharedMeta: {
+            shareId: packed.shareId || shareId,
+            createdAt: packed.createdAt,
+            title: payload?.title,
+          },
+        })
+      ) {
+        state.sharedView = {
+          shareId,
+          loading: false,
+          error: "This shared card could not be read.",
+        };
+        renderSharedBanner();
         setSaveStatus("That share link could not be read.", "err");
-        return;
+        return false;
       }
       setSaveStatus(
         `Opened shared card “${payload.title || ""}” — ${payload.legs.length} prop${
           payload.legs.length === 1 ? "" : "s"
-        } loaded.`,
+        } loaded from snapshot.`,
         "ok"
       );
       document.getElementById("entryList")?.scrollIntoView({ behavior: "smooth", block: "start" });
-      try {
-        const url = new URL(location.href);
-        url.searchParams.delete("share");
-        url.searchParams.delete("card");
-        history.replaceState({}, "", url.pathname + url.search + url.hash);
-      } catch {
-        /* ignore */
-      }
+      // Keep ?share= in the URL so refresh / copy-from-address-bar still works.
+      return true;
     } catch (err) {
-      setSaveStatus(err.message || "That share link is missing or expired.", "err");
+      const msg =
+        err?.body?.error ||
+        err.message ||
+        "This shared card could not be found.";
+      state.sharedView = {
+        shareId,
+        loading: false,
+        error: /expired/i.test(msg)
+          ? "This shared card is no longer available."
+          : msg,
+      };
+      renderSharedBanner();
+      if (entryHost) entryHost.innerHTML = "";
+      if (cardsHost) cardsHost.innerHTML = "";
+      setSaveStatus(state.sharedView.error, "err");
+      return false;
     }
   }
 
@@ -1954,9 +2279,18 @@
       title,
       seasonYear: state.season,
       weekNumber: state.week,
+      payoutOdds: state.payoutOdds,
     });
+    const fingerprint = cardFingerprint(payload);
+    if (state.lastShareId && state.lastShareFingerprint === fingerprint) {
+      const link = sharePageUrl(state.lastShareId);
+      showShareLink(link);
+      return link;
+    }
     setSaveStatus("Creating share link…", "info");
+    setShareButtonLabel("Creating…", true);
     const link = await createShareLink(payload);
+    state.lastShareFingerprint = fingerprint;
     showShareLink(link);
     return link;
   }
@@ -1965,7 +2299,7 @@
     const ok = await copyText(url);
     setSaveStatus(
       ok
-        ? "Share URL copied. Paste it to a friend — they will see the same props."
+        ? "Link copied! Friends can open it without logging in — they see this exact snapshot."
         : "Could not copy automatically — select the link above and copy it.",
       ok ? "ok" : "err"
     );
@@ -1973,11 +2307,32 @@
   }
 
   async function copyCurrentCardLink() {
+    if (state.shareBusy) return;
+    state.shareBusy = true;
     try {
+      setShareButtonLabel("Creating…", true);
       const link = await publishShareLink();
-      if (link) await copyShareUrl(link);
+      if (link) {
+        const ok = await copyShareUrl(link);
+        setShareButtonLabel(ok ? "Copied!" : "Share link", false);
+        if (ok) {
+          setTimeout(() => {
+            if (!state.shareBusy) setShareButtonLabel("Share link", evaluatedLegs().length < 1);
+          }, 1800);
+        }
+      } else {
+        setShareButtonLabel("Share link", evaluatedLegs().length < 1);
+      }
     } catch (err) {
-      setSaveStatus(err.message || "Could not create a share link.", "err");
+      setShareButtonLabel("Share link", evaluatedLegs().length < 1);
+      setSaveStatus(err.message || "Couldn't create share link", "err");
+    } finally {
+      state.shareBusy = false;
+      const evals = evaluatedLegs();
+      const btn = document.getElementById("shareLinkBtn");
+      if (btn && btn.textContent !== "Copied!") {
+        btn.disabled = evals.length < 1;
+      }
     }
   }
 
@@ -2092,6 +2447,11 @@
 
   document.addEventListener("DOMContentLoaded", async () => {
     bindPlayerCombo();
+    const pendingShare = new URLSearchParams(location.search).get("share");
+    if (pendingShare) {
+      state.sharedView = { shareId: pendingShare, loading: true, error: null };
+      renderSharedBanner();
+    }
     document.getElementById("addPropForm")?.addEventListener("submit", addProp);
     document.getElementById("addPropForm")?.addEventListener("keydown", (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
@@ -2227,7 +2587,17 @@
     } catch {
       /* catalog stays empty until the function is reachable */
     }
-    await loadSaved();
-    await tryOpenSharedCard();
+    // Shared links load as immutable snapshots — skip private saved-card fetch first
+    // so the friend sees the card ASAP (and we never burn sports APIs).
+    if (pendingShare) {
+      await tryOpenSharedCard();
+      if (!authToken()) {
+        /* anonymous viewer — don't need saved list */
+      } else {
+        await loadSaved();
+      }
+    } else {
+      await loadSaved();
+    }
   });
 })();

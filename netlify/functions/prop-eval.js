@@ -294,6 +294,8 @@ async function handlePropEval(event) {
       return json(200, {
         shareId: row.id,
         expiresAt: row.expires_at || null,
+        createdAt: row.created_at || null,
+        reused: Boolean(row.reused),
       });
     }
 
@@ -306,6 +308,7 @@ async function handlePropEval(event) {
         payload: row.payload,
         createdAt: row.created_at,
         expiresAt: row.expires_at,
+        modelVersion: row.model_version || row.payload?.modelVersion || null,
       }, { "cache-control": "public, max-age=60" });
     }
 
