@@ -125,6 +125,7 @@ function rolePrior(bundle, def, oppEst) {
     rec_long: 18,
     rush_rec_yds: 70,
     total_td: 0.7,
+    fantasy_score: 16,
     fg_made: 1.4,
     kicking_pts: 7.5,
     xp_made: 3.2,

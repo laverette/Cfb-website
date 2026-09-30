@@ -78,6 +78,7 @@ describe("prop definitions", () => {
       "rush_rec_yds",
       "pass_rush_yds",
       "total_td",
+      "fantasy_score",
       "fg_made",
       "kicking_pts",
     ]) {
@@ -90,6 +91,25 @@ describe("prop definitions", () => {
     assert.equal(extractStatValue(stats, "rush_rec_yds"), 102);
     assert.equal(extractStatValue(stats, "pass_rush_yds"), 290);
     assert.equal(extractStatValue(stats, "total_td"), 4);
+  });
+
+  it("scores fantasy points from box components (full PPR)", () => {
+    const { fantasyScoreFromStats } = require(path.join(root, "definitions"));
+    // 250*0.04 + 2*4 + (-1)*1 + 40*0.1 + 1*6 + 5*1 + 62*0.1 + 1*6
+    // = 10 + 8 - 1 + 4 + 6 + 5 + 6.2 + 6 = 44.2
+    const stats = {
+      pass_yds: 250,
+      pass_td: 2,
+      pass_int: 1,
+      rush_yds: 40,
+      rush_td: 1,
+      rec: 5,
+      rec_yds: 62,
+      rec_td: 1,
+    };
+    assert.equal(fantasyScoreFromStats(stats), 44.2);
+    assert.equal(extractStatValue(stats, "fantasy_score"), 44.2);
+    assert.equal(extractStatValue({ rush_yds: 100, rush_td: 1 }, "fantasy_score"), 16);
   });
 
   it("extracts field goals and kicking points from CFBD boxes", () => {
@@ -209,6 +229,7 @@ describe("prop definitions", () => {
     for (const raw of ["QB", "qb", " QB ", "Quarterback"]) {
       const ids = statsForPosition(raw).map((s) => s.id);
       assert.ok(ids.includes("pass_td"), `${raw} lost passing props`);
+      assert.ok(ids.includes("fantasy_score"), `${raw} should offer fantasy score`);
       for (const banned of ["rec", "rec_yds", "rec_td", "rec_long", "rush_rec_yds", "fg_made", "kicking_pts", "xp_made"]) {
         assert.ok(!ids.includes(banned), `QB (${raw}) was offered ${banned}`);
       }

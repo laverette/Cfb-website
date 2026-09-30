@@ -86,6 +86,7 @@ function emptyStats() {
     fg_att: null,
     xp_made: null,
     kicking_pts: null,
+    fantasy_score: null,
   };
 }
 

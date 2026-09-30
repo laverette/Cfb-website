@@ -321,6 +321,35 @@ const PROP_DEFINITIONS = [
     matchupKeys: ["passTdAllowed", "rushTdAllowed"],
   },
   {
+    // PrizePicks-style fantasy score (full PPR). Confirm live board scoring if they change weights.
+    id: "fantasy_score",
+    label: "Fantasy score",
+    short: "FANTASY",
+    category: "combination",
+    family: "fantasy",
+    dist: "normal",
+    sources: [
+      "player_game.passing.yds",
+      "player_game.passing.td",
+      "player_game.passing.int",
+      "player_game.rushing.yds",
+      "player_game.rushing.td",
+      "player_game.receiving.rec",
+      "player_game.receiving.yds",
+      "player_game.receiving.td",
+    ],
+    methodology: "opportunity_efficiency",
+    opportunity: "touches",
+    efficiency: "fantasy_per_touch",
+    minGames: 3,
+    priorSd: 8.5,
+    floor: 0,
+    ceil: 80,
+    combo: true,
+    parts: ["pass_yds", "pass_td", "pass_int", "rush_yds", "rush_td", "rec", "rec_yds", "rec_td"],
+    matchupKeys: ["passYdsAllowed", "rushYdsAllowed", "passTdAllowed", "rushTdAllowed"],
+  },
+  {
     id: "fg_made",
     label: "Field goals",
     short: "FG",
@@ -396,6 +425,7 @@ const POSITIONS_BY_STAT = {
   rec_long: ["WR", "TE", "RB", "ATH"],
   rush_rec_yds: ["RB", "WR", "TE", "ATH"],
   total_td: ["QB", "RB", "WR", "TE", "ATH"],
+  fantasy_score: ["QB", "RB", "WR", "TE", "ATH"],
   fg_made: ["K"],
   kicking_pts: ["K"],
   xp_made: ["K"],
@@ -476,6 +506,31 @@ function getPropDef(id) {
   return PROP_BY_ID[String(id || "")] || null;
 }
 
+/** PrizePicks-style fantasy score weights (full PPR). */
+const FANTASY_SCORE_WEIGHTS = {
+  pass_yds: 0.04,
+  pass_td: 4,
+  pass_int: -1,
+  rush_yds: 0.1,
+  rush_td: 6,
+  rec: 1,
+  rec_yds: 0.1,
+  rec_td: 6,
+};
+
+function fantasyScoreFromStats(stats) {
+  if (!stats || typeof stats !== "object") return null;
+  let any = false;
+  let total = 0;
+  for (const [key, weight] of Object.entries(FANTASY_SCORE_WEIGHTS)) {
+    const raw = stats[key];
+    if (raw == null || !Number.isFinite(Number(raw))) continue;
+    any = true;
+    total += Number(raw) * weight;
+  }
+  return any ? total : null;
+}
+
 function catalogPublic() {
   return PROP_DEFINITIONS.map((d) => ({
     id: d.id,
@@ -504,4 +559,6 @@ module.exports = {
   POSITIONS_BY_STAT,
   POSITION_ALIASES,
   NON_OFFENSIVE,
+  FANTASY_SCORE_WEIGHTS,
+  fantasyScoreFromStats,
 };

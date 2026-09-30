@@ -1,6 +1,6 @@
 const { toNum } = require("./math");
 const { sameTeam, playerNameMatch } = require("./names");
-const { getPropDef } = require("./definitions");
+const { getPropDef, fantasyScoreFromStats } = require("./definitions");
 
 function pick(obj, ...keys) {
   if (!obj) return null;
@@ -208,6 +208,9 @@ function comboValue(stats, id) {
     if (a == null && b == null && c == null) return null;
     return (a || 0) + (b || 0) + (c || 0);
   }
+  if (id === "fantasy_score") {
+    return fantasyScoreFromStats(stats);
+  }
   return stats[id] != null ? stats[id] : null;
 }
 
@@ -261,6 +264,19 @@ function extractOverviewTotal(overview, statId) {
     const parts = ["pass_td", "rush_td", "rec_td"].map((id) => extractOverviewTotal(overview, id));
     if (parts.every((x) => x == null)) return null;
     return parts.reduce((s, x) => s + (x || 0), 0);
+  }
+  if (statId === "fantasy_score") {
+    const { FANTASY_SCORE_WEIGHTS } = require("./definitions");
+    let any = false;
+    const stats = {};
+    for (const key of Object.keys(FANTASY_SCORE_WEIGHTS)) {
+      const v = extractOverviewTotal(overview, key);
+      if (v != null) {
+        any = true;
+        stats[key] = v;
+      }
+    }
+    return any ? fantasyScoreFromStats(stats) : null;
   }
   const keys = map[statId] || [];
   for (const k of keys) {

@@ -1,5 +1,6 @@
 const { mean, toNum, clamp } = require("./math");
 const { extractStatValue } = require("./parse");
+const { fantasyScoreFromStats } = require("./definitions");
 
 function num(v, fallback = null) {
   const n = toNum(v);
@@ -191,7 +192,8 @@ function estimateOpportunity(bundle, def) {
         : def.id === "pass_td"
           ? (opportunity || 0) * (usage.passTd && passAtt ? usage.passTd / passAtt : 0.045)
           : def.id === "pass_int"
-            ? (opportunity || 0) * (passAtt ? (usage.pass_int || 0.02) : 0.02)
+            ? (opportunity || 0) *
+              (passAtt > 0 && Number.isFinite(usage.passInt) ? usage.passInt / passAtt : 0.02)
             : def.id === "pass_long"
               ? longestPassProjection({
                   usage,
@@ -220,6 +222,40 @@ function estimateOpportunity(bundle, def) {
     rawOppProj = (usage.passTd || 0) + (usage.rushTd || 0) + (usage.recTd || 0);
     opportunity = rawOppProj;
     efficiency = 1;
+  } else if (def.id === "fantasy_score") {
+    const passYdsProj =
+      passAtt != null && ypa != null
+        ? (attShare && vol.passAttPerGame ? vol.passAttPerGame * Math.min(attShare, 1.05) : passAtt) * ypa
+        : passYds;
+    const rushYdsProj =
+      rushAtt != null && ypc != null
+        ? (carryShare && vol.rushAttPerGame ? vol.rushAttPerGame * carryShare : rushAtt) * ypc
+        : rushYds;
+    const recYdsProj =
+      recAvg != null && ypr != null
+        ? (recShare && vol.completionsPerGame ? vol.completionsPerGame * recShare : recAvg) * ypr
+        : recYds;
+    const recProj =
+      recShare && vol.completionsPerGame ? vol.completionsPerGame * recShare : recAvg;
+    const passTdRate = passAtt > 0 && usage.passTd ? usage.passTd / passAtt : 0.045;
+    const rushTdRate = rushAtt > 0 && usage.rushTd ? usage.rushTd / rushAtt : 0.05;
+    const recTdRate = recAvg > 0 && usage.recTd ? usage.recTd / recAvg : 0.08;
+    const passOpp =
+      attShare && vol.passAttPerGame ? vol.passAttPerGame * Math.min(attShare, 1.05) : passAtt;
+    const rushOpp =
+      carryShare && vol.rushAttPerGame ? vol.rushAttPerGame * carryShare : rushAtt;
+    rawOppProj = fantasyScoreFromStats({
+      pass_yds: passYdsProj,
+      pass_td: passOpp != null ? passOpp * passTdRate : usage.passTd,
+      pass_int: usage.passInt,
+      rush_yds: rushYdsProj,
+      rush_td: rushOpp != null ? rushOpp * rushTdRate : usage.rushTd,
+      rec: recProj,
+      rec_yds: recYdsProj,
+      rec_td: recProj != null ? recProj * recTdRate : usage.recTd,
+    });
+    opportunity = (passOpp || 0) + (rushOpp || 0) + (recProj || 0);
+    efficiency = opportunity && rawOppProj != null ? rawOppProj / opportunity : null;
   } else if (def.family === "kicking") {
     const fgMade = usage.fgMade;
     const fgAtt = usage.fgAtt;
@@ -280,6 +316,9 @@ function roleTrend(bundle, def) {
     seasonU =
       def.id === "fg_made" ? season.fgMade : def.id === "xp_made" ? season.xpMade : season.kickingPts;
     recentU = def.id === "fg_made" ? l3.fgMade : def.id === "xp_made" ? l3.xpMade : l3.kickingPts;
+  } else if (def.family === "fantasy" || def.id === "fantasy_score") {
+    seasonU = (season.passAtt || 0) + (season.rushAtt || 0) + (season.rec || 0);
+    recentU = (l3.passAtt || 0) + (l3.rushAtt || 0) + (l3.rec || 0);
   } else {
     seasonU = season.passAtt;
     recentU = l3.passAtt;

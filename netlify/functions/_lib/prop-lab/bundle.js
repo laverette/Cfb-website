@@ -94,6 +94,7 @@ function usageFromLogs(logs) {
     passYds: sum("pass_yds") / n,
     passTd: sum("pass_td") / n,
     passComp: sum("pass_comp") / n,
+    passInt: sum("pass_int") / n,
     rushTd: sum("rush_td") / n,
     recTd: sum("rec_td") / n,
     fgMade: sum("fg_made") / n,

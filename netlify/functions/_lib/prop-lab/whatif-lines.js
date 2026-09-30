@@ -28,6 +28,7 @@ const YARD_DELTAS = {
   pass_yds: [15, 30],
   rush_rec_yds: [10, 20],
   pass_rush_yds: [15, 30],
+  fantasy_score: [3, 6],
 };
 
 function asLine(n) {

@@ -146,7 +146,7 @@ function matchupAdjustment(bundle, def) {
   const ranks = snap.espnRanks || {};
   const rankDenom = ranks.denom || FBS_RANK_DENOM;
 
-  if (def.family === "passing" || def.family === "qb" || def.id === "rec_yds" || def.id === "rec" || def.id === "rec_td") {
+  if (def.family === "passing" || def.family === "qb" || def.family === "fantasy" || def.id === "rec_yds" || def.id === "rec" || def.id === "rec_td") {
     factors.push({
       label: "Pass yards allowed",
       ...factor(snap.passYds, pools.passYds, {
@@ -164,7 +164,7 @@ function matchupAdjustment(bundle, def) {
       ...factor(snap.explosivenessPass, pools.explosivenessPass, { cap: 0.07 }),
     });
   }
-  if (def.family === "rushing" || def.id === "rush_rec_yds" || def.id === "pass_rush_yds" || def.id === "rush_td") {
+  if (def.family === "rushing" || def.family === "fantasy" || def.id === "rush_rec_yds" || def.id === "pass_rush_yds" || def.id === "rush_td") {
     factors.push({
       label: "Rush yards allowed",
       ...factor(snap.rushYds, pools.rushYds, {

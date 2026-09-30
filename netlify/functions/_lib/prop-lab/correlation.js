@@ -130,6 +130,16 @@ const RELATIONSHIPS = [
     explanation: "The combo line is the sum of the component yardage outcomes.",
   },
   {
+    id: "same_player_fantasy",
+    a: ["fantasy_score"],
+    b: ["pass_yds", "rush_yds", "rec_yds", "rec", "pass_td", "rush_td", "rec_td", "pass_rush_yds", "rush_rec_yds", "total_td"],
+    samePlayer: true,
+    corr: 0.78,
+    sign: "positive",
+    label: "Fantasy score moves with the same player's volume and scoring props",
+    explanation: "Fantasy score is a weighted mix of yards, TDs, receptions, and ints — stacking it with those legs is heavily correlated.",
+  },
+  {
     id: "same_player_kicking",
     a: ["fg_made"],
     b: ["kicking_pts"],
