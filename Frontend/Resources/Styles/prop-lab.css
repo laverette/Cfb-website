@@ -476,6 +476,28 @@ body.power-rankings-body {
   font-variant-numeric: tabular-nums;
 }
 
+.prop-hit-dist {
+  margin-top: 0.65rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid rgba(245, 222, 179, 0.12);
+}
+
+.prop-hit-dist .prop-modes-head {
+  margin-bottom: 0.35rem;
+}
+
+.prop-hit-dist .is-all strong {
+  color: #e8c547;
+}
+
+.prop-leg-hits {
+  margin: 0.55rem 0 0.15rem;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid rgba(245, 222, 179, 0.12);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.18);
+}
+
 @media (min-width: 480px) {
   .prop-modes-grid {
     grid-template-columns: 1fr 1fr;

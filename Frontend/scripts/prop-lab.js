@@ -770,7 +770,9 @@
       const rows = (mode.payouts || [])
         .map(
           (row) =>
-            `<li><span>${escapeHtml(row.label)}</span><strong>${escapeHtml(pct(row.p))}</strong></li>`
+            `<li><span>${escapeHtml(row.label)}</span><strong title="Chance of exactly ${row.hits} hit${
+              row.hits === 1 ? "" : "s"
+            }">${escapeHtml(pctTogether(row.p))}</strong></li>`
         )
         .join("");
       return `<article class="prop-mode-card${recommended ? " is-recommended" : ""}">
@@ -783,6 +785,30 @@
         ${rows ? `<ul class="prop-mode-payouts">${rows}</ul>` : ""}
       </article>`;
     };
+    const hitProbs = playModes?.hitProbs;
+    const hitN =
+      playModes?.power?.n || playModes?.flex?.n || (Array.isArray(hitProbs) ? hitProbs.length - 1 : 0);
+    const hitDistRows =
+      Array.isArray(hitProbs) && hitN >= 2
+        ? hitProbs
+            .map(
+              (p, k) =>
+                `<li class="${k === hitN ? "is-all" : ""}"><span>${k}/${hitN} hit${
+                  k === 1 ? "" : "s"
+                }</span><strong>${escapeHtml(pctTogether(p))}</strong></li>`
+            )
+            .join("")
+        : "";
+    const legHitPct = evals
+      .map((e) => {
+        const name = e.player?.name || e.stat?.short || "Leg";
+        const short = e.stat?.short || e.stat?.label || "";
+        const label = short ? `${name} ${short}` : name;
+        return `<li><span>${escapeHtml(label)} ${escapeHtml(String(e.line ?? ""))} ${escapeHtml(
+          (e.side || "").toUpperCase()
+        )}</span><strong>${escapeHtml(pct(e.pHit))}</strong></li>`;
+      })
+      .join("");
     const modesHtml =
       playModes?.available && (playModes.power || playModes.flex)
         ? `<div class="prop-modes">
@@ -800,6 +826,16 @@
               ${modeCard(playModes.power, playModes.recommend === "power")}
               ${modeCard(playModes.flex, playModes.recommend === "flex")}
             </div>
+            ${
+              hitDistRows
+                ? `<div class="prop-hit-dist">
+                    <div class="prop-modes-head"><strong>Hit likelihood</strong>
+                      <button type="button" class="prop-info" title="Modeled chance of exactly k legs hitting on this card (correlation-adjusted when available).">i</button>
+                    </div>
+                    <ul class="prop-mode-payouts">${hitDistRows}</ul>
+                  </div>`
+                : ""
+            }
           </div>`
         : "";
     host.className = "";
@@ -838,6 +874,16 @@
       </div>
       ${togetherNote ? `<p class="prop-together-note">${togetherNote}</p>` : ""}
       ${riskSafetyNote ? `<p class="prop-together-note">${escapeHtml(riskSafetyNote)}</p>` : ""}
+      ${
+        legHitPct
+          ? `<div class="prop-hit-dist prop-leg-hits">
+              <div class="prop-modes-head"><strong>Per-leg hit %</strong>
+                <button type="button" class="prop-info" title="Each leg’s modeled chance of hitting on its own. The pass rate above is the chance they all hit together.">i</button>
+              </div>
+              <ul class="prop-mode-payouts">${legHitPct}</ul>
+            </div>`
+          : ""
+      }
       <div class="prop-analysis-extra" id="summaryExtra">
         <details ${state.summaryOpen ? "open" : ""} data-extra="value">
           <summary>Why this call</summary>
