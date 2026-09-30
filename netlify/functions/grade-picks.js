@@ -1,9 +1,13 @@
 /**
  * Scheduled: grade weekly picks when games finalize.
  * Also callable manually with ?secret=CRON_SECRET for testing.
+ *
+ * ALWAYS runs in background execution context → CFBD is structurally blocked.
  */
 const { json } = require("./_http");
 const { runGradePicks } = require("./_lib/grade-picks");
+const { withExecutionContext } = require("./_lib/execution-context");
+const { cfbdUsageSnapshot } = require("./_lib/cfbd-guard");
 
 function isAuthorized(event) {
   const cronSecret = (process.env.CRON_SECRET && String(process.env.CRON_SECRET).trim()) || "";
@@ -31,23 +35,37 @@ exports.handler = async (event) => {
       ? Number(qs.weekId)
       : null;
 
-  try {
-    const result = await runGradePicks({
-      weekId: Number.isFinite(weekId) ? weekId : null,
-      force: qs.force === "1" || qs.force === "true",
-    });
-    console.log("grade-picks:", JSON.stringify(result));
-    return json(200, result);
-  } catch (err) {
-    console.error("grade-picks:", err);
-    return json(500, {
-      ok: false,
-      error: err.message || "Internal server error",
-      code: err.code || null,
-    });
-  }
+  return withExecutionContext(
+    "background",
+    async () => {
+      try {
+        const result = await runGradePicks({
+          weekId: Number.isFinite(weekId) ? weekId : null,
+          force: qs.force === "1" || qs.force === "true",
+        });
+        const usage = cfbdUsageSnapshot();
+        console.log(
+          "grade-picks:",
+          JSON.stringify({ ...result, cfbdAllowed: usage.allowed, cfbdBlocked: usage.blocked })
+        );
+        return json(200, {
+          ...result,
+          cfbd: { allowed: usage.allowed, blocked: usage.blocked },
+        });
+      } catch (err) {
+        console.error("grade-picks:", err);
+        return json(500, {
+          ok: false,
+          error: err.message || "Internal server error",
+          code: err.code || null,
+        });
+      }
+    },
+    { caller: "grade-picks-cron" }
+  );
 };
 
 exports.config = {
-  schedule: "*/15 * * * *",
+  // Hourly is enough for finals grading. Previous */15 burned CFBD quota.
+  schedule: "0 * * * *",
 };

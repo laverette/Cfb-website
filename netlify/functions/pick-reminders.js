@@ -2,15 +2,11 @@
  * Scheduled: Saturday ~9 AM Central pick-deadline reminder emails.
  * Also callable manually with ?secret=CRON_SECRET for testing.
  *
- * Test a single inbox (does not email anyone else):
- *   /api/cron/pick-reminders?secret=CRON_SECRET&to=you@example.com&force=1
- *
- * Cron fires at 14:00 and 15:00 UTC on Saturdays so both CDT (UTC-5) and
- * CST (UTC-6) map to 9 AM America/Chicago. The handler only sends during
- * the local 9 AM hour.
+ * Runs in background context (no CFBD — reminders don't need it).
  */
 const { json } = require("./_http");
 const { runPickReminders } = require("./_lib/pick-reminders");
+const { withExecutionContext } = require("./_lib/execution-context");
 
 function isAuthorized(event) {
   const cronSecret = (process.env.CRON_SECRET && String(process.env.CRON_SECRET).trim()) || "";
@@ -37,18 +33,24 @@ exports.handler = async (event) => {
   const force = qs.force === "1" || qs.force === "true";
   const toEmail = qs.to || qs.email || null;
 
-  try {
-    const result = await runPickReminders({ dryRun, force, toEmail });
-    console.log("pick-reminders:", JSON.stringify(result));
-    return json(200, result);
-  } catch (err) {
-    console.error("pick-reminders:", err);
-    return json(500, {
-      ok: false,
-      error: err.message || "Internal server error",
-      code: err.code || null,
-    });
-  }
+  return withExecutionContext(
+    "background",
+    async () => {
+      try {
+        const result = await runPickReminders({ dryRun, force, toEmail });
+        console.log("pick-reminders:", JSON.stringify(result));
+        return json(200, result);
+      } catch (err) {
+        console.error("pick-reminders:", err);
+        return json(500, {
+          ok: false,
+          error: err.message || "Internal server error",
+          code: err.code || null,
+        });
+      }
+    },
+    { caller: "pick-reminders-cron" }
+  );
 };
 
 exports.config = {

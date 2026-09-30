@@ -18,6 +18,8 @@ const {
   forcesEspn,
   forcesCfbd,
 } = require("./provider-mode");
+const { policyAllowsCfbd } = require("../../cfbd-guard");
+const { isBackgroundContext } = require("../../execution-context");
 const {
   shouldFallbackToEspn,
   isRateLimitError,
@@ -266,7 +268,13 @@ async function getPlayerGameLog({
     const stale = cachedHit?.stale ? cachedHit : null;
     let cfbdErr = null;
 
-    if (allowsCfbd(providerMode) && !forcesEspn(providerMode) && !isCfbdCircuitOpen()) {
+    if (
+      allowsCfbd(providerMode) &&
+      policyAllowsCfbd("playerStats") &&
+      !isBackgroundContext() &&
+      !forcesEspn(providerMode) &&
+      !isCfbdCircuitOpen()
+    ) {
       try {
         dataLog("PlayerData", `CFBD request: ${label}`);
         const fromCfbd = await loadFromCfbd(cfbd, {
@@ -436,7 +444,14 @@ async function getTeamScheduleData({ team, season, cfbd, signal, mode } = {}) {
     };
   }
 
-  if (allowsCfbd(providerMode) && !forcesEspn(providerMode) && !isCfbdCircuitOpen() && cfbd) {
+  if (
+    allowsCfbd(providerMode) &&
+    policyAllowsCfbd("schedule") &&
+    !isBackgroundContext() &&
+    !forcesEspn(providerMode) &&
+    !isCfbdCircuitOpen() &&
+    cfbd
+  ) {
     try {
       assertCfbdAvailable();
       const raw = await cfbd.get("/games", {

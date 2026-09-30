@@ -3,23 +3,14 @@
  * or ?season=2026&week=1
  *
  * Live CFB scores for the weekly picks page.
- * Prefers ESPN scoreboard (real-time), falls back to CFBD /games + /scoreboard.
+ * ESPN ONLY — never calls CollegeFootballData (polling-safe).
  */
 const { json } = require("./_http");
 const { scheduleGradeFromLiveGames } = require("./_lib/grade-picks");
-const { recordApiUsage } = require("./_lib/api-usage");
+const { withExecutionContext } = require("./_lib/execution-context");
 
 const ESPN_SB =
   "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard";
-const CFBD_BASE = "https://api.collegefootballdata.com";
-
-/** Short in-memory cache so polling /api/live-scores does not re-hit CFBD every time. */
-const cfbdGamesCache = new Map(); // key -> { at, games }
-const CFBD_GAMES_TTL_MS = 5 * 60 * 1000;
-
-function readCfbdKey() {
-  return (process.env.CFBD_API_KEY && String(process.env.CFBD_API_KEY).trim()) || "";
-}
 
 function ymdFromDate(d) {
   const y = d.getUTCFullYear();
@@ -35,7 +26,6 @@ function parseDatesParam(q) {
       .map((s) => s.trim().replace(/-/g, ""))
       .filter((s) => /^\d{8}$/.test(s));
   }
-  // Default: yesterday / today / tomorrow in ET-ish window (UTC±)
   const now = new Date();
   const out = [];
   for (let i = -1; i <= 1; i += 1) {
@@ -105,7 +95,6 @@ function normalizeEspnEvent(evt) {
     /status_scheduled|scheduled|pregame|pre-game/i.test(detail);
 
   let statusRaw = statusName || detail || statusState;
-  // Never label pregame as Q0 — ESPN uses period 0 before kickoff.
   if (!completed && !scheduled && statusState === "in") {
     if (Number.isFinite(period) && period > 0 && clock) statusRaw = `Q${period} ${clock}`;
     else if (/halftime/i.test(detail)) statusRaw = "Halftime";
@@ -149,7 +138,6 @@ function liveScoreKey(g) {
   return `n:${a}@${h}`;
 }
 
-/** Prefer finals / in-progress scores over stale pregame stubs from the other source. */
 function preferLiveScore(a, b) {
   if (!a) return b;
   if (!b) return a;
@@ -174,7 +162,6 @@ function preferLiveScore(a, b) {
 
 async function fetchEspnScores(dates) {
   const byKey = new Map();
-  // Current board + every unique slate date (weeks often span 3+ days).
   const uniqueDates = [...new Set((dates || []).filter((d) => /^\d{8}$/.test(String(d))))].slice(
     0,
     7
@@ -206,79 +193,6 @@ async function fetchEspnScores(dates) {
   return Array.from(byKey.values());
 }
 
-function normalizeCfbdGame(g) {
-  if (!g || typeof g !== "object") return null;
-  if (g.homeTeam && typeof g.homeTeam === "object") {
-    return {
-      id: g.id != null ? Number(g.id) : null,
-      source: "cfbd-scoreboard",
-      awayTeam: g.awayTeam?.name || g.awayTeam?.school || null,
-      homeTeam: g.homeTeam?.name || g.homeTeam?.school || null,
-      awayEspnId: toInt(g.awayTeam?.id),
-      homeEspnId: toInt(g.homeTeam?.id),
-      awayPoints: toInt(g.awayTeam?.points),
-      homePoints: toInt(g.homeTeam?.points),
-      completed: /final|completed/i.test(String(g.status || "")),
-      statusRaw: g.status || null,
-      period: g.period ?? null,
-      clock: g.clock || null,
-      startDate: g.startDate || g.start_date || null,
-    };
-  }
-  return {
-    id: g.id != null ? Number(g.id) : null,
-    source: "cfbd-games",
-    awayTeam: g.away_team ?? g.awayTeam ?? null,
-    homeTeam: g.home_team ?? g.homeTeam ?? null,
-    awayEspnId: toInt(g.away_id ?? g.awayId),
-    homeEspnId: toInt(g.home_id ?? g.homeId),
-    awayPoints: toInt(g.away_points ?? g.awayPoints),
-    homePoints: toInt(g.home_points ?? g.homePoints),
-    completed: Boolean(g.completed),
-    statusRaw: g.status || null,
-    period: g.period ?? null,
-    clock: g.clock || null,
-    startDate: g.start_date ?? g.startDate ?? null,
-  };
-}
-
-async function fetchCfbdScores({ season, week }) {
-  const key = readCfbdKey();
-  if (!key) return [];
-  // Opt out: set CFBD_LIVE_SCORES=0 in Netlify to stop live-score CFBD usage entirely.
-  const enabled = String(process.env.CFBD_LIVE_SCORES || "1").trim();
-  if (enabled === "0" || enabled.toLowerCase() === "false") return [];
-
-  // /scoreboard needs Patreon Tier 1+ and still burns quota on 401 — never call it.
-  // Only /games when we know the slate (used for finals / grading fill-in).
-  if (!season || !week) return [];
-
-  const cacheKey = `${season}:${week}`;
-  const cached = cfbdGamesCache.get(cacheKey);
-  if (cached && Date.now() - cached.at < CFBD_GAMES_TTL_MS) {
-    return cached.games;
-  }
-
-  const headers = { Authorization: `Bearer ${key}` };
-  const byId = new Map();
-
-  try {
-    const url = `${CFBD_BASE}/games?year=${encodeURIComponent(season)}&week=${encodeURIComponent(week)}&seasonType=regular`;
-    const games = await fetchJson(url, headers);
-    recordApiUsage({ feature: "live-scores", source: "cfbd", calls: 1 });
-    (Array.isArray(games) ? games : []).forEach((raw) => {
-      const g = normalizeCfbdGame(raw);
-      if (g && Number.isFinite(g.id)) byId.set(g.id, g);
-    });
-  } catch (err) {
-    console.warn("cfbd games", err.status || err.message);
-  }
-
-  const out = Array.from(byId.values());
-  cfbdGamesCache.set(cacheKey, { at: Date.now(), games: out });
-  return out;
-}
-
 exports.handler = async (event) => {
   if (event.httpMethod && event.httpMethod !== "GET") {
     return json(405, { error: "Method not allowed" });
@@ -289,72 +203,60 @@ exports.handler = async (event) => {
   const season = q.season != null && q.season !== "" ? Number(q.season) : null;
   const week = q.week != null && q.week !== "" ? Number(q.week) : null;
 
-  try {
-    const [espn, cfbd] = await Promise.all([
-      fetchEspnScores(dates),
-      fetchCfbdScores({
-        season: Number.isFinite(season) ? season : null,
-        week: Number.isFinite(week) ? week : null,
-      }),
-    ]);
-
-    // Merge ESPN + CFBD; prefer completed / better score rows (do not let a
-    // stale ESPN stub block a CFBD final — that left late games ungraded).
-    const byKey = new Map();
-    const push = (g) => {
-      if (!g) return;
-      const key = liveScoreKey(g);
-      byKey.set(key, preferLiveScore(byKey.get(key), g));
-    };
-    espn.forEach(push);
-    cfbd.forEach(push);
-    const merged = Array.from(byKey.values());
-
-    const skipGrade =
-      q.lite === "1" ||
-      q.lite === "true" ||
-      q.skipGrade === "1" ||
-      q.skipGrade === "true";
-
-    // Grade finals before the response returns so Netlify doesn't freeze the work.
-    // Budget enough time to grade a full slate (12 games × many picks) — 8s was
-    // aborting mid-write and leaving the week stuck pending after finals.
-    if (!skipGrade) {
+  // Live scores + inline grading are unattended/polling-safe → background context
+  // so any accidental CFBD import is structurally blocked.
+  return withExecutionContext(
+    "background",
+    async () => {
       try {
-        await Promise.race([
-          scheduleGradeFromLiveGames(merged),
-          new Promise((resolve) => setTimeout(resolve, 20_000)),
-        ]);
-      } catch (err) {
-        console.warn("live-scores grade:", err.message || err);
-      }
-    }
+        const espn = await fetchEspnScores(dates);
+        const merged = espn;
 
-    return json(
-      200,
-      {
-        games: merged,
-        // Unmerged feeds so clients can A/B which source is working.
-        espn,
-        cfbd,
-        meta: {
-          dates,
-          season: Number.isFinite(season) ? season : null,
-          week: Number.isFinite(week) ? week : null,
-          espnCount: espn.length,
-          cfbdCount: cfbd.length,
-          graded: !skipGrade,
-        },
-      },
-      {
-        "cache-control": "public, max-age=20, s-maxage=20",
+        const skipGrade =
+          q.lite === "1" ||
+          q.lite === "true" ||
+          q.skipGrade === "1" ||
+          q.skipGrade === "true";
+
+        if (!skipGrade) {
+          try {
+            await Promise.race([
+              scheduleGradeFromLiveGames(merged),
+              new Promise((resolve) => setTimeout(resolve, 20_000)),
+            ]);
+          } catch (err) {
+            console.warn("live-scores grade:", err.message || err);
+          }
+        }
+
+        return json(
+          200,
+          {
+            games: merged,
+            espn,
+            cfbd: [],
+            meta: {
+              dates,
+              season: Number.isFinite(season) ? season : null,
+              week: Number.isFinite(week) ? week : null,
+              espnCount: espn.length,
+              cfbdCount: 0,
+              cfbdDisabled: true,
+              graded: !skipGrade,
+            },
+          },
+          {
+            "cache-control": "public, max-age=20, s-maxage=20",
+          }
+        );
+      } catch (err) {
+        console.error("live-scores:", err);
+        return json(500, {
+          error: "Failed to load live scores",
+          details: err && err.message ? String(err.message).slice(0, 200) : "unknown",
+        });
       }
-    );
-  } catch (err) {
-    console.error("live-scores:", err);
-    return json(500, {
-      error: "Failed to load live scores",
-      details: err && err.message ? String(err.message).slice(0, 200) : "unknown",
-    });
-  }
+    },
+    { caller: "live-scores" }
+  );
 };

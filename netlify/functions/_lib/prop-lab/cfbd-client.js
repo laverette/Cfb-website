@@ -1,6 +1,5 @@
 const CFBD_BASE = "https://api.collegefootballdata.com";
 const { cached } = require("./cache");
-const { recordApiUsage } = require("../api-usage");
 const {
   assertCfbdAvailable,
   isRateLimitError,
@@ -9,6 +8,8 @@ const {
   cfbdCircuitInfo,
 } = require("./data/circuit-breaker");
 const { dataLog } = require("./data/log");
+const { assertCfbdAllowed, recordCfbdCall } = require("../cfbd-guard");
+const { getExecutionCaller, getExecutionContext } = require("../execution-context");
 
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
@@ -49,10 +50,12 @@ function createUsage() {
   return { requests: 0, cacheHits: 0, cacheMisses: 0, paths: [] };
 }
 
-function createClient(apiKey, { signal, usage } = {}) {
+function createClient(apiKey, { signal, usage, caller } = {}) {
   const log = usage || createUsage();
+  const defaultCaller = caller || getExecutionCaller() || "prop-lab";
 
   async function rawGet(path, query) {
+    assertCfbdAllowed({ caller: defaultCaller, endpoint: path, feature: "prop-lab" });
     assertCfbdAvailable();
     const url = new URL(CFBD_BASE + path);
     for (const [k, v] of Object.entries(query || {})) {
@@ -74,7 +77,12 @@ function createClient(apiKey, { signal, usage } = {}) {
       wrapped.cause = err;
       throw wrapped;
     }
-    recordApiUsage({ feature: "prop-lab", source: "cfbd", calls: 1 });
+    recordCfbdCall({
+      caller: defaultCaller,
+      endpoint: path,
+      feature: "prop-lab",
+      cache: "MISS",
+    });
     if (!resp.ok) {
       const text = await resp.text().catch(() => "");
       const err = new Error(`CFBD ${path} failed (${resp.status}): ${text.slice(0, 180)}`);
@@ -84,12 +92,17 @@ function createClient(apiKey, { signal, usage } = {}) {
         const trip = tripCfbdCircuit(err, resp.headers);
         dataLog("PlayerData", `CFBD circuit open for ${Math.ceil(trip.cooldownMs / 1000)}s`);
       }
+      if (resp.status === 401 || resp.status === 403 || resp.status === 429) {
+        err.noRetry = true;
+      }
       throw err;
     }
     return resp.json();
   }
 
   async function get(path, query, opts = {}) {
+    // Cache hits are allowed in any context (no upstream CFBD call).
+    // Network fetches go through rawGet → assertCfbdAllowed.
     if (isCfbdCircuitOpen() && opts.bypassCircuit !== true) {
       assertCfbdAvailable();
     }
@@ -98,7 +111,12 @@ function createClient(apiKey, { signal, usage } = {}) {
     const persist = opts.persist !== false;
     const hit = await cached(key, ttl, () => rawGet(path, query), { persist });
     if (hit.source === "network") log.cacheMisses += 1;
-    else log.cacheHits += 1;
+    else {
+      log.cacheHits += 1;
+      if (String(process.env.LOG_CFBD_CALLS || "") === "true") {
+        dataLog("CFBD", `cache HIT ${path} context=${getExecutionContext()}`);
+      }
+    }
     return hit.value;
   }
 
@@ -106,8 +124,12 @@ function createClient(apiKey, { signal, usage } = {}) {
     try {
       return await get(path, query, opts);
     } catch (err) {
-      if (err?.code === "CFBD_CIRCUIT_OPEN" || isRateLimitError(err)) {
-        // Propagate rate-limit awareness without throwing into every caller.
+      if (
+        err?.code === "CFBD_CIRCUIT_OPEN" ||
+        err?.code === "CFBD_BACKGROUND_BLOCKED" ||
+        err?.code === "CFBD_DAILY_LIMIT" ||
+        isRateLimitError(err)
+      ) {
         log.circuitOpen = true;
       }
       return null;
@@ -123,4 +145,4 @@ function createClient(apiKey, { signal, usage } = {}) {
   };
 }
 
-module.exports = { createClient, createUsage, ttlFor, cacheKey };
+module.exports = { createClient, createUsage, ttlFor, cacheKey, CFBD_BASE };

@@ -4,11 +4,18 @@
  * Frontend calls:
  *   /.netlify/functions/cfbd?path=/games&year=2026&week=1&seasonType=regular
  *
- * The `path` param chooses the CFBD endpoint path; all other query params are forwarded.
+ * Interactive only. Background context is blocked by cfbd-guard.
  * API key is ONLY read from process.env.CFBD_API_KEY and is never returned to the browser.
  */
 const CFBD_BASE_URL = "https://api.collegefootballdata.com";
 const { featureFromRequest, recordApiUsage } = require("./_lib/api-usage");
+const {
+  assertCfbdAllowed,
+  recordCfbdCall,
+  CfbdBackgroundUsageError,
+  CfbdDailyLimitError,
+} = require("./_lib/cfbd-guard");
+const { withExecutionContext } = require("./_lib/execution-context");
 
 const ALLOWED_PREFIXES = [
   "/games",
@@ -41,19 +48,18 @@ const ALLOWED_PREFIXES = [
 
 const DEFAULT_TIMEOUT_MS = 12_000;
 
-/** Process-local response cache — Netlify warm instances reuse this between invokes. */
-const responseCache = new Map(); // key -> { at, statusCode, headers, body }
+const responseCache = new Map();
 const MAX_CACHE_ENTRIES = 80;
 
 function cacheTtlMs(cfbdPath) {
   const p = String(cfbdPath || "");
-  if (p.startsWith("/teams")) return 6 * 60 * 60 * 1000; // 6h
+  if (p.startsWith("/teams")) return 6 * 60 * 60 * 1000;
   if (p.startsWith("/calendar") || p.startsWith("/conferences")) return 12 * 60 * 60 * 1000;
-  if (p === "/games" || p.startsWith("/games")) return 5 * 60 * 1000; // 5m (scores can change)
+  if (p === "/games" || p.startsWith("/games")) return 5 * 60 * 1000;
   if (p.startsWith("/records") || p.startsWith("/roster") || p.startsWith("/ratings")) {
     return 30 * 60 * 1000;
   }
-  if (p.startsWith("/scoreboard") || p.startsWith("/live")) return 0; // never cache live
+  if (p.startsWith("/scoreboard") || p.startsWith("/live")) return 0;
   return 10 * 60 * 1000;
 }
 
@@ -96,21 +102,12 @@ function normalizePath(input) {
 }
 
 function isSafeCfbdPath(path) {
-  // Reject absolute URLs or protocol-relative URLs
   if (/^https?:\/\//i.test(path) || /^\/\//.test(path)) return false;
-
-  // Reject traversal / backslashes / embedded querystring/fragment
   if (path.includes("..")) return false;
   if (path.includes("\\")) return false;
   if (path.includes("?") || path.includes("#")) return false;
-
-  // Reject any percent-encoded trickery; callers should not need encoding in the path.
   if (/%[0-9a-f]{2}/i.test(path)) return false;
-
-  // Allow only URL-safe path chars (no spaces, quotes, etc.)
   if (!/^\/[A-Za-z0-9/_\.-]*$/.test(path)) return false;
-
-  // Must begin with a known CFBD category/prefix
   return ALLOWED_PREFIXES.some((prefix) => path === prefix || path.startsWith(`${prefix}/`));
 }
 
@@ -129,6 +126,12 @@ exports.handler = async (event) => {
     return json(405, { error: "Method not allowed. Only GET is supported right now." }, { allow: "GET" });
   }
 
+  return withExecutionContext("interactive", () => handleCfbdProxy(event), {
+    caller: "cfbd-proxy",
+  });
+};
+
+async function handleCfbdProxy(event) {
   const apiKey = process.env.CFBD_API_KEY;
   if (!apiKey) {
     return json(500, {
@@ -175,6 +178,18 @@ exports.handler = async (event) => {
     };
   }
 
+  try {
+    assertCfbdAllowed({ caller: "cfbd-proxy", endpoint: cfbdPath, feature: usageFeature });
+  } catch (err) {
+    if (err instanceof CfbdBackgroundUsageError || err instanceof CfbdDailyLimitError) {
+      return json(err instanceof CfbdDailyLimitError ? 429 : 403, {
+        error: err.message,
+        code: err.code,
+      });
+    }
+    throw err;
+  }
+
   const controller = new AbortController();
   const timeoutMs = Number(event.queryStringParameters?.timeoutMs) || DEFAULT_TIMEOUT_MS;
   const timeout = setTimeout(() => controller.abort(), Math.min(Math.max(timeoutMs, 1_000), 30_000));
@@ -189,14 +204,18 @@ exports.handler = async (event) => {
       signal: controller.signal,
     });
 
+    recordCfbdCall({
+      caller: "cfbd-proxy",
+      endpoint: cfbdPath,
+      feature: usageFeature,
+      cache: "MISS",
+    });
+
     const contentType = resp.headers.get("content-type") || "";
     const isJson = contentType.toLowerCase().includes("application/json");
     const payload = isJson ? await resp.json().catch(() => null) : await resp.text();
 
     if (!resp.ok) {
-      // Preserve useful upstream errors (401/403/404/429/etc) — do not cache errors.
-      // Still count toward CFBD quota when the upstream responded.
-      await recordApiUsage({ feature: usageFeature, source: "cfbd", calls: 1 });
       return json(resp.status, {
         error: "CFBD upstream error.",
         status: resp.status,
@@ -213,7 +232,6 @@ exports.handler = async (event) => {
     };
     const body = isJson ? JSON.stringify(payload) : String(payload);
     cacheSet(cacheKey, { at: Date.now(), ttl, statusCode: 200, headers, body });
-    await recordApiUsage({ feature: usageFeature, source: "cfbd", calls: 1 });
 
     return {
       statusCode: 200,
@@ -237,5 +255,4 @@ exports.handler = async (event) => {
   } finally {
     clearTimeout(timeout);
   }
-};
-
+}

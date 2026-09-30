@@ -482,18 +482,24 @@ async function resolveOpponent({
     debug.steps.push(`team_schedule error: ${err.message}`);
   }
 
-  // 4) CFBD fallback
-  const cfbdHit = await resolveFromCfbd({
-    team,
-    season: seasonYear,
-    week: weekNum,
-    cfbd,
-  });
-  if (cfbdHit?.status === "ok" || cfbdHit?.status === "bye") {
-    debug.steps.push(`cfbd ${cfbdHit.status} → ${cfbdHit.opponent?.name || "bye"}`);
-    return { ...cfbdHit, debug };
+  // 4) CFBD fallback — interactive Prop Lab only (never background)
+  const { policyAllowsCfbd } = require("../../cfbd-guard");
+  const { isBackgroundContext } = require("../../execution-context");
+  if (!isBackgroundContext() && policyAllowsCfbd("schedule") && cfbd) {
+    const cfbdHit = await resolveFromCfbd({
+      team,
+      season: seasonYear,
+      week: weekNum,
+      cfbd,
+    });
+    if (cfbdHit?.status === "ok" || cfbdHit?.status === "bye") {
+      debug.steps.push(`cfbd ${cfbdHit.status} → ${cfbdHit.opponent?.name || "bye"}`);
+      return { ...cfbdHit, debug };
+    }
+    debug.steps.push("cfbd miss");
+  } else {
+    debug.steps.push("cfbd skipped (background or policy)");
   }
-  debug.steps.push("cfbd miss");
 
   dataLog("OpponentResolver", "unresolved", debug);
   return {

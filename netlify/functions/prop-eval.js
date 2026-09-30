@@ -26,6 +26,8 @@ const {
 const propStore = require("./_lib/prop-lab/store");
 const { backtestOne, calibrationBuckets, metricsByStat, persistBacktests } = require("./_lib/prop-lab/backtest");
 const { recordPredictions } = require("./_lib/prop-lab/grading");
+const { withExecutionContext } = require("./_lib/execution-context");
+const { cfbdUsageSnapshot } = require("./_lib/cfbd-guard");
 
 function readCfbdKey() {
   return (process.env.CFBD_API_KEY && String(process.env.CFBD_API_KEY).trim()) || "";
@@ -98,6 +100,14 @@ function parseAuthUser(event) {
 }
 
 exports.handler = async (event) => {
+  return withExecutionContext(
+    "interactive",
+    () => handlePropEval(event),
+    { caller: "prop-eval" }
+  );
+};
+
+async function handlePropEval(event) {
   const method = (event.httpMethod || "GET").toUpperCase();
   if (method === "OPTIONS") return json(204, {});
   if (method !== "GET" && method !== "POST") {

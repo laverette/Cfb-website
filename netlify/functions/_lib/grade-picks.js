@@ -14,11 +14,9 @@ const {
   addPickToBucket,
 } = require("../db");
 
-const CFBD_BASE = "https://api.collegefootballdata.com";
 const GRADE_THROTTLE_MS = 60_000;
 let lastGradeRunAt = 0;
 
-const { recordApiUsage } = require("./api-usage");
 const {
   isEspnEventId,
   toInt: espnToInt,
@@ -26,10 +24,6 @@ const {
   fetchEspnResultsForGames,
   fetchEspnSummaryResult,
 } = require("./espn-game-results");
-
-function readCfbdKey() {
-  return (process.env.CFBD_API_KEY && String(process.env.CFBD_API_KEY).trim()) || "";
-}
 
 function toInt(v) {
   return espnToInt(v);
@@ -209,22 +203,6 @@ function finalFromMatched(match) {
   return final;
 }
 
-async function fetchJson(url, headers = {}) {
-  const resp = await fetch(url, {
-    headers: {
-      accept: "application/json",
-      "user-agent": "CFB-GradePicks/1.0",
-      ...headers,
-    },
-  });
-  if (!resp.ok) {
-    const err = new Error(`HTTP ${resp.status}`);
-    err.status = resp.status;
-    throw err;
-  }
-  return resp.json();
-}
-
 function liveScoreKey(g) {
   // Unordered name key so ESPN + CFBD rows for the same game compete in preferLiveScore
   // (team id systems differ — CFBD ids are stored in our espn_id columns).
@@ -296,81 +274,9 @@ async function fetchLiveScoresForWeek(week, games = []) {
     console.warn("[Weekly Picks] ESPN result fetch failed:", err.message || err);
   }
 
-  // Legacy CFBD week board for historical CFBD-selected games only.
-  const key = readCfbdKey();
-  const hasLegacyCfbdGames = (games || []).some(
-    (g) => toInt(g.cfbd_game_id) != null && !isEspnEventId(g.cfbd_game_id)
-  );
-  if (key && hasLegacyCfbdGames && Number.isFinite(season) && Number.isFinite(weekNum)) {
-    const headers = { Authorization: `Bearer ${key}` };
-    const weekCandidates = [
-      ...new Set(
-        [weekNum - 1, weekNum, weekNum + 1].filter((w) => Number.isFinite(w) && w >= 0)
-      ),
-    ];
-    for (const w of weekCandidates) {
-      try {
-        const cfbdGames = await fetchJson(
-          `${CFBD_BASE}/games?year=${season}&week=${w}&seasonType=regular`,
-          headers
-        );
-        recordApiUsage({ feature: "grade-picks", source: "cfbd", calls: 1 });
-        (Array.isArray(cfbdGames) ? cfbdGames : []).forEach((g) => {
-          push({
-            id: g.id != null ? Number(g.id) : null,
-            source: "cfbd",
-            awayTeam: g.awayTeam || g.away_team,
-            homeTeam: g.homeTeam || g.home_team,
-            awayEspnId: toInt(g.awayId ?? g.away_id),
-            homeEspnId: toInt(g.homeId ?? g.home_id),
-            awayPoints: toInt(g.awayPoints ?? g.away_points),
-            homePoints: toInt(g.homePoints ?? g.home_points),
-            completed: Boolean(g.completed),
-            statusRaw: g.completed ? "final" : g.status || "",
-          });
-        });
-      } catch (err) {
-        console.warn("grade-picks cfbd:", err.message || err);
-      }
-    }
-
-    // Direct CFBD id lookups — only for real CFBD ids (never ESPN event ids).
-    const scoresNow = () => Array.from(byKey.values());
-    const missingFinal = (games || []).filter((g) => {
-      if (g.is_completed) return false;
-      const cfbdId = toInt(g.cfbd_game_id);
-      if (!cfbdId || isEspnEventId(cfbdId)) return false;
-      return finalFromMatched(findLiveForGame(g, scoresNow())) == null;
-    });
-    await Promise.all(
-      missingFinal.slice(0, 24).map(async (g) => {
-        const cfbdId = toInt(g.cfbd_game_id);
-        try {
-          const rows = await fetchJson(
-            `${CFBD_BASE}/games?id=${encodeURIComponent(cfbdId)}`,
-            headers
-          );
-          recordApiUsage({ feature: "grade-picks", source: "cfbd", calls: 1 });
-          const row = Array.isArray(rows) ? rows[0] : rows;
-          if (!row) return;
-          push({
-            id: row.id != null ? Number(row.id) : cfbdId,
-            source: "cfbd",
-            awayTeam: row.awayTeam || row.away_team,
-            homeTeam: row.homeTeam || row.home_team,
-            awayEspnId: toInt(row.awayId ?? row.away_id),
-            homeEspnId: toInt(row.homeId ?? row.home_id),
-            awayPoints: toInt(row.awayPoints ?? row.away_points),
-            homePoints: toInt(row.homePoints ?? row.home_points),
-            completed: Boolean(row.completed),
-            statusRaw: row.completed ? "final" : row.status || "",
-          });
-        } catch (err) {
-          console.warn("grade-picks cfbd id:", cfbdId, err.message || err);
-        }
-      })
-    );
-  }
+  // CFBD intentionally removed from automatic grading.
+  // Background/cron must stay ESPN-only. Legacy CFBD-id games still grade via
+  // ESPN event/name/team-id matching and per-event summary fallback.
 
   // Attach event-id index on the array for syncWeekGrades direct lookup.
   const list = Array.from(byKey.values());
@@ -807,21 +713,27 @@ async function runGradePicks({ weekId = null, liveGames = null, force = false } 
 }
 
 async function scheduleGradeFromLiveGames(liveGames) {
-  try {
-    const current = await loadCurrentWeek();
-    if (!current?.id) return;
+  const { withExecutionContext } = require("./execution-context");
+  return withExecutionContext(
+    "background",
+    async () => {
+      try {
+        const current = await loadCurrentWeek();
+        if (!current?.id) return;
 
-    // Always attempt grading for the open slate. Incoming live payloads from
-    // /api/live-scores can lack finals when ESPN is blocked from Netlify or
-    // CFBD is empty — syncWeekGrades fills those via date-scoped ESPN + CFBD.
-    // Skipping when hasFinal is false left finished weeks stuck on "pending".
-    const hasFinal = (Array.isArray(liveGames) ? liveGames : []).some(
-      (g) => extractFinalFromLive(g) != null
-    );
-    await syncWeekGrades(Number(current.id), hasFinal ? liveGames : null);
-  } catch (err) {
-    console.warn("grade-picks background:", err.message || err);
-  }
+        // Always attempt grading for the open slate. Incoming live payloads from
+        // /api/live-scores can lack finals when ESPN is blocked from Netlify —
+        // syncWeekGrades fills those via date-scoped ESPN scoreboard/summary.
+        const hasFinal = (Array.isArray(liveGames) ? liveGames : []).some(
+          (g) => extractFinalFromLive(g) != null
+        );
+        await syncWeekGrades(Number(current.id), hasFinal ? liveGames : null);
+      } catch (err) {
+        console.warn("grade-picks background:", err.message || err);
+      }
+    },
+    { caller: "live-scores-grade" }
+  );
 }
 
 module.exports = {
