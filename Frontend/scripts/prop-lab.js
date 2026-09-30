@@ -238,6 +238,8 @@
     const sheetInput = document.getElementById("playerSheetInput");
     const sheetList = document.getElementById("playerSheetList");
     const sheetClose = document.getElementById("playerSheetClose");
+    const sheetBackdrop = document.getElementById("playerSheetBackdrop");
+    const sheetHint = document.getElementById("playerSheetHint");
     if (!input || !list) return;
     if (list.parentElement !== document.body) document.body.appendChild(list);
     list.classList.add("prop-player-list-portal");
@@ -270,7 +272,17 @@
     function closeSheet() {
       if (!sheet) return;
       sheet.hidden = true;
+      sheet.classList.remove("is-keyboard");
+      sheet.style.top = "";
+      sheet.style.left = "";
+      sheet.style.right = "";
+      sheet.style.bottom = "";
+      sheet.style.width = "";
+      sheet.style.height = "";
+      sheet.style.maxHeight = "";
+      sheet.style.transform = "";
       document.body.classList.remove("prop-sheet-open");
+      sheetInput?.blur();
     }
 
     function openSheet() {
@@ -278,8 +290,21 @@
       sheet.hidden = false;
       document.body.classList.add("prop-sheet-open");
       sheetInput.value = input.value || "";
+      if (sheetHint) {
+        sheetHint.hidden = false;
+        sheetHint.textContent =
+          sheetInput.value.trim().length >= 2 ? "Searching…" : "Type at least 2 letters";
+      }
+      if (sheetList && sheetInput.value.trim().length < 2) sheetList.innerHTML = "";
       pinSheet();
-      sheetInput.focus();
+      // Defer focus so the sheet paints before the keyboard pushes the viewport.
+      setTimeout(() => {
+        sheetInput.focus();
+        pinSheet();
+      }, 30);
+      // iOS keyboard animates; re-pin as the visual viewport settles.
+      setTimeout(pinSheet, 120);
+      setTimeout(pinSheet, 320);
       if (sheetInput.value.trim().length >= 2) run(sheetInput.value, true);
     }
 
@@ -296,17 +321,21 @@
         host.innerHTML = "<li class='matchup-combo-empty'>No players found</li>";
         return;
       }
+      const mobileSheet = host === sheetList;
       host.innerHTML = players
-        .map(
-          (p, i) =>
-            `<li role="option" id="playerOpt${i}" data-idx="${i}" data-id="${escapeHtml(p.id)}" data-team="${escapeHtml(
-              p.team || ""
-            )}" data-name="${escapeHtml(p.name)}" data-position="${escapeHtml(p.position || "")}" data-jersey="${escapeHtml(
-              p.jersey || ""
-            )}" data-source="${escapeHtml(p.source || "")}">${escapeHtml(p.name)} <span>${escapeHtml(
-              [p.team, p.position].filter(Boolean).join(" · ")
-            )}</span></li>`
-        )
+        .map((p, i) => {
+          const meta = [p.team, p.position].filter(Boolean).join(" · ");
+          const body = mobileSheet
+            ? `<div class="prop-search-hit-text"><span class="prop-search-hit-name">${escapeHtml(
+                p.name
+              )}</span>${meta ? `<span class="prop-search-hit-meta">${escapeHtml(meta)}</span>` : ""}</div>`
+            : `${escapeHtml(p.name)} <span>${escapeHtml(meta)}</span>`;
+          return `<li role="option" id="playerOpt${i}" data-idx="${i}" data-id="${escapeHtml(p.id)}" data-team="${escapeHtml(
+            p.team || ""
+          )}" data-name="${escapeHtml(p.name)}" data-position="${escapeHtml(p.position || "")}" data-jersey="${escapeHtml(
+            p.jersey || ""
+          )}" data-source="${escapeHtml(p.source || "")}">${body}</li>`;
+        })
         .join("");
       host.querySelectorAll("li[data-id]").forEach((li) => {
         li.addEventListener("mousedown", (e) => e.preventDefault());
@@ -328,7 +357,15 @@
       if (!q || q.trim().length < 2) {
         if (!forSheet) close();
         if (sheetList && forSheet) sheetList.innerHTML = "";
+        if (sheetHint && forSheet) {
+          sheetHint.hidden = false;
+          sheetHint.textContent = "Type at least 2 letters";
+        }
         return;
+      }
+      if (sheetHint && forSheet) {
+        sheetHint.hidden = false;
+        sheetHint.textContent = "Searching…";
       }
       try {
         const data = await api({ action: "search", q: q.trim(), year: state.season });
@@ -336,6 +373,10 @@
         state.searchHits = players.slice(0, 12);
         if (isMobile() || forSheet) {
           if (sheetList) renderHits(sheetList, players);
+          if (sheetHint) {
+            sheetHint.hidden = players.length > 0;
+            sheetHint.textContent = players.length ? "" : "No matches";
+          }
           input.setAttribute("aria-expanded", "true");
           return;
         }
@@ -356,6 +397,7 @@
         const msg = "<li class='matchup-combo-empty'>Search failed</li>";
         if (isMobile() || forSheet) {
           if (sheetList) sheetList.innerHTML = msg;
+          if (sheetHint) sheetHint.hidden = true;
         } else {
           list.innerHTML = msg;
           list.hidden = false;
@@ -384,6 +426,7 @@
       state.searchTimer = setTimeout(() => run(sheetInput.value, true), 160);
     });
     sheetClose?.addEventListener("click", closeSheet);
+    sheetBackdrop?.addEventListener("click", closeSheet);
     input.addEventListener("keydown", (e) => {
       if (isMobile()) return;
       if (e.key === "Escape") {
@@ -414,11 +457,32 @@
     });
     function pinSheet() {
       const vv = window.visualViewport;
-      if (!sheet || sheet.hidden || !vv) return;
-      sheet.style.top = `${vv.offsetTop}px`;
-      sheet.style.left = `${vv.offsetLeft}px`;
-      sheet.style.width = `${vv.width}px`;
-      sheet.style.height = `${vv.height}px`;
+      if (!sheet || sheet.hidden) return;
+      // Anchor exactly to the visual viewport so the panel sits flush on the
+      // keyboard (CSS inset/bottom must be cleared — they fight height on iOS).
+      if (vv) {
+        const kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop) > 80
+          || vv.height < window.innerHeight * 0.75;
+        sheet.classList.toggle("is-keyboard", kb);
+        sheet.style.top = "0px";
+        sheet.style.left = "0px";
+        sheet.style.right = "auto";
+        sheet.style.bottom = "auto";
+        sheet.style.width = `${vv.width}px`;
+        sheet.style.height = `${vv.height}px`;
+        sheet.style.maxHeight = "none";
+        sheet.style.transform = `translate(${vv.offsetLeft}px, ${vv.offsetTop}px)`;
+      } else {
+        sheet.classList.remove("is-keyboard");
+        sheet.style.top = "0";
+        sheet.style.left = "0";
+        sheet.style.right = "";
+        sheet.style.bottom = "";
+        sheet.style.width = "100%";
+        sheet.style.height = "100%";
+        sheet.style.maxHeight = "";
+        sheet.style.transform = "";
+      }
     }
 
     window.addEventListener("resize", place);
@@ -438,6 +502,15 @@
     const sheet = document.getElementById("playerSheet");
     if (sheet) {
       sheet.hidden = true;
+      sheet.classList.remove("is-keyboard");
+      sheet.style.top = "";
+      sheet.style.left = "";
+      sheet.style.right = "";
+      sheet.style.bottom = "";
+      sheet.style.width = "";
+      sheet.style.height = "";
+      sheet.style.maxHeight = "";
+      sheet.style.transform = "";
       document.body.classList.remove("prop-sheet-open");
     }
     const hint = document.getElementById("oppHint");
@@ -1259,6 +1332,32 @@
     );
   }
 
+  function dismissKeyboard() {
+    const active = document.activeElement;
+    if (active && active !== document.body && typeof active.blur === "function") {
+      active.blur();
+    }
+    document.getElementById("playerSheetInput")?.blur();
+    document.getElementById("playerSearch")?.blur();
+    document.getElementById("propLine")?.blur();
+    document.getElementById("propStat")?.blur();
+    document.getElementById("propSide")?.blur();
+  }
+
+  function scrollToPropResults(legId) {
+    const preferCard =
+      legId && document.querySelector(`.prop-card[data-id="${CSS.escape(legId)}"]`);
+    const target =
+      preferCard ||
+      document.getElementById("propCards") ||
+      document.getElementById("entryList");
+    if (!target) return;
+    // Wait a tick so the new leg/card is in the DOM after renderAll.
+    requestAnimationFrame(() => {
+      target.scrollIntoView({ behavior: "smooth", block: isMobile() ? "start" : "nearest" });
+    });
+  }
+
   async function addProp(evt) {
     evt?.preventDefault();
     if (state.legs.length >= MAX_LEGS) return;
@@ -1292,14 +1391,13 @@
     state.legs.push(leg);
     renderAll();
     document.getElementById("propLine").value = "";
-    const search = document.getElementById("playerSearch");
-    if (search) {
-      search.focus();
-      search.select?.();
-    }
+    // Do NOT refocus player search — on mobile that reopens the sheet + keyboard.
+    dismissKeyboard();
+    scrollToPropResults(leg.id);
     await evaluateLeg(leg);
     await refreshAnalysis();
     renderAll();
+    scrollToPropResults(leg.id);
   }
 
   async function evaluateLeg(leg) {

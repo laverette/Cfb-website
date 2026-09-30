@@ -1052,71 +1052,193 @@ body.prop-shared-mode .prop-lab-builder .matchup-panel-title::after {
 
 .prop-search-sheet {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: auto;
+  bottom: auto;
   z-index: 6000;
   display: flex;
   flex-direction: column;
-  background: #1a120e;
+  justify-content: flex-end;
   width: 100%;
   height: 100dvh;
   height: 100svh;
-  max-height: 100dvh;
-  padding: env(safe-area-inset-top, 0) 0 env(safe-area-inset-bottom, 0);
+  max-height: none;
+  background: transparent;
+  padding: 0;
+  /* transform is set by JS to follow visualViewport when the keyboard is open */
+  will-change: transform;
 }
 
 .prop-search-sheet[hidden] { display: none !important; }
 
-.prop-search-sheet-head {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 0.5rem;
-  align-items: end;
-  padding: 0.75rem;
-  border-bottom: 1px solid rgba(245, 222, 179, 0.16);
+.prop-search-sheet-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  background: rgba(8, 5, 3, 0.62);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  cursor: pointer;
 }
 
-.prop-search-sheet-head label {
+.prop-search-sheet-panel {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
-  font-size: 0.7rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--pr-muted);
-}
-
-.prop-search-sheet-head input {
-  min-height: 46px;
   width: 100%;
+  max-height: min(78dvh, 640px);
+  background: linear-gradient(180deg, #2a2118 0%, #1c1510 42%, #16100c 100%);
+  border: 1px solid rgba(232, 197, 71, 0.28);
+  border-bottom: 0;
+  border-radius: 18px 18px 0 0;
+  box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.45);
+  padding: 0 0 env(safe-area-inset-bottom, 0);
+  overflow: hidden;
+  margin-top: auto;
 }
 
-.prop-search-sheet-head button {
-  min-height: 46px;
-  min-width: 4.5rem;
+/* Keyboard open: fill the visual viewport so nothing peeks through under the sheet */
+.prop-search-sheet.is-keyboard .prop-search-sheet-panel {
+  max-height: none;
+  height: 100%;
+  flex: 1 1 auto;
+  border-radius: 0;
+  border-left: 0;
+  border-right: 0;
+  border-top: 0;
+  padding-bottom: 0;
+  box-shadow: none;
+}
+
+.prop-search-sheet.is-keyboard .prop-search-sheet-list {
+  padding-bottom: 0.75rem;
+}
+
+.prop-search-sheet.is-keyboard .prop-search-sheet-handle {
+  display: none;
+}
+
+.prop-search-sheet-handle {
+  width: 2.4rem;
+  height: 0.28rem;
+  margin: 0.55rem auto 0.15rem;
+  border-radius: 999px;
+  background: rgba(245, 222, 179, 0.35);
+  flex-shrink: 0;
+}
+
+.prop-search-sheet-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 0.45rem 0.9rem 0.7rem;
+  border-bottom: 1px solid rgba(245, 222, 179, 0.12);
+}
+
+.prop-search-sheet-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.prop-search-sheet-title {
+  margin: 0;
+  font-family: "Barlow Condensed", Impact, sans-serif;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #f5deb3;
+}
+
+.prop-search-sheet-field {
+  display: block;
+  margin: 0;
+}
+
+.prop-search-sheet-field input {
+  min-height: 48px;
+  width: 100%;
+  border-radius: 12px;
+  border-color: rgba(232, 197, 71, 0.35);
+  background: rgba(0, 0, 0, 0.28);
+}
+
+.prop-search-sheet-hint {
+  margin: 0;
+  padding: 0.55rem 1rem 0.15rem;
+  font-size: 0.78rem;
+  color: rgba(245, 222, 179, 0.55);
+}
+
+.prop-search-sheet-hint[hidden] {
+  display: none !important;
 }
 
 .prop-search-sheet-list {
   flex: 1;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   margin: 0;
-  padding: 0.35rem 0 calc(0.5rem + env(safe-area-inset-bottom, 0px));
+  padding: 0.25rem 0.55rem calc(0.75rem + env(safe-area-inset-bottom, 0px));
   list-style: none;
 }
 
 .prop-search-sheet-list li {
-  min-height: 52px;
-  padding: 0.85rem 0.9rem;
+  min-height: 56px;
+  margin: 0.28rem 0;
+  padding: 0.7rem 0.85rem;
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  gap: 0.5rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  color: #f3efe6;
+  gap: 0.65rem;
+  border: 1px solid rgba(245, 222, 179, 0.1);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  color: #f7f1e6;
+  font-size: 1rem;
+  font-weight: 650;
+  line-height: 1.25;
 }
 
+.prop-search-sheet-list li .prop-search-hit-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.prop-search-sheet-list li .prop-search-hit-name {
+  font-weight: 700;
+  color: #fff8e8;
+}
+
+.prop-search-sheet-list li .prop-search-hit-meta,
 .prop-search-sheet-list li span {
-  color: rgba(245, 222, 179, 0.55);
+  color: rgba(245, 222, 179, 0.62);
   font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+.prop-search-sheet-list li.matchup-combo-empty {
+  justify-content: center;
+  border-style: dashed;
+  background: transparent;
+  color: rgba(245, 222, 179, 0.6);
+  font-weight: 500;
+}
+
+.prop-search-sheet-list li[role="option"]:active,
+.prop-search-sheet-list li[role="option"].is-active {
+  border-color: rgba(255, 215, 0, 0.45);
+  background: rgba(255, 215, 0, 0.12);
 }
 
 .prop-analysis-bar {

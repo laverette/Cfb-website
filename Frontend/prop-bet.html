@@ -10,7 +10,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
   <link rel="stylesheet" href="styles/site-theme.css">
   <link rel="stylesheet" href="Resources/Styles/power.css">
-  <link rel="stylesheet" href="Resources/Styles/prop-lab.css?v=13">
+  <link rel="stylesheet" href="Resources/Styles/prop-lab.css?v=15">
 </head>
 <body class="power-rankings-body">
   <nav class="navbar weeklypicks-navbar site-nav">
@@ -195,14 +195,22 @@
   </main>
 
   <div id="playerSheet" class="prop-search-sheet" hidden>
-    <div class="prop-search-sheet-head">
-      <label>
-        Search players
-        <input id="playerSheetInput" class="site-select matchup-select" type="search" enterkeyhint="search" autocomplete="off" spellcheck="false" placeholder="Name or team…">
-      </label>
-      <button type="button" class="btn btn-outline-light" id="playerSheetClose">Done</button>
+    <button type="button" class="prop-search-sheet-backdrop" id="playerSheetBackdrop" aria-label="Dismiss player search"></button>
+    <div class="prop-search-sheet-panel" role="dialog" aria-modal="true" aria-labelledby="playerSheetTitle">
+      <div class="prop-search-sheet-handle" aria-hidden="true"></div>
+      <div class="prop-search-sheet-head">
+        <div class="prop-search-sheet-title-row">
+          <h2 id="playerSheetTitle" class="prop-search-sheet-title">Find a player</h2>
+          <button type="button" class="btn btn-outline-light btn-sm" id="playerSheetClose">Done</button>
+        </div>
+        <label class="prop-search-sheet-field">
+          <span class="visually-hidden">Search players</span>
+          <input id="playerSheetInput" class="site-select matchup-select" type="search" enterkeyhint="search" autocomplete="off" spellcheck="false" placeholder="Name or team…">
+        </label>
+      </div>
+      <p class="prop-search-sheet-hint" id="playerSheetHint">Type at least 2 letters</p>
+      <ul id="playerSheetList" class="prop-search-sheet-list" role="listbox"></ul>
     </div>
-    <ul id="playerSheetList" class="prop-search-sheet-list" role="listbox"></ul>
   </div>
 
   <nav class="prop-dock" id="propDock" aria-label="Entry actions">
@@ -212,7 +220,7 @@
   </nav>
 
   <script src="scripts/auth-ui.js"></script>
-  <script src="scripts/prop-lab.js?v=16"></script>
+  <script src="scripts/prop-lab.js?v=18"></script>
   <script>
     function closeMenu() {
       const menu = document.getElementById('dropdownMenu');
