@@ -2,6 +2,7 @@ const { createClient } = require("./cfbd-client");
 const { searchPlayers } = require("../prop-eval");
 const {
   nextUnplayed,
+  getTeamGameForWeek,
   extractOverviewTotal,
   extractStatValue,
   indexTeamSeasonStats,
@@ -17,6 +18,14 @@ const {
   readProviderMode,
 } = require("./data/player-stats");
 const { resolveOpponent } = require("./data/opponent-resolve");
+
+/** Explicit week → include finals; otherwise next upcoming. */
+function pickWeekGame(schedule, week) {
+  if (week != null && week !== "") {
+    return getTeamGameForWeek(schedule, week) || null;
+  }
+  return nextUnplayed(schedule, week);
+}
 const {
   getOpponentDefenseProfile,
   mergeProfileIntoTeamStatsIndex,
@@ -223,6 +232,7 @@ async function loadPlayerBundle({
         espnEventId,
         cfbd: client,
         signal,
+        playerName: resolvedName,
       });
       if (opponentResolution?.status === "ok" && opponentResolution.opponent?.name) {
         nextGame = {
@@ -240,8 +250,8 @@ async function loadPlayerBundle({
       } else if (opponentResolution?.status === "bye") {
         nextGame = null;
       } else {
-        // Last resort: local schedule list (may be empty if providers failed earlier)
-        nextGame = nextUnplayed(schedule, week);
+        // Last resort: local schedule — must use week-scoped lookup (includes finals)
+        nextGame = pickWeekGame(schedule, week);
         if (nextGame?.opponent) {
           opponentResolution = {
             status: "ok",
@@ -251,16 +261,18 @@ async function loadPlayerBundle({
             week: nextGame.week,
             homeAway: nextGame.homeAway,
             gameId: nextGame.gameId != null ? String(nextGame.gameId) : null,
+            completed: Boolean(nextGame.completed),
           };
         }
       }
     } catch (err) {
       dataLog("OpponentResolver", `resolve failed: ${err.message}`);
-      nextGame = nextUnplayed(schedule, week);
+      nextGame = pickWeekGame(schedule, week);
       opponentResolution = {
         status: nextGame?.opponent ? "ok" : "unresolved",
         source: "local_schedule",
         strategy: "exception_fallback",
+        reason: nextGame?.opponent ? null : "GAME_MATCH_FAILED",
         opponent: nextGame?.opponent
           ? { name: nextGame.opponent, espnId: null }
           : null,
@@ -364,7 +376,7 @@ async function loadPlayerBundle({
         ? nextGame
         : opponent && String(opponent).trim()
           ? schedule.find((g) => sameTeam(g.opponent, opponent)) || nextGame
-          : nextUnplayed(schedule, week) || nextGame;
+          : pickWeekGame(schedule, week) || nextGame;
 
   const bundleWeek =
     opponentResolution?.status === "bye"

@@ -164,7 +164,7 @@ function matchupAdjustment(bundle, def) {
       ...factor(snap.explosivenessPass, pools.explosivenessPass, { cap: 0.07 }),
     });
   }
-  if (def.family === "rushing" || def.id === "rush_rec_yds" || def.id === "pass_rush_yds") {
+  if (def.family === "rushing" || def.id === "rush_rec_yds" || def.id === "pass_rush_yds" || def.id === "rush_td") {
     factors.push({
       label: "Rush yards allowed",
       ...factor(snap.rushYds, pools.rushYds, {
@@ -181,6 +181,27 @@ function matchupAdjustment(bundle, def) {
       label: "Stuff rate",
       ...factor(snap.stuffRate, pools.stuffRate, { invert: true, cap: 0.06 }),
     });
+    if (def.id === "rush_td") {
+      if (Number.isFinite(ranks.rushTd)) {
+        factors.push({
+          label: "Rushing TDs allowed",
+          ...factorFromEspnRank(ranks.rushTd, rankDenom, { cap: 0.1 }),
+        });
+      } else if (Number.isFinite(snap.rushTd)) {
+        const baseline = 1.15;
+        const z = (snap.rushTd - baseline) / 0.55;
+        factors.push({
+          label: "Rushing TDs allowed",
+          z,
+          pct: null,
+          adj: clamp(z * 0.035, -0.08, 0.08),
+          used: true,
+          value: snap.rushTd,
+          defensePct: null,
+          quality: snap.rushTd <= 0.7 ? "Strong" : snap.rushTd >= 1.6 ? "Poor" : "Average",
+        });
+      }
+    }
   }
 
   if (def.family === "receiving") {

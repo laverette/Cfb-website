@@ -34,6 +34,29 @@ const { buildPredictiveSd } = require("./variance");
 const { suggestWhatIfLines } = require("./whatif-lines");
 const { hitCountLabel } = require("./format");
 
+function formatOppReason(reason, week) {
+  const w = week != null ? ` for Week ${week}` : "";
+  switch (String(reason || "")) {
+    case "TEAM_ID_UNRESOLVED":
+      return `could not resolve team ESPN id${w}`;
+    case "WEEK_RANGE_UNRESOLVED":
+      return `could not resolve week date range${w}`;
+    case "ESPN_SCHEDULE_EMPTY":
+      return `ESPN schedule empty${w}`;
+    case "TEAM_NOT_IN_WEEK_SLATE":
+      return `team not found on week slate${w}`;
+    case "TEAM_SCHEDULE_EMPTY":
+      return `team schedule empty${w}`;
+    case "GAME_MATCH_FAILED":
+    case "OPPONENT_NOT_FOUND":
+      return `could not resolve opponent${w}`;
+    case "OPPONENT_PARSE_FAILED":
+      return `opponent parse failed${w}`;
+    default:
+      return `could not resolve opponent${w}`;
+  }
+}
+
 function valuesFromLogs(logs, statId) {
   return (logs || [])
     .map((g) => {
@@ -580,15 +603,17 @@ function evaluateFromBundle(bundle, {
       ? `Bye week — no game scheduled for Week ${bundle.week ?? ""}`.trim()
       : bundle.opponent
         ? null
-        : bundle.opponentResolution?.reason === "OPPONENT_NOT_FOUND"
-          ? `Opponent adjustment unavailable — could not resolve opponent for Week ${bundle.week ?? ""}`
+        : bundle.opponentResolution?.reason
+          ? `Opponent adjustment unavailable — ${formatOppReason(bundle.opponentResolution.reason, bundle.week)}`
           : `No scheduled game found for Week ${bundle.week ?? ""}`.trim(),
     opponentAdjustmentAvailable: Boolean(
       bundle.opponent && !matchup.missing && Math.abs(matchup.adjPct) >= 0
     ),
-    matchupUnavailableNote: matchup.missing
-      ? "Opponent adjustment unavailable"
-      : null,
+    // Deduped: do not repeat the same schedule warning as a second banner.
+    matchupUnavailableNote:
+      matchup.missing && bundle.opponent
+        ? "Opponent adjustment unavailable — defense profile incomplete"
+        : null,
     opponentResolution: bundle.opponentResolution || null,
     byeWeek: Boolean(bundle.byeWeek),
     highProbLowConf: probs.pHit >= 0.8 && ["C", "D"].includes(conf.letter),

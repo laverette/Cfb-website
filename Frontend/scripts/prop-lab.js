@@ -877,6 +877,7 @@
         const opp = e.opponent?.name
           ? `${e.opponent.homeAway === "home" ? "vs" : "@"} ${e.opponent.name}`
           : e.scheduleWarning || "No scheduled game found";
+        // scheduleWarning already shown in card sub when opponent missing — don't repeat below.
         const share =
           e.usage?.recShare != null
             ? `Receiving share (est.): ${(e.usage.recShare * 100).toFixed(0)}%`
@@ -936,7 +937,13 @@
           fmt(e.range?.p80, 0)
         )}</p>
           <div class="prop-flags">${flagHtml(e.flags, e.fcs)}${fcsHint && !(e.flags || []).includes("FCS-Heavy Sample") ? `<span class="prop-flag" title="${escapeHtml(FLAG_HELP["FCS-Heavy Sample"])}">${escapeHtml(fcsHint)}</span>` : ""}</div>
-          ${e.scheduleWarning ? `<p class="prop-error">${escapeHtml(e.scheduleWarning)}</p>` : ""}
+          ${
+            e.matchupUnavailableNote && e.opponent?.name
+              ? `<p class="prop-error">${escapeHtml(e.matchupUnavailableNote)}</p>`
+              : !e.opponent?.name && e.scheduleWarning
+                ? "" /* already shown in card sub via opp */
+                : ""
+          }
           <div class="prop-sec"><h4>Why ${escapeHtml((e.side || "more").toUpperCase())}</h4><p>${escapeHtml(whyOne)}</p></div>
           <div class="prop-sec"><h4>Caution</h4><p>${escapeHtml(cautionOne)}</p></div>
           <details class="prop-acc" data-acc="form"><summary>Recent form</summary>
@@ -1285,18 +1292,34 @@
       search.focus();
       search.select?.();
     }
+    await evaluateLeg(leg);
+    await refreshAnalysis();
+    renderAll();
+  }
+
+  async function evaluateLeg(leg) {
+    leg.loading = true;
+    renderAll();
     try {
+      console.log("[PropLab] evaluate", {
+        player: leg.name,
+        team: leg.team,
+        season: state.season,
+        week: state.week,
+        stat: leg.statId,
+        line: leg.line,
+      });
       const evaluation = await api(
         { action: "evaluate" },
         {
           method: "POST",
           body: {
-            playerId: player.id,
-            team: player.team,
-            name: player.name,
-            stat: statId,
-            line: Number(line),
-            side,
+            playerId: leg.playerId,
+            team: leg.team,
+            name: leg.name,
+            stat: leg.statId,
+            line: Number(leg.line),
+            side: leg.side,
             season: state.season,
             week: state.week,
             debug: !isMobile(),
@@ -1307,7 +1330,19 @@
       leg.loading = false;
     } catch (err) {
       leg.loading = false;
-      leg.evaluation = { error: err.message, player: { name: player.name }, stat: { id: statId }, clientId: leg.id };
+      leg.evaluation = {
+        error: err.message,
+        player: { name: leg.name },
+        stat: { id: leg.statId },
+        clientId: leg.id,
+      };
+    }
+  }
+
+  async function reevaluateAllLegs() {
+    const legs = state.legs.slice();
+    for (const leg of legs) {
+      await evaluateLeg(leg);
     }
     await refreshAnalysis();
     renderAll();
@@ -2066,6 +2101,10 @@
     });
     document.getElementById("labWeek")?.addEventListener("change", (e) => {
       state.week = Number(e.target.value);
+      // Re-evaluate existing legs against the newly selected week (historical weeks included).
+      if (state.legs.length) {
+        reevaluateAllLegs();
+      }
     });
     document.getElementById("payoutOdds")?.addEventListener("input", (e) => {
       state.payoutOdds = e.target.value;

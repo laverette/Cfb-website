@@ -368,6 +368,20 @@ function nextUnplayed(schedule, weekHint) {
   );
 }
 
+/**
+ * Find the team's game for an explicit CFB week — includes finals/completed.
+ * Prop Lab week selection is NOT "next upcoming game."
+ */
+function getTeamGameForWeek(schedule, week) {
+  if (week == null || !Array.isArray(schedule)) return null;
+  const w = Number(week);
+  if (!Number.isFinite(w)) return null;
+  const hits = (schedule || []).filter((g) => Number(g.week) === w && g.opponent);
+  if (!hits.length) return null;
+  const active = hits.find((g) => !/cancel/i.test(String(g.notes || "")));
+  return active || hits[0];
+}
+
 function teamStatMap(rows, team) {
   const out = {};
   if (!Array.isArray(rows)) return out;
@@ -463,6 +477,7 @@ module.exports = {
   parsePlayerGameLogs,
   parseSchedule,
   nextUnplayed,
+  getTeamGameForWeek,
   teamStatMap,
   indexTeamSeasonStats,
   indexAdvanced,

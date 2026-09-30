@@ -14,7 +14,12 @@ const TEAM_ALIASES = {
   "e carolina": "east carolina",
   "east carolina": "east carolina",
   "ole miss": "ole miss",
+  "ole miss rebels": "ole miss",
+  "mississippi rebels": "ole miss",
+  // Do NOT map plain "mississippi" — that collides with Mississippi State lookups.
   "miss state": "mississippi state",
+  "mississippi st": "mississippi state",
+  "mississippi state": "mississippi state",
   "miami fl": "miami",
   "miami (fl)": "miami",
   "miami florida": "miami",
