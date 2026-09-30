@@ -15,6 +15,13 @@ const { ingestSeasonFromCfbd } = require("./ingest-cfbd");
 const { runBacktest } = require("./backtest");
 const { softMargin, softMarginToPoints } = require("./margin");
 const normalize = require("./normalize");
+const { predictMatchupFromEspn } = require("./predict-espn");
+const {
+  normalizeEspnMatchupPackage,
+  hasEnoughMetrics,
+  parseLastFive,
+} = require("./espn-normalize");
+const { buildEspnRatingPair, offenseRatingFromMetrics, defenseRatingFromMetrics } = require("./espn-ratings");
 
 module.exports = {
   MODEL_PARAMS,
@@ -33,4 +40,11 @@ module.exports = {
   softMargin,
   softMarginToPoints,
   normalize,
+  predictMatchupFromEspn,
+  normalizeEspnMatchupPackage,
+  hasEnoughMetrics,
+  parseLastFive,
+  buildEspnRatingPair,
+  offenseRatingFromMetrics,
+  defenseRatingFromMetrics,
 };

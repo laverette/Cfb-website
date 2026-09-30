@@ -909,6 +909,8 @@
       const homeName = link.getAttribute('data-home-name') || '';
       const awayId = link.getAttribute('data-away-id') || '';
       const homeId = link.getAttribute('data-home-id') || '';
+      const espnEventId = link.getAttribute('data-espn-event-id') || '';
+      const bettingLine = link.getAttribute('data-betting-line') || '';
       const href = link.getAttribute('href') || predictorHref(awayName, homeName, awayId, homeId);
 
       predictMatchupOpener = link;
@@ -926,9 +928,19 @@
       setPredictMatchupBodyHtml(matchupEmptyHtml({
         icon: '🏈',
         title: 'Calculating…',
-        text: 'Loading the power model for this matchup.',
+        text: espnEventId
+          ? 'Loading ESPN matchup data for this game.'
+          : 'Loading the power model for this matchup.',
       }));
-      loadAndRenderPredictMatchup({ awayName, homeName, awayId, homeId, reqId });
+      loadAndRenderPredictMatchup({
+        awayName,
+        homeName,
+        awayId,
+        homeId,
+        espnEventId,
+        bettingLine,
+        reqId,
+      });
     }
 
     function normalizePowerTeamKey(value) {
@@ -1040,12 +1052,27 @@
       const c = p.comparisons || {};
       const aWin = Math.max(0, Math.min(100, Number(a.winProbability) || 0));
       const bWin = Math.max(0, Math.min(100, Number(b.winProbability) || 0));
+      const score = p.projectedScore;
+      const why = Array.isArray(p.why) ? p.why : [];
+      const caution = Array.isArray(p.caution) ? p.caution : [];
       return `
         <div class="matchup-result">
           <div class="matchup-result-hero">
-            <p class="matchup-result-eyebrow">Predicted winner</p>
+            <p class="matchup-result-eyebrow">Model favors</p>
             <h2 class="matchup-winner">${escapeMatchupHtml(p.predictedWinner.name)}</h2>
             <p class="matchup-spread-pill">${escapeMatchupHtml(p.projectedSpreadLabel)}</p>
+            ${
+              score
+                ? `<p class="matchup-power-line">Projected score ${escapeMatchupHtml(a.name)} ${escapeMatchupHtml(score.away)} – ${escapeMatchupHtml(b.name)} ${escapeMatchupHtml(score.home)}</p>`
+                : ''
+            }
+            ${
+              p.marketSpreadLabel
+                ? `<p class="matchup-power-line">Market ${escapeMatchupHtml(p.marketSpreadLabel)}${
+                    p.spreadEdgeLabel ? ` · ${escapeMatchupHtml(p.spreadEdgeLabel)}` : ''
+                  }</p>`
+                : ''
+            }
             ${
               p.powerSpreadLabel && p.powerSpreadLabel !== p.projectedSpreadLabel
                 ? `<p class="matchup-power-line">Power line ${escapeMatchupHtml(p.powerSpreadLabel)}</p>`
@@ -1067,6 +1094,20 @@
             </div>
           </div>
           <p class="matchup-explain">${escapeMatchupHtml(p.explanation)}</p>
+          ${
+            why.length
+              ? `<div class="matchup-why"><strong>Why</strong><ul>${why
+                  .map((x) => `<li>${escapeMatchupHtml(x)}</li>`)
+                  .join('')}</ul></div>`
+              : ''
+          }
+          ${
+            caution.length
+              ? `<div class="matchup-caution"><strong>Caution</strong><ul>${caution
+                  .map((x) => `<li>${escapeMatchupHtml(x)}</li>`)
+                  .join('')}</ul></div>`
+              : ''
+          }
           <div class="matchup-stats-card">
             <div class="matchup-stats-head">
               <span></span>
@@ -1092,13 +1133,47 @@
             <span class="matchup-meta-chip">Talent adj ${escapeMatchupHtml(formatMatchupSigned(p.talentAdjustment))}</span>
             <span class="matchup-meta-chip">Venue adj ${escapeMatchupHtml(formatMatchupSigned(p.venueAdjustment))}</span>
             <span class="matchup-meta-chip">Projected margin ${escapeMatchupHtml(formatMatchupSigned(p.projectedMargin))}</span>
+            ${
+              pred.source
+                ? `<span class="matchup-meta-chip">Source ${escapeMatchupHtml(pred.source)}</span>`
+                : ''
+            }
           </div>
         </div>
       `;
     }
 
-    async function loadAndRenderPredictMatchup({ awayName, homeName, awayId, homeId, reqId }) {
+    async function loadAndRenderPredictMatchup({
+      awayName,
+      homeName,
+      awayId,
+      homeId,
+      espnEventId,
+      bettingLine,
+      reqId,
+    }) {
       try {
+        // ESPN event id path — no power-teams / CFBD lookup.
+        if (espnEventId) {
+          const resp = await fetch('/api/power/matchup', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', accept: 'application/json' },
+            body: JSON.stringify({
+              espnEventId: String(espnEventId),
+              teamAId: awayId || undefined,
+              teamBId: homeId || undefined,
+              venue: 'b_home',
+              marketBettingLine:
+                bettingLine !== '' && bettingLine != null ? Number(bettingLine) : undefined,
+            }),
+          });
+          const data = await resp.json().catch(() => ({}));
+          if (reqId !== predictMatchupRequestId) return;
+          if (!resp.ok) throw new Error(data.details || data.error || 'Predict failed');
+          setPredictMatchupBodyHtml(renderMatchupPredictionHtml(data));
+          return;
+        }
+
         const teams = await loadPowerTeams();
         if (reqId !== predictMatchupRequestId) return;
         const teamA = resolvePowerTeam(teams, awayName, awayId);
@@ -1462,6 +1537,8 @@
         const isCompleted = !!g?.isCompleted;
         const bettingLine = g?.bettingLine ?? g?.betting_line ?? null;
         const spreads = spreadsForMatchup(bettingLine);
+        const espnEventId = g?.cfbdGameId ?? g?.cfbd_game_id ?? g?.espnEventId ?? g?.espn_event_id ?? '';
+
 
         // Find live score data for this game
         let liveScoreHtml = '';
@@ -1529,6 +1606,8 @@
               data-home-name="${safeText(homeName)}"
               data-away-id="${safeText(awayEspnId)}"
               data-home-id="${safeText(homeEspnId)}"
+              data-espn-event-id="${safeText(espnEventId)}"
+              data-betting-line="${safeText(bettingLine)}"
               target="_blank"
               rel="noopener noreferrer"
               title="View matchup prediction for this game"

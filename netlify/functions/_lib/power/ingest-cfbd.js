@@ -4,7 +4,7 @@
  */
 
 const CFBD_BASE = "https://api.collegefootballdata.com";
-const { recordApiUsage } = require("./api-usage");
+const { recordApiUsage } = require("../api-usage");
 
 async function cfbdGet(path, query, apiKey, signal) {
   const url = new URL(CFBD_BASE + path);
