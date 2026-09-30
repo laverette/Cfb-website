@@ -83,6 +83,7 @@ exports.handler = async (event) => {
       const ctx = await loadSnapshotContext(season, week);
       const result = await predictMatchupFromEspn({
         espnEventId: String(espnEventId).trim(),
+        espnPackage: body.espnPackage || body.espn_package || body.summary || null,
         marketBettingLine,
         personnelA,
         personnelB,
@@ -142,10 +143,13 @@ exports.handler = async (event) => {
     const status = err.status || 500;
     return json(status, {
       error:
-        status === 503
-          ? "Not enough matchup data available right now."
-          : "Failed to predict matchup",
+        status === 403 || err.needsClientEspn
+          ? "ESPN blocked server fetch — retrying from your browser…"
+          : status === 503
+            ? "Not enough matchup data available right now."
+            : "Failed to predict matchup",
       details: err && err.message ? String(err.message).slice(0, 280) : "unknown",
+      needsClientEspn: Boolean(err.needsClientEspn || status === 403),
       requests: err.counters || { espnRequests: 0, cfbdRequests: 0 },
     });
   }

@@ -144,9 +144,13 @@ function buildWhyCaution(prediction, input) {
 
 /**
  * Predict a Weekly Picks game using ESPN event data + our power model.
+ * @param {object} [args.espnPackage] optional browser-fetched ESPN summary/gamepackageJSON
+ *   (Netlify egress is often blocked with HTTP 403; the Weekly Picks page can fetch ESPN
+ *   in-browser and POST the package here — same pattern as admin schedule).
  */
 async function predictMatchupFromEspn({
   espnEventId,
+  espnPackage = null,
   marketBettingLine = null,
   personnelA = 0,
   personnelB = 0,
@@ -159,17 +163,27 @@ async function predictMatchupFromEspn({
   }
 
   const counters = emptyCounters();
-  const loaded = await loadEspnEventPackage(espnEventId, counters);
-  const pkg = loaded.packageJson;
-  if (!pkg) {
-    const err = new Error(
-      loaded.errors.length
-        ? `ESPN matchup data unavailable (${loaded.errors.join("; ")})`
-        : "ESPN matchup data unavailable"
-    );
-    err.status = 503;
-    err.counters = counters;
-    throw err;
+  let pkg = null;
+  let packageSource = "server";
+
+  if (espnPackage && typeof espnPackage === "object") {
+    pkg = espnPackage.gamepackageJSON || espnPackage;
+    packageSource = "client";
+    counters.cacheHits += 1;
+  } else {
+    const loaded = await loadEspnEventPackage(espnEventId, counters);
+    pkg = loaded.packageJson;
+    if (!pkg) {
+      const err = new Error(
+        loaded.errors.length
+          ? `ESPN matchup data unavailable (${loaded.errors.join("; ")})`
+          : "ESPN matchup data unavailable"
+      );
+      err.status = loaded.blocked403 ? 403 : 503;
+      err.needsClientEspn = true;
+      err.counters = counters;
+      throw err;
+    }
   }
 
   const input = normalizeEspnMatchupPackage(pkg, {
@@ -179,6 +193,7 @@ async function predictMatchupFromEspn({
   if (!input || !hasEnoughMetrics(input)) {
     const err = new Error("Not enough matchup data available right now.");
     err.status = 503;
+    err.needsClientEspn = packageSource === "server";
     err.counters = counters;
     throw err;
   }
@@ -202,6 +217,7 @@ async function predictMatchupFromEspn({
     home: input.homeTeam.name,
     venue: input.venue,
     neutralSite: input.neutralSite,
+    packageSource,
     requests: counters,
     CFBD_requests: 0,
     away_offensive_rating: teamA.offenseRating,
@@ -215,7 +231,7 @@ async function predictMatchupFromEspn({
   });
 
   return {
-    source: "espn",
+    source: packageSource === "client" ? "espn-client" : "espn",
     season: input.season,
     week: input.week,
     eventId: String(espnEventId),

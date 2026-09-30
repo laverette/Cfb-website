@@ -1143,6 +1143,37 @@
       `;
     }
 
+    async function fetchEspnPackageInBrowser(eventId) {
+      const id = encodeURIComponent(String(eventId));
+      const urls = [
+        `https://site.api.espn.com/apis/site/v2/sports/football/college-football/summary?event=${id}`,
+        `https://cdn.espn.com/core/college-football/game?xhr=1&gameId=${id}`,
+        `https://cdn.espn.com/core/college-football/matchup?xhr=1&gameId=${id}`,
+      ];
+      for (const url of urls) {
+        try {
+          const resp = await fetch(url, { credentials: 'omit' });
+          if (!resp.ok) continue;
+          const json = await resp.json();
+          const pkg = json?.gamepackageJSON || json;
+          if (pkg && (pkg.header || pkg.boxscore)) return pkg;
+        } catch (_) {
+          /* try next */
+        }
+      }
+      return null;
+    }
+
+    async function postPowerMatchup(payload) {
+      const resp = await fetch('/api/power/matchup', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', accept: 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await resp.json().catch(() => ({}));
+      return { resp, data };
+    }
+
     async function loadAndRenderPredictMatchup({
       awayName,
       homeName,
@@ -1155,20 +1186,35 @@
       try {
         // ESPN event id path — no power-teams / CFBD lookup.
         if (espnEventId) {
-          const resp = await fetch('/api/power/matchup', {
-            method: 'POST',
-            headers: { 'content-type': 'application/json', accept: 'application/json' },
-            body: JSON.stringify({
-              espnEventId: String(espnEventId),
-              teamAId: awayId || undefined,
-              teamBId: homeId || undefined,
-              venue: 'b_home',
-              marketBettingLine:
-                bettingLine !== '' && bettingLine != null ? Number(bettingLine) : undefined,
-            }),
-          });
-          const data = await resp.json().catch(() => ({}));
+          const basePayload = {
+            espnEventId: String(espnEventId),
+            teamAId: awayId || undefined,
+            teamBId: homeId || undefined,
+            venue: 'b_home',
+            marketBettingLine:
+              bettingLine !== '' && bettingLine != null ? Number(bettingLine) : undefined,
+          };
+
+          let { resp, data } = await postPowerMatchup(basePayload);
           if (reqId !== predictMatchupRequestId) return;
+
+          // Netlify egress is often blocked by ESPN (HTTP 403). Fetch the package
+          // in the browser (CORS *) and retry — same pattern as admin schedule.
+          if (!resp.ok && (data.needsClientEspn || resp.status === 403 || /HTTP 403/i.test(String(data.details || '')))) {
+            setPredictMatchupBodyHtml(matchupEmptyHtml({
+              icon: '🏈',
+              title: 'Loading ESPN…',
+              text: 'Server blocked by ESPN — fetching matchup data in your browser.',
+            }));
+            const espnPackage = await fetchEspnPackageInBrowser(espnEventId);
+            if (reqId !== predictMatchupRequestId) return;
+            if (!espnPackage) {
+              throw new Error('ESPN blocked the server and the browser could not load matchup data either.');
+            }
+            ({ resp, data } = await postPowerMatchup({ ...basePayload, espnPackage }));
+            if (reqId !== predictMatchupRequestId) return;
+          }
+
           if (!resp.ok) throw new Error(data.details || data.error || 'Predict failed');
           setPredictMatchupBodyHtml(renderMatchupPredictionHtml(data));
           return;
@@ -1198,16 +1244,11 @@
           }));
           return;
         }
-        const resp = await fetch('/api/power/matchup', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json', accept: 'application/json' },
-          body: JSON.stringify({
-            teamAId: Number(teamA.teamId),
-            teamBId: Number(teamB.teamId),
-            venue: 'b_home',
-          }),
+        const { resp, data } = await postPowerMatchup({
+          teamAId: Number(teamA.teamId),
+          teamBId: Number(teamB.teamId),
+          venue: 'b_home',
         });
-        const data = await resp.json().catch(() => ({}));
         if (reqId !== predictMatchupRequestId) return;
         if (!resp.ok) throw new Error(data.details || data.error || 'Predict failed');
         setPredictMatchupBodyHtml(renderMatchupPredictionHtml(data));

@@ -85,7 +85,9 @@ async function fetchEspnTeamStatistics(teamId, season, counters = emptyCounters(
 
 /**
  * Load the richest available ESPN package for an event.
- * Priority: summary (stable, has lastFive + boxscore stats) → game xhr → matchup xhr.
+ * Priority: summary → game xhr → matchup xhr.
+ * Netlify egress often gets HTTP 403 from ESPN; callers can pass a
+ * browser-fetched package instead via predictMatchupFromEspn({ espnPackage }).
  */
 async function loadEspnEventPackage(eventId, counters = emptyCounters()) {
   const id = String(eventId);
@@ -93,11 +95,18 @@ async function loadEspnEventPackage(eventId, counters = emptyCounters()) {
   let summary = null;
   let game = null;
   let matchup = null;
+  let blocked403 = false;
+
+  const noteErr = (label, err) => {
+    const msg = err?.message || String(err);
+    errors.push(`${label}: ${msg}`);
+    if (Number(err?.status) === 403 || /HTTP 403/i.test(msg)) blocked403 = true;
+  };
 
   try {
     summary = await fetchEspnSummary(id, counters);
   } catch (err) {
-    errors.push(`summary: ${err.message}`);
+    noteErr("summary", err);
   }
 
   const hasBoxStats = (summary?.boxscore?.teams || []).some(
@@ -105,13 +114,15 @@ async function loadEspnEventPackage(eventId, counters = emptyCounters()) {
   );
   const hasLastFive = Array.isArray(summary?.lastFiveGames)
     ? summary.lastFiveGames.length > 0
-    : Boolean(summary?.lastFiveGames);
+    : Boolean(summary?.lastFiveGames && Object.keys(summary.lastFiveGames).length);
 
+  // Always try CDN game package when summary is missing or thin — CDN sometimes
+  // allows Netlify when site.api does not.
   if (!summary || !hasBoxStats || !hasLastFive) {
     try {
       game = await fetchEspnGamePackage(id, counters);
     } catch (err) {
-      errors.push(`game: ${err.message}`);
+      noteErr("game", err);
     }
   }
 
@@ -119,7 +130,7 @@ async function loadEspnEventPackage(eventId, counters = emptyCounters()) {
     try {
       matchup = await fetchEspnMatchupPackage(id, counters);
     } catch (err) {
-      errors.push(`matchup: ${err.message}`);
+      noteErr("matchup", err);
     }
   }
 
@@ -136,6 +147,7 @@ async function loadEspnEventPackage(eventId, counters = emptyCounters()) {
     matchup,
     packageJson,
     errors,
+    blocked403,
     counters,
   };
 }

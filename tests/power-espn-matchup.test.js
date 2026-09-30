@@ -231,9 +231,23 @@ describe("ESPN ratings + predict", () => {
     const withHome = predictMatchup({ teamA, teamB, venue: "b_home" });
     const neutral = predictMatchup({ teamA, teamB, venue: "neutral" });
     assert.equal(venue, "b_home");
-    assert.ok(withHome.venueAdjustment < 0); // favors team B (home)
+    assert.ok(withHome.venueAdjustment < 0);
     assert.equal(neutral.venueAdjustment, 0);
     assert.ok(withHome.projectedMargin < neutral.projectedMargin);
+  });
+
+  it("predicts from a client-supplied ESPN package without server ESPN fetch", async () => {
+    const { predictMatchupFromEspn } = require(path.join(root, "predict-espn"));
+    const result = await predictMatchupFromEspn({
+      espnEventId: "401856707",
+      espnPackage: samplePackage(),
+      marketBettingLine: 6,
+    });
+    assert.equal(result.source, "espn-client");
+    assert.equal(result.counters.espnRequests, 0);
+    assert.equal(result.counters.cfbdRequests, 0);
+    assert.ok(result.prediction.predictedWinner?.name);
+    assert.ok(result.prediction.projectedScore);
   });
 });
 
