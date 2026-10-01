@@ -294,10 +294,24 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 0.55rem;
+  gap: 0.65rem;
   flex-shrink: 0;
   margin-left: auto;
-  max-width: min(100%, 22rem);
+  max-width: min(100%, 28rem);
+}
+
+/* Keep profile + logout on one row inside the right cluster */
+.site-nav-right .navbar-auth-stack {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.45rem;
+  max-width: none;
+}
+
+.site-nav-right .navbar-logout-btn {
+  white-space: nowrap;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.78rem;
 }
 
 /* Menu button — football icon; spins while dropdown is open (.active) */
@@ -1524,46 +1538,24 @@ a:hover {
   margin-right: 6px;
 }
 
-/* Subtle 2026 beta badge + name suggest (injected by auth-ui.js) — right cluster only */
+/* Subtle 2026 beta + name suggest — one compact pill on the right */
 .site-beta-wrap {
   display: inline-flex;
-  flex-direction: column;
-  align-items: flex-end;
-  justify-content: center;
-  gap: 0.2rem;
-  flex-shrink: 0;
-  max-width: 7.25rem;
-}
-
-.site-beta-badge {
-  display: inline-flex;
   align-items: center;
-  justify-content: flex-end;
-  line-height: 1;
-  pointer-events: none;
-}
-
-.site-beta-badge-label {
-  font-family: "Barlow Condensed", Impact, sans-serif;
-  font-size: 0.7rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: rgba(232, 197, 71, 0.92);
+  flex-shrink: 0;
 }
 
 .site-name-suggest-btn {
   appearance: none;
-  border: 1px solid rgba(232, 197, 71, 0.35);
-  background: rgba(0, 0, 0, 0.22);
-  color: rgba(245, 222, 179, 0.88);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid rgba(232, 197, 71, 0.4);
+  background: rgba(0, 0, 0, 0.28);
+  color: rgba(245, 222, 179, 0.9);
   font: inherit;
-  font-size: 0.58rem;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-  line-height: 1.15;
-  padding: 0.16rem 0.42rem;
+  line-height: 1;
+  padding: 0.42rem 0.7rem;
   border-radius: 999px;
   cursor: pointer;
   white-space: nowrap;
@@ -1577,17 +1569,55 @@ a:hover {
   outline: none;
 }
 
+.site-name-suggest-btn:hover .site-beta-badge-label,
+.site-name-suggest-btn:focus-visible .site-beta-badge-label,
+.site-name-suggest-btn:hover .site-name-suggest-sep,
+.site-name-suggest-btn:focus-visible .site-name-suggest-sep,
+.site-name-suggest-btn:hover .site-name-suggest-label,
+.site-name-suggest-btn:focus-visible .site-name-suggest-label {
+  color: inherit;
+}
+
+.site-beta-badge-label {
+  font-family: "Barlow Condensed", Impact, sans-serif;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(232, 197, 71, 0.95);
+}
+
+.site-name-suggest-sep {
+  color: rgba(245, 222, 179, 0.45);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.site-name-suggest-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: rgba(245, 222, 179, 0.88);
+}
+
 @media (max-width: 640px) {
   .site-nav-right {
     gap: 0.35rem;
-    max-width: min(100%, 11.5rem);
-  }
-  .site-beta-wrap {
-    max-width: 4.6rem;
+    max-width: min(100%, 13rem);
   }
   .site-name-suggest-btn {
-    font-size: 0.52rem;
-    padding: 0.12rem 0.32rem;
+    padding: 0.32rem 0.5rem;
+    gap: 0.25rem;
+  }
+  .site-beta-badge-label {
+    font-size: 0.62rem;
+  }
+  .site-name-suggest-label {
+    font-size: 0.58rem;
+  }
+  /* Keep logout in the hamburger on small screens */
+  .site-nav-right .navbar-logout-btn {
+    display: none;
   }
 }
 

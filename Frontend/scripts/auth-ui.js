@@ -581,19 +581,16 @@
     wrap.id = "siteBetaBadge";
     wrap.className = "site-beta-wrap";
 
-    var badge = document.createElement("span");
-    badge.className = "site-beta-badge";
-    badge.title = "2026 free public beta";
-    badge.innerHTML = '<span class="site-beta-badge-label">2026 Beta</span>';
-
     var nameBtn = document.createElement("button");
     nameBtn.type = "button";
     nameBtn.id = "siteNameSuggestOpen";
     nameBtn.className = "site-name-suggest-btn";
-    nameBtn.textContent = "Suggest a name";
-    nameBtn.title = "Help name the site";
+    nameBtn.title = "Help name the site — free 2026 beta";
+    nameBtn.innerHTML =
+      '<span class="site-beta-badge-label">2026 Beta</span>' +
+      '<span class="site-name-suggest-sep" aria-hidden="true">·</span>' +
+      '<span class="site-name-suggest-label">Suggest a name</span>';
 
-    wrap.appendChild(badge);
     wrap.appendChild(nameBtn);
     right.insertBefore(wrap, cluster);
   }
