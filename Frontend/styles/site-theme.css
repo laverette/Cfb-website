@@ -1543,13 +1543,6 @@ a:hover {
   color: rgba(232, 197, 71, 0.92);
 }
 
-.site-beta-badge-sub {
-  font-size: 0.62rem;
-  font-weight: 600;
-  color: rgba(245, 222, 179, 0.55);
-  white-space: nowrap;
-}
-
 .site-name-suggest-btn {
   appearance: none;
   border: 1px solid rgba(232, 197, 71, 0.35);
@@ -1576,9 +1569,6 @@ a:hover {
 }
 
 @media (max-width: 420px) {
-  .site-beta-badge-sub {
-    display: none;
-  }
   .site-beta-wrap {
     max-width: 5.2rem;
     margin-right: 0.35rem;

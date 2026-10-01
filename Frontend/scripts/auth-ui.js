@@ -575,8 +575,7 @@
     badge.title =
       "Free during the 2026 beta. We're improving the model throughout the season.";
     badge.innerHTML =
-      '<span class="site-beta-badge-label">2026 Beta</span>' +
-      '<span class="site-beta-badge-sub">Free during the season</span>';
+      '<span class="site-beta-badge-label">2026 Beta</span>';
 
     var nameBtn = document.createElement("button");
     nameBtn.type = "button";
