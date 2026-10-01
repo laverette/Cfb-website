@@ -1,11 +1,17 @@
 /**
  * POST /api/feedback
- * Body: { message, email?, page? }
- * Emails site owner via Resend. Auth optional (adds username if logged in).
+ * Body: { message, category?, email?, page? }
+ * Stores in beta_feedback (Supabase) and emails site owner via Resend when configured.
+ * Auth optional.
  */
 const { json, parseJsonBody } = require("./_http");
 const { optionalAuth } = require("./_auth");
 const { sendEmail, isEmailConfigured, readFromEmail } = require("./_lib/email");
+const {
+  insertBetaFeedback,
+  recordProductEvent,
+  sanitizeAnonId,
+} = require("./_lib/product-analytics");
 
 function readFeedbackTo() {
   const explicit =
@@ -13,7 +19,6 @@ function readFeedbackTo() {
     (process.env.ADMIN_EMAIL && String(process.env.ADMIN_EMAIL).trim()) ||
     "";
   if (explicit && explicit.includes("@")) return explicit;
-  // Fall back to From address only when it looks like a real inbox (not Resend onboarding).
   const from = readFromEmail();
   if (from && from.includes("@") && !/@resend\.dev$/i.test(from.split("<").pop() || from)) {
     const m = from.match(/<([^>]+)>/) || [null, from];
@@ -30,27 +35,19 @@ function escapeHtml(s) {
     .replace(/"/g, "&quot;");
 }
 
+function normalizeCategory(raw) {
+  const c = String(raw || "general").trim().toLowerCase();
+  if (c === "bug" || c === "feature" || c === "general") return c;
+  if (c === "feature_request" || c === "feature-request") return "feature";
+  return "general";
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") {
     return json(204, {});
   }
   if (event.httpMethod !== "POST") {
     return json(405, { error: "Method not allowed" });
-  }
-
-  if (!isEmailConfigured()) {
-    return json(503, {
-      error: "Feedback is temporarily unavailable.",
-      code: "EMAIL_NOT_CONFIGURED",
-    });
-  }
-
-  const to = readFeedbackTo();
-  if (!to) {
-    return json(503, {
-      error: "Feedback is temporarily unavailable.",
-      code: "FEEDBACK_TO_NOT_CONFIGURED",
-    });
   }
 
   const body = parseJsonBody(event);
@@ -71,27 +68,61 @@ exports.handler = async (event) => {
     return json(400, { error: "That email doesn’t look valid." });
   }
 
+  const category = normalizeCategory(body.category);
   const page = String(body.page || "").trim().slice(0, 300);
   const auth = optionalAuth(event);
   const user = auth && auth.payload ? auth.payload : null;
-  const who = user
-    ? `${user.username || "user"} (id ${user.userId})${user.email ? ` · ${user.email}` : ""}`
-    : replyEmail || "anonymous visitor";
+  const userId = user && user.userId != null ? user.userId : null;
+  const anon = sanitizeAnonId(body.anonymousSessionId || body.sessionId);
 
-  const subject = `[Site feedback] ${page || "unknown page"}`;
-  const text = [
-    `From: ${who}`,
-    replyEmail && !user ? `Reply-to: ${replyEmail}` : null,
-    page ? `Page: ${page}` : null,
-    "",
-    message,
-  ]
-    .filter(Boolean)
-    .join("\n");
+  // Persist to Supabase first so feedback is never lost if email is down.
+  let stored = null;
+  try {
+    stored = await insertBetaFeedback({
+      userId,
+      category,
+      message,
+      page,
+    });
+  } catch (err) {
+    console.warn("feedback db:", err?.message || err);
+  }
 
-  const html = `
+  try {
+    await recordProductEvent({
+      eventName: "feedback_submitted",
+      userId,
+      anonymousSessionId: anon,
+      properties: { category, page: page || undefined },
+    });
+  } catch (err) {
+    console.warn("feedback analytics:", err?.message || err);
+  }
+
+  const to = readFeedbackTo();
+  const emailOk = isEmailConfigured() && !!to;
+  if (emailOk) {
+    const who = user
+      ? `${user.username || "user"} (id ${user.userId})`
+      : replyEmail || "anonymous visitor";
+
+    const subject = `[Site feedback · ${category}] ${page || "unknown page"}`;
+    const text = [
+      `From: ${who}`,
+      `Category: ${category}`,
+      replyEmail && !user ? `Reply-to: ${replyEmail}` : null,
+      page ? `Page: ${page}` : null,
+      stored && stored.id ? `Feedback id: ${stored.id}` : null,
+      "",
+      message,
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    const html = `
     <div style="font-family:Arial,Helvetica,sans-serif;line-height:1.5;color:#1a1410;">
       <p><strong>From:</strong> ${escapeHtml(who)}</p>
+      <p><strong>Category:</strong> ${escapeHtml(category)}</p>
       ${replyEmail ? `<p><strong>Reply email:</strong> ${escapeHtml(replyEmail)}</p>` : ""}
       ${page ? `<p><strong>Page:</strong> ${escapeHtml(page)}</p>` : ""}
       <hr style="border:none;border-top:1px solid #ddd;margin:16px 0;">
@@ -99,17 +130,36 @@ exports.handler = async (event) => {
     </div>
   `.trim();
 
-  try {
-    await sendEmail({
-      to,
-      subject,
-      text,
-      html,
-      ...(replyEmail ? { replyTo: replyEmail } : {}),
+    try {
+      await sendEmail({
+        to,
+        subject,
+        text,
+        html,
+        ...(replyEmail ? { replyTo: replyEmail } : {}),
+      });
+    } catch (err) {
+      console.error("feedback email:", err);
+      // DB save still counts as success for the user.
+      if (stored) {
+        return json(200, {
+          ok: true,
+          message: "Thanks — feedback saved.",
+          id: stored.id,
+        });
+      }
+      return json(500, { error: "Could not send feedback. Try again later." });
+    }
+  } else if (!stored) {
+    return json(503, {
+      error: "Feedback is temporarily unavailable.",
+      code: "FEEDBACK_UNAVAILABLE",
     });
-    return json(200, { ok: true, message: "Thanks — feedback sent." });
-  } catch (err) {
-    console.error("feedback:", err);
-    return json(500, { error: "Could not send feedback. Try again later." });
   }
+
+  return json(200, {
+    ok: true,
+    message: "Thanks — feedback sent.",
+    id: stored ? stored.id : undefined,
+  });
 };

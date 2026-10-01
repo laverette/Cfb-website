@@ -427,9 +427,20 @@
     </div>
   </div>
 
+    <script src="scripts/analytics.js"></script>
     <script src="scripts/auth-ui.js"></script>
     <script src="scripts/weeklypicks-mobile.js?v=1"></script>
     <script>
+    function paTrack(name, props) {
+      try {
+        if (window.ProductAnalytics) ProductAnalytics.trackEvent(name, props);
+      } catch (_) {}
+    }
+    function paOnce(name, props, key, opts) {
+      try {
+        if (window.ProductAnalytics) ProductAnalytics.trackOnce(name, props, key, opts);
+      } catch (_) {}
+    }
     // -------------------------------------------------------------------------
     // CFBD data layer (kept for later; NOT used in Phase 1)
     // This is intentionally OFF by default so we don't break the current picks.
@@ -925,6 +936,11 @@
       if (closeBtn) closeBtn.focus();
 
       const reqId = ++predictMatchupRequestId;
+      paTrack('predict_matchup_clicked', {
+        season: activeWeekMeta?.seasonYear || 2026,
+        week: activeWeekMeta?.weekNumber || null,
+        source: 'weekly_picks',
+      });
       setPredictMatchupBodyHtml(matchupEmptyHtml({
         icon: '🏈',
         title: 'Calculating…',
@@ -1217,6 +1233,11 @@
 
           if (!resp.ok) throw new Error(data.details || data.error || 'Predict failed');
           setPredictMatchupBodyHtml(renderMatchupPredictionHtml(data));
+          paTrack('matchup_prediction_completed', {
+            season: activeWeekMeta?.seasonYear || 2026,
+            week: activeWeekMeta?.weekNumber || null,
+            source: 'weekly_picks',
+          });
           return;
         }
 
@@ -1234,6 +1255,18 @@
             title: 'Couldn’t match teams',
             text: missing || 'Could not match these teams in the power model.',
           }));
+          paTrack('matchup_prediction_failed', {
+            season: activeWeekMeta?.seasonYear || 2026,
+            week: activeWeekMeta?.weekNumber || null,
+            errorCode: 'TEAM_NOT_FOUND',
+            source: 'weekly_picks',
+          });
+          paTrack('feature_error', {
+            feature: 'predict_matchup',
+            errorCode: 'TEAM_NOT_FOUND',
+            season: activeWeekMeta?.seasonYear || 2026,
+            week: activeWeekMeta?.weekNumber || null,
+          });
           return;
         }
         if (String(teamA.teamId) === String(teamB.teamId)) {
@@ -1252,8 +1285,25 @@
         if (reqId !== predictMatchupRequestId) return;
         if (!resp.ok) throw new Error(data.details || data.error || 'Predict failed');
         setPredictMatchupBodyHtml(renderMatchupPredictionHtml(data));
+        paTrack('matchup_prediction_completed', {
+          season: activeWeekMeta?.seasonYear || 2026,
+          week: activeWeekMeta?.weekNumber || null,
+          source: 'weekly_picks',
+        });
       } catch (err) {
         if (reqId !== predictMatchupRequestId) return;
+        paTrack('matchup_prediction_failed', {
+          season: activeWeekMeta?.seasonYear || 2026,
+          week: activeWeekMeta?.weekNumber || null,
+          errorCode: /ESPN/i.test(String(err && err.message)) ? 'ESPN_MATCHUP_FAILED' : 'MATCHUP_PREDICT_FAILED',
+          source: 'weekly_picks',
+        });
+        paTrack('feature_error', {
+          feature: 'predict_matchup',
+          errorCode: /ESPN/i.test(String(err && err.message)) ? 'ESPN_MATCHUP_FAILED' : 'MATCHUP_PREDICT_FAILED',
+          season: activeWeekMeta?.seasonYear || 2026,
+          week: activeWeekMeta?.weekNumber || null,
+        });
         setPredictMatchupBodyHtml(matchupEmptyHtml({
           icon: '⚠️',
           title: 'Could not predict',
@@ -1490,6 +1540,11 @@
           btn.getAttribute('data-team-espn-id') || ''
         );
         savePicksDraft();
+        paTrack('weekly_pick_selected', {
+          season: activeWeekMeta?.seasonYear || 2026,
+          week: activeWeekMeta?.weekNumber || null,
+          gameNumber: Number(row.getAttribute('data-game-number')) || null,
+        });
       });
     }
 
@@ -1845,6 +1900,7 @@
 
     document.addEventListener('DOMContentLoaded', function() {
       document.body.classList.add('weekly-picks-view');
+      paOnce('weekly_picks_opened', { season: 2026 }, 'weekly_picks_opened', { session: true });
       syncPicksAuthState();
       initFootballToggle();
       initBouncingFootball();
@@ -3056,6 +3112,11 @@
           lastSubmitted: new Date().toISOString(),
           locksAt: null,
         };
+        paTrack('weekly_picks_submitted', {
+          season: activeWeekMeta?.seasonYear || 2026,
+          week: activeWeekMeta?.weekNumber || null,
+          pickCount: picks.length,
+        });
         await showSavedPicksForWeek({
           canEdit: true,
           locksAt: null,
@@ -4535,6 +4596,15 @@
       if (tabName === 'week10-results') {
         loadResultsLeaderboards();
         startResultsLeaderboardRefresh();
+        paOnce(
+          'weekly_results_viewed',
+          {
+            season: activeWeekMeta?.seasonYear || 2026,
+            week: activeWeekMeta?.weekNumber || null,
+          },
+          'weekly_results_viewed',
+          { session: true }
+        );
       } else {
         stopResultsLeaderboardRefresh();
       }

@@ -1502,6 +1502,87 @@ a:hover {
   margin-right: 6px;
 }
 
+/* Subtle 2026 beta badge + name suggest (injected by auth-ui.js) */
+.site-beta-wrap {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 0.15rem;
+  margin-right: 0.55rem;
+  flex-shrink: 0;
+  max-width: 8.5rem;
+}
+
+.site-beta-badge {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  line-height: 1.1;
+  pointer-events: none;
+}
+
+.site-beta-badge-label {
+  font-family: "Barlow Condensed", Impact, sans-serif;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(232, 197, 71, 0.92);
+}
+
+.site-beta-badge-sub {
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: rgba(245, 222, 179, 0.55);
+  white-space: nowrap;
+}
+
+.site-name-suggest-btn {
+  appearance: none;
+  border: 1px solid rgba(232, 197, 71, 0.35);
+  background: rgba(0, 0, 0, 0.22);
+  color: rgba(245, 222, 179, 0.88);
+  font: inherit;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  line-height: 1.2;
+  padding: 0.18rem 0.45rem;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.site-name-suggest-btn:hover,
+.site-name-suggest-btn:focus-visible {
+  color: #1a1508;
+  background: linear-gradient(180deg, #e8c547, #f0a020);
+  border-color: transparent;
+  outline: none;
+}
+
+@media (max-width: 420px) {
+  .site-beta-badge-sub {
+    display: none;
+  }
+  .site-beta-wrap {
+    max-width: 5.2rem;
+    margin-right: 0.35rem;
+  }
+  .site-name-suggest-btn {
+    font-size: 0.58rem;
+    padding: 0.14rem 0.35rem;
+  }
+}
+
+.site-name-suggest-root {
+  position: relative;
+  z-index: 40;
+}
+
 /* Site-wide feedback (injected by auth-ui.js) */
 .site-feedback-root {
   position: relative;

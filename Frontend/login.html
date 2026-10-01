@@ -138,6 +138,7 @@
     </div>
   </div>
 
+  <script src="scripts/analytics.js"></script>
   <script src="scripts/auth-ui.js"></script>
   <script>
     function safePostLoginRedirect() {
@@ -322,7 +323,13 @@
         email: email,
         password: password,
         emailNotifications: document.getElementById('registerEmailReminders')?.checked === true,
-        avatarId: avatarId
+        avatarId: avatarId,
+        anonymousSessionId:
+          (window.ProductAnalytics && ProductAnalytics.getAnonymousSessionId && ProductAnalytics.getAnonymousSessionId()) ||
+          undefined,
+        share_id:
+          (window.ProductAnalytics && ProductAnalytics.getShareReferral && ProductAnalytics.getShareReferral()) ||
+          undefined
       };
       
       try {

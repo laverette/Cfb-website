@@ -6,6 +6,7 @@ const { registerUser } = require("./db");
 const { json, parseJsonBody } = require("./_http");
 const { signUserToken, jwtSecretOr500 } = require("./_auth");
 const { parseAvatarId, avatarPathForId, AVATAR_COUNT } = require("./_lib/avatars");
+const { recordProductEvent, sanitizeAnonId } = require("./_lib/product-analytics");
 
 function rowToUser(row) {
   return {
@@ -79,6 +80,24 @@ exports.handler = async (event) => {
     });
     if (!created || !created.id) {
       return json(500, { message: "Failed to create user" });
+    }
+    const anon = sanitizeAnonId(body.anonymousSessionId || body.sessionId);
+    recordProductEvent({
+      eventName: "user_signed_up",
+      userId: created.id,
+      anonymousSessionId: anon,
+      properties: { source: "auth_register" },
+    });
+    if (body.share_id || body.shareId) {
+      recordProductEvent({
+        eventName: "viewer_signed_up",
+        userId: created.id,
+        anonymousSessionId: anon,
+        properties: {
+          share_id: String(body.share_id || body.shareId).slice(0, 64),
+          source: "share_card",
+        },
+      });
     }
     const token = signUserToken(created);
     return json(200, { token, user: rowToUser(created) });

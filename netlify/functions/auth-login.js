@@ -6,6 +6,7 @@ const bcrypt = require("bcryptjs");
 const { findUserByUsernameOrEmail, logUserLogin, getSupabaseConfig } = require("./db");
 const { json, parseJsonBody } = require("./_http");
 const { signUserToken, jwtSecretOr500 } = require("./_auth");
+const { recordProductEvent } = require("./_lib/product-analytics");
 
 function rowToUser(row) {
   return {
@@ -65,6 +66,11 @@ exports.handler = async (event) => {
     }
 
     await logUserLogin(row.id);
+    recordProductEvent({
+      eventName: "user_logged_in",
+      userId: row.id,
+      properties: { source: "auth_login" },
+    });
 
     const token = signUserToken(row);
     return json(200, { token, user: rowToUser(row) });

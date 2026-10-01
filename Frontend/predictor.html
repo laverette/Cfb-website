@@ -135,10 +135,17 @@
     </div>
   </main>
 
+  <script src="scripts/analytics.js"></script>
   <script src="scripts/auth-ui.js"></script>
   <script>
     let teams = [];
     const selected = { a: null, b: null };
+
+    function paTrack(name, props) {
+      try {
+        if (window.ProductAnalytics) ProductAnalytics.trackEvent(name, props);
+      } catch (_) {}
+    }
 
     const ADJ_ROLES = [
       { id: 'qb', label: 'QB' },
@@ -622,6 +629,7 @@
       const btn = document.getElementById('predictBtn');
       btn.disabled = true;
       btn.textContent = 'Calculating…';
+      paTrack('predict_matchup_clicked', { season: 2026, source: 'predictor' });
       try {
         const resp = await fetch('/api/power/matchup', {
           method: 'POST',
@@ -637,6 +645,7 @@
         const data = await resp.json().catch(() => ({}));
         if (!resp.ok) throw new Error(data.details || data.error || 'Predict failed');
         renderPrediction(data);
+        paTrack('matchup_prediction_completed', { season: 2026, source: 'predictor' });
       } catch (err) {
         const placeholder = document.getElementById('resultPlaceholder');
         placeholder.hidden = false;
@@ -646,6 +655,16 @@
           <p class="matchup-empty-text">${escapeHtml(err.message || 'Failed')}</p>
         `;
         document.getElementById('resultBody').hidden = true;
+        paTrack('matchup_prediction_failed', {
+          season: 2026,
+          errorCode: 'MATCHUP_PREDICT_FAILED',
+          source: 'predictor',
+        });
+        paTrack('feature_error', {
+          feature: 'predict_matchup',
+          errorCode: 'MATCHUP_PREDICT_FAILED',
+          season: 2026,
+        });
       } finally {
         btn.disabled = false;
         btn.textContent = 'Predict matchup';

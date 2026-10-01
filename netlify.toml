@@ -315,6 +315,26 @@
   status = 200
 
 [[redirects]]
+  from = "/api/name-suggest"
+  to = "/.netlify/functions/name-suggest"
+  status = 200
+
+[[redirects]]
+  from = "/api/analytics/track"
+  to = "/.netlify/functions/analytics-track"
+  status = 200
+
+[[redirects]]
+  from = "/api/admin/analytics"
+  to = "/.netlify/functions/admin-analytics"
+  status = 200
+
+[[redirects]]
+  from = "/admin/analytics"
+  to = "/admin-analytics.html"
+  status = 200
+
+[[redirects]]
   from = "/api/admin/games/*"
   to = "/.netlify/functions/admin-delete-game?gameId=:splat"
   status = 200

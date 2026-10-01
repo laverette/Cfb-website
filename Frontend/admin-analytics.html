@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>2026 Beta Analytics — Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <link rel="stylesheet" href="styles/site-theme.css">
+  <style>
+    :root {
+      --admin-bg: #12100e;
+      --admin-surface: #1a1714;
+      --admin-border: rgba(232, 197, 71, 0.32);
+      --admin-border-soft: rgba(255, 255, 255, 0.09);
+      --admin-text: #f3efe6;
+      --admin-muted: #b9a990;
+      --admin-accent: #e8c547;
+      --admin-accent-hot: #f0a020;
+      --admin-ok: #3d9a5f;
+      --admin-danger: #e05a4a;
+      --admin-font: "Source Sans 3", system-ui, sans-serif;
+      --admin-display: "Barlow Condensed", Impact, sans-serif;
+    }
+    body {
+      background:
+        radial-gradient(ellipse 90% 45% at 50% -8%, rgba(232, 197, 71, 0.11), transparent 52%),
+        var(--admin-bg);
+      color: var(--admin-text);
+      font-family: var(--admin-font);
+      margin: 0;
+      min-height: 100vh;
+    }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 16px 16px 3rem; }
+    h1 {
+      font-family: var(--admin-display);
+      color: var(--admin-accent);
+      text-align: center;
+      font-size: clamp(1.7rem, 4vw, 2.2rem);
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      margin: 0.5rem 0 0.25rem;
+    }
+    .lead { text-align: center; color: var(--admin-muted); margin: 0 0 1rem; font-size: 0.92rem; }
+    .toolbar {
+      display: flex; flex-wrap: wrap; gap: 0.65rem; align-items: end;
+      margin-bottom: 1rem;
+      padding: 0.85rem 1rem;
+      background: var(--admin-surface);
+      border: 1px solid var(--admin-border);
+      border-radius: 12px;
+    }
+    .toolbar label { display: block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--admin-muted); margin-bottom: 0.25rem; }
+    .toolbar select, .toolbar input {
+      background: #0c0b0a; color: var(--admin-text); border: 1px solid var(--admin-border-soft);
+      border-radius: 8px; padding: 0.4rem 0.55rem; min-width: 8rem;
+    }
+    .section {
+      background: linear-gradient(180deg, rgba(232, 197, 71, 0.04), transparent 28%), var(--admin-surface);
+      border: 1px solid var(--admin-border);
+      border-radius: 12px;
+      padding: 1.1rem 1.2rem 1.25rem;
+      margin-bottom: 1rem;
+    }
+    .section h2 {
+      font-family: var(--admin-display);
+      color: var(--admin-accent);
+      font-size: 1.35rem;
+      font-weight: 800;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      margin: 0 0 0.75rem;
+    }
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 0.65rem;
+    }
+    .kpi {
+      background: rgba(0,0,0,0.25);
+      border: 1px solid var(--admin-border-soft);
+      border-radius: 10px;
+      padding: 0.7rem 0.8rem;
+    }
+    .kpi span { display: block; color: var(--admin-muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; }
+    .kpi strong { display: block; margin-top: 0.2rem; font-size: 1.35rem; font-family: var(--admin-display); color: var(--admin-accent); }
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    @media (max-width: 800px) { .two-col { grid-template-columns: 1fr; } }
+    .chart {
+      display: flex; align-items: flex-end; gap: 3px; height: 120px;
+      padding: 0.5rem 0 0; border-bottom: 1px solid var(--admin-border-soft);
+    }
+    .chart .bar {
+      flex: 1; min-width: 0; background: linear-gradient(180deg, var(--admin-accent), var(--admin-accent-hot));
+      border-radius: 3px 3px 0 0; opacity: 0.85;
+    }
+    .chart-meta { display: flex; justify-content: space-between; color: var(--admin-muted); font-size: 0.75rem; margin-top: 0.35rem; }
+    .feat-row { display: flex; justify-content: space-between; gap: 1rem; padding: 0.45rem 0; border-bottom: 1px solid var(--admin-border-soft); }
+    .feat-row:last-child { border-bottom: 0; }
+    .feat-row strong { color: var(--admin-text); }
+    .feat-row span { color: var(--admin-muted); font-size: 0.9rem; }
+    .muted { color: var(--admin-muted); font-size: 0.9rem; }
+    .err-list { margin: 0; padding-left: 1.1rem; }
+    .err-list li { margin: 0.25rem 0; }
+    .feedback-item {
+      padding: 0.65rem 0;
+      border-bottom: 1px solid var(--admin-border-soft);
+    }
+    .feedback-item:last-child { border-bottom: 0; }
+    .chip {
+      display: inline-block; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em;
+      padding: 0.15rem 0.45rem; border-radius: 999px; border: 1px solid var(--admin-border-soft);
+      color: var(--admin-muted); margin-right: 0.35rem;
+    }
+    .status { text-align: center; color: var(--admin-muted); padding: 2rem; }
+    .status.is-err { color: var(--admin-danger); }
+    .nav-links { text-align: center; margin-bottom: 0.75rem; }
+    .nav-links a { color: var(--admin-accent); margin: 0 0.5rem; text-decoration: none; font-weight: 700; }
+    .gate { max-width: 420px; margin: 3rem auto; text-align: center; }
+  </style>
+</head>
+<body>
+  <nav class="navbar weeklypicks-navbar site-nav">
+    <div class="container-fluid">
+      <div class="navbar-content-weekly site-nav-inner">
+        <button class="hamburger-menu-btn" onclick="toggleMenu()" aria-label="Menu" aria-expanded="false" aria-controls="dropdownMenu">
+          <span></span><span></span><span></span>
+        </button>
+        <div class="dropdown-menu" id="dropdownMenu"></div>
+        <h1 class="site-title">Beta Analytics</h1>
+        <div id="auth-nav" class="navbar-auth-cluster"></div>
+      </div>
+    </div>
+  </nav>
+  <div class="menu-overlay" id="menuOverlay" onclick="closeMenu()"></div>
+
+  <div id="gate" class="gate" hidden>
+    <h1>Admin only</h1>
+    <p class="muted">Sign in with an admin account to view 2026 beta analytics.</p>
+    <p><a class="btn btn-gold" href="login.html?redirect=admin-analytics.html">Log in</a></p>
+  </div>
+
+  <div id="app" class="wrap" hidden>
+    <div class="nav-links">
+      <a href="admin.html">← Admin panel</a>
+      <a href="admin.html#section-api-usage">API usage</a>
+    </div>
+    <h1>2026 Beta Analytics</h1>
+    <p class="lead">Free public beta — feature usage, retention, and sharing. No paywall metrics.</p>
+
+    <div class="toolbar">
+      <div>
+        <label for="rangeSelect">Range</label>
+        <select id="rangeSelect">
+          <option value="today">Today</option>
+          <option value="7d" selected>Last 7 Days</option>
+          <option value="30d">Last 30 Days</option>
+          <option value="season">Season</option>
+        </select>
+      </div>
+      <div>
+        <label for="weekFilter">CFB week (optional)</label>
+        <input id="weekFilter" type="number" min="1" max="20" placeholder="e.g. 6">
+      </div>
+      <div>
+        <button type="button" class="btn btn-gold" id="refreshBtn">Refresh</button>
+      </div>
+    </div>
+
+    <div id="status" class="status">Loading…</div>
+
+    <div id="dashboard" hidden>
+      <div class="section">
+        <h2>Today</h2>
+        <div class="kpi-grid" id="todayKpis"></div>
+      </div>
+
+      <div class="section">
+        <h2>This Week</h2>
+        <div class="kpi-grid" id="weekKpis"></div>
+        <p class="muted" id="retentionLine" style="margin:0.85rem 0 0;"></p>
+      </div>
+
+      <div class="section">
+        <h2>Feature usage — this week</h2>
+        <div id="featureBreakdown"></div>
+      </div>
+
+      <div class="section">
+        <h2>Feature adoption — of WAU</h2>
+        <div class="kpi-grid" id="adoptionKpis"></div>
+      </div>
+
+      <div class="section">
+        <h2>Sharing funnel</h2>
+        <div id="shareFunnel"></div>
+      </div>
+
+      <div class="two-col">
+        <div class="section">
+          <h2>Daily active users (30d)</h2>
+          <div class="chart" id="chartDau"></div>
+          <div class="chart-meta"><span>30 days ago</span><span>Today</span></div>
+        </div>
+        <div class="section">
+          <h2>Prop evaluations / day</h2>
+          <div class="chart" id="chartProps"></div>
+          <div class="chart-meta"><span>30 days ago</span><span>Today</span></div>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div class="section">
+          <h2>Weekly picks submissions / day</h2>
+          <div class="chart" id="chartPicks"></div>
+          <div class="chart-meta"><span>30 days ago</span><span>Today</span></div>
+        </div>
+        <div class="section">
+          <h2>Shared-card opens / day</h2>
+          <div class="chart" id="chartShares"></div>
+          <div class="chart-meta"><span>30 days ago</span><span>Today</span></div>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div class="section">
+          <h2>Recent feature errors</h2>
+          <ul class="err-list" id="errorList"></ul>
+        </div>
+        <div class="section">
+          <h2>Data source health (7d)</h2>
+          <div id="apiHealth"></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Site name suggestions</h2>
+        <div id="nameSuggestList"></div>
+      </div>
+
+      <div class="section">
+        <h2>Beta feedback</h2>
+        <div id="feedbackList"></div>
+      </div>
+
+      <div class="section">
+        <h2>Selected range totals</h2>
+        <div class="kpi-grid" id="rangeKpis"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="scripts/analytics.js"></script>
+  <script src="scripts/auth-ui.js"></script>
+  <script>
+    function closeMenu() {
+      const menu = document.getElementById('dropdownMenu');
+      const button = document.querySelector('.hamburger-menu-btn');
+      const overlay = document.getElementById('menuOverlay');
+      if (!menu || !button || !overlay) return;
+      menu.classList.remove('show');
+      button.classList.remove('active');
+      button.setAttribute('aria-expanded', 'false');
+      overlay.classList.remove('show');
+      document.body.classList.remove('menu-open');
+    }
+    function toggleMenu() {
+      const menu = document.getElementById('dropdownMenu');
+      const button = document.querySelector('.hamburger-menu-btn');
+      const overlay = document.getElementById('menuOverlay');
+      if (!menu || !button || !overlay) return;
+      const open = !menu.classList.contains('show');
+      menu.classList.toggle('show', open);
+      button.classList.toggle('active', open);
+      button.setAttribute('aria-expanded', open ? 'true' : 'false');
+      overlay.classList.toggle('show', open);
+      document.body.classList.toggle('menu-open', open);
+    }
+
+    function authHeaders() {
+      const token = localStorage.getItem('authToken');
+      const h = { Accept: 'application/json' };
+      if (token) h.Authorization = 'Bearer ' + token;
+      return h;
+    }
+
+    function isAdmin() {
+      try {
+        const u = JSON.parse(localStorage.getItem('currentUser') || 'null');
+        return u && String(u.role || '').toLowerCase() === 'admin' && !!localStorage.getItem('authToken');
+      } catch {
+        return false;
+      }
+    }
+
+    function fmt(n) {
+      if (n == null || Number.isNaN(n)) return '—';
+      return Number(n).toLocaleString();
+    }
+
+    function pct(n) {
+      if (n == null || Number.isNaN(n)) return '—';
+      return n + '%';
+    }
+
+    function kpiHtml(items) {
+      return items.map(([label, value]) =>
+        `<div class="kpi"><span>${label}</span><strong>${value}</strong></div>`
+      ).join('');
+    }
+
+    function renderChart(el, series) {
+      if (!el) return;
+      const vals = (series || []).map((s) => Number(s.value) || 0);
+      const max = Math.max(1, ...vals);
+      el.innerHTML = vals.map((v) => {
+        const h = Math.max(2, Math.round((v / max) * 100));
+        return `<div class="bar" style="height:${h}%" title="${v}"></div>`;
+      }).join('');
+    }
+
+    function featBlock(title, lines) {
+      return `<div style="margin-bottom:0.85rem"><strong style="font-family:var(--admin-display);letter-spacing:0.03em;text-transform:uppercase;color:var(--admin-accent)">${title}</strong>` +
+        lines.map(([a, b]) => `<div class="feat-row"><strong>${a}</strong><span>${b}</span></div>`).join('') +
+        '</div>';
+    }
+
+    async function loadDashboard() {
+      const status = document.getElementById('status');
+      const dash = document.getElementById('dashboard');
+      status.hidden = false;
+      status.className = 'status';
+      status.textContent = 'Loading…';
+      dash.hidden = true;
+
+      const range = document.getElementById('rangeSelect').value;
+      const week = document.getElementById('weekFilter').value.trim();
+      const qs = new URLSearchParams({ range });
+      if (week) qs.set('week', week);
+
+      try {
+        const resp = await fetch('/api/admin/analytics?' + qs.toString(), { headers: authHeaders() });
+        if (resp.status === 401 || resp.status === 403) {
+          document.getElementById('app').hidden = true;
+          document.getElementById('gate').hidden = false;
+          return;
+        }
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok || !data.ok) throw new Error(data.error || 'Failed to load');
+
+        const t = data.summary.today;
+        const w = data.summary.thisWeek;
+        document.getElementById('todayKpis').innerHTML = kpiHtml([
+          ['Active Users', fmt(t.activeUsers)],
+          ['Prop Evaluations', fmt(t.propEvaluations)],
+          ['Weekly Picks Users', fmt(t.weeklyPicksUsers)],
+          ['Matchup Predictions', fmt(t.matchupPredictions)],
+          ['Cards Shared', fmt(t.cardsShared)],
+        ]);
+
+        document.getElementById('weekKpis').innerHTML = kpiHtml([
+          ['Weekly Active Users', fmt(w.weeklyActiveUsers)],
+          ['New Users', fmt(w.newUsers)],
+          ['Returning Users', fmt(w.returningUsers)],
+          ['Prop Evaluations', fmt(w.propEvaluations)],
+          ['Weekly Picks Submissions', fmt(w.weeklyPicksSubmissions)],
+          ['Shared Card Opens', fmt(w.sharedCardOpens)],
+          ['Registered Users', fmt(w.registeredUsers)],
+          ['Avg Sessions / User', w.avgSessionsPerUser != null ? w.avgSessionsPerUser : '—'],
+        ]);
+
+        const ret = data.retention.weekToWeek;
+        document.getElementById('retentionLine').textContent =
+          `Week-to-week retention: ${ret.priorWeekActive || 0} active last week → ${ret.returned || 0} returned this week` +
+          (ret.rate != null ? ` (${ret.rate}%)` : '');
+
+        const f = data.featureUsage;
+        document.getElementById('featureBreakdown').innerHTML =
+          featBlock('Prop Lab', [
+            ['Evaluations', fmt(f.propLab.evaluations)],
+            ['Unique users', fmt(f.propLab.uniqueUsers)],
+            ['Avg evals / user', f.propLab.avgEvaluationsPerUser != null ? f.propLab.avgEvaluationsPerUser : '—'],
+            ['Cards saved', fmt(f.propLab.cardsSaved)],
+            ['Cards shared', fmt(f.propLab.cardsShared)],
+            ['Shared-card opens', fmt(f.propLab.sharedOpens)],
+            ['Find Best 3', fmt(f.propLab.findBest3)],
+            ['Find Best 4', fmt(f.propLab.findBest4)],
+          ]) +
+          featBlock('Weekly Picks', [
+            ['Participants', fmt(f.weeklyPicks.participants)],
+            ['Submissions', fmt(f.weeklyPicks.submissions)],
+            ['Result-page views', fmt(f.weeklyPicks.resultViews)],
+          ]) +
+          featBlock('Predict Matchup', [
+            ['Predictions', fmt(f.predictMatchup.predictions)],
+            ['Unique users', fmt(f.predictMatchup.uniqueUsers)],
+            ['Failures', fmt(f.predictMatchup.failures)],
+            ['Failure rate', f.predictMatchup.failureRate != null ? pct(f.predictMatchup.failureRate) : '—'],
+          ]) +
+          featBlock('Sharing', [
+            ['Cards shared', fmt(f.sharing.cardsShared)],
+            ['Unique sharers', fmt(f.sharing.uniqueCardsShared)],
+            ['Opens', fmt(f.sharing.sharedOpens)],
+            ['Unique viewers', fmt(f.sharing.uniqueViewers)],
+            ['Anonymous viewers', fmt(f.sharing.anonymousViewers)],
+          ]);
+
+        const a = data.adoption;
+        document.getElementById('adoptionKpis').innerHTML = kpiHtml([
+          ['Used Prop Lab', pct(a.propLab)],
+          ['Submitted Weekly Picks', pct(a.weeklyPicks)],
+          ['Used Predict Matchup', pct(a.predictMatchup)],
+          ['Shared a card', pct(a.sharedCard)],
+        ]);
+
+        const sf = data.shareFunnel;
+        document.getElementById('shareFunnel').innerHTML = [
+          ['card_shared', sf.cardShared],
+          ['shared_card_opened', sf.sharedOpened],
+          ['viewer_signed_up', sf.viewerSignedUp],
+          ['viewer_used_prop_lab', sf.viewerUsedPropLab],
+          ['viewer_shared_card', sf.viewerSharedCard],
+        ].map(([label, n], i, arr) =>
+          `<div class="feat-row"><strong>${label}</strong><span>${fmt(n)}${i < arr.length - 1 ? ' ↓' : ''}</span></div>`
+        ).join('');
+
+        renderChart(document.getElementById('chartDau'), data.charts.dailyActiveUsers);
+        renderChart(document.getElementById('chartProps'), data.charts.propEvaluationsPerDay);
+        renderChart(document.getElementById('chartPicks'), data.charts.weeklyPicksByDay);
+        renderChart(document.getElementById('chartShares'), data.charts.sharedCardOpensPerDay);
+
+        const errors = data.errors.buckets || [];
+        document.getElementById('errorList').innerHTML = errors.length
+          ? errors.slice(0, 12).map((e) =>
+              `<li><strong>${e.feature}</strong> · ${e.errorCode}: ${e.count}</li>`
+            ).join('')
+          : '<li class="muted">No feature_error events this week.</li>';
+
+        const api = data.apiHealth;
+        if (api && api.features && api.features.length) {
+          document.getElementById('apiHealth').innerHTML =
+            `<p class="muted">Network calls: <strong>${fmt(api.totalCalls)}</strong> · Cache hits: <strong>${fmt(api.totalCacheHits)}</strong></p>` +
+            api.features.slice(0, 8).map((f) =>
+              `<div class="feat-row"><strong>${f.label || f.feature}</strong><span>${fmt(f.calls)} calls · ${fmt(f.cacheHits)} hits</span></div>`
+            ).join('');
+        } else {
+          document.getElementById('apiHealth').innerHTML = '<p class="muted">No API usage rows in the last 7 days.</p>';
+        }
+
+        const names = data.nameSuggestions || [];
+        document.getElementById('nameSuggestList').innerHTML = names.length
+          ? names.map((row) =>
+              `<div class="feedback-item">
+                <span class="chip">${String(row.status || 'new')}</span>
+                <span class="muted">${new Date(row.created_at).toLocaleString()}</span>
+                <p style="margin:0.35rem 0 0;font-weight:700;color:var(--admin-accent);">${String(row.suggested_name || '').replace(/[<>&]/g, (c) => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]))}</p>
+                ${row.note ? `<p style="margin:0.25rem 0 0;white-space:pre-wrap;">${String(row.note).replace(/[<>&]/g, (c) => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]))}</p>` : ''}
+              </div>`
+            ).join('')
+          : '<p class="muted">No name suggestions yet.</p>';
+
+        const fb = data.feedback || [];
+        document.getElementById('feedbackList').innerHTML = fb.length
+          ? fb.map((row) =>
+              `<div class="feedback-item">
+                <span class="chip">${row.category}</span>
+                <span class="chip">${row.status}</span>
+                <span class="muted">${new Date(row.created_at).toLocaleString()}</span>
+                <p style="margin:0.35rem 0 0;white-space:pre-wrap;">${String(row.message || '').replace(/[<>&]/g, (c) => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]))}</p>
+                ${row.page ? `<p class="muted" style="margin:0.2rem 0 0;font-size:0.8rem;">${String(row.page).replace(/[<>&]/g, (c) => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]))}</p>` : ''}
+              </div>`
+            ).join('')
+          : '<p class="muted">No feedback yet.</p>';
+
+        const r = data.rangeTotals;
+        document.getElementById('rangeKpis').innerHTML = kpiHtml([
+          ['Active Users', fmt(r.activeUsers)],
+          ['Events', fmt(r.events)],
+          ['Prop Evaluations', fmt(r.propEvaluations)],
+          ['Picks Submissions', fmt(r.weeklyPicksSubmissions)],
+          ['Matchup Predictions', fmt(r.matchupPredictions)],
+          ['Cards Shared', fmt(r.cardsShared)],
+          ['Shared Opens', fmt(r.sharedOpens)],
+        ]);
+
+        status.hidden = true;
+        dash.hidden = false;
+      } catch (err) {
+        status.className = 'status is-err';
+        status.textContent = err.message || 'Could not load analytics';
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      if (!isAdmin()) {
+        document.getElementById('gate').hidden = false;
+        document.getElementById('app').hidden = true;
+        return;
+      }
+      document.getElementById('gate').hidden = true;
+      document.getElementById('app').hidden = false;
+      document.getElementById('refreshBtn').addEventListener('click', loadDashboard);
+      document.getElementById('rangeSelect').addEventListener('change', loadDashboard);
+      loadDashboard();
+    });
+  </script>
+</body>
+</html>

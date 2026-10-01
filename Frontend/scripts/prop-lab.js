@@ -8,6 +8,26 @@
     /localhost|127\.0\.0\.1/.test(location.hostname) ||
     new URLSearchParams(location.search).get("debug") === "1";
 
+  function track(name, props) {
+    try {
+      if (window.ProductAnalytics && typeof ProductAnalytics.trackEvent === "function") {
+        ProductAnalytics.trackEvent(name, props);
+      }
+    } catch (_) {
+      /* analytics must never break Prop Lab */
+    }
+  }
+
+  function trackOnce(name, props, key, opts) {
+    try {
+      if (window.ProductAnalytics && typeof ProductAnalytics.trackOnce === "function") {
+        ProductAnalytics.trackOnce(name, props, key, opts);
+      }
+    } catch (_) {
+      /* ignore */
+    }
+  }
+
   const state = {
     season: 2026,
     week: null,
@@ -371,6 +391,12 @@
         const data = await api({ action: "search", q: q.trim(), year: state.season });
         const players = data.players || [];
         state.searchHits = players.slice(0, 12);
+        trackOnce(
+          "player_searched",
+          { season: state.season, qLen: q.trim().length, hitCount: players.length },
+          "player_searched:" + q.trim().toLowerCase().slice(0, 24),
+          { session: false }
+        );
         if (isMobile() || forSheet) {
           if (sheetList) renderHits(sheetList, players);
           if (sheetHint) {
@@ -1364,6 +1390,18 @@
       state.analysis = data.analysis;
       state.best3 = data.best3;
       state.best4 = data.best4;
+      const fp = legs
+        .map((l) => `${l.playerId}:${l.statId}:${l.line}:${l.side}`)
+        .join("|");
+      if (state._lastAnalyzedFp !== fp) {
+        state._lastAnalyzedFp = fp;
+        track("entry_analyzed", {
+          season: state.season,
+          week: state.week,
+          legCount: legs.length,
+          source: "prop_lab",
+        });
+      }
     } catch {
       state.analysis = null;
     }
@@ -1440,6 +1478,12 @@
     // Do NOT refocus player search — on mobile that reopens the sheet + keyboard.
     dismissKeyboard();
     scrollToPropResults(leg.id);
+    track("prop_added_to_card", {
+      season: state.season,
+      week: state.week,
+      statType: leg.statLabel || leg.statId,
+      source: "prop_lab",
+    });
     await evaluateLeg(leg);
     await refreshAnalysis();
     renderAll();
@@ -1477,6 +1521,17 @@
       );
       leg.evaluation = { ...evaluation, clientId: leg.id };
       leg.loading = false;
+      track("prop_evaluated", {
+        season: state.season,
+        week: state.week,
+        statType: leg.statLabel || leg.statId,
+        source: "prop_lab",
+      });
+      if (window.ProductAnalytics && ProductAnalytics.getShareReferral()) {
+        trackOnce("viewer_used_prop_lab", { share_id: ProductAnalytics.getShareReferral() }, "viewer_used_prop_lab", {
+          session: true,
+        });
+      }
     } catch (err) {
       leg.loading = false;
       leg.evaluation = {
@@ -1485,6 +1540,12 @@
         stat: { id: leg.statId },
         clientId: leg.id,
       };
+      track("feature_error", {
+        feature: "prop_lab",
+        errorCode: err?.body?.code || err?.code || "PROP_EVAL_FAILED",
+        season: state.season,
+        week: state.week,
+      });
     }
   }
 
@@ -1498,7 +1559,16 @@
   }
 
   function removeLeg(id) {
+    const removed = state.legs.find((l) => l.id === id);
     state.legs = state.legs.filter((l) => l.id !== id);
+    if (removed) {
+      track("prop_removed_from_card", {
+        season: state.season,
+        week: state.week,
+        statType: removed.statLabel || removed.statId,
+        source: "prop_lab",
+      });
+    }
     refreshAnalysis().then(renderAll);
     renderAll();
   }
@@ -1865,6 +1935,17 @@
     );
     if (!data.shareId) throw new Error("Share link was not created");
     state.lastShareId = data.shareId;
+    track("card_shared", {
+      legCount: Array.isArray(payload?.legs) ? payload.legs.length : undefined,
+      season: payload?.seasonYear || state.season,
+      week: payload?.weekNumber || state.week,
+      share_id: data.shareId,
+    });
+    if (window.ProductAnalytics && ProductAnalytics.getShareReferral()) {
+      trackOnce("viewer_shared_card", { share_id: ProductAnalytics.getShareReferral() }, "viewer_shared_card", {
+        session: true,
+      });
+    }
     return sharePageUrl(data.shareId);
   }
 
@@ -1953,6 +2034,7 @@
 
   function copySharedToBuilder() {
     if (!state.legs.length) return;
+    const shareId = state.sharedView?.shareId || null;
     state.sharedView = null;
     renderSharedBanner();
     // Keep legs/analysis; leave share param so refresh can reopen, or strip:
@@ -1963,6 +2045,12 @@
     } catch {
       /* ignore */
     }
+    track("shared_card_copied_to_builder", {
+      share_id: shareId || undefined,
+      legCount: state.legs.length,
+      season: state.season,
+      week: state.week,
+    });
     setSaveStatus("Copied into your builder — you can edit lines and sides freely.", "ok");
     renderAll();
   }
@@ -2175,6 +2263,12 @@
       state.lastSavedId = data.entry?.id ?? null;
       closeSavePanel();
       setSaveStatus(`Saved “${title}”. Use Copy link on the card to share it.`, "ok");
+      track("card_saved", {
+        season: state.season,
+        week: state.week,
+        legCount: legs.length,
+        source: "prop_lab",
+      });
       await loadSaved();
     } catch (err) {
       setSaveStatus(err.message || "Could not save this card.", "err");
@@ -2374,6 +2468,20 @@
         } loaded from snapshot.`,
         "ok"
       );
+      try {
+        if (window.ProductAnalytics && typeof ProductAnalytics.trackShareOpen === "function") {
+          ProductAnalytics.trackShareOpen(packed.shareId || shareId);
+        } else {
+          trackOnce(
+            "shared_card_opened",
+            { share_id: packed.shareId || shareId, legCount: payload.legs.length },
+            "shared_card_opened:" + (packed.shareId || shareId),
+            { session: true }
+          );
+        }
+      } catch (_) {
+        /* ignore */
+      }
       document.getElementById("entryList")?.scrollIntoView({ behavior: "smooth", block: "start" });
       // Keep ?share= in the URL so refresh / copy-from-address-bar still works.
       return true;
@@ -2393,6 +2501,10 @@
       if (entryHost) entryHost.innerHTML = "";
       if (cardsHost) cardsHost.innerHTML = "";
       setSaveStatus(state.sharedView.error, "err");
+      track("feature_error", {
+        feature: "share_card",
+        errorCode: "SHARE_CARD_LOAD_FAILED",
+      });
       return false;
     }
   }
@@ -2591,6 +2703,9 @@
 
   document.addEventListener("DOMContentLoaded", async () => {
     bindPlayerCombo();
+    trackOnce("prop_lab_opened", { season: state.season, source: "prop_lab" }, "prop_lab_opened", {
+      session: true,
+    });
     const pendingShare = new URLSearchParams(location.search).get("share");
     if (pendingShare) {
       state.sharedView = { shareId: pendingShare, loading: true, error: null };
@@ -2629,12 +2744,22 @@
       refreshAnalysis().then(() => {
         renderBestN(3);
         renderSummary();
+        track("find_best_3_used", {
+          season: state.season,
+          week: state.week,
+          legCount: evaluatedLegs().length,
+        });
       });
     });
     document.getElementById("bestNBtn")?.addEventListener("click", () => {
       refreshAnalysis().then(() => {
         renderBestN(4);
         renderSummary();
+        track("find_best_4_used", {
+          season: state.season,
+          week: state.week,
+          legCount: evaluatedLegs().length,
+        });
       });
     });
     document.getElementById("compareBtn")?.addEventListener("click", renderCompare);

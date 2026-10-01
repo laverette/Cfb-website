@@ -368,6 +368,8 @@
     if (loggedIn && isAdminRole(user)) {
       html +=
         '<a href="admin.html" class="dropdown-item dropdown-item-admin">🛠️ Admin</a>';
+      html +=
+        '<a href="admin-analytics.html" class="dropdown-item dropdown-item-admin">📊 Beta Analytics</a>';
     }
 
     if (loggedIn) {
@@ -520,9 +522,212 @@
     AVATAR_COUNT: AVATAR_COUNT,
   };
 
+  function ensureAnalyticsLoaded() {
+    if (window.ProductAnalytics) return;
+    if (document.querySelector('script[data-product-analytics="1"]')) return;
+    var s = document.createElement("script");
+    s.src = "scripts/analytics.js";
+    s.defer = true;
+    s.setAttribute("data-product-analytics", "1");
+    document.head.appendChild(s);
+  }
+
+  function mountBetaBadge() {
+    if (document.getElementById("siteBetaBadge")) return;
+    var page = basenameOnly(window.location.pathname);
+    if (
+      page === "admin.html" ||
+      page === "admin-analytics.html" ||
+      page === "login.html"
+    ) {
+      return;
+    }
+    var cluster = document.getElementById("auth-nav");
+    var host = cluster && cluster.parentElement ? cluster.parentElement : null;
+    if (!host) return;
+
+    var wrap = document.createElement("div");
+    wrap.id = "siteBetaBadge";
+    wrap.className = "site-beta-wrap";
+
+    var badge = document.createElement("span");
+    badge.className = "site-beta-badge";
+    badge.title =
+      "Free during the 2026 beta. We're improving the model throughout the season.";
+    badge.innerHTML =
+      '<span class="site-beta-badge-label">2026 Beta</span>' +
+      '<span class="site-beta-badge-sub">Free during the season</span>';
+
+    var nameBtn = document.createElement("button");
+    nameBtn.type = "button";
+    nameBtn.id = "siteNameSuggestOpen";
+    nameBtn.className = "site-name-suggest-btn";
+    nameBtn.textContent = "Suggest a name";
+    nameBtn.title = "Help name the site";
+
+    wrap.appendChild(badge);
+    wrap.appendChild(nameBtn);
+
+    if (cluster && cluster.parentNode === host) {
+      host.insertBefore(wrap, cluster);
+    } else {
+      host.appendChild(wrap);
+    }
+  }
+
+  function mountNameSuggestForm() {
+    if (document.getElementById("siteNameSuggestRoot")) return;
+    if (
+      basenameOnly(window.location.pathname) === "admin.html" ||
+      basenameOnly(window.location.pathname) === "admin-analytics.html"
+    ) {
+      return;
+    }
+
+    var root = document.createElement("div");
+    root.id = "siteNameSuggestRoot";
+    root.className = "site-name-suggest-root";
+    root.innerHTML =
+      '<div class="site-feedback-modal" id="siteNameSuggestModal" hidden>' +
+      '<button type="button" class="site-feedback-backdrop" id="siteNameSuggestClose" aria-label="Close"></button>' +
+      '<div class="site-feedback-dialog" role="dialog" aria-modal="true" aria-labelledby="siteNameSuggestTitle">' +
+      '<div class="site-feedback-dialog-head">' +
+      '<h2 id="siteNameSuggestTitle">Suggest a site name</h2>' +
+      '<button type="button" class="site-feedback-x" id="siteNameSuggestX" aria-label="Close">×</button>' +
+      "</div>" +
+      '<p class="site-feedback-lead">The site still needs a real name. Drop yours below — short and memorable wins.</p>' +
+      '<label class="site-feedback-label" for="siteNameSuggestInput">Name idea</label>' +
+      '<input id="siteNameSuggestInput" class="site-feedback-input" type="text" maxlength="80" autocomplete="off" placeholder="e.g. Gridiron Lab">' +
+      '<label class="site-feedback-label" for="siteNameSuggestNote">Why it fits <span>(optional)</span></label>' +
+      '<textarea id="siteNameSuggestNote" class="site-feedback-input" rows="2" maxlength="500" placeholder="One quick reason…"></textarea>' +
+      '<p class="site-feedback-status" id="siteNameSuggestStatus" hidden></p>' +
+      '<div class="site-feedback-actions">' +
+      '<button type="button" class="btn btn-brown site-feedback-cancel" id="siteNameSuggestCancel">Cancel</button>' +
+      '<button type="button" class="btn btn-gold" id="siteNameSuggestSend">Submit</button>' +
+      "</div></div></div>";
+    document.body.appendChild(root);
+
+    var modal = document.getElementById("siteNameSuggestModal");
+    var statusEl = document.getElementById("siteNameSuggestStatus");
+    var nameEl = document.getElementById("siteNameSuggestInput");
+    var noteEl = document.getElementById("siteNameSuggestNote");
+    var sendBtn = document.getElementById("siteNameSuggestSend");
+
+    function openModal() {
+      if (statusEl) {
+        statusEl.hidden = true;
+        statusEl.textContent = "";
+        statusEl.classList.remove("is-error", "is-ok");
+      }
+      modal.hidden = false;
+      document.body.classList.add("site-feedback-open");
+      if (nameEl) nameEl.focus();
+    }
+
+    function closeModal() {
+      modal.hidden = true;
+      document.body.classList.remove("site-feedback-open");
+    }
+
+    function setStatus(text, ok) {
+      if (!statusEl) return;
+      statusEl.hidden = !text;
+      statusEl.textContent = text || "";
+      statusEl.classList.toggle("is-ok", !!ok);
+      statusEl.classList.toggle("is-error", !ok && !!text);
+    }
+
+    if (!document.body.dataset.nameSuggestDelegate) {
+      document.body.dataset.nameSuggestDelegate = "1";
+      document.addEventListener("click", function (e) {
+        var t = e.target && e.target.closest ? e.target.closest("#siteNameSuggestOpen") : null;
+        if (!t) return;
+        e.preventDefault();
+        openModal();
+      });
+    }
+
+    document.getElementById("siteNameSuggestClose").addEventListener("click", closeModal);
+    document.getElementById("siteNameSuggestX").addEventListener("click", closeModal);
+    document.getElementById("siteNameSuggestCancel").addEventListener("click", closeModal);
+
+    if (nameEl) {
+      nameEl.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          sendBtn.click();
+        }
+      });
+    }
+
+    sendBtn.addEventListener("click", function () {
+      var suggestedName = (nameEl && nameEl.value ? nameEl.value : "").trim();
+      var note = (noteEl && noteEl.value ? noteEl.value : "").trim();
+      if (suggestedName.length < 2) {
+        setStatus("Enter a name with at least 2 characters.", false);
+        return;
+      }
+      sendBtn.disabled = true;
+      setStatus("Sending…", true);
+      var headers = { "Content-Type": "application/json", Accept: "application/json" };
+      var token = localStorage.getItem(STORAGE_TOKEN);
+      if (token) headers.Authorization = "Bearer " + token;
+      var anonId =
+        (window.ProductAnalytics &&
+          ProductAnalytics.getAnonymousSessionId &&
+          ProductAnalytics.getAnonymousSessionId()) ||
+        undefined;
+      fetch("/api/name-suggest", {
+        method: "POST",
+        headers: headers,
+        body: JSON.stringify({
+          suggestedName: suggestedName,
+          note: note || undefined,
+          page: window.location.pathname + (window.location.search || ""),
+          anonymousSessionId: anonId,
+        }),
+      })
+        .then(function (res) {
+          return res
+            .json()
+            .catch(function () {
+              return {};
+            })
+            .then(function (data) {
+              return { ok: res.ok, data: data };
+            });
+        })
+        .then(function (result) {
+          if (!result.ok) {
+            setStatus(
+              (result.data && (result.data.error || result.data.message)) ||
+                "Could not send. Try again later.",
+              false
+            );
+            return;
+          }
+          setStatus("Thanks — name idea saved.", true);
+          if (nameEl) nameEl.value = "";
+          if (noteEl) noteEl.value = "";
+          setTimeout(closeModal, 900);
+        })
+        .catch(function () {
+          setStatus("Could not send. Check your connection and try again.", false);
+        })
+        .finally(function () {
+          sendBtn.disabled = false;
+        });
+    });
+  }
+
   function mountSiteFeedback() {
     if (document.getElementById("siteFeedbackRoot")) return;
-    if (basenameOnly(window.location.pathname) === "admin.html") return;
+    if (
+      basenameOnly(window.location.pathname) === "admin.html" ||
+      basenameOnly(window.location.pathname) === "admin-analytics.html"
+    ) {
+      return;
+    }
 
     var root = document.createElement("div");
     root.id = "siteFeedbackRoot";
@@ -539,6 +744,12 @@
       '<button type="button" class="site-feedback-x" id="siteFeedbackX" aria-label="Close">×</button>' +
       "</div>" +
       '<p class="site-feedback-lead">Bugs, ideas, or anything that feels off — short notes are fine.</p>' +
+      '<label class="site-feedback-label" for="siteFeedbackCategory">Category</label>' +
+      '<select id="siteFeedbackCategory" class="site-feedback-input">' +
+      '<option value="bug">Bug</option>' +
+      '<option value="feature">Feature request</option>' +
+      '<option value="general" selected>General feedback</option>' +
+      "</select>" +
       '<label class="site-feedback-label" for="siteFeedbackMessage">Message</label>' +
       '<textarea id="siteFeedbackMessage" class="site-feedback-input" rows="4" maxlength="4000" placeholder="What’s on your mind?"></textarea>' +
       '<label class="site-feedback-label" for="siteFeedbackEmail">Email <span>(optional)</span></label>' +
@@ -554,6 +765,7 @@
     var statusEl = document.getElementById("siteFeedbackStatus");
     var messageEl = document.getElementById("siteFeedbackMessage");
     var emailEl = document.getElementById("siteFeedbackEmail");
+    var categoryEl = document.getElementById("siteFeedbackCategory");
     var sendBtn = document.getElementById("siteFeedbackSend");
 
     function openModal() {
@@ -601,13 +813,20 @@
       var headers = { "Content-Type": "application/json", Accept: "application/json" };
       var token = localStorage.getItem(STORAGE_TOKEN);
       if (token) headers.Authorization = "Bearer " + token;
+      var anonId =
+        (window.ProductAnalytics &&
+          ProductAnalytics.getAnonymousSessionId &&
+          ProductAnalytics.getAnonymousSessionId()) ||
+        undefined;
       fetch("/api/feedback", {
         method: "POST",
         headers: headers,
         body: JSON.stringify({
           message: message,
+          category: (categoryEl && categoryEl.value) || "general",
           email: email || undefined,
           page: window.location.pathname + (window.location.search || ""),
+          anonymousSessionId: anonId,
         }),
       })
         .then(function (res) {
@@ -672,7 +891,10 @@
   }
 
   function onReady() {
+    ensureAnalyticsLoaded();
     refreshAll();
+    mountBetaBadge();
+    mountNameSuggestForm();
     maybeValidateToken();
     mountSiteFeedback();
     wireMenuFootballSpin();
