@@ -8,6 +8,7 @@ create table if not exists public.site_name_suggestions (
   note text,
   page text,
   status text not null default 'new',
+  pinned boolean not null default false,
   created_at timestamptz not null default now(),
   constraint site_name_suggestions_name_len check (char_length(trim(suggested_name)) between 2 and 80),
   constraint site_name_suggestions_note_len check (note is null or char_length(note) <= 500),
@@ -21,6 +22,9 @@ create index if not exists site_name_suggestions_created_at_idx
 
 create index if not exists site_name_suggestions_status_idx
   on public.site_name_suggestions (status);
+
+create index if not exists site_name_suggestions_pinned_idx
+  on public.site_name_suggestions (pinned desc, created_at desc);
 
 alter table public.site_name_suggestions enable row level security;
 

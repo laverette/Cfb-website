@@ -337,7 +337,8 @@ async function loadFeedback({ limit = 40 } = {}) {
   const supabase = getSupabase();
   const { data, error } = await supabase
     .from("beta_feedback")
-    .select("id, user_id, category, message, page, status, created_at")
+    .select("id, user_id, category, message, page, status, pinned, created_at")
+    .order("pinned", { ascending: false })
     .order("created_at", { ascending: false })
     .limit(limit);
   if (error) {
@@ -352,7 +353,8 @@ async function loadNameSuggestions({ limit = 40 } = {}) {
   const supabase = getSupabase();
   const { data, error } = await supabase
     .from("site_name_suggestions")
-    .select("id, user_id, suggested_name, note, page, status, created_at")
+    .select("id, user_id, suggested_name, note, page, status, pinned, created_at")
+    .order("pinned", { ascending: false })
     .order("created_at", { ascending: false })
     .limit(limit);
   if (error) {

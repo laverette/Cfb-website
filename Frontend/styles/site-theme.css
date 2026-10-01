@@ -284,9 +284,20 @@ body {
 
 .hamburger-menu-btn,
 .navbar-auth-cluster,
-.navbar-login-section {
+.navbar-login-section,
+.site-nav-right {
   position: relative;
   z-index: 2;
+}
+
+.site-nav-right {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.55rem;
+  flex-shrink: 0;
+  margin-left: auto;
+  max-width: min(100%, 22rem);
 }
 
 /* Menu button — football icon; spins while dropdown is open (.active) */
@@ -1513,30 +1524,28 @@ a:hover {
   margin-right: 6px;
 }
 
-/* Subtle 2026 beta badge + name suggest (injected by auth-ui.js) */
+/* Subtle 2026 beta badge + name suggest (injected by auth-ui.js) — right cluster only */
 .site-beta-wrap {
   display: inline-flex;
   flex-direction: column;
   align-items: flex-end;
   justify-content: center;
-  gap: 0.15rem;
-  margin-right: 0.55rem;
+  gap: 0.2rem;
   flex-shrink: 0;
-  max-width: 8.5rem;
+  max-width: 7.25rem;
 }
 
 .site-beta-badge {
   display: inline-flex;
-  flex-direction: column;
-  align-items: flex-end;
-  justify-content: center;
-  line-height: 1.1;
+  align-items: center;
+  justify-content: flex-end;
+  line-height: 1;
   pointer-events: none;
 }
 
 .site-beta-badge-label {
   font-family: "Barlow Condensed", Impact, sans-serif;
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -1549,12 +1558,12 @@ a:hover {
   background: rgba(0, 0, 0, 0.22);
   color: rgba(245, 222, 179, 0.88);
   font: inherit;
-  font-size: 0.62rem;
+  font-size: 0.58rem;
   font-weight: 700;
   letter-spacing: 0.03em;
   text-transform: uppercase;
-  line-height: 1.2;
-  padding: 0.18rem 0.45rem;
+  line-height: 1.15;
+  padding: 0.16rem 0.42rem;
   border-radius: 999px;
   cursor: pointer;
   white-space: nowrap;
@@ -1568,14 +1577,17 @@ a:hover {
   outline: none;
 }
 
-@media (max-width: 420px) {
+@media (max-width: 640px) {
+  .site-nav-right {
+    gap: 0.35rem;
+    max-width: min(100%, 11.5rem);
+  }
   .site-beta-wrap {
-    max-width: 5.2rem;
-    margin-right: 0.35rem;
+    max-width: 4.6rem;
   }
   .site-name-suggest-btn {
-    font-size: 0.58rem;
-    padding: 0.14rem 0.35rem;
+    font-size: 0.52rem;
+    padding: 0.12rem 0.32rem;
   }
 }
 

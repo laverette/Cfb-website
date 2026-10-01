@@ -110,6 +110,57 @@
       border-bottom: 1px solid var(--admin-border-soft);
     }
     .feedback-item:last-child { border-bottom: 0; }
+    .feedback-item.is-pinned {
+      background: rgba(232, 197, 71, 0.07);
+      border: 1px solid var(--admin-border);
+      border-radius: 10px;
+      padding: 0.75rem 0.85rem;
+      margin-bottom: 0.55rem;
+    }
+    .feedback-item-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    .feedback-item-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-top: 0.55rem;
+    }
+    .feedback-item-actions button {
+      appearance: none;
+      border: 1px solid var(--admin-border-soft);
+      background: rgba(0,0,0,0.28);
+      color: var(--admin-muted);
+      font: inherit;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      padding: 0.28rem 0.55rem;
+      border-radius: 999px;
+      cursor: pointer;
+    }
+    .feedback-item-actions button:hover {
+      color: var(--admin-accent);
+      border-color: var(--admin-border);
+    }
+    .feedback-item-actions button.is-pin-on {
+      color: #1a1508;
+      background: linear-gradient(180deg, var(--admin-accent), var(--admin-accent-hot));
+      border-color: transparent;
+    }
+    .feedback-item-actions button.is-danger:hover {
+      color: #ffb4a2;
+      border-color: rgba(224, 90, 74, 0.55);
+    }
+    .chip.is-pin {
+      color: #1a1508;
+      background: var(--admin-accent);
+      border-color: transparent;
+    }
     .chip {
       display: inline-block; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em;
       padding: 0.15rem 0.45rem; border-radius: 999px; border: 1px solid var(--admin-border-soft);
@@ -328,6 +379,93 @@
         '</div>';
     }
 
+    function escapeHtml(s) {
+      return String(s || '').replace(/[<>&"]/g, (c) => ({
+        '<': '&lt;',
+        '>': '&gt;',
+        '&': '&amp;',
+        '"': '&quot;',
+      }[c]));
+    }
+
+    function renderModerableItem({ type, id, pinned, chips, body }) {
+      return `<div class="feedback-item${pinned ? ' is-pinned' : ''}" data-type="${escapeHtml(type)}" data-id="${escapeHtml(String(id))}">
+        <div class="feedback-item-head">${chips}</div>
+        ${body}
+        <div class="feedback-item-actions">
+          <button type="button" class="js-pin${pinned ? ' is-pin-on' : ''}" data-pinned="${pinned ? '1' : '0'}">${pinned ? 'Unpin' : 'Pin'}</button>
+          <button type="button" class="js-delete is-danger">Delete</button>
+        </div>
+      </div>`;
+    }
+
+    async function adminFeedbackAction(method, payload) {
+      const headers = {
+        ...authHeaders(),
+        'Content-Type': 'application/json',
+      };
+      let url = '/api/admin/feedback';
+      const opts = { method, headers };
+      if (method === 'DELETE') {
+        const qs = new URLSearchParams({
+          type: payload.type,
+          id: String(payload.id),
+        });
+        url += '?' + qs.toString();
+      } else {
+        opts.body = JSON.stringify(payload);
+      }
+      const resp = await fetch(url, opts);
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(data.error || 'Action failed');
+      return data;
+    }
+
+    function wireFeedbackActions() {
+      const roots = [
+        document.getElementById('feedbackList'),
+        document.getElementById('nameSuggestList'),
+      ];
+      roots.forEach((root) => {
+        if (!root || root.dataset.actionsWired === '1') return;
+        root.dataset.actionsWired = '1';
+        root.addEventListener('click', async (e) => {
+          const pinBtn = e.target.closest('.js-pin');
+          const delBtn = e.target.closest('.js-delete');
+          if (!pinBtn && !delBtn) return;
+          const item = e.target.closest('.feedback-item');
+          if (!item || !root.contains(item)) return;
+          const type = item.getAttribute('data-type');
+          const id = Number(item.getAttribute('data-id'));
+          if (!type || !id) return;
+
+          try {
+            if (pinBtn) {
+              const currentlyPinned = pinBtn.getAttribute('data-pinned') === '1';
+              pinBtn.disabled = true;
+              await adminFeedbackAction('PATCH', {
+                type,
+                id,
+                pinned: !currentlyPinned,
+              });
+              await loadDashboard();
+              return;
+            }
+            if (delBtn) {
+              if (!window.confirm('Delete this item permanently?')) return;
+              delBtn.disabled = true;
+              await adminFeedbackAction('DELETE', { type, id });
+              await loadDashboard();
+            }
+          } catch (err) {
+            alert(err.message || 'Could not update feedback');
+            pinBtn && (pinBtn.disabled = false);
+            delBtn && (delBtn.disabled = false);
+          }
+        });
+      });
+    }
+
     async function loadDashboard() {
       const status = document.getElementById('status');
       const dash = document.getElementById('dashboard');
@@ -452,28 +590,40 @@
 
         const names = data.nameSuggestions || [];
         document.getElementById('nameSuggestList').innerHTML = names.length
-          ? names.map((row) =>
-              `<div class="feedback-item">
-                <span class="chip">${String(row.status || 'new')}</span>
-                <span class="muted">${new Date(row.created_at).toLocaleString()}</span>
-                <p style="margin:0.35rem 0 0;font-weight:700;color:var(--admin-accent);">${String(row.suggested_name || '').replace(/[<>&]/g, (c) => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]))}</p>
-                ${row.note ? `<p style="margin:0.25rem 0 0;white-space:pre-wrap;">${String(row.note).replace(/[<>&]/g, (c) => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]))}</p>` : ''}
-              </div>`
-            ).join('')
+          ? names.map((row) => renderModerableItem({
+              type: 'name',
+              id: row.id,
+              pinned: !!row.pinned,
+              chips: [
+                row.pinned ? '<span class="chip is-pin">Pinned</span>' : '',
+                `<span class="chip">${escapeHtml(String(row.status || 'new'))}</span>`,
+                `<span class="muted">${new Date(row.created_at).toLocaleString()}</span>`,
+              ].join(''),
+              body:
+                `<p style="margin:0.35rem 0 0;font-weight:700;color:var(--admin-accent);">${escapeHtml(String(row.suggested_name || ''))}</p>` +
+                (row.note ? `<p style="margin:0.25rem 0 0;white-space:pre-wrap;">${escapeHtml(String(row.note))}</p>` : ''),
+            })).join('')
           : '<p class="muted">No name suggestions yet.</p>';
 
         const fb = data.feedback || [];
         document.getElementById('feedbackList').innerHTML = fb.length
-          ? fb.map((row) =>
-              `<div class="feedback-item">
-                <span class="chip">${row.category}</span>
-                <span class="chip">${row.status}</span>
-                <span class="muted">${new Date(row.created_at).toLocaleString()}</span>
-                <p style="margin:0.35rem 0 0;white-space:pre-wrap;">${String(row.message || '').replace(/[<>&]/g, (c) => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]))}</p>
-                ${row.page ? `<p class="muted" style="margin:0.2rem 0 0;font-size:0.8rem;">${String(row.page).replace(/[<>&]/g, (c) => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]))}</p>` : ''}
-              </div>`
-            ).join('')
+          ? fb.map((row) => renderModerableItem({
+              type: 'feedback',
+              id: row.id,
+              pinned: !!row.pinned,
+              chips: [
+                row.pinned ? '<span class="chip is-pin">Pinned</span>' : '',
+                `<span class="chip">${escapeHtml(String(row.category || ''))}</span>`,
+                `<span class="chip">${escapeHtml(String(row.status || ''))}</span>`,
+                `<span class="muted">${new Date(row.created_at).toLocaleString()}</span>`,
+              ].join(''),
+              body:
+                `<p style="margin:0.35rem 0 0;white-space:pre-wrap;">${escapeHtml(String(row.message || ''))}</p>` +
+                (row.page ? `<p class="muted" style="margin:0.2rem 0 0;font-size:0.8rem;">${escapeHtml(String(row.page))}</p>` : ''),
+            })).join('')
           : '<p class="muted">No feedback yet.</p>';
+
+        wireFeedbackActions();
 
         const r = data.rangeTotals;
         document.getElementById('rangeKpis').innerHTML = kpiHtml([

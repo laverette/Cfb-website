@@ -330,6 +330,11 @@
   status = 200
 
 [[redirects]]
+  from = "/api/admin/feedback"
+  to = "/.netlify/functions/admin-feedback"
+  status = 200
+
+[[redirects]]
   from = "/admin/analytics"
   to = "/admin-analytics.html"
   status = 200

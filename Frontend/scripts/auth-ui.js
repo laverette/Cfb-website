@@ -564,7 +564,18 @@
     }
     var cluster = document.getElementById("auth-nav");
     var host = cluster && cluster.parentElement ? cluster.parentElement : null;
-    if (!host) return;
+    if (!host || !cluster) return;
+
+    // Keep title centered: group beta + auth on the RIGHT only.
+    // (Title is position:absolute at 50%; a middle flex sibling overlaps it.)
+    var right = document.getElementById("siteNavRight");
+    if (!right) {
+      right = document.createElement("div");
+      right.id = "siteNavRight";
+      right.className = "site-nav-right";
+      host.insertBefore(right, cluster);
+      right.appendChild(cluster);
+    }
 
     var wrap = document.createElement("div");
     wrap.id = "siteBetaBadge";
@@ -572,10 +583,8 @@
 
     var badge = document.createElement("span");
     badge.className = "site-beta-badge";
-    badge.title =
-      "Free during the 2026 beta. We're improving the model throughout the season.";
-    badge.innerHTML =
-      '<span class="site-beta-badge-label">2026 Beta</span>';
+    badge.title = "2026 free public beta";
+    badge.innerHTML = '<span class="site-beta-badge-label">2026 Beta</span>';
 
     var nameBtn = document.createElement("button");
     nameBtn.type = "button";
@@ -586,12 +595,7 @@
 
     wrap.appendChild(badge);
     wrap.appendChild(nameBtn);
-
-    if (cluster && cluster.parentNode === host) {
-      host.insertBefore(wrap, cluster);
-    } else {
-      host.appendChild(wrap);
-    }
+    right.insertBefore(wrap, cluster);
   }
 
   function mountNameSuggestForm() {

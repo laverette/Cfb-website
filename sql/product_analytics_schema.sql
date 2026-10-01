@@ -44,6 +44,7 @@ create table if not exists public.beta_feedback (
   message text not null,
   page text,
   status text not null default 'new',
+  pinned boolean not null default false,
   created_at timestamptz not null default now(),
   constraint beta_feedback_category_check check (
     category in ('bug', 'feature', 'general')
@@ -59,6 +60,9 @@ create index if not exists beta_feedback_created_at_idx
 
 create index if not exists beta_feedback_status_idx
   on public.beta_feedback (status);
+
+create index if not exists beta_feedback_pinned_idx
+  on public.beta_feedback (pinned desc, created_at desc);
 
 alter table public.beta_feedback enable row level security;
 
