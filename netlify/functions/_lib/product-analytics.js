@@ -332,6 +332,21 @@ async function countNewUsersBetween(start, end) {
   return count || 0;
 }
 
+async function loadFeedback({ limit = 40 } = {}) {
+  if (!hasSupabase()) return [];
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from("beta_feedback")
+    .select("id, user_id, category, message, page, status, created_at")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) {
+    console.warn("product-analytics feedback:", error.message || error);
+    return [];
+  }
+  return data || [];
+}
+
 async function loadNameSuggestions({ limit = 40 } = {}) {
   if (!hasSupabase()) return [];
   const supabase = getSupabase();

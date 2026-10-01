@@ -516,7 +516,18 @@ body {
   padding-left: 2.25rem;
 }
 
-/* Admin link styling */
+/* Admin category styling */
+.dropdown-category-admin {
+  border-top: 2px solid rgba(255, 215, 0, 0.2);
+  margin-top: 0.5rem;
+  padding-top: 0.35rem;
+}
+
+.dropdown-category-admin .dropdown-category-header {
+  font-weight: 700;
+}
+
+/* Legacy flat admin link (if used elsewhere) */
 .dropdown-item-admin {
   border-top: 2px solid rgba(255, 215, 0, 0.2);
   margin-top: 0.5rem;

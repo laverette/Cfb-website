@@ -33,6 +33,13 @@
         { href: "list.html", label: "👑 Heisman" },
         { href: "recruitmap.html", label: "🗺️ Recruit Map" },
       ]
+    },
+    admin: {
+      label: "🛠️ Admin",
+      items: [
+        { href: "admin.html", label: "🛠️ Admin Panel" },
+        { href: "admin-analytics.html", label: "📊 Beta Analytics" },
+      ]
     }
   };
 
@@ -366,10 +373,23 @@
     html += '</div></div>';
 
     if (loggedIn && isAdminRole(user)) {
+      html += '<div class="dropdown-category dropdown-category-admin">';
       html +=
-        '<a href="admin.html" class="dropdown-item dropdown-item-admin">🛠️ Admin</a>';
-      html +=
-        '<a href="admin-analytics.html" class="dropdown-item dropdown-item-admin">📊 Beta Analytics</a>';
+        '<button type="button" class="dropdown-category-header" onclick="toggleCategory(\'admin\')">' +
+        '<span>' + NAV_CATEGORIES.admin.label + '</span>' +
+        '<span class="category-arrow">▼</span>' +
+        '</button>';
+      html += '<div class="dropdown-category-content" id="category-admin">';
+      for (var a = 0; a < NAV_CATEGORIES.admin.items.length; a++) {
+        var adminItem = NAV_CATEGORIES.admin.items[a];
+        html +=
+          '<a href="' +
+          adminItem.href +
+          '" class="dropdown-item dropdown-subitem">' +
+          adminItem.label +
+          "</a>";
+      }
+      html += '</div></div>';
     }
 
     if (loggedIn) {
