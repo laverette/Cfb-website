@@ -167,10 +167,29 @@ async function loadPlayerBundle({
     null;
 
   const resolvedName =
-    playerNameHint ||
     pick(currentOv, "name", "athleteName") ||
     pick(priorOv, "name", "athleteName") ||
+    playerNameHint ||
     "Player";
+  // If the caller supplied a name that conflicts with the resolved athlete for
+  // this playerId, keep the id-canonical name — never silently adopt another
+  // player's typed label onto this evaluation.
+  if (
+    playerNameHint &&
+    resolvedName &&
+    playerNameHint !== resolvedName &&
+    typeof console !== "undefined" &&
+    console.warn
+  ) {
+    const hintNorm = String(playerNameHint).trim().toLowerCase();
+    const resNorm = String(resolvedName).trim().toLowerCase();
+    if (hintNorm && resNorm && hintNorm !== resNorm && !resNorm.includes(hintNorm) && !hintNorm.includes(resNorm)) {
+      console.warn(
+        "[PropLab] player name hint does not match resolved athlete",
+        { playerId: pid, hint: playerNameHint, resolved: resolvedName }
+      );
+    }
+  }
   const posHint = pick(currentOv, "position") || pick(priorOv, "position") || null;
   const jerseyHint = pick(currentOv, "jersey") || null;
 

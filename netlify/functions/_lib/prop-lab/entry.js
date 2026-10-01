@@ -9,6 +9,7 @@ const {
   decorateTogetherPassRate,
   modelRiskDiscount,
 } = require("./value");
+const { identicalProbabilityWarnings, legSessionKey } = require("./prop-identity");
 
 function letterFromAvg(score) {
   if (score >= 82) return "A-";
@@ -136,6 +137,12 @@ function analyzeEntry(legs, opts = {}) {
     nLegs: ok.length,
   });
   const together = decorateTogetherPassRate(togetherModel, pass);
+  const identityWarnings = identicalProbabilityWarnings(ok);
+  if (identityWarnings.length && typeof console !== "undefined" && console.warn) {
+    for (const w of identityWarnings) {
+      console.warn("[PropLab]", w.code, w.message);
+    }
+  }
   return {
     grade: letterFromAvg(gradeScore),
     gradeInputs: {
@@ -170,6 +177,7 @@ function analyzeEntry(legs, opts = {}) {
       avgConf: riskInfo.avgConf,
       weakestScore: weakest?.propScore,
     }),
+    identityWarnings,
     note: "Entry Strength is a relative quality score. Pass rate tracks the calibrated chance the card cashes; risk and safety nudge that mildly and raise the bar to Play.",
     strengthTooltip:
       "A relative score based on leg quality, model confidence, correlation, and concentration. It is not the probability that every leg hits.",
@@ -177,7 +185,7 @@ function analyzeEntry(legs, opts = {}) {
 }
 
 function legKey(l) {
-  return l.clientId || `${l.player?.id}:${l.stat?.id}:${l.line}:${l.side}`;
+  return legSessionKey(l);
 }
 
 function comboScore(subset, allPairs, mode = "balanced") {

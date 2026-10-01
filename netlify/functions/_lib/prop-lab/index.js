@@ -13,6 +13,12 @@ const {
   _forceOpenCfbdCircuit,
   cfbdCircuitInfo,
 } = require("./data/circuit-breaker");
+const {
+  stampClientId,
+  identityWarnings,
+  propIdentityKey,
+  legSessionKey,
+} = require("./prop-identity");
 
 async function evaluateProp({
   playerId,
@@ -65,12 +71,32 @@ async function evaluateEntry({
   const cfbd = createClient(apiKey, { signal });
   const evaluated = [];
   for (const leg of legs || []) {
+    const requestedPlayerId =
+      leg.playerId != null && String(leg.playerId).trim() !== ""
+        ? String(leg.playerId).trim()
+        : null;
+    // Never treat a client session uuid (`leg.id`) as a player id.
+    if (!requestedPlayerId) {
+      evaluated.push({
+        clientId: leg.clientId || leg.id || `fail:missing-player:${leg.statId}`,
+        player: { id: "", name: leg.name || "Player", team: leg.team || null },
+        stat: { id: leg.statId, label: getPropDef(leg.statId)?.label || leg.statId },
+        line: Number(leg.line),
+        side: leg.side || "more",
+        error: "playerId required — each leg must identify a specific player",
+        code: "MISSING_PLAYER_ID",
+        flags: ["Missing Data"],
+        propScore: 0,
+        propIdentity: propIdentityKey(leg),
+      });
+      continue;
+    }
     try {
       const marketOdds =
         (marketOddsByTeam && leg.team && marketOddsByTeam[String(leg.team).toLowerCase()]) ||
         null;
       const result = await evaluateProp({
-        playerId: leg.playerId || leg.id,
+        playerId: requestedPlayerId,
         team: leg.team,
         name: leg.name,
         statId: leg.statId || leg.stat,
@@ -86,15 +112,48 @@ async function evaluateEntry({
         marketOdds: leg.marketOdds || marketOdds,
         includeDebug,
       });
-      evaluated.push({
-        ...result,
-        clientId: leg.clientId || `${result.player.id}:${result.stat.id}:${result.line}`,
-        error: null,
-      });
+      const clientId =
+        leg.clientId ||
+        leg.id ||
+        `${result.player.id}:${result.stat.id}:${result.line}:${result.side || "more"}`;
+      const stamped = stampClientId(
+        {
+          ...result,
+          propIdentity: propIdentityKey({
+            playerId: result.player?.id,
+            playerName: result.player?.name,
+            team: result.player?.team || leg.team,
+            opponent: result.opponent,
+            league: leg.league,
+            statId: result.stat?.id,
+            line: result.line,
+            side: result.side,
+            sourcePropId: leg.sourcePropId,
+          }),
+          identityWarnings: identityWarnings(
+            {
+              playerId: requestedPlayerId,
+              name: leg.name,
+              statId: leg.statId || leg.stat,
+              line: leg.line,
+              side: leg.side || "more",
+            },
+            result
+          ),
+          error: null,
+        },
+        clientId
+      );
+      if (stamped.identityWarnings?.length && typeof console !== "undefined" && console.warn) {
+        for (const w of stamped.identityWarnings) {
+          console.warn("[PropLab]", w.code, w.message);
+        }
+      }
+      evaluated.push(stamped);
     } catch (err) {
       evaluated.push({
-        clientId: leg.clientId || `fail:${leg.playerId}:${leg.statId}`,
-        player: { id: String(leg.playerId || ""), name: leg.name || "Player", team: leg.team || null },
+        clientId: leg.clientId || leg.id || `fail:${requestedPlayerId}:${leg.statId}`,
+        player: { id: requestedPlayerId, name: leg.name || "Player", team: leg.team || null },
         stat: { id: leg.statId, label: getPropDef(leg.statId)?.label || leg.statId },
         line: Number(leg.line),
         side: leg.side || "more",
@@ -102,6 +161,15 @@ async function evaluateEntry({
         code: err.code || null,
         flags: ["Missing Data"],
         propScore: 0,
+        propIdentity: propIdentityKey({
+          playerId: requestedPlayerId,
+          playerName: leg.name,
+          team: leg.team,
+          statId: leg.statId,
+          line: leg.line,
+          side: leg.side,
+          sourcePropId: leg.sourcePropId,
+        }),
       });
     }
   }
@@ -142,4 +210,6 @@ module.exports = {
   cfbdCircuitInfo,
   _resetCfbdCircuit,
   _forceOpenCfbdCircuit,
+  propIdentityKey,
+  legSessionKey,
 };

@@ -82,8 +82,20 @@ function symmetrize(rows) {
  * fades out beyond it, back toward the model's own probability.
  */
 
-/** Irreducible miss rate: injury, ejection, benching, weather. Not fit — stated. */
+/**
+ * Soft irreducible miss rate for typical / near-line props (injury, ejection,
+ * benching, weather). Not fit — stated.
+ *
+ * Extreme promotional lines (very large |z|) are allowed to rise toward
+ * HARD_CAP so a guaranteed-style 0.5 line is not forced to the same served
+ * probability as a normal 199.5 line against the same projection.
+ */
 const CATASTROPHE_CAP = 0.97;
+/** Absolute ceiling — never claim certainty. */
+const HARD_CAP = 0.995;
+/** |z| above which the soft catastrophe cap may relax toward HARD_CAP. */
+const SOFT_CAP_Z0 = 1.75;
+const SOFT_CAP_Z_SCALE = 2.25;
 
 /** How quickly the correction fades once |z| leaves the supported range. */
 const DEFAULT_Z_FADE = 1;
@@ -318,6 +330,21 @@ function interpolate(knots, x) {
 const IDENTITY = { method: "identity", maxProbability: CATASTROPHE_CAP };
 
 /**
+ * Effective probability cap for a given |z|. Near the projection the soft
+ * catastrophe rate (default 97%) applies. Far away, the cap rises toward
+ * HARD_CAP so promo / goblin lines keep a distinct probability from ordinary
+ * easy lines without ever reaching certainty.
+ */
+function effectiveProbabilityCap(baseCap, z) {
+  const hard = HARD_CAP;
+  const base = clamp(baseCap ?? CATASTROPHE_CAP, 0.5 + EPS, hard);
+  const az = Number.isFinite(Number(z)) ? Math.abs(Number(z)) : 0;
+  if (az <= SOFT_CAP_Z0) return base;
+  const t = 1 - Math.exp(-(((az - SOFT_CAP_Z0) / SOFT_CAP_Z_SCALE) ** 2));
+  return base + (hard - base) * t;
+}
+
+/**
  * Map a raw "more" probability to its calibrated value.
  *
  * `z` is how many standard deviations the line sits from the projection. It
@@ -336,7 +363,7 @@ function applyCalibrator(cal, pMore, { z, dist } = {}) {
   const w = calibrationWeight(z, c);
   const blended = w >= 1 ? full : sigmoid(logit(p) + w * (logit(full) - logit(p)));
 
-  const cap = clamp(c.maxProbability ?? CATASTROPHE_CAP, 0.5 + EPS, 1 - EPS);
+  const cap = effectiveProbabilityCap(c.maxProbability ?? CATASTROPHE_CAP, z);
   return clamp(blended, 1 - cap, cap);
 }
 
@@ -589,6 +616,9 @@ module.exports = {
   zSupportFrom,
   selectCalibrator,
   CATASTROPHE_CAP,
+  HARD_CAP,
+  SOFT_CAP_Z0,
+  effectiveProbabilityCap,
   DEFAULT_Z_FADE,
   loadCalibrator,
   loadCalibratorMeta,
