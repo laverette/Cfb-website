@@ -33,6 +33,7 @@ const { lineSanity } = require("./sanity");
 const { buildPredictiveSd } = require("./variance");
 const { suggestWhatIfLines } = require("./whatif-lines");
 const { hitCountLabel } = require("./format");
+const { propIdentityKey } = require("./prop-identity");
 
 function formatOppReason(reason, week) {
   const w = week != null ? ` for Week ${week}` : "";
@@ -637,6 +638,16 @@ function evaluateFromBundle(bundle, {
     propScoreLabel: scored.label,
     propScoreComponents: scored.components,
     lineSanity: sanity,
+    promotional: Boolean(sanity.promotional),
+    propIdentity: propIdentityKey({
+      playerId: bundle.player?.id,
+      playerName: bundle.player?.name,
+      team: bundle.player?.team,
+      opponent: bundle.opponent,
+      statId: def.id,
+      line: lineNum,
+      side: leanSide,
+    }),
     whatIfLines: suggestWhatIfLines(def.id, lineNum),
     fcs: { games: fcsGames, of: currentLogs.length, share: fcsShare },
     hitCount,
@@ -832,6 +843,16 @@ function relineEvaluation(evaluation, line, side) {
     propScoreLabel: scored.label,
     propScoreComponents: scored.components,
     lineSanity: sanity,
+    promotional: Boolean(sanity.promotional),
+    propIdentity: propIdentityKey({
+      playerId: evaluation.player?.id,
+      playerName: evaluation.player?.name,
+      team: evaluation.player?.team,
+      opponent: evaluation.opponent,
+      statId: evaluation.stat?.id,
+      line: lineNum,
+      side: leanSide,
+    }),
     whatIfLines: suggestWhatIfLines(evaluation.stat?.id, lineNum),
     highProbLowConf: probs.pHit >= 0.8 && ["C", "D"].includes(evaluation.confidence),
     hitCount: hits,

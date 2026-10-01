@@ -360,15 +360,46 @@ function entryValue({
     verdictLabel,
     modelRiskDiscount: pass?.modelDiscount ?? discount,
     calibration: loadCalibratorMeta(),
+    /** Correlated (or independent) model all-hit before risk/safety haircuts. */
+    pJointModel: pRaw == null ? null : Number(Number(pRaw).toFixed(4)),
+    /** Product of individual (conservative) leg probabilities, ignoring correlation. */
+    pIndependent:
+      conservativeTogether?.independent != null
+        ? Number(Number(conservativeTogether.independent).toFixed(4))
+        : together?.independent != null
+          ? Number(Number(together.independent).toFixed(4))
+          : null,
+    /** Correlation-adjusted all-hit before realisticPassRate haircuts. */
+    pCorrelated:
+      conservativeTogether?.p != null
+        ? Number(Number(conservativeTogether.p).toFixed(4))
+        : pRaw == null
+          ? null
+          : Number(Number(pRaw).toFixed(4)),
+    /** @deprecated Prefer pJointModel — kept for existing callers. */
     pRaw: pRaw == null ? null : Number(Number(pRaw).toFixed(4)),
+    /** Final probability used in EV = pUse * multiplier - 1. */
     pUse: Number(pUse.toFixed(4)),
     riskPercent: pass?.riskPercent ?? riskPercent(risk),
     safetyPercent: pass?.safetyPercent ?? null,
     trust: pass?.trust ?? null,
+    /** Payout break-even probability: 1 / decimal multiplier. */
     breakeven: Number(breakeven.toFixed(4)),
     edge: Number(edge.toFixed(4)),
+    /** Expected profit per $1 staked at the modeled pass rate. */
     ev: Number(ev.toFixed(4)),
     evLabel: `${ev >= 0 ? "+" : ""}${(ev * 100).toFixed(0)}¢ / $1`,
+    evFormula: "pUse * payoutMultiplier - 1",
+    legHitProbabilities: ok.map((l) => ({
+      clientId: l.clientId || null,
+      playerId: l.player?.id || null,
+      playerName: l.player?.name || null,
+      statId: l.stat?.id || null,
+      line: l.line,
+      side: l.side || "more",
+      pHit: Number(Number(l.pHit).toFixed(4)),
+      pHitConservative: Number(Number(conservativePHit(l)).toFixed(4)),
+    })),
     payout: price,
     neededLabel: formatTogetherPct(breakeven),
     modelLabel: formatTogetherPct(pUse),
@@ -376,7 +407,7 @@ function entryValue({
     playModes,
     reasons,
     tooltip:
-      "Compares the calibrated pass rate with the payout you entered (or PrizePicks Power defaults). Also scores Power vs Flex (protected). Educational lean only — not betting advice.",
+      "EV uses the calibrated entry pass rate (pUse) and payout multiplier: EV = pUse × M − 1. Individual card pHit values are shown separately and are haircut before the joint. Educational lean only — not betting advice.",
   };
 }
 

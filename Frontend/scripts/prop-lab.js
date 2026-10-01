@@ -444,10 +444,12 @@
     });
     input.addEventListener("input", () => {
       if (isMobile()) return;
+      clearSelectedPlayer({ keepSearchText: true });
       clearTimeout(state.searchTimer);
       state.searchTimer = setTimeout(() => run(input.value), 180);
     });
     sheetInput?.addEventListener("input", () => {
+      clearSelectedPlayer({ keepSearchText: true });
       clearTimeout(state.searchTimer);
       state.searchTimer = setTimeout(() => run(sheetInput.value, true), 160);
     });
@@ -515,6 +517,100 @@
     window.addEventListener("scroll", place, true);
     window.visualViewport?.addEventListener("resize", pinSheet);
     window.visualViewport?.addEventListener("scroll", pinSheet);
+  }
+
+  function clearSelectedPlayer({ keepSearchText = false } = {}) {
+    state.selectedPlayer = null;
+    const idEl = document.getElementById("playerId");
+    const teamEl = document.getElementById("playerTeam");
+    const nameEl = document.getElementById("playerName");
+    if (idEl) idEl.value = "";
+    if (teamEl) teamEl.value = "";
+    if (nameEl) nameEl.value = "";
+    if (!keepSearchText) {
+      const search = document.getElementById("playerSearch");
+      if (search && document.activeElement !== search) search.value = "";
+    }
+  }
+
+  function namesCompatible(a, b) {
+    const na = String(a || "")
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, " ");
+    const nb = String(b || "")
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, " ");
+    if (!na || !nb) return false;
+    if (na === nb) return true;
+    if (na.includes(nb) || nb.includes(na)) return true;
+    return false;
+  }
+
+  /**
+   * Only return a committed player selection. Typing in the search box without
+   * choosing a hit must not reuse a prior selectedPlayer (that caused one
+   * player's prop to be evaluated as another).
+   */
+  function committedPlayer() {
+    const p = state.selectedPlayer;
+    if (!p?.id) return null;
+    const typed = (document.getElementById("playerSearch")?.value || "").trim();
+    const hiddenId = (document.getElementById("playerId")?.value || "").trim();
+    if (hiddenId && String(hiddenId) !== String(p.id)) return null;
+    if (typed && !namesCompatible(typed, p.name)) return null;
+    return p;
+  }
+
+  function propIdentityKey(leg) {
+    const playerId = leg?.playerId ?? leg?.player?.id ?? "";
+    const name = leg?.name || leg?.playerName || leg?.player?.name || "";
+    const team = leg?.team || leg?.player?.team || "";
+    const opponent =
+      typeof leg?.opponent === "string" ? leg.opponent : leg?.opponent?.name || "";
+    const statId = leg?.statId || leg?.stat?.id || "";
+    const line = Number(leg?.line);
+    const side = String(leg?.side || "more").toLowerCase() === "less" ? "less" : "more";
+    const playerPart = playerId ? `id:${playerId}` : `name:${String(name).trim().toLowerCase()}`;
+    return [playerPart, team, opponent, statId, Number.isFinite(line) ? line : "", side]
+      .map((x) => String(x).trim().toLowerCase())
+      .join("|");
+  }
+
+  function stampEvaluation(leg, evaluation) {
+    if (!evaluation) return evaluation;
+    const next = { ...evaluation, clientId: leg.id };
+    if (evaluation.player?.id && String(evaluation.player.id) !== String(leg.playerId)) {
+      console.warn("[PropLab] evaluation playerId mismatch", {
+        legId: leg.id,
+        requested: { playerId: leg.playerId, name: leg.name },
+        evaluated: evaluation.player,
+      });
+      next.identityError =
+        `Player mismatch: requested ${leg.name || leg.playerId} but model returned ${
+          evaluation.player?.name || evaluation.player?.id
+        }`;
+    }
+    // Keep the user-selected leg identity as the display source of truth.
+    // Never let a resolved/bundled name overwrite a different selected player.
+    if (!next.player) next.player = {};
+    next.player = {
+      ...next.player,
+      id: leg.playerId || next.player.id,
+      name: leg.name || next.player.name,
+      team: leg.team || next.player.team,
+    };
+    next.propIdentity = propIdentityKey({
+      playerId: next.player.id,
+      name: next.player.name,
+      team: next.player.team,
+      opponent: next.opponent,
+      statId: leg.statId,
+      line: next.line ?? leg.line,
+      side: next.side || leg.side,
+    });
+    return next;
   }
 
   function choosePlayer(p) {
@@ -875,6 +971,21 @@
               </div>
               <p>${escapeHtml(value.summary || "")}</p>
               <p class="prop-verdict-ev">${escapeHtml(value.evLabel || "")} at ${escapeHtml(value.payout?.label || "")}</p>
+              ${
+                value.pUse != null && value.payout?.multiplier != null
+                  ? `<p class="prop-market-note">EV = ${escapeHtml(pctTogether(value.pUse))} × ${escapeHtml(
+                      String(value.payout.multiplier)
+                    )} − 1${
+                      value.pIndependent != null
+                        ? ` · independent joint ${escapeHtml(pctTogether(value.pIndependent))}`
+                        : ""
+                    }${
+                      value.pCorrelated != null
+                        ? ` · correlated joint ${escapeHtml(pctTogether(value.pCorrelated))}`
+                        : ""
+                    } · breakeven ${escapeHtml(pctTogether(value.breakeven))}</p>`
+                  : ""
+              }
             </div>`
           : ""
       }
@@ -1054,9 +1165,10 @@
           e.market && (e.market.spread != null || e.market.total != null)
             ? `<p class="prop-market-note">CFBD close: spread ${fmt(e.market.spread, 1)} · total ${fmt(e.market.total, 1)}</p>`
             : `<p class="prop-market-note">Market odds not loaded.</p>`;
-        const unusual = e.lineSanity?.unusual
-          ? `<div class="prop-unusual"><strong>Unusual line</strong> ${escapeHtml(e.lineSanity.message || "")}</div>`
-          : "";
+        const unusual =
+          e.lineSanity?.unusual && !(e.promotional || e.lineSanity?.promotional)
+            ? `<div class="prop-unusual"><strong>Unusual line</strong> ${escapeHtml(e.lineSanity.message || "")}</div>`
+            : "";
         const hiLo =
           e.highProbLowConf || (pHit >= 0.8 && ["C", "D"].includes(e.confidence))
             ? `<span class="prop-tag-hi" title="The line is far from the modeled range, but the current data sample is limited.">High probability, low confidence</span>`
@@ -1064,12 +1176,24 @@
         const fcsHint = e.fcs?.of ? `FCS-heavy: ${e.fcs.games} of ${e.fcs.of} games` : "";
         return `<article class="prop-card" data-id="${escapeHtml(leg.id)}">
           <div class="prop-card-head">
-            <h3>${escapeHtml(e.player?.name)}</h3>
-            <p class="prop-card-sub">${escapeHtml([e.player?.team, e.player?.position, opp].filter(Boolean).join(" · "))}</p>
-            <p class="prop-card-prop">${escapeHtml(e.stat?.label)} · ${escapeHtml(fmt(line, 1))} ${escapeHtml(
-          (e.side || "more").toUpperCase()
+            <h3>${escapeHtml(leg.name || e.player?.name || "Player")}</h3>
+            <p class="prop-card-sub">${escapeHtml([(leg.team || e.player?.team), e.player?.position, opp].filter(Boolean).join(" · "))}</p>
+            <p class="prop-card-prop">${escapeHtml(leg.statLabel || e.stat?.label)} · ${escapeHtml(fmt(line, 1))} ${escapeHtml(
+          (leg.side || e.side || "more").toUpperCase()
         )}</p>
           </div>
+          ${
+            e.identityError
+              ? `<p class="prop-error">${escapeHtml(e.identityError)}</p>`
+              : ""
+          }
+          ${
+            e.promotional || e.lineSanity?.promotional
+              ? `<div class="prop-unusual"><strong>Promotional / discounted line</strong> ${escapeHtml(
+                  e.lineSanity?.message || "Evaluated at the displayed line for this player — not another prop's projection."
+                )}</div>`
+              : ""
+          }
           <div class="prop-card-hero">
             <div><span>Projection</span><strong>${escapeHtml(fmt(e.projection, 1))}</strong></div>
             <div class="${pHit >= 0.58 ? "is-good" : pHit < 0.52 ? "is-bad" : ""}"><span>P(${escapeHtml(
@@ -1332,7 +1456,7 @@
       );
       leg.line = line;
       leg.side = nextSide;
-      leg.evaluation = next;
+      leg.evaluation = stampEvaluation(leg, next);
       delete state.preview[legId];
       await refreshAnalysis();
       if (keepList) {
@@ -1391,7 +1515,7 @@
       state.best3 = data.best3;
       state.best4 = data.best4;
       const fp = legs
-        .map((l) => `${l.playerId}:${l.statId}:${l.line}:${l.side}`)
+        .map((l) => propIdentityKey(l))
         .join("|");
       if (state._lastAnalyzedFp !== fp) {
         state._lastAnalyzedFp = fp;
@@ -1408,12 +1532,7 @@
   }
 
   function sameLeg(a, b) {
-    return (
-      String(a.playerId) === String(b.playerId) &&
-      String(a.statId) === String(b.statId) &&
-      Number(a.line) === Number(b.line) &&
-      String(a.side || "more").toLowerCase() === String(b.side || "more").toLowerCase()
-    );
+    return Boolean(a && b && propIdentityKey(a) === propIdentityKey(b));
   }
 
   function dismissKeyboard() {
@@ -1445,12 +1564,25 @@
   async function addProp(evt) {
     evt?.preventDefault();
     if (state.legs.length >= MAX_LEGS) return;
-    const player = state.selectedPlayer;
+    const player = committedPlayer();
     const statId = document.getElementById("propStat")?.value;
     const line = document.getElementById("propLine")?.value;
     const side = document.getElementById("propSide")?.value || "more";
-    if (!player?.id || !statId || line === "") return;
-    const proposed = { playerId: player.id, statId, line: Number(line), side };
+    if (!player?.id || !statId || line === "") {
+      if (!player?.id) {
+        state.dupWarning = "Pick a player from the search results before adding a prop.";
+        renderEntryList();
+      }
+      return;
+    }
+    const proposed = {
+      playerId: player.id,
+      name: player.name,
+      team: player.team,
+      statId,
+      line: Number(line),
+      side,
+    };
     const dup = state.legs.find((l) => sameLeg(l, proposed));
     if (dup && !state.allowExactDup) {
       state.dupWarning = "This exact leg is already in the card.";
@@ -1519,7 +1651,7 @@
           },
         }
       );
-      leg.evaluation = { ...evaluation, clientId: leg.id };
+      leg.evaluation = stampEvaluation(leg, evaluation);
       leg.loading = false;
       track("prop_evaluated", {
         season: state.season,
@@ -1534,12 +1666,13 @@
       }
     } catch (err) {
       leg.loading = false;
-      leg.evaluation = {
+      leg.evaluation = stampEvaluation(leg, {
         error: err.message,
-        player: { name: leg.name },
+        player: { id: leg.playerId, name: leg.name, team: leg.team },
         stat: { id: leg.statId },
-        clientId: leg.id,
-      };
+        line: leg.line,
+        side: leg.side,
+      });
       track("feature_error", {
         feature: "prop_lab",
         errorCode: err?.body?.code || err?.code || "PROP_EVAL_FAILED",
@@ -1581,7 +1714,7 @@
       id: uid(),
       evaluation: src.evaluation ? { ...src.evaluation } : null,
     };
-    if (copy.evaluation) copy.evaluation.clientId = copy.id;
+    if (copy.evaluation) copy.evaluation = stampEvaluation(copy, copy.evaluation);
     const idx = state.legs.findIndex((l) => l.id === id);
     state.legs.splice(idx + 1, 0, copy);
     refreshAnalysis().then(renderAll);
@@ -2115,7 +2248,7 @@
           : l.opponent && typeof l.opponent === "object"
             ? l.opponent
             : null;
-      return {
+      const leg = {
         id: uid(),
         playerId: l.playerId,
         name: l.playerName,
@@ -2125,45 +2258,48 @@
         line: Number(l.line),
         side: l.side || "more",
         loading: false,
-        evaluation: {
-          player: {
-            id: l.playerId,
-            name: l.playerName,
-            team: l.team,
-            position: l.position,
-          },
-          opponent,
-          stat: {
-            id: l.statId,
-            label: l.statLabel,
-            short: l.statShort || null,
-          },
-          line: Number(l.line),
-          side: l.side || "more",
-          projection: l.projection,
-          median: l.median ?? null,
-          range: l.range || null,
-          pHit: l.pHit,
-          pMore: l.pMore,
-          pLess: l.pLess,
-          confidence: l.confidence,
-          confidenceScore: l.confidenceScore ?? null,
-          propScore: l.propScore,
-          propScoreLabel: l.propScoreLabel,
-          flags: l.flags || [],
-          why: l.why || [],
-          caution: l.caution || [],
-          hitCountLabel: l.hitCountLabel || null,
-          scheduleWarning: l.scheduleWarning || null,
-          matchup: l.matchup || null,
-          form: l.form || null,
-          usage: l.usage || null,
-          environment: l.environment || null,
-          distribution: l.distribution || null,
-          modelVersion: l.modelVersion || payload.modelVersion,
-          frozen,
-        },
+        evaluation: null,
       };
+      leg.evaluation = stampEvaluation(leg, {
+        player: {
+          id: l.playerId,
+          name: l.playerName,
+          team: l.team,
+          position: l.position,
+        },
+        opponent,
+        stat: {
+          id: l.statId,
+          label: l.statLabel,
+          short: l.statShort || null,
+        },
+        line: Number(l.line),
+        side: l.side || "more",
+        projection: l.projection,
+        median: l.median ?? null,
+        range: l.range || null,
+        pHit: l.pHit,
+        pMore: l.pMore,
+        pLess: l.pLess,
+        confidence: l.confidence,
+        confidenceScore: l.confidenceScore ?? null,
+        propScore: l.propScore,
+        propScoreLabel: l.propScoreLabel,
+        flags: l.flags || [],
+        why: l.why || [],
+        caution: l.caution || [],
+        hitCountLabel: l.hitCountLabel || null,
+        scheduleWarning: l.scheduleWarning || null,
+        matchup: l.matchup || null,
+        form: l.form || null,
+        usage: l.usage || null,
+        environment: l.environment || null,
+        distribution: l.distribution || null,
+        promotional: Boolean(l.promotional),
+        modelVersion: l.modelVersion || payload.modelVersion,
+        frozen,
+      });
+      return leg;
     });
     state.analysis = payload.analysis || null;
     if (payload.payoutOdds) {
@@ -2798,12 +2934,16 @@
     document.getElementById("propBoardRefresh")?.addEventListener("click", () => loadBoard(state.boardLoaded));
     document.getElementById("dockAdd")?.addEventListener("click", () => {
       const ready =
-        document.getElementById("playerId")?.value &&
+        committedPlayer()?.id &&
         document.getElementById("propStat")?.value &&
         document.getElementById("propLine")?.value;
       if (ready) {
         addProp();
         return;
+      }
+      if (!committedPlayer()?.id) {
+        state.dupWarning = "Pick a player from the search results before adding a prop.";
+        renderEntryList();
       }
       document.getElementById("addPropForm")?.scrollIntoView({ behavior: "smooth", block: "start" });
       document.getElementById("playerSearch")?.click();

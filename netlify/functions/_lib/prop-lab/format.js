@@ -1,4 +1,10 @@
 const { ordinal } = require("./math");
+const {
+  legIdentity,
+  isSameLeg,
+  propIdentityKey,
+  legSessionKey,
+} = require("./prop-identity");
 
 function sideLabel(side) {
   return String(side || "more").toLowerCase() === "less" ? "Less" : "More";
@@ -10,7 +16,7 @@ function lastName(name) {
 }
 
 function legCaption(leg) {
-  const name = leg?.player?.name || "Player";
+  const name = leg?.player?.name || leg?.name || leg?.playerName || "Player";
   const stat = leg?.stat?.short || leg?.stat?.label || leg?.stat?.id || leg?.statId || "Prop";
   const line = Number.isFinite(Number(leg?.line)) ? String(leg.line) : "";
   return `${name} — ${stat} ${line} ${sideLabel(leg?.side)}`.replace(/\s+/g, " ").trim();
@@ -19,19 +25,8 @@ function legCaption(leg) {
 function compactLegCaption(leg) {
   const stat = leg?.stat?.short || leg?.stat?.label || leg?.stat?.id || "Prop";
   const line = Number.isFinite(Number(leg?.line)) ? String(leg.line) : "";
-  return `${lastName(leg?.player?.name)} ${stat} ${line} ${sideLabel(leg?.side)} · Score ${leg?.propScore ?? "—"}`;
-}
-
-function legIdentity(leg) {
-  const player = leg?.playerId || leg?.player?.id || leg?.name || "";
-  const stat = leg?.statId || leg?.stat?.id || "";
-  const line = Number(leg?.line);
-  const side = String(leg?.side || "more").toLowerCase();
-  return `${player}|${stat}|${Number.isFinite(line) ? line : ""}|${side}`;
-}
-
-function isSameLeg(a, b) {
-  return Boolean(a && b && legIdentity(a) === legIdentity(b));
+  const name = leg?.player?.name || leg?.name || leg?.playerName;
+  return `${lastName(name)} ${stat} ${line} ${sideLabel(leg?.side)} · Score ${leg?.propScore ?? "—"}`;
 }
 
 function hitCountLabel(hits, n) {
@@ -105,4 +100,6 @@ module.exports = {
   FLAG_HELP,
   legIdentity,
   isSameLeg,
+  propIdentityKey,
+  legSessionKey,
 };

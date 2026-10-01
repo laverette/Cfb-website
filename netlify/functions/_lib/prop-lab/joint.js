@@ -127,7 +127,10 @@ function jointAllHit(legs, pairs, opts = {}) {
   const ps = ok.map((l) => clamp(Number(l.pHit), 0.01, 0.99));
   const independent = independentProduct(ps);
   const bounds = frechetBounds(ps);
-  const keys = ok.map((l) => l.clientId || `${l.player?.id}:${l.stat?.id}:${l.line}:${l.side}`);
+  const keys = ok.map((l) => {
+    if (l.clientId) return String(l.clientId);
+    return `${l.player?.id}:${l.stat?.id}:${l.line}:${l.side}`;
+  });
   const R = corrMatrix(keys, pairs);
   const maxAbs = maxAbsOffDiag(R);
   let p = independent;
