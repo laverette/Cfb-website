@@ -393,9 +393,9 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     min-width: 0;
-    flex: 1 1 auto;
+    max-width: 100%;
     text-align: center;
-    padding: 0 0.35rem;
+    padding: 0;
   }
 
   .home-hero {
