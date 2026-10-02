@@ -250,26 +250,44 @@ body {
 
 .site-nav-inner,
 .navbar-content-weekly {
-  display: flex;
+  /* Left control | fluid title | right controls — never absolute-overlap */
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
+  column-gap: 0.55rem;
   width: 100%;
-  gap: 1rem;
   max-width: 1200px;
   margin: 0 auto;
   overflow: visible;
   position: relative;
 }
 
+.site-nav-inner > .hamburger-menu-btn,
+.navbar-content-weekly > .hamburger-menu-btn {
+  grid-column: 1;
+  grid-row: 1;
+  justify-self: start;
+}
+
+.site-nav-inner > .dropdown-menu,
+.navbar-content-weekly > .dropdown-menu {
+  /* Fixed/out-of-flow menu must not steal the title column */
+  grid-column: 1;
+  grid-row: 1;
+}
+
 .site-title {
-  /* True viewport-center: ignore unequal left/right controls */
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
+  grid-column: 2;
+  grid-row: 1;
+  position: relative;
+  left: auto;
+  transform: none;
   z-index: 1;
-  max-width: min(16rem, calc(100% - 7.5rem));
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   margin: 0;
-  padding: 0 0.25rem;
+  padding: 0;
   color: var(--text-main);
   font-weight: 800;
   font-size: 1.15rem;
@@ -290,14 +308,24 @@ body {
   z-index: 2;
 }
 
+.site-nav-right,
+.site-nav-inner > .navbar-auth-cluster,
+.navbar-content-weekly > .navbar-auth-cluster {
+  grid-column: 3;
+  grid-row: 1;
+  justify-self: end;
+  min-width: 0;
+}
+
 .site-nav-right {
   display: inline-flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 0.65rem;
-  flex-shrink: 0;
-  margin-left: auto;
-  max-width: min(100%, 28rem);
+  gap: 0.5rem;
+  flex-shrink: 1;
+  margin-left: 0;
+  max-width: 100%;
+  min-width: 0;
 }
 
 /* Keep profile + logout on one row inside the right cluster */
@@ -1122,7 +1150,7 @@ a.navbar-user-name:focus-visible {
   .site-nav-inner,
   .navbar-content-weekly {
     align-items: center;
-    gap: 0.45rem;
+    column-gap: 0.4rem;
     min-height: 2.6rem;
     overflow: visible;
   }
@@ -1132,8 +1160,23 @@ a.navbar-user-name:focus-visible {
   }
 
   .site-title {
-    max-width: min(11.5rem, calc(100% - 6.75rem));
-    font-size: 1.05rem;
+    max-width: 100%;
+    font-size: 1.02rem;
+  }
+
+  /* Compact beta chip: badge only — full "Suggest a name" label overflows phones */
+  .site-name-suggest-sep,
+  .site-name-suggest-label {
+    display: none;
+  }
+
+  .site-name-suggest-btn {
+    padding: 0.34rem 0.55rem;
+    gap: 0;
+  }
+
+  .site-beta-badge-label {
+    font-size: 0.68rem;
   }
 
   /* Mirror the football menu: avatar-only circle. Name lives on the profile page. */
@@ -1601,23 +1644,44 @@ a:hover {
 }
 
 @media (max-width: 640px) {
+  .site-nav-inner,
+  .navbar-content-weekly {
+    column-gap: 0.3rem;
+  }
+
   .site-nav-right {
-    gap: 0.35rem;
-    max-width: min(100%, 13rem);
+    gap: 0.3rem;
+    max-width: 100%;
   }
+
+  .site-title {
+    font-size: 0.98rem;
+  }
+
   .site-name-suggest-btn {
-    padding: 0.32rem 0.5rem;
-    gap: 0.25rem;
+    padding: 0.3rem 0.48rem;
+    min-height: 2rem;
   }
+
   .site-beta-badge-label {
     font-size: 0.62rem;
+    letter-spacing: 0.04em;
   }
-  .site-name-suggest-label {
-    font-size: 0.58rem;
-  }
+
   /* Keep logout in the hamburger on small screens */
   .site-nav-right .navbar-logout-btn {
     display: none;
+  }
+}
+
+@media (max-width: 380px) {
+  .site-beta-badge-label {
+    font-size: 0.58rem;
+  }
+
+  .navbar-login-btn {
+    padding: 0.3rem 0.55rem;
+    font-size: 0.78rem;
   }
 }
 
