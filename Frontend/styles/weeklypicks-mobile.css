@@ -119,13 +119,16 @@ body.has-mobile-dock {
   }
 
   .site-title {
-    font-size: 1rem;
-    max-width: 100%;
+    display: none;
   }
 
   .site-name-suggest-sep,
-  .site-name-suggest-label {
+  .site-beta-badge-label {
     display: none;
+  }
+
+  .site-name-suggest-label {
+    display: inline;
   }
 
   .hamburger-menu-btn,
@@ -735,7 +738,7 @@ body.has-mobile-dock {
 }
 
 @media (max-width: 359px) {
-  .site-title { font-size: 0.92rem; }
+  .site-name-suggest-label { font-size: 0.82rem; }
   .hub-week-title { font-size: 1rem; }
   .pick-matchup .team-pick-name { font-size: 0.72rem; }
   .analysis-kpis { grid-template-columns: 1fr 1fr 1fr; }

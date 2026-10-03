@@ -566,8 +566,9 @@
     var host = cluster && cluster.parentElement ? cluster.parentElement : null;
     if (!host || !cluster) return;
 
-    // Grid nav: left menu | title | right cluster (beta + auth).
-    // Keep beta with auth on the RIGHT so it never sits in the title column.
+    // Grid nav: left menu | title | right (suggest + auth).
+    // Mobile CSS hides the brand title and centers "Suggest a name" as the
+    // only nav copy; the button still opens the name-suggest form.
     var right = document.getElementById("siteNavRight");
     if (!right) {
       right = document.createElement("div");
@@ -587,6 +588,7 @@
     nameBtn.className = "site-name-suggest-btn";
     nameBtn.title = "Help name the site — suggest a name (2026 beta)";
     nameBtn.setAttribute("aria-label", "Suggest a site name");
+    // Desktop: "2026 Beta · Suggest a name". Mobile CSS shows only the label.
     nameBtn.innerHTML =
       '<span class="site-beta-badge-label">2026 Beta</span>' +
       '<span class="site-name-suggest-sep" aria-hidden="true">·</span>' +
