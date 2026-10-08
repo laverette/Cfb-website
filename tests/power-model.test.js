@@ -302,13 +302,13 @@ describe("CFB Power Model V1", () => {
       teamA: elite,
       teamB: mid,
       venue: "a_home",
-      paramOverrides: { homeFieldAdvantage: 2.5, matchupTalentWeight: 0.35 },
+      paramOverrides: { homeFieldAdvantage: 2.5, matchupTalentWeight: 0.55 },
     });
     // Power-only: 8-4+2.5 = 6.5
     assert.ok(Math.abs(p.powerMargin - 6.5) < 0.05);
     assert.equal(p.powerSpreadLabel, "Elite -6.5");
-    // Talent points: (96-50)/2.2 - (53-50)/2.2 ≈ 19.55; *0.35 ≈ 6.84
-    assert.ok(p.projectedMargin > p.powerMargin + 5);
+    // Talent points: (96-50)/2.2 - (53-50)/2.2 ≈ 19.55; *0.55 ≈ 10.75
+    assert.ok(p.projectedMargin > p.powerMargin + 8);
     assert.ok(p.projectedSpreadLabel.startsWith("Elite -"));
   });
 

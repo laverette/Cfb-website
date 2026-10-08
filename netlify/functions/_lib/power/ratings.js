@@ -317,7 +317,10 @@ function calculateRatings(input) {
       (offense.get(g.awayId) || 0) + (defense.get(g.awayId) || 0);
     const expMargin = homePowerApprox - awayPowerApprox + hfa;
     const residual = g.margin - expMargin;
-    const soft = softMarginToPoints(softMargin(residual, params));
+    const soft = softMarginToPoints(
+      softMargin(residual, params),
+      params.marginToPointsScale
+    );
     const rh = resultAcc.get(g.homeId);
     const ra = resultAcc.get(g.awayId);
     if (rh) {

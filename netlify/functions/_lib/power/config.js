@@ -13,18 +13,17 @@ const MODEL_PARAMS = Object.freeze({
    * Raw power already embeds some talent via the prior; this is a residual early-season boost
    * so large talent gaps still move the displayed spread. 0 = power-only spreads.
    */
-  matchupTalentWeight: 0.35,
+  matchupTalentWeight: 0.55,
 
   /** Recency: weight = exp(-recencyLambda * weeksAgo). Higher = faster decay. */
   recencyLambda: 0.14,
 
   /**
    * Treat the preseason prior as this many "virtual games" when blending with observed play.
-   * Week 1 with 3.5 → ~22% of the rating comes from the single game (rest stays prior).
-   * After 3 games ≈ 46% observed. Stops cupcake blowouts from vaulting G5 teams overnight
-   * without letting last year's talent freeze the top 10.
+   * Week 1 with 2.75 → ~27% of the rating comes from the single game (rest stays prior).
+   * After 3 games ≈ 52% observed. Still damps cupcakes, but lets real gaps separate faster.
    */
-  priorPseudoGames: 3.5,
+  priorPseudoGames: 2.75,
 
   /**
    * Opponent-adjusted OFF/DEF solve: prior unit ratings count as this many game-weights.
@@ -58,10 +57,23 @@ const MODEL_PARAMS = Object.freeze({
   /** FCS handling */
   fcsPositiveWeight: 0.22,
   fcsNegativeWeight: 0.85,
-  fcsBlowoutCap: 14,
+  fcsBlowoutCap: 18,
 
   /** Soft margin transform for result component: sign(m)*log(1+|m|). */
   marginLogBase: Math.E,
+
+  /**
+   * Maps soft-log margins back toward point-ish units in the result component.
+   * Higher = blowouts move power (and spreads) more, while log still compresses extremes.
+   */
+  marginToPointsScale: 8.5,
+
+  /**
+   * ESPN recent-form contribution to raw power (Weekly Picks path).
+   * Soft-log avg margin × formSoftScale, then clamped to ±formCap.
+   */
+  formSoftScale: 1.75,
+  formCap: 10,
 
   /** Opponent-adjustment solver */
   oaEpsilon: 0.05,
@@ -96,6 +108,10 @@ const PARAM_DOCS = Object.freeze({
     "Fraction of (talentA−talentB) in raw-power points added on top of the power line. Early-season lever.",
   priorPseudoGames:
     "Virtual games assigned to the preseason prior. Higher = slower to trust early results.",
+  marginToPointsScale:
+    "Scales soft-log game residuals into power units. Higher lets true mismatches print bigger spreads.",
+  formSoftScale: "ESPN recent-form soft-margin multiplier before the formCap clamp.",
+  formCap: "Max absolute points recent form can add to ESPN raw power (±).",
   oaPriorStrength:
     "Virtual game-weights for prior OFF/DEF inside the opponent-adjusted solve.",
   recencyLambda: "Exponential decay rate for game age in weeks. Higher trusts recent results more.",

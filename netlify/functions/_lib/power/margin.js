@@ -15,8 +15,8 @@ function softMargin(margin, _params = {}) {
 }
 
 /** Inverse-ish scaling so soft margins map back toward point-ish units for blending. */
-function softMarginToPoints(soft, scale = 6.5) {
-  return soft * scale;
+function softMarginToPoints(soft, scale = 8.5) {
+  return soft * (Number(scale) > 0 ? Number(scale) : 8.5);
 }
 
 module.exports = {

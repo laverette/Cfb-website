@@ -4,6 +4,7 @@
  */
 
 const { clamp, round } = require("./normalize");
+const { getModelParams } = require("./config");
 
 const FBS_AVG_PPG = 28;
 const FBS_AVG_YPG = 380;
@@ -54,11 +55,14 @@ function defenseRatingFromMetrics(m) {
   ]);
 }
 
-function recentFormPoints(form) {
+function recentFormPoints(form, paramOverrides = {}) {
   if (!form || !Number.isFinite(form.avgMargin)) return null;
-  // Soften margins so early cupcake blowouts don't dominate.
+  const params = getModelParams(paramOverrides);
+  // Soft-log still damps cupcake stomps; scale/cap let real form move the line more.
   const soft = Math.sign(form.avgMargin) * Math.log1p(Math.abs(form.avgMargin));
-  return clamp(soft * 1.35, -6, 6);
+  const scale = Number(params.formSoftScale) > 0 ? Number(params.formSoftScale) : 1.75;
+  const cap = Number(params.formCap) > 0 ? Number(params.formCap) : 10;
+  return clamp(soft * scale, -cap, cap);
 }
 
 /**
