@@ -517,6 +517,34 @@
     window.visualViewport?.addEventListener("scroll", pinSheet);
   }
 
+  function showModelDebug() {
+    if (debugMode) return true;
+    try {
+      const u = window.AuthUI && typeof AuthUI.getCurrentUser === "function" ? AuthUI.getCurrentUser() : null;
+      return String(u && u.role ? u.role : "").toLowerCase() === "admin";
+    } catch {
+      return false;
+    }
+  }
+
+  function updateOppHint(player, evaluation) {
+    const hint = document.getElementById("oppHint");
+    if (!hint || !player) return;
+    const pos = evaluation?.player?.position || player.position || "";
+    const team = evaluation?.player?.team || player.team || "";
+    const bits = [pos, team].filter(Boolean);
+    const opp = evaluation?.opponent?.name
+      ? `${evaluation.opponent.homeAway === "home" ? "vs" : "@"} ${evaluation.opponent.name}`
+      : null;
+    if (opp) {
+      hint.textContent = bits.length ? `${player.name} · ${bits.join(" · ")} · ${opp}` : `${player.name} · ${opp}`;
+      return;
+    }
+    hint.textContent = bits.length
+      ? `${player.name} · ${bits.join(" · ")} · Resolving Week ${state.week || "?"} opponent…`
+      : `${player.name} · Resolving opponent…`;
+  }
+
   function choosePlayer(p) {
     state.selectedPlayer = p;
     document.getElementById("playerId").value = p.id;
@@ -539,13 +567,7 @@
       sheet.style.transform = "";
       document.body.classList.remove("prop-sheet-open");
     }
-    const hint = document.getElementById("oppHint");
-    if (hint) {
-      const pos = p.position ? ` · ${p.position}` : "";
-      hint.textContent = p.team
-        ? `${p.name}${pos} · ${p.team} — opponent will come from the Week ${state.week || ""} schedule.`
-        : "Opponent fills from the week’s schedule after you pick a player.";
-    }
+    updateOppHint(p, null);
     fillStats(null, p.position);
     document.getElementById("propStat")?.focus();
   }
@@ -577,20 +599,27 @@
               <div class="prop-kpi-chip"><span>P(${escapeHtml((e.side || "more").toUpperCase())})</span><strong class="${
                 e.pHit >= 0.58 ? "is-good" : e.pHit < 0.52 ? "is-bad" : "is-gold"
               }">${escapeHtml(pct(e.pHit))}</strong></div>
-              <div class="prop-kpi-chip"><span>Score</span><strong>${escapeHtml(String(e.propScore ?? "—"))}</strong><em>${escapeHtml(
+              <div class="prop-kpi-chip prop-score-chip ${
+                (e.propScore || 0) >= 70 ? "is-strong" : (e.propScore || 0) < 55 ? "is-weak" : "is-mid"
+              }"><span>Score</span><strong>${escapeHtml(String(e.propScore ?? "—"))}</strong><em>${escapeHtml(
                 e.propScoreLabel || ""
               )}</em></div>
-              <div class="prop-kpi-chip"><span>Model Conf</span><strong>${escapeHtml(e.confidence || "")}</strong></div>
+              <div class="prop-kpi-chip"><span>Conf</span><strong>${escapeHtml(e.confidence || "")}</strong></div>
             </div>`
           : `<div class="prop-leg-kpis">${loading || err}</div>`;
+        const teamPos = [leg.team, e?.player?.position].filter(Boolean).join(" · ");
+        const oppBit = e?.opponent?.name
+          ? `${e.opponent.homeAway === "home" ? "vs" : "@"} ${e.opponent.name}`
+          : "";
         return `<li class="prop-leg ${e?.error ? "is-error" : ""} ${state.keepIds.includes(leg.id) ? "is-keep" : ""} ${
           state.cutIds.includes(leg.id) ? "is-cut" : ""
         }" data-id="${escapeHtml(leg.id)}">
           <span class="prop-leg-idx">${i + 1}</span>
-          <div>
+          <div class="prop-leg-main">
             <p class="prop-leg-name">${escapeHtml(leg.name)}</p>
+            <p class="prop-leg-context">${escapeHtml([teamPos, oppBit].filter(Boolean).join(" · ") || "—")}</p>
             <p class="prop-leg-meta">
-              <span>${escapeHtml(leg.statLabel || leg.statId)}</span>
+              <span class="prop-leg-stat">${escapeHtml(leg.statLabel || leg.statId)}</span>
               <input
                 class="prop-leg-line"
                 type="number"
@@ -607,14 +636,13 @@
                 <option value="more" ${(leg.side || "more") === "more" ? "selected" : ""}>More</option>
                 <option value="less" ${leg.side === "less" ? "selected" : ""}>Less</option>
               </select>
-              ${e?.opponent?.name ? `<span>· vs ${escapeHtml(e.opponent.name)}</span>` : ""}
             </p>
           </div>
           ${kpis}
           <div class="prop-leg-actions">
             <button type="button" class="prop-chip" data-act="details">Details</button>
-            <button type="button" class="prop-chip" data-act="dup">Dup</button>
-            <button type="button" class="prop-chip" data-act="remove">Remove</button>
+            <button type="button" class="prop-chip" data-act="dup">Duplicate</button>
+            <button type="button" class="prop-chip prop-chip-danger" data-act="remove">Remove</button>
           </div>
         </li>`;
       })
@@ -724,23 +752,81 @@
     });
   }
 
+  function updateOptimizerUi(evals) {
+    const n = evals.length;
+    const best3Btn = document.getElementById("best3Btn");
+    const best4Btn = document.getElementById("bestNBtn");
+    const compareBtn = document.getElementById("compareBtn");
+    const hint = document.getElementById("optimizerHint");
+    const modeHost = document.getElementById("optimizerModeHost");
+    if (best3Btn) best3Btn.disabled = n < 3;
+    if (best4Btn) best4Btn.disabled = n < 4;
+    if (compareBtn) compareBtn.disabled = n < 2;
+    if (hint) {
+      if (n < 1) {
+        hint.textContent = "Add props to unlock Best 3 and Best 4.";
+      } else if (n === 1) {
+        hint.textContent = "Add 2 more props to unlock Best 3.";
+      } else if (n === 2) {
+        hint.textContent = "Add 1 more prop to unlock Best 3.";
+      } else if (n === 3) {
+        hint.textContent = "Best 3 is ready. Add 1 more prop to unlock Best 4.";
+      } else {
+        hint.textContent = "Optimize using Prop Score, probability, confidence, and correlation.";
+      }
+    }
+    if (modeHost) {
+      if (n >= 3) {
+        modeHost.hidden = false;
+        modeHost.innerHTML = `
+          <button type="button" class="prop-chip ${state.bestMode === "upside" ? "is-on" : ""}" data-mode="upside">Highest Upside</button>
+          <button type="button" class="prop-chip ${state.bestMode === "balanced" ? "is-on" : ""}" data-mode="balanced">Balanced</button>
+          <button type="button" class="prop-chip ${state.bestMode === "risk" ? "is-on" : ""}" data-mode="risk">Lowest Risk</button>
+        `;
+        modeHost.querySelectorAll("[data-mode]").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            state.bestMode = btn.getAttribute("data-mode");
+            refreshAnalysis().then(() => renderSummary());
+          });
+        });
+      } else {
+        modeHost.hidden = true;
+        modeHost.innerHTML = "";
+      }
+    }
+  }
+
   function renderSummary() {
     const host = document.getElementById("entrySummary");
     const a = state.analysis;
     const evals = evaluatedLegs();
-    const best3Btn = document.getElementById("best3Btn");
-    const best4Btn = document.getElementById("bestNBtn");
-    if (best3Btn) best3Btn.disabled = evals.length < 3;
-    if (best4Btn) best4Btn.disabled = evals.length < 4;
-    document.getElementById("compareBtn").disabled = evals.length < 2;
-    document.getElementById("saveBtn").disabled = evals.length < 1 || !authToken();
+    const n = evals.length;
+    document.getElementById("saveBtn").disabled = n < 1 || !authToken();
     const shareBtn = document.getElementById("shareLinkBtn");
-    if (shareBtn) shareBtn.disabled = evals.length < 1;
+    if (shareBtn) shareBtn.disabled = n < 1;
+    updateOptimizerUi(evals);
     syncDock();
+    const lead = document.getElementById("summaryLead");
+    if (lead) {
+      lead.textContent =
+        n === 0
+          ? "Is this card worth keeping?"
+          : n === 1
+            ? "1 leg — single-prop read"
+            : `${n} legs — multi-leg card`;
+    }
     if (!host) return;
-    if (!evals.length) {
+    if (!n) {
       host.className = "prop-summary-idle";
-      host.innerHTML = "Add at least one evaluated leg to see if the card is worth putting in.";
+      host.innerHTML = `
+        <p class="prop-empty-title">Build your card</p>
+        <ul class="prop-empty-list">
+          <li>Combined probability</li>
+          <li>Risk &amp; correlations</li>
+          <li>Optimizer recommendations</li>
+        </ul>
+        <p class="prop-market-note">Add your first prop to get started.</p>
+      `;
       updateAnalysisBar(null);
       return;
     }
@@ -750,6 +836,61 @@
       return;
     }
     updateAnalysisBar(a);
+    const value = a.value;
+    const together = a.together;
+    const verdictClass =
+      value?.verdict === "play" ? "is-play" : value?.verdict === "lean" ? "is-lean" : value?.verdict === "pass" ? "is-pass" : "";
+    const reasons = (value?.reasons || []).map((r) => `<li>${escapeHtml(r)}</li>`).join("");
+
+    // —— 1 LEG: compact leg analysis ——
+    if (n === 1) {
+      const e = evals[0];
+      const modelPct = e.pHit != null ? pct(e.pHit) : "—";
+      const needed =
+        value?.neededLabel ||
+        (together?.pctLabel ? together.pctLabel : null);
+      host.className = "prop-summary-leg";
+      host.innerHTML = `
+        ${
+          value
+            ? `<div class="prop-verdict ${verdictClass}">
+                <div class="prop-verdict-head">
+                  <strong>${escapeHtml(value.verdictLabel)}</strong>
+                  <button type="button" class="prop-info" title="${escapeHtml(value.tooltip || "")}">i</button>
+                </div>
+                <p>${escapeHtml(value.summary || "")}</p>
+              </div>`
+            : ""
+        }
+        <div class="prop-decision-grid">
+          <div class="prop-decision-row"><span>Model probability</span><strong>${escapeHtml(modelPct)}</strong></div>
+          <div class="prop-decision-row"><span>Prop Score</span><strong>${escapeHtml(String(e.propScore ?? "—"))} <em>${escapeHtml(
+            e.propScoreLabel || ""
+          )}</em></strong></div>
+          <div class="prop-decision-row"><span>Model Conf</span><strong>${escapeHtml(e.confidence || "—")}</strong></div>
+          <div class="prop-decision-row"><span>Grade</span><strong>${escapeHtml(a.grade || "—")}</strong></div>
+          <div class="prop-decision-row"><span>Risk</span><strong>${escapeHtml(a.risk || "—")}</strong></div>
+        </div>
+        ${
+          reasons
+            ? `<details class="prop-more-analysis" ${state.summaryOpen ? "open" : ""}>
+                <summary>Why this call</summary>
+                <ul class="prop-risk-drivers">${reasons}</ul>
+              </details>`
+            : ""
+        }
+        <p class="prop-nudge">Add another prop to begin multi-leg analysis.</p>
+      `;
+      host.querySelectorAll(".prop-more-analysis").forEach((el) => {
+        el.addEventListener("toggle", () => {
+          state.summaryOpen = el.open;
+        });
+      });
+      bindTipTaps(host);
+      return;
+    }
+
+    // —— 2+ LEGS: multi-leg card analysis ——
     const corrs = (a.correlations || [])
       .slice(0, 5)
       .map(
@@ -768,29 +909,7 @@
       )
       .join("");
     const drivers = (a.riskDrivers || []).map((d) => `<li>${escapeHtml(d)}</li>`).join("");
-    const together = a.together;
-    const modelPct =
-      together?.pModel != null
-        ? pctTogether(together.pModel)
-        : together?.p != null
-          ? pctTogether(together.p)
-          : null;
-    const togetherNote = together
-      ? together.corrUsed
-        ? `Independent (if these ${together.n} legs were unrelated): ${escapeHtml(
-            pctTogether(together.independent)
-          )}. Correlations adjust the model joint to ${escapeHtml(modelPct || "—")}.`
-        : `These ${together.n} legs look independent, so the model joint is the product of the individual probabilities.`
-      : "";
-    const riskSafetyNote =
-      together?.riskPercent != null && together?.safetyPercent != null
-        ? `Risk ${together.riskPercent}% and safety ${together.safetyPercent}% nudge the edge; they do not rewrite the pass rate.`
-        : "";
-    const value = a.value;
     const playModes = value?.playModes;
-    const verdictClass =
-      value?.verdict === "play" ? "is-play" : value?.verdict === "lean" ? "is-lean" : value?.verdict === "pass" ? "is-pass" : "";
-    const reasons = (value?.reasons || []).map((r) => `<li>${escapeHtml(r)}</li>`).join("");
     const modeCard = (mode, recommended) => {
       if (!mode) return "";
       const rows = (mode.payouts || [])
@@ -825,16 +944,6 @@
             )
             .join("")
         : "";
-    const legHitPct = evals
-      .map((e) => {
-        const name = e.player?.name || e.stat?.short || "Leg";
-        const short = e.stat?.short || e.stat?.label || "";
-        const label = short ? `${name} ${short}` : name;
-        return `<li><span>${escapeHtml(label)} ${escapeHtml(String(e.line ?? ""))} ${escapeHtml(
-          (e.side || "").toUpperCase()
-        )}</span><strong>${escapeHtml(pct(e.pHit))}</strong></li>`;
-      })
-      .join("");
     const modesHtml =
       playModes?.available && (playModes.power || playModes.flex)
         ? `<div class="prop-modes">
@@ -864,7 +973,16 @@
             }
           </div>`
         : "";
-    host.className = "";
+
+    const strongest =
+      a.strongestCaption || a.strongestLabel || (a.strongest?.player?.name ? a.strongest.player.name : null);
+    const weakest =
+      a.weakestCaption || a.weakestLabel || (a.weakest?.player?.name ? a.weakest.player.name : null);
+    const showStrongWeak = n >= 2 && (strongest || weakest);
+    const showCorr = n >= 2 && corrs;
+    const showDrivers = n >= 2 && drivers;
+
+    host.className = "prop-summary-card";
     host.innerHTML = `
       ${
         value
@@ -874,85 +992,63 @@
                 <button type="button" class="prop-info" title="${escapeHtml(value.tooltip || "")}">i</button>
               </div>
               <p>${escapeHtml(value.summary || "")}</p>
-              <p class="prop-verdict-ev">${escapeHtml(value.evLabel || "")} at ${escapeHtml(value.payout?.label || "")}</p>
+              ${value.evLabel ? `<p class="prop-verdict-ev">${escapeHtml(value.evLabel)} at ${escapeHtml(value.payout?.label || "")}</p>` : ""}
             </div>`
           : ""
       }
-      ${modesHtml}
-      <div class="prop-grade-row">
-        <div class="prop-kpi prop-kpi-together">
+      <div class="prop-decision-grid">
+        <div class="prop-decision-row">
           <span>Pass rate <button type="button" class="prop-info" title="${escapeHtml(
             together?.tooltip || "Realistic chance every listed leg hits after risk and bet safety."
           )}">i</button></span>
-          <strong>${escapeHtml(together?.pctLabel || "—")}</strong>
-          <em>${escapeHtml(together?.americanLabelPass || together?.americanLabel || "")}</em>
+          <strong>${escapeHtml(together?.pctLabel || "—")} <em>${escapeHtml(
+            together?.americanLabelPass || together?.americanLabel || ""
+          )}</em></strong>
         </div>
-        <div class="prop-kpi"><span>Entry grade</span><strong>${escapeHtml(a.grade || "—")}</strong></div>
-        <div class="prop-kpi"><span>Strength <button type="button" class="prop-info" title="${escapeHtml(
-          a.strengthTooltip || "A relative score based on leg quality, confidence, correlation, and concentration. It is not the probability that every leg hits."
-        )}">i</button></span><strong>${escapeHtml(String(a.entryStrength ?? "—"))}</strong></div>
-        <div class="prop-kpi"><span>Risk</span><strong>${escapeHtml(
+        <div class="prop-decision-row"><span>Grade</span><strong>${escapeHtml(a.grade || "—")}</strong></div>
+        <div class="prop-decision-row"><span>Risk</span><strong>${escapeHtml(
           a.riskPercent != null ? `${a.risk || "—"} · ${a.riskPercent}%` : a.risk || "—"
         )}</strong></div>
-        <div class="prop-kpi"><span>Safety</span><strong>${escapeHtml(
-          a.safetyPercent != null ? `${a.safetyPercent}%` : "—"
-        )}</strong></div>
       </div>
-      ${togetherNote ? `<p class="prop-together-note">${togetherNote}</p>` : ""}
-      ${riskSafetyNote ? `<p class="prop-together-note">${escapeHtml(riskSafetyNote)}</p>` : ""}
       ${
-        legHitPct
-          ? `<div class="prop-hit-dist prop-leg-hits">
-              <div class="prop-modes-head"><strong>Per-leg hit %</strong>
-                <button type="button" class="prop-info" title="Each leg’s modeled chance of hitting on its own. The pass rate above is the chance they all hit together.">i</button>
-              </div>
-              <ul class="prop-mode-payouts">${legHitPct}</ul>
+        reasons
+          ? `<div class="prop-why-block">
+              <h4 class="prop-section-label">Why</h4>
+              <ul class="prop-risk-drivers">${reasons}</ul>
             </div>`
           : ""
       }
-      <div class="prop-analysis-extra" id="summaryExtra">
-        <details ${state.summaryOpen ? "open" : ""} data-extra="value">
-          <summary>Why this call</summary>
-          ${reasons ? `<ul class="prop-risk-drivers">${reasons}</ul>` : '<p class="prop-market-note">Add legs to score the card against a payout.</p>'}
-        </details>
-        <details ${state.summaryOpen ? "open" : ""} data-extra="strongest">
-          <summary>Strongest leg</summary>
-          <p class="prop-corr">${escapeHtml(a.strongestCaption || a.strongestLabel || a.strongest?.player?.name || "—")}</p>
-        </details>
-        <details ${state.summaryOpen ? "open" : ""} data-extra="weakest">
-          <summary>Weakest leg</summary>
-          <p class="prop-corr">${escapeHtml(a.weakestCaption || a.weakestLabel || a.weakest?.player?.name || "—")}</p>
-        </details>
-        <details ${state.summaryOpen ? "open" : ""} data-extra="risk">
-          <summary>Risk drivers</summary>
-          ${drivers ? `<ul class="prop-risk-drivers">${drivers}</ul>` : '<p class="prop-market-note">No major risk drivers flagged.</p>'}
-        </details>
-        <details ${state.summaryOpen ? "open" : ""} data-extra="corr">
-          <summary>Correlations</summary>
-          ${corrs || '<p class="prop-corr">No material correlations flagged.</p>'}
-        </details>
-        <details ${state.summaryOpen ? "open" : ""} data-extra="opt">
-          <summary>Optimizer</summary>
-          <div class="prop-opt-mode">
-            <button type="button" class="prop-chip ${state.bestMode === "upside" ? "is-on" : ""}" data-mode="upside">Highest Upside</button>
-            <button type="button" class="prop-chip ${state.bestMode === "balanced" ? "is-on" : ""}" data-mode="balanced">Balanced</button>
-            <button type="button" class="prop-chip ${state.bestMode === "risk" ? "is-on" : ""}" data-mode="risk">Lowest Risk</button>
-          </div>
-          <p class="prop-market-note">${escapeHtml(a.note || "")}</p>
-        </details>
-      </div>
+      <details class="prop-more-analysis" ${state.summaryOpen ? "open" : ""}>
+        <summary>More analysis</summary>
+        ${modesHtml}
+        <div class="prop-grade-row prop-grade-row-compact">
+          <div class="prop-kpi"><span>Strength <button type="button" class="prop-info" title="${escapeHtml(
+            a.strengthTooltip ||
+              "A relative score based on leg quality, confidence, correlation, and concentration. It is not the probability that every leg hits."
+          )}">i</button></span><strong>${escapeHtml(String(a.entryStrength ?? "—"))}</strong></div>
+          <div class="prop-kpi"><span>Safety</span><strong>${escapeHtml(
+            a.safetyPercent != null ? `${a.safetyPercent}%` : "—"
+          )}</strong></div>
+        </div>
+        ${
+          showStrongWeak
+            ? `<div class="prop-extra-block">
+                ${strongest ? `<p><strong>Strongest</strong> — ${escapeHtml(strongest)}</p>` : ""}
+                ${weakest ? `<p><strong>Weakest</strong> — ${escapeHtml(weakest)}</p>` : ""}
+              </div>`
+            : ""
+        }
+        ${
+          showDrivers
+            ? `<div class="prop-extra-block"><strong>Risk drivers</strong><ul class="prop-risk-drivers">${drivers}</ul></div>`
+            : ""
+        }
+        ${showCorr ? `<div class="prop-extra-block"><strong>Correlations</strong>${corrs}</div>` : ""}
+      </details>
     `;
-    host.querySelectorAll("#summaryExtra details").forEach((el) => {
+    host.querySelectorAll(".prop-more-analysis").forEach((el) => {
       el.addEventListener("toggle", () => {
-        state.summaryOpen = [...host.querySelectorAll("#summaryExtra details")].some((d) => d.open);
-      });
-    });
-    host.querySelectorAll("[data-mode]").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        state.bestMode = btn.getAttribute("data-mode");
-        refreshAnalysis().then(() => {
-          renderSummary();
-        });
+        state.summaryOpen = el.open;
       });
     });
     bindTipTaps(host);
@@ -1107,9 +1203,6 @@
           fmt(e.distribution?.sd, 1)
         )} · P20–P80 ${escapeHtml(fmt(e.range?.p20, 0))}–${escapeHtml(fmt(e.range?.p80, 0))}</p>
           </details>
-          <details class="prop-acc" data-acc="usage"><summary>Usage</summary><p>${escapeHtml(share)} · Role: ${escapeHtml(e.usage?.role)} — ${escapeHtml(
-          e.usage?.roleDetail || ""
-        )}${e.usage?.inferred ? " · inferred" : ""}</p></details>
           <details class="prop-acc" data-acc="matchup"><summary>Matchup</summary>
               <p>${escapeHtml(e.matchup?.headline ? `Matchup: ${e.matchup.headline}` : e.matchup?.note || "")}</p>
               <ul>${factors}</ul>
@@ -1117,6 +1210,9 @@
                 e.matchup?.adjPctDisplay != null ? `${e.matchup.adjPctDisplay}%` : "—"
               )}</p>
           </details>
+          <details class="prop-acc" data-acc="usage"><summary>Usage</summary><p>${escapeHtml(share)} · Role: ${escapeHtml(e.usage?.role)} — ${escapeHtml(
+          e.usage?.roleDetail || ""
+        )}${e.usage?.inferred ? " · inferred" : ""}</p></details>
           <details class="prop-acc" data-acc="env"><summary>Game environment</summary>
               <p>Blowout risk: ${escapeHtml(e.environment?.blowoutRisk || "—")} · ${escapeHtml(
           (e.environment?.notes || []).join(" · ") || "No script adjustment"
@@ -1140,7 +1236,13 @@
                 <button type="button" class="prop-chip" data-apply>Apply line</button>
               </div>
           </details>
-          <details class="prop-acc prop-debug" data-acc="debug"${debugMode ? " open" : ""}><summary>Model Debug</summary><pre data-debug-host></pre></details>
+          ${
+            showModelDebug()
+              ? `<details class="prop-acc prop-debug" data-acc="advanced"><summary>Advanced / Model details</summary>
+                  <details class="prop-acc prop-debug-inner" data-acc="debug"${debugMode ? " open" : ""}><summary>Model Debug</summary><pre data-debug-host></pre></details>
+                </details>`
+              : ""
+          }
         </article>`;
       })
       .join("");
@@ -1179,6 +1281,8 @@
       const card = el.closest(".prop-card");
       const key = `${card?.getAttribute("data-id")}:${el.getAttribute("data-acc")}`;
       if (state.expanded[key]) el.open = true;
+      const summary = el.querySelector(":scope > summary");
+      if (summary) summary.setAttribute("aria-expanded", el.open ? "true" : "false");
       if (el.open && el.hasAttribute("data-expand-log")) {
         const hostLog = el.querySelector("[data-log-host]");
         const leg = state.legs.find((l) => l.id === el.getAttribute("data-expand-log"));
@@ -1187,6 +1291,7 @@
       if (el.open && el.getAttribute("data-acc") === "debug") fillDebug(el, card?.getAttribute("data-id"));
       el.addEventListener("toggle", () => {
         state.expanded[key] = el.open;
+        if (summary) summary.setAttribute("aria-expanded", el.open ? "true" : "false");
         if (el.open && el.getAttribute("data-acc") === "debug") fillDebug(el, card?.getAttribute("data-id"));
       });
     });
@@ -1429,14 +1534,12 @@
   }
 
   function scrollToPropResults(legId) {
-    const preferCard =
-      legId && document.querySelector(`.prop-card[data-id="${CSS.escape(legId)}"]`);
-    const target =
-      preferCard ||
-      document.getElementById("propCards") ||
-      document.getElementById("entryList");
+    // After adding a prop, land on the entry list (below player search) — not Prop Cards.
+    const preferLeg =
+      legId && document.querySelector(`.prop-leg[data-id="${CSS.escape(legId)}"]`);
+    const target = preferLeg || document.getElementById("entryList");
     if (!target) return;
-    // Wait a tick so the new leg/card is in the DOM after renderAll.
+    // Wait a tick so the new leg is in the DOM after renderAll.
     requestAnimationFrame(() => {
       target.scrollIntoView({ behavior: "smooth", block: isMobile() ? "start" : "nearest" });
     });
@@ -1521,6 +1624,9 @@
       );
       leg.evaluation = { ...evaluation, clientId: leg.id };
       leg.loading = false;
+      if (state.selectedPlayer && String(state.selectedPlayer.id) === String(leg.playerId)) {
+        updateOppHint(state.selectedPlayer, leg.evaluation);
+      }
       track("prop_evaluated", {
         season: state.season,
         week: state.week,
@@ -1625,12 +1731,13 @@
     const togetherLine = together?.label
       ? `<p class="prop-together-note">This ${n}-leg set pass rate: <strong>${escapeHtml(together.label)}</strong></p>`
       : "";
-    panel.innerHTML = `<div class="matchup-panel-head"><h2 class="matchup-panel-title">Best ${n} of ${escapeHtml(String((result.keep || []).length + (result.cut || []).length))}</h2></div>
-      <p class="prop-market-note">Mode: ${escapeHtml(result.mode || state.bestMode)} · Why this ${n}-leg set</p>
+    panel.innerHTML = `<div class="matchup-panel-head"><h2 class="matchup-panel-title">Best ${n}-leg combination</h2></div>
+      <p class="prop-market-note">Mode: ${escapeHtml(result.mode || state.bestMode)}</p>
       ${togetherLine}
       ${why ? `<ul class="prop-risk-drivers">${why}</ul>` : ""}
-      ${keep}${cut}
-      <p class="prop-corr">${escapeHtml(result.reason || "")}</p>`;
+      <div class="prop-bestn-grid">${keep}${cut}</div>
+      <p class="prop-corr">${escapeHtml(result.reason || "")}</p>
+      <p class="prop-together-note">Keep legs are highlighted in your builder. Adjust lines or remove cut legs as you like.</p>`;
     renderEntryList();
   }
 
@@ -2278,10 +2385,24 @@
     }
   }
 
+  function setSavedCount(n) {
+    const badge = document.getElementById("savedCountBadge");
+    const title = document.getElementById("savedTitle");
+    const count = Number(n) || 0;
+    if (badge) {
+      badge.textContent = `(${count})`;
+      badge.hidden = false;
+    }
+    if (title) {
+      title.textContent = count === 1 ? "Saved Card" : "Saved Cards";
+    }
+  }
+
   async function loadSaved() {
     const host = document.getElementById("savedEntries");
     if (!host) return;
     if (!authToken()) {
+      setSavedCount(0);
       host.innerHTML =
         "<p class='prop-market-note'>Log in to save cards here. Shared links still open without an account.</p>";
       return;
@@ -2289,6 +2410,7 @@
     try {
       const data = await api({ action: "entries" });
       const rows = data.entries || [];
+      setSavedCount(rows.length);
       if (!rows.length) {
         host.innerHTML = "<p class='prop-market-note'>No saved cards yet — build a card and hit Save.</p>";
         return;
@@ -2418,6 +2540,7 @@
         });
       });
     } catch {
+      setSavedCount(0);
       host.innerHTML =
         "<p class='prop-market-note'>Saved cards unavailable. If you just set up Prop Lab, refresh after the database tables are live.</p>";
     }
