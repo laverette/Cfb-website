@@ -61,6 +61,7 @@
     lastSavedId: null,
     lastShareId: null,
     lastShareFingerprint: null,
+    weekPicks: null,
     /** @type {null | { shareId: string, title?: string, createdAt?: string, loading?: boolean, error?: string|null }} */
     sharedView: null,
   };
@@ -2951,6 +2952,238 @@
     }
   }
 
+  function isAdminUser() {
+    try {
+      const u = window.AuthUI && typeof AuthUI.getCurrentUser === "function" ? AuthUI.getCurrentUser() : null;
+      return String(u && u.role ? u.role : "").toLowerCase() === "admin";
+    } catch {
+      return false;
+    }
+  }
+
+  function renderWeekPicks(picks) {
+    const host = document.getElementById("weekPicksHost");
+    const meta = document.getElementById("weekPicksMeta");
+    const lead = document.getElementById("weekPicksLead");
+    const refreshBtn = document.getElementById("weekPicksRefresh");
+    if (refreshBtn) refreshBtn.hidden = !isAdminUser();
+    if (!host) return;
+
+    if (!picks) {
+      host.innerHTML =
+        "<p class='prop-week-picks-idle'>No weekly board yet. Admins can build it from the PrizePicks mirror when ready.</p>";
+      if (meta) meta.hidden = true;
+      return;
+    }
+
+    const legs = Array.isArray(picks.legs) ? picks.legs : [];
+    const pending = picks.meta?.pendingRemaining;
+    if (lead) {
+      lead.textContent =
+        picks.status === "complete"
+          ? `Top model edges · Week ${picks.week ?? "?"} · ${legs.length} singles`
+          : `Scoring in progress · ${picks.propsScored || 0}/${picks.propsSupported || "?"} props`;
+    }
+    if (meta) {
+      meta.hidden = false;
+      const bits = [
+        picks.status === "complete" ? "Complete" : "Partial",
+        picks.updatedAt ? `Updated ${new Date(picks.updatedAt).toLocaleString()}` : null,
+        picks.cfbdCalls != null ? `CFBD calls ${picks.cfbdCalls}` : null,
+        picks.leagueSnapshotCache ? `League snap ${picks.leagueSnapshotCache}` : null,
+        pending != null && pending > 0 ? `${pending} left to score` : null,
+      ].filter(Boolean);
+      meta.textContent = bits.join(" · ");
+    }
+
+    if (!legs.length) {
+      host.innerHTML =
+        "<p class='prop-week-picks-idle'>Board is building — ranked singles will appear as scoring finishes.</p>";
+      return;
+    }
+
+    const singles = legs
+      .slice(0, 20)
+      .map((l, i) => {
+        const side = String(l.side || "more").toUpperCase();
+        const opp = l.opponent?.name ? ` vs ${l.opponent.name}` : "";
+        return `<article class="prop-week-pick" data-idx="${i}">
+          <span class="prop-week-pick-rank">${i + 1}</span>
+          <div class="prop-week-pick-main">
+            <p class="prop-week-pick-name">${escapeHtml(l.playerName || "Player")}</p>
+            <p class="prop-week-pick-meta">${escapeHtml([l.team, opp].filter(Boolean).join("") || "—")}</p>
+            <p class="prop-week-pick-line">${escapeHtml(side)} ${escapeHtml(l.statLabel || l.statId || "")} ${escapeHtml(
+              String(l.line)
+            )}</p>
+          </div>
+          <div class="prop-week-pick-scores">
+            <div><span>Score</span><strong>${escapeHtml(String(l.propScore ?? "—"))}</strong></div>
+            <div><span>P(hit)</span><strong>${escapeHtml(pct(l.pHit))}</strong></div>
+            <div><span>Conf</span><strong>${escapeHtml(l.confidence || "—")}</strong></div>
+          </div>
+          <button type="button" class="btn btn-gold btn-sm prop-week-pick-add" data-add-week-pick="${i}">Add</button>
+        </article>`;
+      })
+      .join("");
+
+    const combos = picks.combos || {};
+    const comboBlock = (label, pack) => {
+      const list = pack?.keep || pack?.legs || (Array.isArray(pack) ? pack : null);
+      if (!Array.isArray(list) || !list.length) return "";
+      const lines = list
+        .slice(0, 6)
+        .map(
+          (l) =>
+            `<li>${escapeHtml(l.player?.name || l.playerName || "Player")} · ${escapeHtml(
+              String(l.side || "more").toUpperCase()
+            )} ${escapeHtml(l.stat?.label || l.statLabel || l.statId || "")} ${escapeHtml(
+              String(l.line ?? "")
+            )}</li>`
+        )
+        .join("");
+      return `<div class="prop-week-combo"><h3 class="prop-section-label">${escapeHtml(
+        label
+      )}</h3><ol>${lines}</ol></div>`;
+    };
+
+    host.innerHTML = `
+      <div class="prop-week-pick-list">${singles}</div>
+      <div class="prop-week-combos">
+        ${comboBlock("Suggested Best 2", combos.best2)}
+        ${comboBlock("Suggested Best 3", combos.best3)}
+        ${comboBlock("Suggested Best 4", combos.best4)}
+      </div>
+    `;
+
+    host.querySelectorAll("[data-add-week-pick]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const idx = Number(btn.getAttribute("data-add-week-pick"));
+        const leg = legs[idx];
+        if (!leg) return;
+        addWeekPickToBuilder(leg);
+      });
+    });
+  }
+
+  async function addWeekPickToBuilder(leg) {
+    if (state.legs.length >= MAX_LEGS) {
+      state.dupWarning = "Card is full (8 legs).";
+      renderEntryList();
+      return;
+    }
+    if (!leg.playerId && !leg.playerName) return;
+    const newLeg = {
+      id: uid(),
+      playerId: leg.playerId,
+      name: leg.playerName,
+      team: leg.team,
+      statId: leg.statId,
+      statLabel: leg.statLabel || leg.statId,
+      line: Number(leg.line),
+      side: leg.side || "more",
+      loading: true,
+      evaluation: null,
+    };
+    state.legs.push(newLeg);
+    renderAll();
+    document.getElementById("entryList")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    await evaluateLeg(newLeg);
+    await refreshAnalysis();
+    renderAll();
+  }
+
+  async function loadWeekPicks() {
+    const host = document.getElementById("weekPicksHost");
+    if (host) host.innerHTML = "<p class='prop-week-picks-idle'>Loading weekly board…</p>";
+    try {
+      const data = await api({
+        action: "week-picks",
+        season: state.season,
+        week: state.week,
+      });
+      state.weekPicks = data.picks || null;
+      renderWeekPicks(state.weekPicks);
+    } catch (err) {
+      if (host) {
+        host.innerHTML = `<p class="prop-error">${escapeHtml(err.message || "Could not load weekly board")}</p>`;
+      }
+    }
+  }
+
+  async function refreshWeekPicksBatch() {
+    const btn = document.getElementById("weekPicksRefresh");
+    const meta = document.getElementById("weekPicksMeta");
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = "Building…";
+    }
+    if (meta) {
+      meta.hidden = false;
+      meta.textContent = "Starting full week board job…";
+    }
+    const baselineUpdatedAt = state.weekPicks?.updatedAt || null;
+    try {
+      // Start background job (202). Then poll until this run finishes or times out.
+      const startUrl = new URL("/.netlify/functions/prop-lab-week-board-background", window.location.origin);
+      const headers = {
+        accept: "application/json",
+        "content-type": "application/json",
+      };
+      const token = authToken();
+      if (token) headers.authorization = `Bearer ${token}`;
+      const startResp = await fetch(startUrl.toString(), {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ season: state.season, week: state.week, force: true }),
+      });
+      // 202 = accepted (Netlify background). 200 also ok if platform runs inline in dev.
+      if (!startResp.ok && startResp.status !== 202) {
+        const data = await startResp.json().catch(() => ({}));
+        throw new Error(data.error || `Could not start board job (${startResp.status})`);
+      }
+
+      const deadline = Date.now() + 16 * 60 * 1000;
+      let sawThisRun = false;
+      while (Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 5000));
+        await loadWeekPicks();
+        const picks = state.weekPicks;
+        const scored = picks?.propsScored ?? 0;
+        const supported = picks?.propsSupported ?? 0;
+        const pending = picks?.meta?.pendingRemaining;
+        const updatedAt = picks?.updatedAt || null;
+        if (updatedAt && updatedAt !== baselineUpdatedAt) sawThisRun = true;
+        if (picks?.status === "partial") sawThisRun = true;
+        if (meta) {
+          meta.hidden = false;
+          meta.textContent =
+            sawThisRun && picks?.status === "complete"
+              ? `Complete · ${scored} props scored`
+              : `Building… ${scored}/${supported || "?"}${
+                  pending != null ? ` · ${pending} left` : ""
+                }`;
+        }
+        if (sawThisRun && picks?.status === "complete") break;
+      }
+      if (!(state.weekPicks?.status === "complete" && sawThisRun) && meta) {
+        meta.textContent = `${meta.textContent || "Still building"} · refresh later if needed`;
+      }
+    } catch (err) {
+      const host = document.getElementById("weekPicksHost");
+      if (host) {
+        host.insertAdjacentHTML(
+          "afterbegin",
+          `<p class="prop-error">${escapeHtml(err.message || "Build failed")}</p>`
+        );
+      }
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = "Build week board";
+      }
+    }
+  }
+
   document.addEventListener("DOMContentLoaded", async () => {
     bindPlayerCombo();
     trackOnce("prop_lab_opened", { season: state.season, source: "prop_lab" }, "prop_lab_opened", {
@@ -2981,7 +3214,10 @@
         reevaluateAllLegs();
       }
       loadSaved();
+      loadWeekPicks();
     });
+    document.getElementById("weekPicksReload")?.addEventListener("click", () => loadWeekPicks());
+    document.getElementById("weekPicksRefresh")?.addEventListener("click", () => refreshWeekPicksBatch());
     document.getElementById("payoutOdds")?.addEventListener("input", (e) => {
       state.payoutOdds = e.target.value;
       clearTimeout(state.payoutTimer);
@@ -3154,5 +3390,6 @@
     } else {
       await loadSaved();
     }
+    await loadWeekPicks();
   });
 })();

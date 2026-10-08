@@ -69,9 +69,25 @@ function softLimit() {
 }
 
 function allowBackgroundCfbd() {
-  return String(process.env.ALLOW_BACKGROUND_CFBD || "")
-    .trim()
-    .toLowerCase() === "true";
+  if (
+    String(process.env.ALLOW_BACKGROUND_CFBD || "")
+      .trim()
+      .toLowerCase() === "true"
+  ) {
+    return true;
+  }
+  // Narrow exception: daily league matchup snapshot (~3 CFBD calls, 12h cache).
+  const caller = getExecutionCaller() || "";
+  if (
+    caller === "prop-lab-league-snapshot" ||
+    caller === "prop-lab-week-board"
+  ) {
+    const v = String(process.env.PROP_LAB_CFBD_MATCHUP || "")
+      .trim()
+      .toLowerCase();
+    return v !== "0" && v !== "false" && v !== "no" && v !== "off";
+  }
+  return false;
 }
 
 function logCfbdCallsEnabled() {

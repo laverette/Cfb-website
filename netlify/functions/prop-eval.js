@@ -26,6 +26,10 @@ const {
 const propStore = require("./_lib/prop-lab/store");
 const { backtestOne, calibrationBuckets, metricsByStat, persistBacktests } = require("./_lib/prop-lab/backtest");
 const { recordPredictions } = require("./_lib/prop-lab/grading");
+const {
+  getLatestWeekPicks,
+  publicWeekPicksView,
+} = require("./_lib/prop-lab/week-board");
 const { withExecutionContext } = require("./_lib/execution-context");
 const { cfbdUsageSnapshot } = require("./_lib/cfbd-guard");
 
@@ -215,6 +219,88 @@ async function handlePropEval(event) {
         "cache-control": board.cached
           ? "public, max-age=60, s-maxage=120"
           : "public, max-age=30, s-maxage=60",
+      });
+    }
+
+    if (action === "week-picks" || action === "week_picks") {
+      let season = Number(body.season || q.season || q.year);
+      let week = Number(body.week || q.week || q.weekNumber);
+      if (!Number.isFinite(season) || !Number.isFinite(week)) {
+        try {
+          const cur = await loadCurrentWeek();
+          if (!Number.isFinite(season)) season = Number(cur?.season_year);
+          if (!Number.isFinite(week)) week = Number(cur?.week_number);
+        } catch {
+          /* ignore */
+        }
+      }
+      const row = await getLatestWeekPicks({
+        season: Number.isFinite(season) ? season : undefined,
+        week: Number.isFinite(week) ? week : undefined,
+      });
+      return json(
+        200,
+        {
+          picks: publicWeekPicksView(row),
+          season: season || null,
+          week: week || null,
+        },
+        { "cache-control": "public, max-age=30, s-maxage=60" }
+      );
+    }
+
+    if (action === "week-picks-refresh" || action === "week_picks_refresh") {
+      const admin = requireAdmin(event);
+      if (admin) return admin;
+      let season = Number(body.season || q.season || q.year);
+      let week = Number(body.week || q.week || q.weekNumber);
+      if (!Number.isFinite(season) || !Number.isFinite(week)) {
+        try {
+          const cur = await loadCurrentWeek();
+          if (!Number.isFinite(season)) season = Number(cur?.season_year);
+          if (!Number.isFinite(week)) week = Number(cur?.week_number);
+        } catch {
+          /* ignore */
+        }
+      }
+      if (!Number.isFinite(week)) {
+        return json(400, { error: "week required" });
+      }
+      if (!Number.isFinite(season)) season = new Date().getFullYear();
+      const force = q.force === "1" || body.force === true;
+      // Kick Netlify background function — scores the full board in one job (~15 min max).
+      const proto =
+        (event.headers["x-forwarded-proto"] || event.headers["X-Forwarded-Proto"] || "https")
+          .toString()
+          .split(",")[0]
+          .trim() || "https";
+      const host = (event.headers.host || event.headers.Host || "").toString();
+      const base =
+        (process.env.URL || process.env.DEPLOY_PRIME_URL || (host ? `${proto}://${host}` : "")).replace(
+          /\/$/,
+          ""
+        );
+      if (!base) {
+        return json(500, { error: "Could not resolve site URL to start week board job" });
+      }
+      const authHeader =
+        event.headers.authorization || event.headers.Authorization || "";
+      const jobUrl = `${base}/.netlify/functions/prop-lab-week-board-background`;
+      // Fire-and-forget: background fn returns 202 immediately on Netlify.
+      fetch(jobUrl, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          accept: "application/json",
+          ...(authHeader ? { authorization: authHeader } : {}),
+        },
+        body: JSON.stringify({ season, week, force }),
+      }).catch((err) => console.warn("week-board-background kick:", err.message));
+      return json(202, {
+        started: true,
+        season,
+        week,
+        message: "Week board job started — poll week-picks until status is complete.",
       });
     }
 

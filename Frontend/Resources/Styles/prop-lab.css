@@ -301,6 +301,137 @@ body.power-rankings-body {
   color: #f0a090;
 }
 
+.prop-week-picks {
+  margin-top: var(--pl-space-5);
+}
+
+.prop-week-picks-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.55rem;
+}
+
+.prop-week-picks-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.prop-week-picks-meta {
+  margin: 0 0 0.65rem;
+  font-size: 0.72rem;
+  color: var(--pr-muted);
+}
+
+.prop-week-picks-idle {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--pr-muted);
+}
+
+.prop-week-pick-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.prop-week-pick {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.35rem 0.55rem;
+  align-items: center;
+  padding: 0.65rem 0.7rem;
+  border-radius: 12px;
+  border: 1px solid rgba(245, 222, 179, 0.14);
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.prop-week-pick-rank {
+  font-family: "Barlow Condensed", Impact, sans-serif;
+  font-weight: 800;
+  color: #1a120e;
+  background: #e8c547;
+  width: 1.45rem;
+  height: 1.45rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+}
+
+.prop-week-pick-name {
+  margin: 0;
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.prop-week-pick-meta,
+.prop-week-pick-line {
+  margin: 0.1rem 0 0;
+  font-size: 0.75rem;
+  color: var(--pr-muted);
+}
+
+.prop-week-pick-scores {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  grid-column: 2 / -1;
+}
+
+.prop-week-pick-scores div {
+  min-width: 3.5rem;
+  padding: 0.25rem 0.4rem;
+  border-radius: 8px;
+  background: rgba(245, 222, 179, 0.06);
+}
+
+.prop-week-pick-scores span {
+  display: block;
+  font-size: 0.58rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--pr-muted);
+}
+
+.prop-week-pick-scores strong {
+  font-size: 0.9rem;
+}
+
+.prop-week-pick-add {
+  grid-column: 3;
+  grid-row: 1;
+}
+
+.prop-week-combos {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.prop-week-combo ol {
+  margin: 0.35rem 0 0;
+  padding-left: 1.1rem;
+  font-size: 0.82rem;
+  color: #f3efe6;
+}
+
+@media (min-width: 700px) {
+  .prop-week-pick {
+    grid-template-columns: auto minmax(0, 1.4fr) auto auto;
+  }
+  .prop-week-pick-scores {
+    grid-column: auto;
+  }
+  .prop-week-combos {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
 .prop-saved-section {
   margin-top: var(--pl-space-5);
 }

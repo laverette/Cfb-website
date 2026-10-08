@@ -37,6 +37,7 @@ const {
   cfbdLinesEnabled,
   cfbdOverviewEnabled,
 } = require("./data/provider-mode");
+const { getLeagueMatchupSnapshot } = require("./data/league-snapshot");
 const { dataLog } = require("./data/log");
 
 async function loadOverview(cfbd, playerId, year, providerMode) {
@@ -162,28 +163,28 @@ async function loadPlayerBundle({
   const providerMode = readProviderMode();
   const wantMatchup = cfbdMatchupEnabled(providerMode);
   const wantLines = cfbdLinesEnabled(providerMode);
-  // mode=espn → no CFBD client. auto/cfbd may open one for fallbacks / opt-in enrichment.
+  // Player-path CFBD client only when not ESPN-forced (fallbacks / overview / lines).
   const client =
     cfbd ||
-    (apiKey && !forcesEspn(providerMode) ? createClient(apiKey, { signal }) : null);
+    (apiKey && (!forcesEspn(providerMode) || wantLines || cfbdOverviewEnabled(providerMode, playerId))
+      ? createClient(apiKey, { signal })
+      : null);
   const seasonYear = Number(season) || new Date().getFullYear();
   const pid = playerId != null ? String(playerId) : "";
 
   const playerNameHint = name || null;
 
-  const [currentOv, priorOv, teamStatsAll, advAll, ppaAll] = await Promise.all([
+  // League matchup = shared daily CFBD snapshot (not per-eval fan-out).
+  const [currentOv, priorOv, leagueSnap] = await Promise.all([
     pid ? loadOverview(client, pid, seasonYear, providerMode) : Promise.resolve(null),
     pid ? loadOverview(client, pid, seasonYear - 1, providerMode) : Promise.resolve(null),
-    wantMatchup && client
-      ? client.getOptional("/stats/season", { year: seasonYear, seasonType: "regular" })
-      : Promise.resolve(null),
-    wantMatchup && client
-      ? client.getOptional("/stats/season/advanced", { year: seasonYear, startWeek: 1 })
-      : Promise.resolve(null),
-    wantMatchup && client
-      ? client.getOptional("/ppa/teams", { year: seasonYear, excludeGarbageTime: true })
+    wantMatchup
+      ? getLeagueMatchupSnapshot(seasonYear, { apiKey, signal })
       : Promise.resolve(null),
   ]);
+  const teamStatsAll = leagueSnap?.teamStats || null;
+  const advAll = leagueSnap?.advanced || null;
+  const ppaAll = leagueSnap?.ppa || null;
 
   const playerTeam =
     team ||
@@ -532,6 +533,9 @@ async function loadPlayerBundle({
     gameLogs: gameLogMeta,
     priorLogs: priorLogMeta,
     schedule: scheduleMeta,
+    leagueSnapshot: leagueSnap
+      ? { cache: leagueSnap.cache || null, fetchedAt: leagueSnap.fetchedAt || null }
+      : null,
     opponent: {
       status: opponentResolution?.status || (oppName ? "ok" : "unresolved"),
       source: opponentResolution?.source || scheduleMeta.source || null,

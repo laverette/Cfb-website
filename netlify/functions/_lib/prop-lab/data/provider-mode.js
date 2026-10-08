@@ -2,14 +2,15 @@
  * Provider override for Prop Lab player / schedule / matchup data.
  *
  * PROP_LAB_DATA_SOURCE / DATA_SOURCE:
- *   espn (default) — ESPN-first; CFBD only if explicitly re-enabled via opt-in flags
- *   auto           — cache → ESPN → CFBD (quota-friendly)
+ *   espn (default) — ESPN-first for player logs/search/schedule
+ *   auto           — cache → ESPN → CFBD fallback for player paths
  *   cfbd           — CFBD only (no ESPN fallback)
  *
- * Optional CFBD enrichment (off by default — these were the biggest quota burns):
- *   PROP_LAB_CFBD_MATCHUP=1  — league /stats/season + advanced + /ppa/teams
- *   PROP_LAB_CFBD_LINES=1    — /lines consensus spread/total
- *   PROP_LAB_CFBD_OVERVIEW=1 — /player/season/overview
+ * League matchup enrichment (PPA / advanced / season stats) is a *shared*
+ * daily CFBD snapshot, independent of player data source:
+ *   PROP_LAB_CFBD_MATCHUP — default ON; set 0/false to disable
+ *   PROP_LAB_CFBD_LINES=1 — optional CFBD /lines (off by default)
+ *   PROP_LAB_CFBD_OVERVIEW=1 — optional /player/season/overview (off)
  */
 
 const VALID = new Set(["auto", "cfbd", "espn"]);
@@ -47,24 +48,36 @@ function envFlagOn(name) {
   return v === "1" || v === "true" || v === "yes";
 }
 
-/** League-wide CFBD matchup pulls (very expensive). */
-function cfbdMatchupEnabled(mode = readProviderMode()) {
-  if (forcesEspn(mode)) return false;
-  if (forcesCfbd(mode)) return true;
+function envFlagOff(name) {
+  const v = String(process.env[name] || "")
+    .trim()
+    .toLowerCase();
+  return v === "0" || v === "false" || v === "no" || v === "off";
+}
+
+/**
+ * Shared league CFBD matchup snapshot. Default ON (budget-safe via cache).
+ * Works even when player path is ESPN-only.
+ */
+function cfbdMatchupEnabled(_mode = readProviderMode()) {
+  if (envFlagOff("PROP_LAB_CFBD_MATCHUP")) return false;
+  if (process.env.PROP_LAB_CFBD_MATCHUP == null || String(process.env.PROP_LAB_CFBD_MATCHUP).trim() === "") {
+    return true;
+  }
   return envFlagOn("PROP_LAB_CFBD_MATCHUP");
 }
 
-/** CFBD betting lines. */
+/** CFBD betting lines — off by default. */
 function cfbdLinesEnabled(mode = readProviderMode()) {
-  if (forcesEspn(mode)) return false;
+  if (forcesEspn(mode) && !envFlagOn("PROP_LAB_CFBD_LINES")) return false;
   if (forcesCfbd(mode)) return true;
   return envFlagOn("PROP_LAB_CFBD_LINES");
 }
 
-/** CFBD player season overview. */
+/** CFBD player season overview — off by default. */
 function cfbdOverviewEnabled(mode = readProviderMode(), playerId = null) {
-  if (forcesEspn(mode)) return false;
   if (String(playerId || "").startsWith("espn:")) return false;
+  if (forcesEspn(mode)) return false;
   if (forcesCfbd(mode)) return true;
   return envFlagOn("PROP_LAB_CFBD_OVERVIEW");
 }

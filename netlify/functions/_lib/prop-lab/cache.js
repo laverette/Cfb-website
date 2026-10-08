@@ -89,4 +89,4 @@ async function cached(key, ttlMs, loader, { persist = true } = {}) {
   return { value, source: "network" };
 }
 
-module.exports = { cached, readMemory, writeMemory };
+module.exports = { cached, readMemory, writeMemory, writeDb, readDb };

@@ -5,6 +5,12 @@
 [functions."prop-eval"]
   timeout = 26
 
+[functions."prop-lab-week-board"]
+  timeout = 26
+
+[functions."prop-lab-week-board-background"]
+  timeout = 900
+
 [functions."bama-schedule-leaderboard"]
   timeout = 26
 
@@ -13,8 +19,9 @@
 
 [build.environment]
   SUPABASE_URL = "https://nkxitcvsqnmcsvvkndyx.supabase.co"
-  # Prop Lab: ESPN-first for search / gamelogs / schedule / defense (cuts CFBD quota).
+  # Prop Lab: ESPN player path; shared daily CFBD league snapshot for PPA/advanced.
   PROP_LAB_DATA_SOURCE = "espn"
+  PROP_LAB_CFBD_MATCHUP = "1"
 
 [dev]
   publish = "Frontend"
@@ -289,6 +296,16 @@
 [[redirects]]
   from = "/api/prop-eval"
   to = "/.netlify/functions/prop-eval"
+  status = 200
+
+[[redirects]]
+  from = "/api/prop-lab/week-board"
+  to = "/.netlify/functions/prop-lab-week-board"
+  status = 200
+
+[[redirects]]
+  from = "/api/prop-lab/week-board-background"
+  to = "/.netlify/functions/prop-lab-week-board-background"
   status = 200
 
 [[redirects]]

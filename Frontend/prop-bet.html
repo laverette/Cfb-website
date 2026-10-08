@@ -10,7 +10,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
   <link rel="stylesheet" href="styles/site-theme.css">
   <link rel="stylesheet" href="Resources/Styles/power.css">
-  <link rel="stylesheet" href="Resources/Styles/prop-lab.css?v=25">
+  <link rel="stylesheet" href="Resources/Styles/prop-lab.css?v=26">
 </head>
 <body class="power-rankings-body">
   <nav class="navbar weeklypicks-navbar site-nav">
@@ -199,6 +199,23 @@
       <div id="propCards" class="prop-cards"></div>
     </section>
 
+    <section class="matchup-panel prop-week-picks" id="weekPicksSection" aria-labelledby="weekPicksTitle">
+      <div class="prop-week-picks-head">
+        <div>
+          <h2 id="weekPicksTitle" class="matchup-panel-title">Best of the Week</h2>
+          <p class="matchup-panel-lead" id="weekPicksLead">Model-ranked PrizePicks NCAAF lines. Admins: build the board once when you’re ready (usually Friday).</p>
+        </div>
+        <div class="prop-week-picks-actions">
+          <button type="button" class="btn btn-outline-light btn-sm" id="weekPicksReload">Reload</button>
+          <button type="button" class="btn btn-gold btn-sm" id="weekPicksRefresh" hidden>Build week board</button>
+        </div>
+      </div>
+      <p class="prop-week-picks-meta" id="weekPicksMeta" hidden></p>
+      <div id="weekPicksHost" class="prop-week-picks-host">
+        <p class="prop-week-picks-idle">Loading weekly board…</p>
+      </div>
+    </section>
+
     <section class="matchup-panel prop-saved-section" aria-labelledby="savedTitle">
       <details class="prop-saved-details" id="savedDetails">
         <summary class="prop-saved-summary">
@@ -218,7 +235,7 @@
 
   <script src="scripts/analytics.js"></script>
   <script src="scripts/auth-ui.js"></script>
-  <script src="scripts/prop-lab.js?v=31"></script>
+  <script src="scripts/prop-lab.js?v=33"></script>
   <script>
     function closeMenu() {
       const menu = document.getElementById('dropdownMenu');
