@@ -141,9 +141,29 @@
   <script src="scripts/analytics.js"></script>
   <script src="scripts/auth-ui.js"></script>
   <script>
+    function currentUserFromStorage() {
+      try {
+        var raw = localStorage.getItem("currentUser");
+        return raw ? JSON.parse(raw) : null;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function ownProfileHref(user) {
+      if (user && user.username) {
+        return "user-profile.html?username=" + encodeURIComponent(user.username);
+      }
+      if (user && user.id != null) {
+        return "user-profile.html?id=" + encodeURIComponent(String(user.id));
+      }
+      return "user-profile.html";
+    }
+
     function safePostLoginRedirect() {
       var params = new URLSearchParams(window.location.search || "");
       var raw = params.get("redirect");
+      var me = currentUserFromStorage();
       if (!raw || typeof raw !== "string") {
         window.location.href = "weeklypicks.html";
         return;
@@ -161,6 +181,12 @@
       var file = decoded.split(/[?#]/)[0];
       if (!/^[a-zA-Z0-9._-]+\.html$/.test(file)) {
         window.location.href = "weeklypicks.html";
+        return;
+      }
+      // Logging in from (or back to) a profile page should show YOUR profile,
+      // not whatever ?username= was open before logout.
+      if (file === "user-profile.html") {
+        window.location.href = ownProfileHref(me);
         return;
       }
       window.location.href = decoded;

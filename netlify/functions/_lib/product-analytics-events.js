@@ -12,6 +12,7 @@ const PRODUCT_EVENT_TYPES = Object.freeze({
   PROP_ADDED_TO_CARD: "prop_added_to_card",
   PROP_REMOVED_FROM_CARD: "prop_removed_from_card",
   ENTRY_ANALYZED: "entry_analyzed",
+  FIND_BEST_2_USED: "find_best_2_used",
   FIND_BEST_3_USED: "find_best_3_used",
   FIND_BEST_4_USED: "find_best_4_used",
   CARD_SAVED: "card_saved",

@@ -27,6 +27,9 @@ create table if not exists public.prop_lab_entries (
 create index if not exists idx_prop_lab_entries_user
   on public.prop_lab_entries (user_id, created_at desc);
 
+create index if not exists idx_prop_lab_entries_user_week
+  on public.prop_lab_entries (user_id, season_year, week_number, created_at desc);
+
 alter table public.prop_lab_entries enable row level security;
 
 create table if not exists public.prop_lab_legs (

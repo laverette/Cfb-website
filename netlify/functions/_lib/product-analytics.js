@@ -15,6 +15,7 @@ const ALLOWED_EVENTS = new Set([
   "prop_added_to_card",
   "prop_removed_from_card",
   "entry_analyzed",
+  "find_best_2_used",
   "find_best_3_used",
   "find_best_4_used",
   "card_saved",
@@ -445,6 +446,7 @@ async function loadAdminAnalytics(qs = {}) {
   const cardsShared = countByName(weekRows, "card_shared");
   const sharedOpens = countByName(weekRows, "shared_card_opened");
   const uniqueShareViewers = uniqueActorsForEvent(weekRows, "shared_card_opened").size;
+  const best2 = countByName(weekRows, "find_best_2_used");
   const best3 = countByName(weekRows, "find_best_3_used");
   const best4 = countByName(weekRows, "find_best_4_used");
   const resultsViews = countByName(weekRows, "weekly_results_viewed");
@@ -563,6 +565,7 @@ async function loadAdminAnalytics(qs = {}) {
         cardsSaved,
         cardsShared,
         sharedOpens,
+        findBest2: best2,
         findBest3: best3,
         findBest4: best4,
       },

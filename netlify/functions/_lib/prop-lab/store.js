@@ -302,15 +302,18 @@ async function saveEntry({ userId, title, seasonYear, weekNumber, legs, analysis
   return entry;
 }
 
-async function listEntries(userId) {
+async function listEntries(userId, { seasonYear, weekNumber } = {}) {
   if (!hasSupabase()) return [];
   const supabase = getSupabase();
-  const { data, error } = await supabase
+  let query = supabase
     .from("prop_lab_entries")
     .select("id, title, season_year, week_number, model_version, created_at, entry_snapshot")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false })
-    .limit(40);
+    .eq("user_id", userId);
+  const season = Number(seasonYear);
+  const week = Number(weekNumber);
+  if (Number.isFinite(season) && season > 0) query = query.eq("season_year", season);
+  if (Number.isFinite(week) && week > 0) query = query.eq("week_number", week);
+  const { data, error } = await query.order("created_at", { ascending: false }).limit(40);
   if (error) return [];
   return data || [];
 }

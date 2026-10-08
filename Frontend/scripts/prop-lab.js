@@ -35,6 +35,7 @@
     positionRules: null,
     legs: [],
     analysis: null,
+    best2: null,
     best3: null,
     best4: null,
     selectedPlayer: null,
@@ -260,12 +261,92 @@
     const sheetClose = document.getElementById("playerSheetClose");
     const sheetBackdrop = document.getElementById("playerSheetBackdrop");
     const sheetHint = document.getElementById("playerSheetHint");
+    const sheetClear = document.getElementById("playerSheetClear");
+    const sheetRecents = document.getElementById("playerSheetRecents");
+    const playerClear = document.getElementById("playerClearBtn");
     if (!input || !list) return;
     if (list.parentElement !== document.body) document.body.appendChild(list);
     list.classList.add("prop-player-list-portal");
     input.setAttribute("role", "combobox");
     input.setAttribute("aria-expanded", "false");
     input.setAttribute("aria-haspopup", "listbox");
+
+    function syncMobileReadonly() {
+      // Avoid the blur→sheet dance: mobile uses the sheet as the only keyboard field.
+      if (isMobile()) input.setAttribute("readonly", "readonly");
+      else input.removeAttribute("readonly");
+    }
+    syncMobileReadonly();
+
+    function syncPlayerClear() {
+      if (!playerClear) return;
+      playerClear.hidden = !state.selectedPlayer?.id;
+    }
+
+    function syncSheetClear() {
+      if (!sheetClear || !sheetInput) return;
+      sheetClear.hidden = !String(sheetInput.value || "").trim();
+    }
+
+    function recentPlayers() {
+      const seen = new Set();
+      const out = [];
+      for (const leg of state.legs) {
+        const id = String(leg.playerId || "");
+        if (!id || seen.has(id)) continue;
+        seen.add(id);
+        out.push({
+          id,
+          name: leg.name,
+          team: leg.team,
+          position: leg.evaluation?.player?.position || null,
+        });
+        if (out.length >= 5) break;
+      }
+      return out;
+    }
+
+    function renderRecents() {
+      if (!sheetRecents) return;
+      const q = String(sheetInput?.value || "").trim();
+      if (q.length >= 2) {
+        sheetRecents.hidden = true;
+        sheetRecents.innerHTML = "";
+        return;
+      }
+      const recents = recentPlayers();
+      if (!recents.length) {
+        sheetRecents.hidden = true;
+        sheetRecents.innerHTML = "";
+        return;
+      }
+      sheetRecents.hidden = false;
+      sheetRecents.innerHTML = `
+        <p class="prop-search-recents-label">From this card</p>
+        <div class="prop-search-recents-row">
+          ${recents
+            .map(
+              (p) =>
+                `<button type="button" class="prop-search-recent-chip" data-id="${escapeHtml(p.id)}" data-team="${escapeHtml(
+                  p.team || ""
+                )}" data-name="${escapeHtml(p.name || "")}" data-position="${escapeHtml(p.position || "")}">${escapeHtml(
+                  p.name
+                )}</button>`
+            )
+            .join("")}
+        </div>`;
+      sheetRecents.querySelectorAll(".prop-search-recent-chip").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          choosePlayer({
+            id: btn.getAttribute("data-id"),
+            team: btn.getAttribute("data-team"),
+            name: btn.getAttribute("data-name"),
+            position: btn.getAttribute("data-position") || null,
+          });
+          closeSheet();
+        });
+      });
+    }
 
     function place() {
       if (list.hidden || isMobile()) return;
@@ -303,29 +384,33 @@
       sheet.style.transform = "";
       document.body.classList.remove("prop-sheet-open");
       sheetInput?.blur();
+      syncPlayerClear();
     }
 
     function openSheet() {
       if (!sheet || !sheetInput) return;
       sheet.hidden = false;
       document.body.classList.add("prop-sheet-open");
-      sheetInput.value = input.value || "";
+      // Fresh search by default; keep text only if no committed player (partial type).
+      const seed = state.selectedPlayer?.id ? "" : String(input.value || "").trim();
+      sheetInput.value = seed;
+      syncSheetClear();
+      if (sheetList) sheetList.innerHTML = "";
       if (sheetHint) {
         sheetHint.hidden = false;
-        sheetHint.textContent =
-          sheetInput.value.trim().length >= 2 ? "Searching…" : "Type at least 2 letters";
+        sheetHint.textContent = seed.length >= 2 ? "Searching…" : "Start typing a player name";
       }
-      if (sheetList && sheetInput.value.trim().length < 2) sheetList.innerHTML = "";
+      renderRecents();
       pinSheet();
-      // Defer focus so the sheet paints before the keyboard pushes the viewport.
-      setTimeout(() => {
-        sheetInput.focus();
+      // Focus immediately so one tap reaches the keyboard.
+      requestAnimationFrame(() => {
+        sheetInput.focus({ preventScroll: true });
+        if (seed) sheetInput.select();
         pinSheet();
-      }, 30);
-      // iOS keyboard animates; re-pin as the visual viewport settles.
-      setTimeout(pinSheet, 120);
-      setTimeout(pinSheet, 320);
-      if (sheetInput.value.trim().length >= 2) run(sheetInput.value, true);
+      });
+      setTimeout(pinSheet, 100);
+      setTimeout(pinSheet, 280);
+      if (seed.length >= 2) run(seed, true);
     }
 
     function close() {
@@ -379,22 +464,30 @@
         if (sheetList && forSheet) sheetList.innerHTML = "";
         if (sheetHint && forSheet) {
           sheetHint.hidden = false;
-          sheetHint.textContent = "Type at least 2 letters";
+          sheetHint.textContent = "Keep typing…";
         }
+        if (forSheet) renderRecents();
         return;
       }
       if (sheetHint && forSheet) {
         sheetHint.hidden = false;
         sheetHint.textContent = "Searching…";
       }
+      if (forSheet && sheetRecents) {
+        sheetRecents.hidden = true;
+        sheetRecents.innerHTML = "";
+      }
+      const query = q.trim();
+      const reqId = (state.searchReqId = (state.searchReqId || 0) + 1);
       try {
-        const data = await api({ action: "search", q: q.trim(), year: state.season });
+        const data = await api({ action: "search", q: query, year: state.season });
+        if (reqId !== state.searchReqId) return;
         const players = data.players || [];
         state.searchHits = players.slice(0, 12);
         trackOnce(
           "player_searched",
-          { season: state.season, qLen: q.trim().length, hitCount: players.length },
-          "player_searched:" + q.trim().toLowerCase().slice(0, 24),
+          { season: state.season, qLen: query.length, hitCount: players.length },
+          "player_searched:" + query.toLowerCase().slice(0, 24),
           { session: false }
         );
         if (isMobile() || forSheet) {
@@ -420,6 +513,7 @@
         paintActive();
         place();
       } catch {
+        if (reqId !== state.searchReqId) return;
         const msg = "<li class='matchup-combo-empty'>Search failed</li>";
         if (isMobile() || forSheet) {
           if (sheetList) sheetList.innerHTML = msg;
@@ -433,25 +527,53 @@
       }
     }
 
+    function openPlayerPicker(ev) {
+      if (!isMobile()) return;
+      ev?.preventDefault?.();
+      if (sheet && !sheet.hidden) return;
+      openSheet();
+    }
+
+    input.addEventListener("pointerdown", openPlayerPicker);
+    input.addEventListener("click", openPlayerPicker);
     input.addEventListener("focus", () => {
-      if (isMobile()) {
-        input.blur();
-        openSheet();
-      }
-    });
-    input.addEventListener("click", () => {
-      if (isMobile()) openSheet();
+      if (isMobile() && sheet?.hidden !== false) openSheet();
     });
     input.addEventListener("input", () => {
       if (isMobile()) return;
       clearSelectedPlayer({ keepSearchText: true });
+      syncPlayerClear();
       clearTimeout(state.searchTimer);
-      state.searchTimer = setTimeout(() => run(input.value), 180);
+      state.searchTimer = setTimeout(() => run(input.value), 160);
     });
     sheetInput?.addEventListener("input", () => {
       clearSelectedPlayer({ keepSearchText: true });
+      syncSheetClear();
       clearTimeout(state.searchTimer);
-      state.searchTimer = setTimeout(() => run(sheetInput.value, true), 160);
+      state.searchTimer = setTimeout(() => run(sheetInput.value, true), 110);
+    });
+    sheetClear?.addEventListener("click", () => {
+      if (!sheetInput) return;
+      sheetInput.value = "";
+      syncSheetClear();
+      if (sheetList) sheetList.innerHTML = "";
+      if (sheetHint) {
+        sheetHint.hidden = false;
+        sheetHint.textContent = "Start typing a player name";
+      }
+      renderRecents();
+      sheetInput.focus({ preventScroll: true });
+    });
+    playerClear?.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      clearSelectedPlayer();
+      syncPlayerClear();
+      const hint = document.getElementById("oppHint");
+      if (hint) hint.textContent = "Pick a player to start building your card.";
+      fillStats(null, null);
+      if (isMobile()) openSheet();
+      else input.focus();
     });
     sheetClose?.addEventListener("click", closeSheet);
     sheetBackdrop?.addEventListener("click", closeSheet);
@@ -513,10 +635,14 @@
       }
     }
 
-    window.addEventListener("resize", place);
+    window.addEventListener("resize", () => {
+      syncMobileReadonly();
+      place();
+    });
     window.addEventListener("scroll", place, true);
     window.visualViewport?.addEventListener("resize", pinSheet);
     window.visualViewport?.addEventListener("scroll", pinSheet);
+    syncPlayerClear();
   }
 
   function showModelDebug() {
@@ -559,6 +685,8 @@
       const search = document.getElementById("playerSearch");
       if (search && document.activeElement !== search) search.value = "";
     }
+    const clearBtn = document.getElementById("playerClearBtn");
+    if (clearBtn) clearBtn.hidden = true;
   }
 
   function namesCompatible(a, b) {
@@ -665,20 +793,35 @@
     }
     updateOppHint(p, null);
     fillStats(null, p.position);
-    document.getElementById("propStat")?.focus();
+    const clearBtn = document.getElementById("playerClearBtn");
+    if (clearBtn) clearBtn.hidden = false;
+    // On mobile, jump straight to Stat — don't fight the sheet keyboard.
+    if (!isMobile()) document.getElementById("propStat")?.focus();
+    else {
+      // Let the sheet close first, then open the native Stat picker.
+      setTimeout(() => document.getElementById("propStat")?.focus(), 80);
+    }
   }
 
   function renderEntryList() {
     const list = document.getElementById("entryList");
     const empty = document.getElementById("entryEmpty");
+    const head = document.getElementById("entryHead");
+    const headTitle = document.getElementById("entryHeadTitle");
     if (!list) return;
     if (!state.legs.length) {
       list.innerHTML = "";
       document.getElementById("dupWarnSlot")?.remove();
       if (empty) empty.hidden = false;
+      if (head) head.hidden = true;
       return;
     }
     if (empty) empty.hidden = true;
+    if (head) head.hidden = false;
+    if (headTitle) {
+      const n = state.legs.length;
+      headTitle.textContent = n === 1 ? "Your props · 1 leg" : `Your props · ${n} legs`;
+    }
     const ranked = state.legs.slice().sort((a, b) => {
       const as = a.evaluation?.propScore || 0;
       const bs = b.evaluation?.propScore || 0;
@@ -801,8 +944,9 @@
     const compare = document.getElementById("dockCompare");
     if (add) add.disabled = state.legs.length >= MAX_LEGS;
     if (best) {
-      best.disabled = evals.length < 3;
-      best.textContent = evals.length >= 4 ? "Best 4" : "Best 3";
+      best.disabled = evals.length < 2;
+      best.textContent =
+        evals.length >= 4 ? "Best 4" : evals.length >= 3 ? "Best 3" : "Best 2";
     }
     if (compare) compare.disabled = evals.length < 2;
   }
@@ -850,29 +994,31 @@
 
   function updateOptimizerUi(evals) {
     const n = evals.length;
+    const best2Btn = document.getElementById("best2Btn");
     const best3Btn = document.getElementById("best3Btn");
     const best4Btn = document.getElementById("bestNBtn");
     const compareBtn = document.getElementById("compareBtn");
     const hint = document.getElementById("optimizerHint");
     const modeHost = document.getElementById("optimizerModeHost");
+    if (best2Btn) best2Btn.disabled = n < 2;
     if (best3Btn) best3Btn.disabled = n < 3;
     if (best4Btn) best4Btn.disabled = n < 4;
     if (compareBtn) compareBtn.disabled = n < 2;
     if (hint) {
       if (n < 1) {
-        hint.textContent = "Add props to unlock Best 3 and Best 4.";
+        hint.textContent = "Add props to unlock Best 2, Best 3, and Best 4.";
       } else if (n === 1) {
-        hint.textContent = "Add 2 more props to unlock Best 3.";
+        hint.textContent = "Add 1 more prop to unlock Best 2.";
       } else if (n === 2) {
-        hint.textContent = "Add 1 more prop to unlock Best 3.";
+        hint.textContent = "Best 2 is ready. Add 1 more prop to unlock Best 3.";
       } else if (n === 3) {
-        hint.textContent = "Best 3 is ready. Add 1 more prop to unlock Best 4.";
+        hint.textContent = "Best 2 and Best 3 are ready. Add 1 more prop to unlock Best 4.";
       } else {
         hint.textContent = "Optimize using Prop Score, probability, confidence, and correlation.";
       }
     }
     if (modeHost) {
-      if (n >= 3) {
+      if (n >= 2) {
         modeHost.hidden = false;
         modeHost.innerHTML = `
           <button type="button" class="prop-chip ${state.bestMode === "upside" ? "is-on" : ""}" data-mode="upside">Highest Upside</button>
@@ -1610,6 +1756,7 @@
     const legs = evaluatedLegs();
     if (!legs.length) {
       state.analysis = null;
+      state.best2 = null;
       state.best3 = null;
       state.best4 = null;
       return;
@@ -1617,6 +1764,7 @@
     try {
       const data = await api({ action: "analyze" }, { method: "POST", body: { legs, mode: state.bestMode, payout: state.payoutOdds } });
       state.analysis = data.analysis;
+      state.best2 = data.best2;
       state.best3 = data.best3;
       state.best4 = data.best4;
       const fp = legs
@@ -1652,15 +1800,21 @@
     document.getElementById("propSide")?.blur();
   }
 
-  function scrollToPropResults(legId) {
-    // After adding a prop, land on the entry list (below player search) — not Prop Cards.
-    const preferLeg =
+  function scrollAfterAddProp(legId) {
+    // Stay in Entry Builder (player search + Your props). Never yank Card Analysis into view.
+    const form = document.getElementById("addPropForm");
+    const builder = document.querySelector(".prop-lab-builder");
+    const leg =
       legId && document.querySelector(`.prop-leg[data-id="${CSS.escape(legId)}"]`);
-    const target = preferLeg || document.getElementById("entryList");
-    if (!target) return;
-    // Wait a tick so the new leg is in the DOM after renderAll.
+    const anchor = form || builder;
     requestAnimationFrame(() => {
-      target.scrollIntoView({ behavior: "smooth", block: isMobile() ? "start" : "nearest" });
+      if (anchor) {
+        anchor.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+      if (leg) {
+        leg.classList.add("is-just-added");
+        window.setTimeout(() => leg.classList.remove("is-just-added"), 1400);
+      }
     });
   }
 
@@ -1709,10 +1863,12 @@
     };
     state.legs.push(leg);
     renderAll();
-    document.getElementById("propLine").value = "";
+    // Ready for the next prop: keep player (common multi-leg pattern), clear line only.
+    const lineEl = document.getElementById("propLine");
+    if (lineEl) lineEl.value = "";
     // Do NOT refocus player search — on mobile that reopens the sheet + keyboard.
     dismissKeyboard();
-    scrollToPropResults(leg.id);
+    scrollAfterAddProp(leg.id);
     track("prop_added_to_card", {
       season: state.season,
       week: state.week,
@@ -1722,7 +1878,12 @@
     await evaluateLeg(leg);
     await refreshAnalysis();
     renderAll();
-    scrollToPropResults(leg.id);
+    // Re-highlight after re-render; do not scroll again (avoids Card Analysis jump).
+    const fresh = document.querySelector(`.prop-leg[data-id="${CSS.escape(leg.id)}"]`);
+    if (fresh) {
+      fresh.classList.add("is-just-added");
+      window.setTimeout(() => fresh.classList.remove("is-just-added"), 1400);
+    }
   }
 
   async function evaluateLeg(leg) {
@@ -1829,7 +1990,7 @@
 
   function renderBestN(which) {
     const panel = document.getElementById("bestNPanel");
-    const result = which === 3 ? state.best3 : state.best4;
+    const result = which === 2 ? state.best2 : which === 3 ? state.best3 : state.best4;
     if (!panel || !result) return;
     panel.hidden = false;
     const n = result.n || which;
@@ -2525,12 +2686,13 @@
     const badge = document.getElementById("savedCountBadge");
     const title = document.getElementById("savedTitle");
     const count = Number(n) || 0;
+    const weekLabel = state.week != null ? ` · Week ${state.week}` : "";
     if (badge) {
       badge.textContent = `(${count})`;
       badge.hidden = false;
     }
     if (title) {
-      title.textContent = count === 1 ? "Saved Card" : "Saved Cards";
+      title.textContent = (count === 1 ? "Saved Card" : "Saved Cards") + weekLabel;
     }
   }
 
@@ -2544,11 +2706,16 @@
       return;
     }
     try {
-      const data = await api({ action: "entries" });
+      const data = await api({
+        action: "entries",
+        seasonYear: state.season,
+        weekNumber: state.week,
+      });
       const rows = data.entries || [];
       setSavedCount(rows.length);
       if (!rows.length) {
-        host.innerHTML = "<p class='prop-market-note'>No saved cards yet — build a card and hit Save.</p>";
+        const weekBit = state.week != null ? ` for Week ${state.week}` : "";
+        host.innerHTML = `<p class='prop-market-note'>No saved cards${weekBit} — build a card and hit Save.</p>`;
         return;
       }
       host.innerHTML = rows
@@ -2983,6 +3150,7 @@
       if (state.legs.length) {
         reevaluateAllLegs();
       }
+      loadSaved();
     });
     document.getElementById("payoutOdds")?.addEventListener("input", (e) => {
       state.payoutOdds = e.target.value;
@@ -2998,6 +3166,17 @@
         state.payoutOdds = e.target.value;
         refreshAnalysis().then(renderSummary);
       }
+    });
+    document.getElementById("best2Btn")?.addEventListener("click", () => {
+      refreshAnalysis().then(() => {
+        renderBestN(2);
+        renderSummary();
+        track("find_best_2_used", {
+          season: state.season,
+          week: state.week,
+          legCount: evaluatedLegs().length,
+        });
+      });
     });
     document.getElementById("best3Btn")?.addEventListener("click", () => {
       refreshAnalysis().then(() => {
@@ -3072,10 +3251,16 @@
       document.getElementById("playerSearch")?.click();
     });
     document.getElementById("dockBest4")?.addEventListener("click", () => {
-      const n = evaluatedLegs().length >= 4 ? 4 : 3;
+      const count = evaluatedLegs().length;
+      const n = count >= 4 ? 4 : count >= 3 ? 3 : 2;
       refreshAnalysis().then(() => {
         renderBestN(n);
         renderSummary();
+        track(`find_best_${n}_used`, {
+          season: state.season,
+          week: state.week,
+          legCount: count,
+        });
         document.getElementById("bestNPanel")?.scrollIntoView({ behavior: "smooth", block: "start" });
       });
     });

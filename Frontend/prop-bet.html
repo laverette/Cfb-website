@@ -63,37 +63,40 @@
           <div class="prop-add-grid">
             <label class="power-field prop-add-player">
               <span>Player</span>
-              <div class="matchup-combo" id="playerCombo">
+              <div class="matchup-combo prop-player-combo" id="playerCombo">
                 <input type="hidden" id="playerId" value="">
                 <input type="hidden" id="playerTeam" value="">
                 <input type="hidden" id="playerName" value="">
-                <input
-                  class="site-select matchup-select matchup-combo-input"
-                  id="playerSearch"
-                  type="text"
-                  spellcheck="false"
-                  placeholder="Search player…"
-                  aria-label="Player search"
-                  aria-autocomplete="list"
-                  aria-controls="playerList"
-                  enterkeyhint="search"
-                  autocomplete="off"
-                >
+                <div class="prop-player-input-wrap">
+                  <input
+                    class="site-select matchup-select matchup-combo-input"
+                    id="playerSearch"
+                    type="text"
+                    spellcheck="false"
+                    placeholder="Tap to find a player…"
+                    aria-label="Player search"
+                    aria-autocomplete="list"
+                    aria-controls="playerList"
+                    enterkeyhint="search"
+                    autocomplete="off"
+                  >
+                  <button type="button" class="prop-player-clear" id="playerClearBtn" hidden aria-label="Clear player">×</button>
+                </div>
                 <ul class="matchup-combo-list" id="playerList" hidden role="listbox"></ul>
               </div>
             </label>
-            <label class="power-field">
-              <span>Stat</span>
-              <select id="propStat" class="site-select matchup-select" aria-label="Prop stat" enterkeyhint="next">
-                <option value="">Stat</option>
-              </select>
-            </label>
-            <div class="prop-add-lineside">
-              <label class="power-field">
+            <div class="prop-add-statline">
+              <label class="power-field prop-add-stat">
+                <span>Stat</span>
+                <select id="propStat" class="site-select matchup-select" aria-label="Prop stat" enterkeyhint="next">
+                  <option value="">Stat</option>
+                </select>
+              </label>
+              <label class="power-field prop-add-line">
                 <span>Line</span>
                 <input id="propLine" class="site-select matchup-select" type="number" step="0.5" inputmode="decimal" enterkeyhint="next" placeholder="98.5" aria-label="PrizePicks line">
               </label>
-              <label class="power-field">
+              <label class="power-field prop-add-side">
                 <span>Side</span>
                 <select id="propSide" class="site-select matchup-select" aria-label="More or Less" enterkeyhint="go">
                   <option value="more">More</option>
@@ -107,6 +110,10 @@
           <p class="prop-opp-hint is-desktop-only">Ctrl/Cmd+Enter adds the prop. Model Confidence is data quality — not whether the prop is good.</p>
         </form>
 
+        <div class="prop-entry-head" id="entryHead" hidden>
+          <h3 class="prop-section-label" id="entryHeadTitle">Your props</h3>
+          <p class="prop-entry-head-note">Edit line/side here · deep dive lives in Prop Cards below</p>
+        </div>
         <ol class="prop-entry-list" id="entryList"></ol>
         <p class="prop-entry-empty" id="entryEmpty">No legs yet — add up to 8 PrizePicks props.</p>
       </section>
@@ -128,9 +135,10 @@
 
         <section class="prop-optimizer" id="cardOptimizer" aria-labelledby="optimizerTitle">
           <h3 id="optimizerTitle" class="prop-section-label">Card Optimizer</h3>
-          <p class="prop-optimizer-hint" id="optimizerHint">Add props to unlock Best 3 and Best 4.</p>
+          <p class="prop-optimizer-hint" id="optimizerHint">Add props to unlock Best 2, Best 3, and Best 4.</p>
           <div class="prop-optimizer-modes" id="optimizerModeHost" hidden></div>
           <div class="prop-optimizer-actions">
+            <button type="button" class="btn btn-gold btn-sm" id="best2Btn" disabled>Best 2</button>
             <button type="button" class="btn btn-gold btn-sm" id="best3Btn" disabled>Best 3</button>
             <button type="button" class="btn btn-gold btn-sm" id="bestNBtn" disabled>Best 4</button>
             <button type="button" class="btn btn-outline-light btn-sm" id="compareBtn" disabled>Compare combinations</button>
@@ -216,15 +224,20 @@
       <div class="prop-search-sheet-handle" aria-hidden="true"></div>
       <div class="prop-search-sheet-head">
         <div class="prop-search-sheet-title-row">
-          <h2 id="playerSheetTitle" class="prop-search-sheet-title">Find a player</h2>
-          <button type="button" class="btn btn-outline-light btn-sm" id="playerSheetClose">Done</button>
+          <button type="button" class="prop-search-sheet-cancel" id="playerSheetClose">Cancel</button>
+          <h2 id="playerSheetTitle" class="prop-search-sheet-title">Player</h2>
+          <span class="prop-search-sheet-title-spacer" aria-hidden="true"></span>
         </div>
         <label class="prop-search-sheet-field">
           <span class="visually-hidden">Search players</span>
-          <input id="playerSheetInput" class="site-select matchup-select" type="search" enterkeyhint="search" autocomplete="off" spellcheck="false" placeholder="Name or team…">
+          <div class="prop-search-sheet-input-wrap">
+            <input id="playerSheetInput" class="site-select matchup-select" type="search" enterkeyhint="search" autocomplete="off" spellcheck="false" placeholder="Type a name…" inputmode="search">
+            <button type="button" class="prop-search-sheet-clear" id="playerSheetClear" hidden aria-label="Clear search">×</button>
+          </div>
         </label>
       </div>
-      <p class="prop-search-sheet-hint" id="playerSheetHint">Type at least 2 letters</p>
+      <div id="playerSheetRecents" class="prop-search-recents" hidden></div>
+      <p class="prop-search-sheet-hint" id="playerSheetHint">Start typing a player name</p>
       <ul id="playerSheetList" class="prop-search-sheet-list" role="listbox"></ul>
     </div>
   </div>
@@ -237,7 +250,7 @@
 
   <script src="scripts/analytics.js"></script>
   <script src="scripts/auth-ui.js"></script>
-  <script src="scripts/prop-lab.js?v=23"></script>
+    <script src="scripts/prop-lab.js?v=27"></script>
   <script>
     function closeMenu() {
       const menu = document.getElementById('dropdownMenu');

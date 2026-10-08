@@ -235,6 +235,7 @@ async function handlePropEval(event) {
       const mode = body.mode || "balanced";
       return json(200, {
         analysis: analyzeEntry(legs, { payout: body.payout || body.odds }),
+        best2: bestN(legs, 2, mode),
         best3: bestN(legs, 3, mode),
         best4: bestN(legs, Number(body.n) || 4, mode),
         compare: compareLegs(legs.filter((l) => l.selected)),
@@ -248,7 +249,9 @@ async function handlePropEval(event) {
     if (action === "entries") {
       const auth = parseAuthUser(event);
       if (auth.errorResponse) return auth.errorResponse;
-      const entries = await propStore.listEntries(auth.userId);
+      const seasonYear = q.seasonYear || q.season || body.seasonYear || body.season;
+      const weekNumber = q.weekNumber || q.week || body.weekNumber || body.week;
+      const entries = await propStore.listEntries(auth.userId, { seasonYear, weekNumber });
       return json(200, { entries });
     }
 

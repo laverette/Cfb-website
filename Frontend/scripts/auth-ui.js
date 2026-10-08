@@ -58,7 +58,10 @@
   function getLoginHref() {
     var page = basenameOnly(window.location.pathname);
     if (page === "login.html") return "login.html";
-    var target = page + (window.location.search || "");
+    // Don't carry another user's ?username= through login — after sign-in
+    // we always want the newly logged-in account's own profile.
+    var target =
+      page === "user-profile.html" ? "user-profile.html" : page + (window.location.search || "");
     return "login.html?redirect=" + encodeURIComponent(target);
   }
 

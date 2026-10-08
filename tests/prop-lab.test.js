@@ -438,6 +438,11 @@ describe("correlation + best-N", () => {
     const out = bestN(legs, 4);
     assert.equal(out.keep.length, 4);
     assert.ok(out.cut.some((l) => l.player.name === "F"));
+    const best2 = bestN(legs, 2);
+    assert.equal(best2.keep.length, 2);
+    assert.equal(best2.n, 2);
+    assert.ok(best2.cut.length === 4);
+    assert.ok(!best2.keep.some((l) => l.player.name === "F"));
     const best3 = bestN(legs, 3);
     assert.equal(best3.keep.length, 3);
     assert.equal(best3.n, 3);
