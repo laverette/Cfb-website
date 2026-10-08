@@ -4119,11 +4119,8 @@ body.picks-results-open #picksEmailOptIn {
 }
 
 .navbar-content-weekly {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+    /* Layout (grid: menu | title | auth) lives in site-theme.css — do not force flex here. */
     width: 100%;
-    gap: 1rem;
 }
 
 /* Menu button look lives in site-theme.css (football + spin). Keep spans hidden here. */
@@ -4254,10 +4251,6 @@ body.picks-results-open #picksEmailOptIn {
 
 /* Mobile Responsiveness for Navbar */
 @media (max-width: 768px) {
-    .navbar-content-weekly {
-        flex-wrap: wrap;
-    }
-    
     .navbar-tabs {
         order: 3;
         width: 100%;
@@ -4704,7 +4697,7 @@ select {
     }
 
     .navbar-content-weekly {
-        gap: var(--space-2);
+        column-gap: var(--space-2, 0.35rem);
     }
 
     .navbar-tabs {
@@ -4783,7 +4776,7 @@ select {
 
     .weeklypicks-navbar .site-nav-inner .site-title {
         font-size: clamp(0.88rem, 3.8vw, 1.05rem);
-        max-width: calc(100% - 7.25rem);
+        max-width: 100%;
     }
 
     .picks-page-header {

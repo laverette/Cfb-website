@@ -27,7 +27,9 @@ const RANGES = {
 
 function lineSanity({ statId, line, projection, position }) {
   const range = RANGES[statId];
-  if (!range || !Number.isFinite(line)) return { unusual: false, flags: [], message: null };
+  if (!range || !Number.isFinite(line)) {
+    return { unusual: false, promotional: false, flags: [], message: null };
+  }
   const flags = [];
   const pos = String(position || "").toUpperCase();
   const qbVolume =
@@ -38,6 +40,7 @@ function lineSanity({ statId, line, projection, position }) {
     flags.push("Unusual Line");
     return {
       unusual: true,
+      promotional: true,
       flags,
       message: `This ${range.unit} line (${line}) is far outside the normal range for a QB. Confirm it is correct.`,
     };
@@ -47,6 +50,7 @@ function lineSanity({ statId, line, projection, position }) {
     flags.push("Unusual Line");
     return {
       unusual: true,
+      promotional: true,
       flags,
       message: `This line (${line}) is far below the model (${projection.toFixed(1)} ${range.unit}). Confirm it is correct.`,
     };
@@ -56,6 +60,7 @@ function lineSanity({ statId, line, projection, position }) {
     flags.push("Unusual Line");
     return {
       unusual: true,
+      promotional: line <= 1.5,
       flags,
       message: `This ${range.unit} line (${line}) is far outside the typical ${range.typicalMin}–${range.typicalMax} range. Confirm it is correct.`,
     };
@@ -65,12 +70,13 @@ function lineSanity({ statId, line, projection, position }) {
     flags.push("Unusual Line");
     return {
       unusual: true,
+      promotional: false,
       flags,
       message: `This ${range.unit} line (${line}) is far above a realistic range. Confirm it is correct.`,
     };
   }
 
-  return { unusual: false, flags: [], message: null };
+  return { unusual: false, promotional: false, flags: [], message: null };
 }
 
 module.exports = { lineSanity, RANGES };

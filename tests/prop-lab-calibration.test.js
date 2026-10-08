@@ -78,11 +78,14 @@ describe("calibration: structural guarantees", () => {
     assert.ok(Math.abs(applyCalibrator(cal, 0.5, { z: 0 }) - 0.5) < 1e-9);
   });
 
-  it("caps at the catastrophe rate rather than at certainty", () => {
-    const q = applyCalibrator(cal, 0.99999, { z: 50 });
-    assert.ok(Math.abs(q - CATASTROPHE_CAP) < 1e-9, `got ${q}`);
-    const lo = applyCalibrator(cal, 0.00001, { z: 50 });
-    assert.ok(Math.abs(lo - (1 - CATASTROPHE_CAP)) < 1e-9, `got ${lo}`);
+  it("caps near the soft catastrophe rate for ordinary extremes, and relaxes for far |z|", () => {
+    const near = applyCalibrator(cal, 0.99999, { z: 0.5 });
+    assert.ok(Math.abs(near - CATASTROPHE_CAP) < 1e-9, `near got ${near}`);
+    const far = applyCalibrator(cal, 0.99999, { z: 50 });
+    assert.ok(far > CATASTROPHE_CAP, `far should exceed soft cap, got ${far}`);
+    assert.ok(far <= 0.995 + 1e-9, `far must stay at/under hard cap, got ${far}`);
+    const loNear = applyCalibrator(cal, 0.00001, { z: 0.5 });
+    assert.ok(Math.abs(loNear - (1 - CATASTROPHE_CAP)) < 1e-9, `got ${loNear}`);
   });
 
   it("identity calibrator is a no-op apart from the cap", () => {
