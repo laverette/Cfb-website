@@ -42,6 +42,8 @@
     searchTimer: null,
     searchHits: [],
     searchActive: -1,
+    searchAbort: null,
+    searchOpen: false,
     boardLoaded: false,
     boardLoading: false,
     analyzing: false,
@@ -97,17 +99,35 @@
   }
 
   function dropdownPlacement(rect) {
-    const spaceBelow = window.innerHeight - rect.bottom;
-    const spaceAbove = rect.top;
-    const openUp = spaceBelow < 180 && spaceAbove > spaceBelow;
-    const maxH = 240;
+    const vv = window.visualViewport;
+    const viewTop = vv ? vv.offsetTop : 0;
+    const viewHeight = vv ? vv.height : window.innerHeight;
+    const viewBottom = viewTop + viewHeight;
+    const spaceBelow = viewBottom - rect.bottom;
+    const spaceAbove = rect.top - viewTop;
+    const openUp = spaceBelow < 200 && spaceAbove > spaceBelow;
+    const maxH = isMobile() ? 280 : 240;
     const gap = 4;
-    const available = Math.max(96, (openUp ? spaceAbove : spaceBelow) - gap - 8);
+    const available = Math.max(120, (openUp ? spaceAbove : spaceBelow) - gap - 12);
     const height = Math.min(maxH, available);
     if (openUp) {
-      return { openUp: true, top: "auto", bottom: `${window.innerHeight - rect.top + gap}px`, left: `${rect.left}px`, width: `${rect.width}px`, maxHeight: `${height}px` };
+      return {
+        openUp: true,
+        top: "auto",
+        bottom: `${window.innerHeight - rect.top + gap}px`,
+        left: `${rect.left}px`,
+        width: `${rect.width}px`,
+        maxHeight: `${height}px`,
+      };
     }
-    return { openUp: false, top: `${rect.bottom + gap}px`, bottom: "auto", left: `${rect.left}px`, width: `${rect.width}px`, maxHeight: `${height}px` };
+    return {
+      openUp: false,
+      top: `${rect.bottom + gap}px`,
+      bottom: "auto",
+      left: `${rect.left}px`,
+      width: `${rect.width}px`,
+      maxHeight: `${height}px`,
+    };
   }
 
   function escapeHtml(s) {
@@ -144,7 +164,7 @@
     return `leg_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
   }
 
-  async function api(params, { method = "GET", body = null } = {}) {
+  async function api(params, { method = "GET", body = null, signal = null } = {}) {
     const url = new URL(API, window.location.origin);
     if (method === "GET") {
       Object.entries(params || {}).forEach(([k, v]) => {
@@ -159,6 +179,7 @@
       method,
       headers,
       body: body ? JSON.stringify({ ...params, ...body }) : undefined,
+      signal: signal || undefined,
     });
     const data = await resp.json().catch(() => ({}));
     if (!resp.ok) {
@@ -216,10 +237,12 @@
       opt.textContent = s.label;
       sel.appendChild(opt);
     }
-    sel.disabled = hasPlayer && !eligible.length;
+    // Locked until a player is chosen; also locked when that position has no props.
+    sel.disabled = !hasPlayer || !eligible.length;
 
     if (eligible.some((s) => s.id === prev)) sel.value = prev;
     else if (eligible.length === 1) sel.value = eligible[0].id;
+    syncBuilderReady();
   }
 
   function canonicalPosition(position) {
@@ -255,37 +278,69 @@
   function bindPlayerCombo() {
     const input = document.getElementById("playerSearch");
     const list = document.getElementById("playerList");
-    const sheet = document.getElementById("playerSheet");
-    const sheetInput = document.getElementById("playerSheetInput");
-    const sheetList = document.getElementById("playerSheetList");
-    const sheetClose = document.getElementById("playerSheetClose");
-    const sheetBackdrop = document.getElementById("playerSheetBackdrop");
-    const sheetHint = document.getElementById("playerSheetHint");
-    const sheetClear = document.getElementById("playerSheetClear");
-    const sheetRecents = document.getElementById("playerSheetRecents");
+    const results = document.getElementById("playerResults");
+    const status = document.getElementById("playerResultsStatus");
     const playerClear = document.getElementById("playerClearBtn");
-    if (!input || !list) return;
-    if (list.parentElement !== document.body) document.body.appendChild(list);
-    list.classList.add("prop-player-list-portal");
-    input.setAttribute("role", "combobox");
-    input.setAttribute("aria-expanded", "false");
-    input.setAttribute("aria-haspopup", "listbox");
+    const combo = document.getElementById("playerCombo");
+    if (!input || !list || !results) return;
 
-    function syncMobileReadonly() {
-      // Avoid the blur→sheet dance: mobile uses the sheet as the only keyboard field.
-      if (isMobile()) input.setAttribute("readonly", "readonly");
-      else input.removeAttribute("readonly");
-    }
-    syncMobileReadonly();
+    input.removeAttribute("readonly");
+    input.setAttribute("role", "combobox");
+    input.setAttribute("aria-haspopup", "listbox");
 
     function syncPlayerClear() {
       if (!playerClear) return;
-      playerClear.hidden = !state.selectedPlayer?.id;
+      playerClear.hidden = !state.selectedPlayer?.id && !String(input.value || "").trim();
     }
 
-    function syncSheetClear() {
-      if (!sheetClear || !sheetInput) return;
-      sheetClear.hidden = !String(sheetInput.value || "").trim();
+    function setStatus(msg, { loading = false } = {}) {
+      if (!status) return;
+      if (!msg) {
+        status.hidden = true;
+        status.textContent = "";
+        status.classList.remove("is-loading");
+        return;
+      }
+      status.hidden = false;
+      status.textContent = msg;
+      status.classList.toggle("is-loading", loading);
+    }
+
+    function openPanel() {
+      state.searchOpen = true;
+      results.hidden = false;
+      combo?.classList.add("is-searching");
+      input.setAttribute("aria-expanded", "true");
+    }
+
+    function closePanel() {
+      state.searchOpen = false;
+      results.hidden = true;
+      combo?.classList.remove("is-searching");
+      input.setAttribute("aria-expanded", "false");
+      input.removeAttribute("aria-activedescendant");
+      list.innerHTML = "";
+      setStatus("");
+      state.searchHits = [];
+      state.searchActive = -1;
+      if (state.searchAbort) {
+        state.searchAbort.abort();
+        state.searchAbort = null;
+      }
+    }
+
+    function paintActive() {
+      list.querySelectorAll("li[data-id]").forEach((li, i) => {
+        const on = i === state.searchActive;
+        li.classList.toggle("is-active", on);
+        if (on) {
+          li.setAttribute("aria-selected", "true");
+          input.setAttribute("aria-activedescendant", li.id);
+          li.scrollIntoView({ block: "nearest" });
+        } else {
+          li.removeAttribute("aria-selected");
+        }
+      });
     }
 
     function recentPlayers() {
@@ -301,268 +356,153 @@
           team: leg.team,
           position: leg.evaluation?.player?.position || null,
         });
-        if (out.length >= 5) break;
+        if (out.length >= 4) break;
       }
       return out;
     }
 
-    function renderRecents() {
-      if (!sheetRecents) return;
-      const q = String(sheetInput?.value || "").trim();
-      if (q.length >= 2) {
-        sheetRecents.hidden = true;
-        sheetRecents.innerHTML = "";
-        return;
-      }
-      const recents = recentPlayers();
-      if (!recents.length) {
-        sheetRecents.hidden = true;
-        sheetRecents.innerHTML = "";
-        return;
-      }
-      sheetRecents.hidden = false;
-      sheetRecents.innerHTML = `
-        <p class="prop-search-recents-label">From this card</p>
-        <div class="prop-search-recents-row">
-          ${recents
-            .map(
-              (p) =>
-                `<button type="button" class="prop-search-recent-chip" data-id="${escapeHtml(p.id)}" data-team="${escapeHtml(
-                  p.team || ""
-                )}" data-name="${escapeHtml(p.name || "")}" data-position="${escapeHtml(p.position || "")}">${escapeHtml(
-                  p.name
-                )}</button>`
-            )
-            .join("")}
-        </div>`;
-      sheetRecents.querySelectorAll(".prop-search-recent-chip").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          choosePlayer({
-            id: btn.getAttribute("data-id"),
-            team: btn.getAttribute("data-team"),
-            name: btn.getAttribute("data-name"),
-            position: btn.getAttribute("data-position") || null,
-          });
-          closeSheet();
-        });
+    function pickPlayer(p) {
+      choosePlayer({
+        id: p.id,
+        team: p.team,
+        name: p.name,
+        position: p.position || null,
+        jersey: p.jersey || null,
+        source: p.source || null,
       });
-    }
-
-    function place() {
-      if (list.hidden || isMobile()) return;
-      const box = dropdownPlacement(input.getBoundingClientRect());
-      list.style.left = box.left;
-      list.style.width = box.width;
-      list.style.maxHeight = box.maxHeight;
-      list.style.top = box.top;
-      list.style.bottom = box.bottom;
-    }
-
-    function paintActive() {
-      const host = isMobile() ? sheetList : list;
-      if (!host) return;
-      host.querySelectorAll("li[data-id]").forEach((li, i) => {
-        li.classList.toggle("is-active", i === state.searchActive);
-        if (i === state.searchActive) {
-          li.setAttribute("aria-selected", "true");
-          input.setAttribute("aria-activedescendant", li.id);
-        } else li.removeAttribute("aria-selected");
-      });
-    }
-
-    function closeSheet() {
-      if (!sheet) return;
-      sheet.hidden = true;
-      sheet.classList.remove("is-keyboard");
-      sheet.style.top = "";
-      sheet.style.left = "";
-      sheet.style.right = "";
-      sheet.style.bottom = "";
-      sheet.style.width = "";
-      sheet.style.height = "";
-      sheet.style.maxHeight = "";
-      sheet.style.transform = "";
-      document.body.classList.remove("prop-sheet-open");
-      sheetInput?.blur();
+      closePanel();
       syncPlayerClear();
     }
 
-    function openSheet() {
-      if (!sheet || !sheetInput) return;
-      sheet.hidden = false;
-      document.body.classList.add("prop-sheet-open");
-      // Fresh search by default; keep text only if no committed player (partial type).
-      const seed = state.selectedPlayer?.id ? "" : String(input.value || "").trim();
-      sheetInput.value = seed;
-      syncSheetClear();
-      if (sheetList) sheetList.innerHTML = "";
-      if (sheetHint) {
-        sheetHint.hidden = false;
-        sheetHint.textContent = seed.length >= 2 ? "Searching…" : "Start typing a player name";
-      }
-      renderRecents();
-      pinSheet();
-      // Focus immediately so one tap reaches the keyboard.
-      requestAnimationFrame(() => {
-        sheetInput.focus({ preventScroll: true });
-        if (seed) sheetInput.select();
-        pinSheet();
-      });
-      setTimeout(pinSheet, 100);
-      setTimeout(pinSheet, 280);
-      if (seed.length >= 2) run(seed, true);
-    }
-
-    function close() {
-      list.hidden = true;
-      input.setAttribute("aria-expanded", "false");
-      input.removeAttribute("aria-activedescendant");
-      state.searchActive = -1;
-      if (!isMobile()) closeSheet();
-    }
-
-    function renderHits(host, players) {
+    function renderHits(players, { mode = "search" } = {}) {
       if (!players.length) {
-        host.innerHTML = "<li class='matchup-combo-empty'>No players found</li>";
+        list.innerHTML = "";
+        setStatus(mode === "recent" ? "" : "No matching players");
         return;
       }
-      const mobileSheet = host === sheetList;
-      host.innerHTML = players
+      setStatus(mode === "recent" ? "From this card" : `${players.length} match${players.length === 1 ? "" : "es"}`);
+      list.innerHTML = players
         .map((p, i) => {
           const meta = [p.team, p.position].filter(Boolean).join(" · ");
-          const body = mobileSheet
-            ? `<div class="prop-search-hit-text"><span class="prop-search-hit-name">${escapeHtml(
-                p.name
-              )}</span>${meta ? `<span class="prop-search-hit-meta">${escapeHtml(meta)}</span>` : ""}</div>`
-            : `${escapeHtml(p.name)} <span>${escapeHtml(meta)}</span>`;
-          return `<li role="option" id="playerOpt${i}" data-idx="${i}" data-id="${escapeHtml(p.id)}" data-team="${escapeHtml(
+          const initials = String(p.name || "?")
+            .split(/\s+/)
+            .filter(Boolean)
+            .slice(0, 2)
+            .map((w) => w[0])
+            .join("")
+            .toUpperCase();
+          return `<li role="option" id="playerOpt${i}" data-idx="${i}" data-id="${escapeHtml(String(p.id))}" data-team="${escapeHtml(
             p.team || ""
-          )}" data-name="${escapeHtml(p.name)}" data-position="${escapeHtml(p.position || "")}" data-jersey="${escapeHtml(
+          )}" data-name="${escapeHtml(p.name || "")}" data-position="${escapeHtml(p.position || "")}" data-jersey="${escapeHtml(
             p.jersey || ""
-          )}" data-source="${escapeHtml(p.source || "")}">${body}</li>`;
+          )}" data-source="${escapeHtml(p.source || "")}">
+            <span class="prop-player-avatar" aria-hidden="true">${escapeHtml(initials || "?")}</span>
+            <span class="prop-player-hit-text">
+              <span class="prop-player-hit-name">${escapeHtml(p.name || "")}</span>
+              ${meta ? `<span class="prop-player-hit-meta">${escapeHtml(meta)}</span>` : ""}
+            </span>
+          </li>`;
         })
         .join("");
-      host.querySelectorAll("li[data-id]").forEach((li) => {
-        li.addEventListener("mousedown", (e) => e.preventDefault());
-        li.addEventListener("click", () => {
-          choosePlayer({
-            id: li.getAttribute("data-id"),
-            team: li.getAttribute("data-team"),
-            name: li.getAttribute("data-name"),
-            position: li.getAttribute("data-position") || null,
-            jersey: li.getAttribute("data-jersey") || null,
-            source: li.getAttribute("data-source") || null,
-          });
-          closeSheet();
-        });
-      });
     }
 
-    async function run(q, forSheet) {
-      if (!q || q.trim().length < 2) {
-        if (!forSheet) close();
-        if (sheetList && forSheet) sheetList.innerHTML = "";
-        if (sheetHint && forSheet) {
-          sheetHint.hidden = false;
-          sheetHint.textContent = "Keep typing…";
-        }
-        if (forSheet) renderRecents();
+    function showRecents() {
+      const recents = recentPlayers();
+      if (!recents.length) {
+        closePanel();
         return;
       }
-      if (sheetHint && forSheet) {
-        sheetHint.hidden = false;
-        sheetHint.textContent = "Searching…";
+      state.searchHits = recents;
+      state.searchActive = -1;
+      openPanel();
+      renderHits(recents, { mode: "recent" });
+    }
+
+    async function runSearch(raw) {
+      const query = String(raw || "").trim();
+      if (query.length < 2) {
+        if (document.activeElement === input && !state.selectedPlayer?.id) showRecents();
+        else closePanel();
+        return;
       }
-      if (forSheet && sheetRecents) {
-        sheetRecents.hidden = true;
-        sheetRecents.innerHTML = "";
-      }
-      const query = q.trim();
+
+      if (state.searchAbort) state.searchAbort.abort();
+      const controller = new AbortController();
+      state.searchAbort = controller;
       const reqId = (state.searchReqId = (state.searchReqId || 0) + 1);
+
+      openPanel();
+      setStatus("Searching…", { loading: true });
+      // Keep prior hits visible while loading so the list doesn't flicker empty.
+
       try {
-        const data = await api({ action: "search", q: query, year: state.season });
+        const data = await api(
+          { action: "search", q: query, year: state.season },
+          { signal: controller.signal }
+        );
         if (reqId !== state.searchReqId) return;
-        const players = data.players || [];
-        state.searchHits = players.slice(0, 12);
+        const players = (data.players || []).slice(0, 10);
+        state.searchHits = players;
         trackOnce(
           "player_searched",
           { season: state.season, qLen: query.length, hitCount: players.length },
           "player_searched:" + query.toLowerCase().slice(0, 24),
           { session: false }
         );
-        if (isMobile() || forSheet) {
-          if (sheetList) renderHits(sheetList, players);
-          if (sheetHint) {
-            sheetHint.hidden = players.length > 0;
-            sheetHint.textContent = players.length ? "" : "No matches";
-          }
-          input.setAttribute("aria-expanded", "true");
-          return;
-        }
-        if (!players.length) {
-          list.innerHTML = "<li class='matchup-combo-empty'>No players found</li>";
-          list.hidden = false;
-          input.setAttribute("aria-expanded", "true");
-          place();
-          return;
-        }
-        renderHits(list, players);
-        list.hidden = false;
-        input.setAttribute("aria-expanded", "true");
-        state.searchActive = 0;
+        renderHits(players);
+        state.searchActive = players.length ? 0 : -1;
         paintActive();
-        place();
-      } catch {
-        if (reqId !== state.searchReqId) return;
-        const msg = "<li class='matchup-combo-empty'>Search failed</li>";
-        if (isMobile() || forSheet) {
-          if (sheetList) sheetList.innerHTML = msg;
-          if (sheetHint) sheetHint.hidden = true;
-        } else {
-          list.innerHTML = msg;
-          list.hidden = false;
-          place();
-        }
-        input.setAttribute("aria-expanded", "true");
+      } catch (err) {
+        if (err?.name === "AbortError" || reqId !== state.searchReqId) return;
+        list.innerHTML = "";
+        setStatus("Search failed — try again");
+        state.searchHits = [];
+        state.searchActive = -1;
       }
     }
 
-    function openPlayerPicker(ev) {
-      if (!isMobile()) return;
-      ev?.preventDefault?.();
-      if (sheet && !sheet.hidden) return;
-      openSheet();
+    function scheduleSearch() {
+      clearTimeout(state.searchTimer);
+      const q = String(input.value || "").trim();
+      if (q.length < 2) {
+        // Instant feedback when deleting below threshold.
+        if (state.searchAbort) state.searchAbort.abort();
+        state.searchTimer = setTimeout(() => runSearch(q), 40);
+        return;
+      }
+      // Show searching state immediately; fetch after a short debounce.
+      openPanel();
+      setStatus("Searching…", { loading: true });
+      state.searchTimer = setTimeout(() => runSearch(input.value), 90);
     }
 
-    input.addEventListener("pointerdown", openPlayerPicker);
-    input.addEventListener("click", openPlayerPicker);
-    input.addEventListener("focus", () => {
-      if (isMobile() && sheet?.hidden !== false) openSheet();
+    list.addEventListener("mousedown", (e) => {
+      // Keep focus in the input so blur doesn't close before click.
+      e.preventDefault();
     });
+    list.addEventListener("click", (e) => {
+      const li = e.target.closest("li[data-id]");
+      if (!li) return;
+      pickPlayer({
+        id: li.getAttribute("data-id"),
+        team: li.getAttribute("data-team"),
+        name: li.getAttribute("data-name"),
+        position: li.getAttribute("data-position") || null,
+        jersey: li.getAttribute("data-jersey") || null,
+        source: li.getAttribute("data-source") || null,
+      });
+    });
+
     input.addEventListener("input", () => {
-      if (isMobile()) return;
       clearSelectedPlayer({ keepSearchText: true });
       syncPlayerClear();
-      clearTimeout(state.searchTimer);
-      state.searchTimer = setTimeout(() => run(input.value), 160);
+      scheduleSearch();
     });
-    sheetInput?.addEventListener("input", () => {
-      clearSelectedPlayer({ keepSearchText: true });
-      syncSheetClear();
-      clearTimeout(state.searchTimer);
-      state.searchTimer = setTimeout(() => run(sheetInput.value, true), 110);
-    });
-    sheetClear?.addEventListener("click", () => {
-      if (!sheetInput) return;
-      sheetInput.value = "";
-      syncSheetClear();
-      if (sheetList) sheetList.innerHTML = "";
-      if (sheetHint) {
-        sheetHint.hidden = false;
-        sheetHint.textContent = "Start typing a player name";
-      }
-      renderRecents();
-      sheetInput.focus({ preventScroll: true });
+    input.addEventListener("focus", () => {
+      const q = String(input.value || "").trim();
+      if (state.selectedPlayer?.id && q === state.selectedPlayer.name) return;
+      if (q.length >= 2) runSearch(q);
+      else showRecents();
     });
     playerClear?.addEventListener("click", (ev) => {
       ev.preventDefault();
@@ -572,76 +512,45 @@
       const hint = document.getElementById("oppHint");
       if (hint) hint.textContent = "Pick a player to start building your card.";
       fillStats(null, null);
-      if (isMobile()) openSheet();
-      else input.focus();
+      closePanel();
+      input.focus();
     });
-    sheetClose?.addEventListener("click", closeSheet);
-    sheetBackdrop?.addEventListener("click", closeSheet);
     input.addEventListener("keydown", (e) => {
-      if (isMobile()) return;
       if (e.key === "Escape") {
-        close();
+        closePanel();
+        input.blur();
         return;
       }
       if (e.key === "ArrowDown") {
         e.preventDefault();
-        if (list.hidden) run(input.value);
-        else {
-          state.searchActive = Math.min(state.searchHits.length - 1, state.searchActive + 1);
-          paintActive();
+        if (!state.searchOpen) {
+          scheduleSearch();
+          return;
         }
+        if (!state.searchHits.length) return;
+        state.searchActive = Math.min(state.searchHits.length - 1, Math.max(0, state.searchActive) + 1);
+        paintActive();
       }
       if (e.key === "ArrowUp") {
         e.preventDefault();
+        if (!state.searchHits.length) return;
         state.searchActive = Math.max(0, state.searchActive - 1);
         paintActive();
       }
-      if (e.key === "Enter" && !list.hidden && state.searchHits[state.searchActive]) {
+      if (e.key === "Enter" && state.searchOpen && state.searchHits[state.searchActive]) {
         e.preventDefault();
-        const p = state.searchHits[state.searchActive];
-        choosePlayer({ id: p.id, team: p.team, name: p.name, position: p.position });
+        pickPlayer(state.searchHits[state.searchActive]);
       }
     });
     input.addEventListener("blur", () => {
-      if (!isMobile()) setTimeout(close, 160);
+      // Delay so list clicks can fire first.
+      setTimeout(() => {
+        if (document.activeElement === input) return;
+        if (results.contains(document.activeElement)) return;
+        closePanel();
+      }, 120);
     });
-    function pinSheet() {
-      const vv = window.visualViewport;
-      if (!sheet || sheet.hidden) return;
-      // Anchor exactly to the visual viewport so the panel sits flush on the
-      // keyboard (CSS inset/bottom must be cleared — they fight height on iOS).
-      if (vv) {
-        const kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop) > 80
-          || vv.height < window.innerHeight * 0.75;
-        sheet.classList.toggle("is-keyboard", kb);
-        sheet.style.top = "0px";
-        sheet.style.left = "0px";
-        sheet.style.right = "auto";
-        sheet.style.bottom = "auto";
-        sheet.style.width = `${vv.width}px`;
-        sheet.style.height = `${vv.height}px`;
-        sheet.style.maxHeight = "none";
-        sheet.style.transform = `translate(${vv.offsetLeft}px, ${vv.offsetTop}px)`;
-      } else {
-        sheet.classList.remove("is-keyboard");
-        sheet.style.top = "0";
-        sheet.style.left = "0";
-        sheet.style.right = "";
-        sheet.style.bottom = "";
-        sheet.style.width = "100%";
-        sheet.style.height = "100%";
-        sheet.style.maxHeight = "";
-        sheet.style.transform = "";
-      }
-    }
 
-    window.addEventListener("resize", () => {
-      syncMobileReadonly();
-      place();
-    });
-    window.addEventListener("scroll", place, true);
-    window.visualViewport?.addEventListener("resize", pinSheet);
-    window.visualViewport?.addEventListener("scroll", pinSheet);
     syncPlayerClear();
   }
 
@@ -687,6 +596,27 @@
     }
     const clearBtn = document.getElementById("playerClearBtn");
     if (clearBtn) clearBtn.hidden = true;
+    syncBuilderReady();
+  }
+
+  function syncBuilderReady() {
+    const hasPlayer = Boolean(committedPlayer()?.id);
+    const stat = document.getElementById("propStat");
+    const line = document.getElementById("propLine");
+    const side = document.getElementById("propSide");
+    const btn = document.getElementById("addPropBtn");
+    const wrap = document.getElementById("propStatLine");
+    const combo = document.getElementById("playerCombo");
+    if (stat) stat.disabled = !hasPlayer;
+    if (line) line.disabled = !hasPlayer;
+    if (side) side.disabled = !hasPlayer;
+    if (wrap) wrap.classList.toggle("is-locked", !hasPlayer);
+    if (combo) combo.classList.toggle("is-selected", hasPlayer);
+    if (btn && !btn.classList.contains("is-busy")) {
+      const ready =
+        hasPlayer && Boolean(stat?.value) && line?.value !== "" && line?.value != null;
+      btn.disabled = !ready || state.legs.length >= MAX_LEGS;
+    }
   }
 
   function namesCompatible(a, b) {
@@ -775,32 +705,20 @@
     document.getElementById("playerTeam").value = p.team || "";
     document.getElementById("playerName").value = p.name || "";
     document.getElementById("playerSearch").value = p.name || "";
-    document.getElementById("playerList").hidden = true;
-    document.getElementById("playerSearch").setAttribute("aria-expanded", "false");
-    const sheet = document.getElementById("playerSheet");
-    if (sheet) {
-      sheet.hidden = true;
-      sheet.classList.remove("is-keyboard");
-      sheet.style.top = "";
-      sheet.style.left = "";
-      sheet.style.right = "";
-      sheet.style.bottom = "";
-      sheet.style.width = "";
-      sheet.style.height = "";
-      sheet.style.maxHeight = "";
-      sheet.style.transform = "";
-      document.body.classList.remove("prop-sheet-open");
-    }
+    const results = document.getElementById("playerResults");
+    if (results) results.hidden = true;
+    document.getElementById("playerCombo")?.classList.remove("is-searching");
+    document.getElementById("playerSearch")?.setAttribute("aria-expanded", "false");
+    document.body.classList.remove("prop-sheet-open");
+    state.searchOpen = false;
+    state.searchHits = [];
+    state.searchActive = -1;
     updateOppHint(p, null);
     fillStats(null, p.position);
     const clearBtn = document.getElementById("playerClearBtn");
     if (clearBtn) clearBtn.hidden = false;
-    // On mobile, jump straight to Stat — don't fight the sheet keyboard.
-    if (!isMobile()) document.getElementById("propStat")?.focus();
-    else {
-      // Let the sheet close first, then open the native Stat picker.
-      setTimeout(() => document.getElementById("propStat")?.focus(), 80);
-    }
+    syncBuilderReady();
+    document.getElementById("propStat")?.focus();
   }
 
   function renderEntryList() {
@@ -1043,16 +961,19 @@
     const a = state.analysis;
     const evals = evaluatedLegs();
     const n = evals.length;
+    const panel = document.getElementById("cardAnalysisPanel");
+    if (panel) panel.setAttribute("data-legs", String(n));
     document.getElementById("saveBtn").disabled = n < 1 || !authToken();
     const shareBtn = document.getElementById("shareLinkBtn");
     if (shareBtn) shareBtn.disabled = n < 1;
     updateOptimizerUi(evals);
     syncDock();
+    syncBuilderReady();
     const lead = document.getElementById("summaryLead");
     if (lead) {
       lead.textContent =
         n === 0
-          ? "Is this card worth keeping?"
+          ? "Add a prop to see the card read."
           : n === 1
             ? "1 leg — single-prop read"
             : `${n} legs — multi-leg card`;
@@ -1060,15 +981,7 @@
     if (!host) return;
     if (!n) {
       host.className = "prop-summary-idle";
-      host.innerHTML = `
-        <p class="prop-empty-title">Build your card</p>
-        <ul class="prop-empty-list">
-          <li>Combined probability</li>
-          <li>Risk &amp; correlations</li>
-          <li>Optimizer recommendations</li>
-        </ul>
-        <p class="prop-market-note">Add your first prop to get started.</p>
-      `;
+      host.innerHTML = `<p class="prop-market-note">Pass rate, risk, and optimizer unlock after your first prop.</p>`;
       updateAnalysisBar(null);
       return;
     }
@@ -1353,10 +1266,12 @@
 
   function renderCards() {
     const host = document.getElementById("propCards");
+    const wrap = document.getElementById("propCardsWrap");
     if (!host) return;
     const ranked = state.legs
       .slice()
       .sort((a, b) => (b.evaluation?.propScore || 0) - (a.evaluation?.propScore || 0));
+    if (wrap) wrap.hidden = !ranked.length;
     if (!ranked.length) {
       host.innerHTML = "";
       return;
@@ -1365,10 +1280,10 @@
       .map((leg) => {
         const e = leg.evaluation;
         if (leg.loading) {
-          return `<article class="prop-card"><p class="prop-loading">Fetching player history…</p><p class="prop-market-note">Building matchup profile and running the distribution.</p></article>`;
+          return `<article class="prop-card" data-id="${escapeHtml(leg.id)}"><p class="prop-loading">Fetching player history…</p><p class="prop-market-note">Building matchup profile and running the distribution.</p></article>`;
         }
         if (!e || e.error) {
-          return `<article class="prop-card"><h3>${escapeHtml(leg.name)}</h3><p class="prop-error">${escapeHtml(
+          return `<article class="prop-card" data-id="${escapeHtml(leg.id)}"><h3>${escapeHtml(leg.name)}</h3><p class="prop-error">${escapeHtml(
             e?.error || "Could not evaluate this leg. Others are unaffected."
           )}</p></article>`;
         }
@@ -1793,7 +1708,6 @@
     if (active && active !== document.body && typeof active.blur === "function") {
       active.blur();
     }
-    document.getElementById("playerSheetInput")?.blur();
     document.getElementById("playerSearch")?.blur();
     document.getElementById("propLine")?.blur();
     document.getElementById("propStat")?.blur();
@@ -1848,6 +1762,17 @@
     }
     state.allowExactDup = false;
     state.dupWarning = "";
+    const addBtn = document.getElementById("addPropBtn");
+    const dockAdd = document.getElementById("dockAdd");
+    if (addBtn) {
+      addBtn.classList.add("is-busy");
+      addBtn.disabled = true;
+      addBtn.textContent = "Adding…";
+    }
+    if (dockAdd) {
+      dockAdd.disabled = true;
+      dockAdd.textContent = "Adding…";
+    }
     const stat = state.stats.find((s) => s.id === statId);
     const leg = {
       id: uid(),
@@ -1866,7 +1791,7 @@
     // Ready for the next prop: keep player (common multi-leg pattern), clear line only.
     const lineEl = document.getElementById("propLine");
     if (lineEl) lineEl.value = "";
-    // Do NOT refocus player search — on mobile that reopens the sheet + keyboard.
+    // Do NOT refocus player search — on mobile that reopens the keyboard mid-add.
     dismissKeyboard();
     scrollAfterAddProp(leg.id);
     track("prop_added_to_card", {
@@ -1875,9 +1800,19 @@
       statType: leg.statLabel || leg.statId,
       source: "prop_lab",
     });
-    await evaluateLeg(leg);
-    await refreshAnalysis();
-    renderAll();
+    try {
+      await evaluateLeg(leg);
+      await refreshAnalysis();
+      renderAll();
+    } finally {
+      if (addBtn) {
+        addBtn.classList.remove("is-busy");
+        addBtn.textContent = "+ Add Prop";
+      }
+      if (dockAdd) dockAdd.textContent = "+ Add";
+      syncBuilderReady();
+      syncDock();
+    }
     // Re-highlight after re-render; do not scroll again (avoids Card Analysis jump).
     const fresh = document.querySelector(`.prop-leg[data-id="${CSS.escape(leg.id)}"]`);
     if (fresh) {
@@ -3137,11 +3072,17 @@
       state.sharedView = { shareId: pendingShare, loading: true, error: null };
       renderSharedBanner();
     }
-    document.getElementById("addPropForm")?.addEventListener("submit", addProp);
+    document.getElementById("addPropForm")?.addEventListener("submit", (e) => {
+      if (state.searchOpen) {
+        e.preventDefault();
+        return;
+      }
+      addProp(e);
+    });
     document.getElementById("addPropForm")?.addEventListener("keydown", (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
         e.preventDefault();
-        addProp(e);
+        if (!state.searchOpen) addProp(e);
       }
     });
     document.getElementById("labWeek")?.addEventListener("change", (e) => {
@@ -3235,21 +3176,28 @@
     });
     document.getElementById("propBoardRefresh")?.addEventListener("click", () => loadBoard(state.boardLoaded));
     document.getElementById("dockAdd")?.addEventListener("click", () => {
-      const ready =
-        committedPlayer()?.id &&
-        document.getElementById("propStat")?.value &&
-        document.getElementById("propLine")?.value;
+      const player = committedPlayer();
+      const statVal = document.getElementById("propStat")?.value;
+      const lineVal = document.getElementById("propLine")?.value;
+      const ready = player?.id && statVal && lineVal !== "" && lineVal != null;
       if (ready) {
         addProp();
         return;
       }
-      if (!committedPlayer()?.id) {
+      document.getElementById("addPropForm")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      if (!player?.id) {
         state.dupWarning = "Pick a player from the search results before adding a prop.";
         renderEntryList();
+        document.getElementById("playerSearch")?.focus();
+        return;
       }
-      document.getElementById("addPropForm")?.scrollIntoView({ behavior: "smooth", block: "start" });
-      document.getElementById("playerSearch")?.click();
+      if (!statVal) {
+        document.getElementById("propStat")?.focus();
+        return;
+      }
+      document.getElementById("propLine")?.focus();
     });
+    document.getElementById("propLine")?.addEventListener("input", () => syncBuilderReady());
     document.getElementById("dockBest4")?.addEventListener("click", () => {
       const count = evaluatedLegs().length;
       const n = count >= 4 ? 4 : count >= 3 ? 3 : 2;
@@ -3274,6 +3222,7 @@
       document.getElementById("entrySummary")?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
     document.getElementById("propStat")?.addEventListener("change", () => {
+      syncBuilderReady();
       if (document.getElementById("propStat").value) document.getElementById("propLine")?.focus();
     });
     document.getElementById("propLine")?.addEventListener("focus", () => {
@@ -3304,6 +3253,7 @@
     } catch {
       /* catalog stays empty until the function is reachable */
     }
+    syncBuilderReady();
     // Shared links load as immutable snapshots — skip private saved-card fetch first
     // so the friend sees the card ASAP (and we never burn sports APIs).
     if (pendingShare) {

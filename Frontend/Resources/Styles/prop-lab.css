@@ -42,17 +42,27 @@ body.power-rankings-body {
 .prop-lab-header {
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
-  margin: 0.15rem 0 0.75rem;
-  padding-bottom: 0.65rem;
+  gap: 0.45rem;
+  margin: 0.1rem 0 0.65rem;
+  padding-bottom: 0.55rem;
   border-bottom: 1px solid var(--pr-line);
 }
 
-.prop-lab-header .power-title {
-  font-size: 1.65rem;
+.prop-lab-intro {
+  min-width: 0;
+}
+
+.prop-lab-header .power-title,
+.prop-lab-page-title {
+  font-size: 1.45rem;
   text-align: left;
   line-height: 1.05;
   margin: 0;
+}
+
+.prop-lab-header .power-eyebrow {
+  margin-bottom: 0.15rem;
+  font-size: 0.68rem;
 }
 
 .prop-lab-header .power-eyebrow,
@@ -62,9 +72,9 @@ body.power-rankings-body {
 }
 
 .prop-lab-lead {
-  max-width: 36rem;
-  margin-top: 0.2rem;
-  font-size: 0.82rem;
+  max-width: 32rem;
+  margin-top: 0.15rem;
+  font-size: 0.8rem;
   line-height: 1.35;
 }
 
@@ -372,6 +382,26 @@ body.power-rankings-body {
 .prop-add-btn {
   width: 100%;
   min-height: 46px;
+}
+
+.prop-add-btn.is-busy {
+  opacity: 0.85;
+}
+
+.prop-add-statline.is-locked {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.prop-lab-summary[data-legs="0"] .prop-analysis-body,
+.prop-lab-summary[data-legs="0"] .prop-final-actions,
+.prop-lab-summary[data-legs="0"] .prop-save-panel,
+.prop-lab-summary[data-legs="0"] .prop-share-box {
+  display: none;
+}
+
+.prop-cards-wrap[hidden] {
+  display: none !important;
 }
 
 .prop-entry-head {
@@ -1345,115 +1375,19 @@ body.prop-shared-mode .prop-lab-builder .matchup-panel-title::after {
   font-weight: 700;
 }
 
-.prop-player-list-portal {
-  position: fixed;
-  z-index: 5000;
-  margin: 0;
-  padding: 0.25rem 0;
-  list-style: none;
-  background: #1f1713;
-  border: 1px solid rgba(232, 197, 106, 0.45);
-  border-radius: 10px;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
+.prop-add-player-label {
+  display: block;
+  margin-bottom: 0.35rem;
 }
 
-.prop-player-list-portal[hidden] { display: none !important; }
-
-.prop-player-list-portal li[role="option"] {
-  min-height: 44px;
-  padding: 0.55rem 0.8rem;
-  display: flex;
-  justify-content: space-between;
-  gap: 0.5rem;
+.prop-player-combo {
+  display: block;
 }
 
-.prop-player-list-portal li[role="option"].is-active,
-.prop-player-list-portal li[role="option"]:hover {
-  background: rgba(255, 215, 0, 0.16);
-  color: #ffe566;
-}
-
-.prop-search-sheet {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: auto;
-  bottom: auto;
-  z-index: 6000;
+.prop-player-field {
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
-  width: 100%;
-  height: 100dvh;
-  height: 100svh;
-  max-height: none;
-  background: transparent;
-  padding: 0;
-  /* transform is set by JS to follow visualViewport when the keyboard is open */
-  will-change: transform;
-}
-
-.prop-search-sheet[hidden] { display: none !important; }
-
-.prop-search-sheet-backdrop {
-  position: absolute;
-  inset: 0;
-  border: 0;
-  padding: 0;
-  margin: 0;
-  background: rgba(8, 5, 3, 0.62);
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
-  cursor: pointer;
-}
-
-.prop-search-sheet-panel {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  max-height: min(78dvh, 640px);
-  background: linear-gradient(180deg, #2a2118 0%, #1c1510 42%, #16100c 100%);
-  border: 1px solid rgba(232, 197, 71, 0.28);
-  border-bottom: 0;
-  border-radius: 18px 18px 0 0;
-  box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.45);
-  padding: 0 0 env(safe-area-inset-bottom, 0);
-  overflow: hidden;
-  margin-top: auto;
-}
-
-/* Keyboard open: fill the visual viewport so nothing peeks through under the sheet */
-.prop-search-sheet.is-keyboard .prop-search-sheet-panel {
-  max-height: none;
-  height: 100%;
-  flex: 1 1 auto;
-  border-radius: 0;
-  border-left: 0;
-  border-right: 0;
-  border-top: 0;
-  padding-bottom: 0;
-  box-shadow: none;
-}
-
-.prop-search-sheet.is-keyboard .prop-search-sheet-list {
-  padding-bottom: 0.75rem;
-}
-
-.prop-search-sheet.is-keyboard .prop-search-sheet-handle {
-  display: none;
-}
-
-.prop-search-sheet-handle {
-  width: 2.4rem;
-  height: 0.28rem;
-  margin: 0.55rem auto 0.15rem;
-  border-radius: 999px;
-  background: rgba(245, 222, 179, 0.35);
-  flex-shrink: 0;
+  gap: 0;
 }
 
 .prop-player-input-wrap {
@@ -1461,14 +1395,30 @@ body.prop-shared-mode .prop-lab-builder .matchup-panel-title::after {
   display: block;
 }
 
+.prop-player-input-wrap .prop-player-input,
 .prop-player-input-wrap .matchup-combo-input {
   width: 100%;
-  padding-right: 2.4rem;
+  min-height: 48px;
+  padding-right: 2.55rem;
+  border-radius: 12px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.prop-player-combo.is-searching .prop-player-input {
+  border-color: rgba(232, 197, 71, 0.55);
+  box-shadow: 0 0 0 1px rgba(232, 197, 71, 0.18);
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.prop-player-combo.is-selected:not(.is-searching) .prop-player-input {
+  border-color: rgba(232, 197, 71, 0.42);
+  background: rgba(232, 197, 71, 0.06);
 }
 
 .prop-player-clear {
   position: absolute;
-  right: 0.35rem;
+  right: 0.4rem;
   top: 50%;
   transform: translateY(-50%);
   width: 2rem;
@@ -1486,191 +1436,100 @@ body.prop-shared-mode .prop-lab-builder .matchup-panel-title::after {
   display: none !important;
 }
 
-.prop-search-sheet-head {
+.prop-player-results {
+  margin: 0;
+  border: 1px solid rgba(232, 197, 71, 0.35);
+  border-top: 0;
+  border-radius: 0 0 12px 12px;
+  background: linear-gradient(180deg, rgba(28, 21, 16, 0.98) 0%, rgba(18, 13, 10, 0.98) 100%);
+  overflow: hidden;
+  max-height: min(42vh, 320px);
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
-  padding: 0.35rem 0.85rem 0.65rem;
-  border-bottom: 1px solid rgba(245, 222, 179, 0.12);
 }
 
-.prop-search-sheet-title-row {
-  display: grid;
-  grid-template-columns: 4.5rem 1fr 4.5rem;
-  align-items: center;
-  gap: 0.35rem;
-}
-
-.prop-search-sheet-title {
-  margin: 0;
-  text-align: center;
-  font-family: "Barlow Condensed", Impact, sans-serif;
-  font-size: 1.05rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: #f5deb3;
-}
-
-.prop-search-sheet-cancel {
-  justify-self: start;
-  border: 0;
-  background: transparent;
-  color: rgba(245, 222, 179, 0.78);
-  font-size: 0.92rem;
-  font-weight: 600;
-  padding: 0.35rem 0.15rem;
-  min-height: 40px;
-  cursor: pointer;
-}
-
-.prop-search-sheet-title-spacer {
-  display: block;
-}
-
-.prop-search-sheet-field {
-  display: block;
-  margin: 0;
-}
-
-.prop-search-sheet-input-wrap {
-  position: relative;
-}
-
-.prop-search-sheet-field input {
-  min-height: 52px;
-  width: 100%;
-  border-radius: 12px;
-  border-color: rgba(232, 197, 71, 0.4);
-  background: rgba(0, 0, 0, 0.32);
-  font-size: 1.05rem;
-  padding-right: 2.6rem;
-}
-
-.prop-search-sheet-clear {
-  position: absolute;
-  right: 0.4rem;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 2rem;
-  height: 2rem;
-  border: 0;
-  border-radius: 999px;
-  background: rgba(245, 222, 179, 0.14);
-  color: #f5deb3;
-  font-size: 1.2rem;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.prop-search-sheet-clear[hidden] {
+.prop-player-results[hidden] {
   display: none !important;
 }
 
-.prop-search-recents {
-  padding: 0.55rem 0.85rem 0.15rem;
-}
-
-.prop-search-recents[hidden] {
-  display: none !important;
-}
-
-.prop-search-recents-label {
-  margin: 0 0 0.35rem;
+.prop-player-status {
+  margin: 0;
+  padding: 0.45rem 0.85rem 0.25rem;
   font-size: 0.68rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: rgba(245, 222, 179, 0.55);
 }
 
-.prop-search-recents-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
+.prop-player-status.is-loading {
+  color: #e8c547;
 }
 
-.prop-search-recent-chip {
-  min-height: 36px;
-  padding: 0.35rem 0.7rem;
-  border-radius: 999px;
-  border: 1px solid rgba(232, 197, 71, 0.28);
-  background: rgba(232, 197, 71, 0.08);
-  color: #f5deb3;
-  font-size: 0.82rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.prop-search-sheet-hint {
+.prop-player-list {
+  list-style: none;
   margin: 0;
-  padding: 0.45rem 1rem 0.1rem;
-  font-size: 0.78rem;
-  color: rgba(245, 222, 179, 0.55);
-}
-
-.prop-search-sheet-hint[hidden] {
-  display: none !important;
-}
-
-.prop-search-sheet-list {
-  flex: 1;
+  padding: 0.15rem 0 0.35rem;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
-  margin: 0;
-  padding: 0.25rem 0.55rem calc(0.75rem + env(safe-area-inset-bottom, 0px));
-  list-style: none;
 }
 
-.prop-search-sheet-list li {
-  min-height: 56px;
-  margin: 0.28rem 0;
-  padding: 0.7rem 0.85rem;
-  display: flex;
+.prop-player-list li[role="option"] {
+  display: grid;
+  grid-template-columns: 2.2rem minmax(0, 1fr);
   align-items: center;
-  justify-content: space-between;
   gap: 0.65rem;
-  border: 1px solid rgba(245, 222, 179, 0.1);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.03);
+  min-height: 52px;
+  margin: 0;
+  padding: 0.45rem 0.75rem;
+  cursor: pointer;
   color: #f7f1e6;
-  font-size: 1rem;
-  font-weight: 650;
-  line-height: 1.25;
 }
 
-.prop-search-sheet-list li .prop-search-hit-text {
+.prop-player-avatar {
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Barlow Condensed", Impact, sans-serif;
+  font-weight: 800;
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+  color: #1a120e;
+  background: #e8c547;
+}
+
+.prop-player-hit-text {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: 0.1rem;
   min-width: 0;
 }
 
-.prop-search-sheet-list li .prop-search-hit-name {
+.prop-player-hit-name {
   font-weight: 700;
-  color: #fff8e8;
+  font-size: 0.95rem;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
 }
 
-.prop-search-sheet-list li .prop-search-hit-meta,
-.prop-search-sheet-list li span {
+.prop-player-hit-meta {
+  font-size: 0.75rem;
   color: rgba(245, 222, 179, 0.62);
-  font-size: 0.78rem;
-  font-weight: 500;
-  letter-spacing: 0.01em;
-}
-
-.prop-search-sheet-list li.matchup-combo-empty {
-  justify-content: center;
-  border-style: dashed;
-  background: transparent;
-  color: rgba(245, 222, 179, 0.6);
   font-weight: 500;
 }
 
-.prop-search-sheet-list li[role="option"]:active,
-.prop-search-sheet-list li[role="option"].is-active {
-  border-color: rgba(255, 215, 0, 0.45);
-  background: rgba(255, 215, 0, 0.12);
+.prop-player-list li[role="option"].is-active,
+.prop-player-list li[role="option"]:hover,
+.prop-player-list li[role="option"]:active {
+  background: rgba(232, 197, 71, 0.12);
+}
+
+.prop-player-list li[role="option"].is-active .prop-player-hit-name,
+.prop-player-list li[role="option"]:hover .prop-player-hit-name {
+  color: #ffe566;
 }
 
 .prop-analysis-bar {
@@ -1892,12 +1751,9 @@ body.prop-shared-mode .prop-lab-builder .matchup-panel-title::after {
   gap: 0.3rem;
 }
 
-body.prop-sheet-open {
-  overflow: hidden;
-}
-
 @media (min-width: 768px) {
-  .prop-lab-header .power-title { font-size: 2.1rem; }
+  .prop-lab-header .power-title,
+  .prop-lab-page-title { font-size: 1.85rem; }
   .prop-card-hero { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .prop-grade-row { grid-template-columns: repeat(5, minmax(0, 1fr)); }
   .prop-kpi-together { grid-column: auto; }
@@ -1912,10 +1768,11 @@ body.prop-sheet-open {
     justify-content: space-between;
     align-items: flex-end;
   }
-  .prop-lab-header .power-title {
-    font-size: clamp(2rem, 5vw, 2.85rem);
+  .prop-lab-header .power-title,
+  .prop-lab-page-title {
+    font-size: clamp(1.75rem, 4vw, 2.35rem);
   }
-  .prop-lab-lead { font-size: 0.95rem; }
+  .prop-lab-lead { font-size: 0.92rem; }
   .prop-lab-shell {
     display: grid;
     grid-template-columns: minmax(0, 1.65fr) minmax(280px, 0.95fr);
@@ -1930,8 +1787,11 @@ body.prop-sheet-open {
     align-self: start;
   }
   .prop-add-grid {
-    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1.1fr) 5.5rem 5.5rem auto;
+    grid-template-columns: minmax(0, 1.35fr) 5.5rem 5.5rem auto;
     align-items: end;
+  }
+  .prop-add-player {
+    grid-column: 1 / -1;
   }
   .prop-add-statline {
     display: contents;
@@ -1965,8 +1825,7 @@ body.prop-sheet-open {
   }
   .prop-summary-actions { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.75rem; }
   .prop-dock,
-  .prop-analysis-bar,
-  .prop-search-sheet { display: none !important; }
+  .prop-analysis-bar { display: none !important; }
   .prop-lab-summary {
     position: sticky;
     top: 0.75rem;
@@ -1997,12 +1856,25 @@ body.prop-sheet-open {
 }
 
 @media (max-width: 899px) {
-  .prop-player-list-portal { display: none !important; }
   .prop-log { display: none; }
+  .prop-add-btn { display: none; }
+  .prop-player-results {
+    max-height: min(38vh, 280px);
+  }
+  .prop-lab-summary[data-legs="0"] {
+    padding-block: 0.75rem;
+  }
+}
+
+@media (min-width: 900px) {
+  .prop-player-results {
+    max-height: 280px;
+  }
 }
 
 @media (max-width: 359px) {
-  .prop-lab-header .power-title { font-size: 1.4rem; }
+  .prop-lab-header .power-title,
+  .prop-lab-page-title { font-size: 1.25rem; }
   .prop-add-statline {
     grid-template-columns: minmax(0, 1fr) minmax(4.2rem, 0.8fr) 5.1rem;
   }
@@ -2010,10 +1882,10 @@ body.prop-sheet-open {
 }
 
 @media (max-width: 899px) and (orientation: landscape) {
-  .prop-lab-header .power-title { font-size: 1.35rem; }
+  .prop-lab-header .power-title,
+  .prop-lab-page-title { font-size: 1.2rem; }
   .prop-lab-lead { display: none; }
   .prop-dock {
     padding: 0.28rem 0.5rem calc(0.28rem + env(safe-area-inset-bottom, 0px));
   }
-  .prop-search-sheet-head { padding: 0.4rem 0.75rem; }
 }
