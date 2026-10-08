@@ -10,7 +10,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
   <link rel="stylesheet" href="styles/site-theme.css">
   <link rel="stylesheet" href="Resources/Styles/power.css">
-  <link rel="stylesheet" href="Resources/Styles/prop-lab.css?v=24">
+  <link rel="stylesheet" href="Resources/Styles/prop-lab.css?v=25">
 </head>
 <body class="power-rankings-body">
   <nav class="navbar weeklypicks-navbar site-nav">
@@ -208,24 +208,6 @@
         <div id="savedEntries" class="prop-saved"></div>
       </details>
     </section>
-
-    <details class="matchup-panel prop-board-panel" aria-labelledby="propBoardTitle">
-      <summary class="prop-board-head">
-        <div>
-          <h2 id="propBoardTitle" class="matchup-panel-title">Market Board</h2>
-          <p class="matchup-panel-lead" id="propBoardLead">
-            Optional sportsbook lines. Manual PrizePicks entry never spends Odds API credits.
-          </p>
-        </div>
-      </summary>
-      <div class="prop-board-actions">
-        <button type="button" class="btn btn-gold btn-sm" id="propBoardRefresh">Load market board</button>
-      </div>
-      <div id="propBoardStatus" class="prop-board-status" hidden></div>
-      <div id="propBoard" class="prop-board-list">
-        <p class="prop-board-idle">Idle — load only if you want sportsbook context.</p>
-      </div>
-    </details>
   </main>
 
   <nav class="prop-dock" id="propDock" aria-label="Entry actions">
@@ -236,7 +218,7 @@
 
   <script src="scripts/analytics.js"></script>
   <script src="scripts/auth-ui.js"></script>
-  <script src="scripts/prop-lab.js?v=30"></script>
+  <script src="scripts/prop-lab.js?v=31"></script>
   <script>
     function closeMenu() {
       const menu = document.getElementById('dropdownMenu');

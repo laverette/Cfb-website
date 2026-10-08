@@ -31,16 +31,38 @@ const {
   mergeProfileIntoTeamStatsIndex,
   mergeLeagueSampleIntoIndex,
 } = require("./data/defense-profile");
-const { forcesEspn } = require("./data/provider-mode");
+const {
+  forcesEspn,
+  cfbdMatchupEnabled,
+  cfbdLinesEnabled,
+  cfbdOverviewEnabled,
+} = require("./data/provider-mode");
 const { dataLog } = require("./data/log");
 
-async function loadOverview(cfbd, playerId, year) {
-  if (!cfbd || forcesEspn()) return null;
+async function loadOverview(cfbd, playerId, year, providerMode) {
+  if (!cfbd || !cfbdOverviewEnabled(providerMode, playerId)) return null;
   let data = await cfbd.getOptional("/player/season/overview", { year, playerId });
   if (!data) {
     data = await cfbd.getOptional("/player/season/overview", { year, player_id: playerId });
   }
   return data;
+}
+
+function totalsFromLogs(logs) {
+  const rows = Array.isArray(logs) ? logs : [];
+  const n = rows.length;
+  if (!n) {
+    return { games: 0, pass_yds: null, rec_yds: null, rec: null, rush_yds: null };
+  }
+  const sum = (key) =>
+    rows.reduce((s, g) => s + (Number.isFinite(g.stats?.[key]) ? g.stats[key] : 0), 0);
+  return {
+    games: n,
+    pass_yds: sum("pass_yds"),
+    rec_yds: sum("rec_yds"),
+    rec: sum("rec"),
+    rush_yds: sum("rush_yds"),
+  };
 }
 
 function attachValues(logs, statId) {
@@ -138,6 +160,9 @@ async function loadPlayerBundle({
   espnEventId = null,
 }) {
   const providerMode = readProviderMode();
+  const wantMatchup = cfbdMatchupEnabled(providerMode);
+  const wantLines = cfbdLinesEnabled(providerMode);
+  // mode=espn → no CFBD client. auto/cfbd may open one for fallbacks / opt-in enrichment.
   const client =
     cfbd ||
     (apiKey && !forcesEspn(providerMode) ? createClient(apiKey, { signal }) : null);
@@ -147,15 +172,15 @@ async function loadPlayerBundle({
   const playerNameHint = name || null;
 
   const [currentOv, priorOv, teamStatsAll, advAll, ppaAll] = await Promise.all([
-    pid ? loadOverview(client, pid, seasonYear) : Promise.resolve(null),
-    pid ? loadOverview(client, pid, seasonYear - 1) : Promise.resolve(null),
-    client
+    pid ? loadOverview(client, pid, seasonYear, providerMode) : Promise.resolve(null),
+    pid ? loadOverview(client, pid, seasonYear - 1, providerMode) : Promise.resolve(null),
+    wantMatchup && client
       ? client.getOptional("/stats/season", { year: seasonYear, seasonType: "regular" })
       : Promise.resolve(null),
-    client
+    wantMatchup && client
       ? client.getOptional("/stats/season/advanced", { year: seasonYear, startWeek: 1 })
       : Promise.resolve(null),
-    client
+    wantMatchup && client
       ? client.getOptional("/ppa/teams", { year: seasonYear, excludeGarbageTime: true })
       : Promise.resolve(null),
   ]);
@@ -369,7 +394,7 @@ async function loadPlayerBundle({
   }
 
   let lines = null;
-  if (client && playerTeam) {
+  if (wantLines && client && playerTeam) {
     lines = nextGame?.week
       ? await client.getOptional("/lines", {
           year: seasonYear,
@@ -427,13 +452,13 @@ async function loadPlayerBundle({
   let matchupDataConfidence = Object.keys(oppDefense).length ? "high" : null;
   let defenseProfileMeta = null;
 
-  // Schedule (ESPN) ≠ stats (CFBD). When CFBD defensive season stats are missing,
-  // reconstruct opponent-allowed production from ESPN.
+  // Prefer ESPN defense profiles by default (no league-wide CFBD /stats burn).
+  // Only skip when CFBD matchup enrichment already filled opponent defense.
   if (
     oppName &&
     opponentResolution?.status !== "bye" &&
-    Object.keys(oppDefense).length === 0 &&
-    opponentResolution?.status === "ok"
+    opponentResolution?.status === "ok" &&
+    (!wantMatchup || Object.keys(oppDefense).length === 0)
   ) {
     try {
       const peerIds = [];
@@ -564,13 +589,15 @@ async function loadPlayerBundle({
     priorLogs,
     currentOverview: currentOv,
     priorOverview: priorOv,
-    currentTotals: {
-      games: toNum(pick(currentOv, "games")) || gameLogs.length,
-      pass_yds: extractOverviewTotal(currentOv, "pass_yds"),
-      rec_yds: extractOverviewTotal(currentOv, "rec_yds"),
-      rec: extractOverviewTotal(currentOv, "rec"),
-      rush_yds: extractOverviewTotal(currentOv, "rush_yds"),
-    },
+    currentTotals: currentOv
+      ? {
+          games: toNum(pick(currentOv, "games")) || gameLogs.length,
+          pass_yds: extractOverviewTotal(currentOv, "pass_yds"),
+          rec_yds: extractOverviewTotal(currentOv, "rec_yds"),
+          rec: extractOverviewTotal(currentOv, "rec"),
+          rush_yds: extractOverviewTotal(currentOv, "rush_yds"),
+        }
+      : totalsFromLogs(gameLogs),
     priorTotals: priorOv
       ? {
           games: toNum(pick(priorOv, "games")) || priorLogs.length,
@@ -579,7 +606,9 @@ async function loadPlayerBundle({
           rec: extractOverviewTotal(priorOv, "rec"),
           rush_yds: extractOverviewTotal(priorOv, "rush_yds"),
         }
-      : null,
+      : priorLogs.length
+        ? totalsFromLogs(priorLogs)
+        : null,
     usage: usageFromLogs(gameLogs),
     usageL3: last3Usage(gameLogs),
     teamOffense,

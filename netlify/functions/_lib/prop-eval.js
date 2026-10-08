@@ -228,6 +228,7 @@ async function searchPlayers({ q, team, year, apiKey, signal, mode } = {}) {
     allowsCfbd,
     allowsEspn,
     forcesEspn,
+    forcesCfbd,
   } = require("./prop-lab/data/provider-mode");
   const { isCfbdCircuitOpen } = require("./prop-lab/data/circuit-breaker");
   const { dataLog } = require("./prop-lab/data/log");
@@ -293,12 +294,16 @@ async function searchPlayers({ q, team, year, apiKey, signal, mode } = {}) {
   if (forcesEspn(providerMode)) {
     return fromEspn();
   }
+  if (forcesCfbd(providerMode)) {
+    return fromCfbd();
+  }
 
-  const cfbdHits = await fromCfbd();
-  if (cfbdHits.length) return cfbdHits;
+  // auto: ESPN-first to avoid uncapped CFBD /player/search burns
+  const espnHits = await fromEspn();
+  if (espnHits.length) return espnHits;
 
-  dataLog("PlayerData", `CFBD search empty for "${searchTerm}" — trying ESPN`);
-  return fromEspn();
+  dataLog("PlayerData", `ESPN search empty for "${searchTerm}" — trying CFBD`);
+  return fromCfbd();
 }
 
 async function loadSeasonOverview(playerId, year, apiKey, signal) {

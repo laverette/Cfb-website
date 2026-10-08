@@ -113,6 +113,12 @@ function createClient(apiKey, { signal, usage, caller } = {}) {
     if (hit.source === "network") log.cacheMisses += 1;
     else {
       log.cacheHits += 1;
+      try {
+        const { recordApiUsage } = require("../api-usage");
+        recordApiUsage({ feature: "prop-lab", source: "cfbd", cacheHits: 1 });
+      } catch (_) {
+        /* telemetry must never break eval */
+      }
       if (String(process.env.LOG_CFBD_CALLS || "") === "true") {
         dataLog("CFBD", `cache HIT ${path} context=${getExecutionContext()}`);
       }

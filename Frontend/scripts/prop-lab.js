@@ -44,8 +44,6 @@
     searchActive: -1,
     searchAbort: null,
     searchOpen: false,
-    boardLoaded: false,
-    boardLoading: false,
     analyzing: false,
     expanded: {},
     preview: {},
@@ -2953,115 +2951,6 @@
     }
   }
 
-  function american(n) {
-    if (n == null || !Number.isFinite(Number(n))) return "—";
-    const x = Number(n);
-    return x > 0 ? `+${x}` : String(x);
-  }
-
-  function renderBoard(data) {
-    const host = document.getElementById("propBoard");
-    const lead = document.getElementById("propBoardLead");
-    const status = document.getElementById("propBoardStatus");
-    if (!host) return;
-    if (lead) {
-      lead.textContent = `Market board · ${data.propCount || 0} props${data.cached ? " (cached)" : ""}`;
-    }
-    if (status) {
-      const notes = [];
-      if (Array.isArray(data.warnings)) notes.push(...data.warnings);
-      if (data.quota?.remaining != null) notes.push(`Odds API credits left: ${data.quota.remaining}`);
-      status.hidden = !notes.length;
-      status.textContent = notes.join(" · ");
-    }
-    const rows = Array.isArray(data.props) ? data.props : [];
-    if (!rows.length) {
-      host.innerHTML = '<p class="prop-board-empty">No graded market props.</p>';
-      return;
-    }
-    host.innerHTML = rows
-      .map((p) => {
-        const g = p.grade || {};
-        const marketBit =
-          g.impliedOver != null
-            ? `<div><span>Mkt Over</span><strong>${escapeHtml(pct(g.impliedOver))}</strong></div>`
-            : `<div><span>Market</span><strong>not loaded</strong></div>`;
-        return `<article class="prop-board-card">
-          <div class="prop-board-card-top">
-            <div>
-              <p class="prop-board-player">${escapeHtml(p.playerName)}</p>
-              <p class="prop-board-sub">${escapeHtml([p.playerTeam, p.statLabel].filter(Boolean).join(" · "))}</p>
-            </div>
-            <div class="prop-board-edge is-${escapeHtml(p.lean || "tossup")}">
-              <span class="prop-board-edge-label">Model P(Over)</span>
-              <span class="prop-board-edge-val">${escapeHtml(pct(g.pOver))}</span>
-            </div>
-          </div>
-          <div class="prop-board-metrics">
-            <div><span>Line</span><strong>${escapeHtml(fmt(p.line, 1))}</strong></div>
-            <div><span>Proj</span><strong>${escapeHtml(fmt(p.expected, 1))}</strong></div>
-            <div><span>Score</span><strong>${escapeHtml(String(p.propScore ?? "—"))}</strong></div>
-            ${marketBit}
-            <div><span>Book</span><strong>${escapeHtml(p.bookmaker || "—")}</strong></div>
-            <div><span>Odds</span><strong>${escapeHtml(american(p.overPrice))} / ${escapeHtml(
-          american(p.underPrice)
-        )}</strong></div>
-          </div>
-        </article>`;
-      })
-      .join("");
-    const compares = evaluatedLegs()
-      .map((leg) => {
-        const hit = rows.find(
-          (p) =>
-            String(p.playerName || "").toLowerCase() === String(leg.player?.name || "").toLowerCase()
-        );
-        if (!hit || hit.line == null || leg.line == null) return "";
-        const gap = Number(hit.line) - Number(leg.line);
-        if (!Number.isFinite(gap) || Math.abs(gap) < 3) return "";
-        return `<p class="prop-market-note">${escapeHtml(leg.player?.name)} — PrizePicks ${fmt(leg.line, 1)} vs consensus ${fmt(
-          hit.line,
-          1
-        )}. ${
-          gap > 0
-            ? "PrizePicks offers a materially lower threshold than market consensus."
-            : "PrizePicks is higher than market consensus."
-        }</p>`;
-      })
-      .filter(Boolean)
-      .join("");
-    if (compares) host.insertAdjacentHTML("afterbegin", compares);
-  }
-
-  async function loadBoard(force) {
-    const host = document.getElementById("propBoard");
-    if (state.boardLoading) return;
-    state.boardLoading = true;
-    const btn = document.getElementById("propBoardRefresh");
-    if (btn) {
-      btn.disabled = true;
-      btn.textContent = "Loading…";
-    }
-    if (host) host.innerHTML = '<p class="prop-loading">Fetching market board…</p>';
-    try {
-      const data = await api({ action: "board", season: state.season, force: force ? "1" : "" });
-      state.boardLoaded = true;
-      renderBoard(data);
-    } catch (err) {
-      if (host) {
-        host.innerHTML = /ODDS_API_KEY/i.test(err.message)
-          ? `<p class="prop-error">Odds API key not configured. Manual PrizePicks entry still works.</p>`
-          : `<p class="prop-error">${escapeHtml(err.message)}</p>`;
-      }
-    } finally {
-      state.boardLoading = false;
-      if (btn) {
-        btn.disabled = false;
-        btn.textContent = state.boardLoaded ? "Refresh board" : "Load market board";
-      }
-    }
-  }
-
   document.addEventListener("DOMContentLoaded", async () => {
     bindPlayerCombo();
     trackOnce("prop_lab_opened", { season: state.season, source: "prop_lab" }, "prop_lab_opened", {
@@ -3174,7 +3063,6 @@
         setSaveStatus("");
       }
     });
-    document.getElementById("propBoardRefresh")?.addEventListener("click", () => loadBoard(state.boardLoaded));
     document.getElementById("dockAdd")?.addEventListener("click", () => {
       const player = committedPlayer();
       const statVal = document.getElementById("propStat")?.value;

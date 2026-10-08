@@ -25,7 +25,6 @@ body.power-rankings-body {
 .prop-lab-page .prop-lab-builder,
 .prop-lab-page .prop-lab-summary,
 .prop-lab-page .prop-saved-section,
-.prop-lab-page .prop-board-panel,
 .prop-lab-page .prop-bestn,
 .prop-lab-page .prop-compare {
   min-height: 0 !important;
@@ -331,16 +330,6 @@ body.power-rankings-body {
   display: grid;
   gap: var(--pl-space-2);
   margin: var(--pl-space-3) 0;
-}
-
-.prop-board-panel {
-  margin-top: var(--pl-space-5);
-}
-
-.prop-board-idle {
-  margin: var(--pl-space-3) 0 0;
-  font-size: 0.82rem;
-  color: var(--pr-muted);
 }
 
 .prop-debug {
@@ -1737,20 +1726,6 @@ body.prop-shared-mode .prop-lab-builder .matchup-panel-title::after {
   outline-offset: 2px;
 }
 
-.prop-board-panel > summary {
-  cursor: pointer;
-  list-style: none;
-  min-height: 44px;
-}
-
-.prop-board-panel > summary::-webkit-details-marker { display: none; }
-
-.prop-board-metrics {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.3rem;
-}
-
 @media (min-width: 768px) {
   .prop-lab-header .power-title,
   .prop-lab-page-title { font-size: 1.85rem; }
@@ -1863,6 +1838,19 @@ body.prop-shared-mode .prop-lab-builder .matchup-panel-title::after {
   }
   .prop-lab-summary[data-legs="0"] {
     padding-block: 0.75rem;
+  }
+
+  /* iOS Safari zooms focused controls under 16px — keep pinch-zoom available. */
+  .prop-lab-page input,
+  .prop-lab-page select,
+  .prop-lab-page textarea,
+  .prop-lab-page .site-select,
+  .prop-lab-page .matchup-select,
+  .prop-lab-page .matchup-input,
+  .prop-lab-page .prop-player-input,
+  .prop-lab-page .prop-leg-line,
+  .prop-lab-page .prop-leg-side {
+    font-size: 16px !important;
   }
 }
 

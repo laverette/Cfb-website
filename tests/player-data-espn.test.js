@@ -310,30 +310,31 @@ describe("getPlayerGameLog orchestration", () => {
     assert.equal(cfbd.usage.requests, 0);
   });
 
-  it("falls back to ESPN on CFBD 429", async () => {
-    const err = new Error("CFBD 429");
-    err.status = 429;
-    const cfbd = makeCfbd(null, { failWith: err });
-
+  it("uses ESPN first in auto without calling CFBD", async () => {
+    const cfbd = makeCfbd(sampleBox);
     const espn = require(path.join(root, "data", "espn"));
     const original = espn.getEspnPlayerGameLog;
     const originalSched = espn.getEspnTeamSchedule;
-    espn.getEspnPlayerGameLog = async () => ({
-      games: [
-        {
-          week: 1,
-          season: 2083,
-          team: "Ole Miss",
-          opponent: "Georgia State",
-          source: "espn",
-          stats: { ...emptyStats(), rush_yds: 108, rush_att: 16 },
-        },
-      ],
-      source: "espn",
-      cacheSource: "network",
-      path: "gamelog",
-      athlete: { espnPlayerId: "5086388" },
-    });
+    let espnCalls = 0;
+    espn.getEspnPlayerGameLog = async () => {
+      espnCalls += 1;
+      return {
+        games: [
+          {
+            week: 1,
+            season: 2083,
+            team: "Ole Miss",
+            opponent: "Georgia State",
+            source: "espn",
+            stats: { ...emptyStats(), rush_yds: 108, rush_att: 16 },
+          },
+        ],
+        source: "espn",
+        cacheSource: "network",
+        path: "gamelog",
+        athlete: { espnPlayerId: "5086388" },
+      };
+    };
     espn.getEspnTeamSchedule = async () => ({ schedule: [], source: "espn" });
 
     try {
@@ -347,36 +348,26 @@ describe("getPlayerGameLog orchestration", () => {
       });
       assert.equal(result.source, "espn");
       assert.equal(result.games[0].stats.rush_yds, 108);
-      assert.equal(isCfbdCircuitOpen(), true);
+      assert.equal(espnCalls, 1);
+      assert.equal(cfbd.usage.requests, 0);
+      assert.equal(isCfbdCircuitOpen(), false);
     } finally {
       espn.getEspnPlayerGameLog = original;
       espn.getEspnTeamSchedule = originalSched;
     }
   });
 
-  it("falls back to ESPN on CFBD timeout", async () => {
-    const timeoutErr = new Error("request timeout");
-    timeoutErr.status = 408;
-    const cfbd = makeCfbd(null, { failWith: timeoutErr });
+  it("falls back to CFBD when ESPN fails in auto", async () => {
+    const cfbd = makeCfbd(sampleBox);
     const espn = require(path.join(root, "data", "espn"));
     const original = espn.getEspnPlayerGameLog;
     const originalSched = espn.getEspnTeamSchedule;
-    espn.getEspnPlayerGameLog = async () => ({
-      games: [
-        {
-          week: 2,
-          season: 2084,
-          team: "Ole Miss",
-          opponent: "Kentucky",
-          source: "espn",
-          stats: { ...emptyStats(), rush_yds: 90 },
-        },
-      ],
-      source: "espn",
-      cacheSource: "network",
-      athlete: { espnPlayerId: "1" },
-    });
-    espn.getEspnTeamSchedule = async () => ({ schedule: [], source: "espn" });
+    espn.getEspnPlayerGameLog = async () => {
+      throw new Error("espn down");
+    };
+    espn.getEspnTeamSchedule = async () => {
+      throw new Error("espn schedule down");
+    };
     try {
       const result = await getPlayerGameLog({
         playerId: "cfbd1",
@@ -386,7 +377,9 @@ describe("getPlayerGameLog orchestration", () => {
         cfbd,
         mode: "auto",
       });
-      assert.equal(result.source, "espn");
+      assert.equal(result.source, "cfbd");
+      assert.ok(result.games.length >= 1);
+      assert.equal(result.games[0].stats.rush_yds, 108);
     } finally {
       espn.getEspnPlayerGameLog = original;
       espn.getEspnTeamSchedule = originalSched;

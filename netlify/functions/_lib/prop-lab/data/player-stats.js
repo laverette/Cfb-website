@@ -1,8 +1,10 @@
 /**
  * Provider-neutral player/game data orchestrator for Prop Lab.
  *
- * Order (mode=auto):
- *   fresh cache → CFBD → ESPN → stale cache → PLAYER_DATA_UNAVAILABLE
+ * Order (mode=auto|espn):
+ *   fresh cache → ESPN → CFBD (auto only) → stale cache → PLAYER_DATA_UNAVAILABLE
+ *
+ * mode=cfbd keeps CFBD-only behavior for debugging / backfill.
  */
 
 const { readMemory, writeMemory } = require("../cache");
@@ -249,6 +251,17 @@ async function getPlayerGameLog({
     const cachedHit = await readFreshCache(key);
     if (cachedHit && !cachedHit.stale && Array.isArray(cachedHit.value?.games)) {
       dataLog("PlayerData", `Cache hit: ${label}`);
+      try {
+        const { recordApiUsage } = require("../../api-usage");
+        const src = cachedHit.value.originalSource || cachedHit.value.source || "espn";
+        recordApiUsage({
+          feature: "prop-lab",
+          source: src === "cfbd" ? "cfbd" : "espn",
+          cacheHits: 1,
+        });
+      } catch (_) {
+        /* ignore */
+      }
       return {
         games: cachedHit.value.games,
         schedule: cachedHit.value.schedule || [],
@@ -267,78 +280,12 @@ async function getPlayerGameLog({
 
     const stale = cachedHit?.stale ? cachedHit : null;
     let cfbdErr = null;
+    let espnErr = null;
 
-    if (
-      allowsCfbd(providerMode) &&
-      policyAllowsCfbd("playerStats") &&
-      !isBackgroundContext() &&
-      !forcesEspn(providerMode) &&
-      !isCfbdCircuitOpen()
-    ) {
+    // ESPN-first on auto/espn — CFBD was the primary Prop Lab quota burn.
+    if (allowsEspn(providerMode) && !forcesCfbd(providerMode)) {
       try {
-        dataLog("PlayerData", `CFBD request: ${label}`);
-        const fromCfbd = await loadFromCfbd(cfbd, {
-          playerId,
-          playerName,
-          team,
-          season: seasonYear,
-        });
-        const payload = {
-          games: fromCfbd.games,
-          schedule: fromCfbd.schedule,
-          source: "cfbd",
-          originalSource: "cfbd",
-          updatedAt: new Date().toISOString(),
-        };
-        await writeDbPayload(key, payload, ttlForLogs(seasonYear));
-        return {
-          ...payload,
-          cache: "MISS",
-          stale: false,
-          meta: { ...meta, source: "cfbd", originalSource: "cfbd", cache: "MISS" },
-        };
-      } catch (err) {
-        cfbdErr = err;
-        dataLog("PlayerData", `CFBD request failed: ${err.status || err.code || err.message}`);
-        if (isProgrammerCfbdError(err) && forcesCfbd(providerMode)) throw err;
-        if (!shouldFallbackToEspn(err) && forcesCfbd(providerMode)) throw err;
-        if (!allowsEspn(providerMode)) {
-          if (stale?.value?.games?.length) {
-            dataLog("PlayerData", `Returning stale cache after CFBD error: ${label}`);
-            return {
-              games: stale.value.games,
-              schedule: stale.value.schedule || [],
-              source: "cache",
-              originalSource: stale.value.originalSource || stale.value.source,
-              cache: "STALE",
-              stale: true,
-              meta: {
-                ...meta,
-                source: "cache",
-                originalSource: stale.value.originalSource || stale.value.source,
-                cache: "STALE",
-                stale: true,
-                cfbdError: String(err.message || err),
-              },
-            };
-          }
-          throw err;
-        }
-        if (shouldFallbackToEspn(err) || err.code === "PLAYER_STATS_MISSING") {
-          dataLog("PlayerData", "Falling back to ESPN");
-        } else if (isProgrammerCfbdError(err)) {
-          dataLog("PlayerData", `Not falling back (programmer error): ${err.message}`);
-          throw err;
-        } else {
-          dataLog("PlayerData", "Falling back to ESPN");
-        }
-      }
-    } else if (isCfbdCircuitOpen() && allowsEspn(providerMode)) {
-      dataLog("PlayerData", "CFBD circuit open — using ESPN");
-    }
-
-    if (allowsEspn(providerMode)) {
-      try {
+        dataLog("PlayerData", `ESPN request: ${label}`);
         const fromEspn = await loadFromEspn({
           playerId,
           playerName,
@@ -367,40 +314,87 @@ async function getPlayerGameLog({
             originalSource: "espn",
             cache: fromEspn.cacheSource === "network" ? "MISS" : "HIT",
             path: fromEspn.path,
-            cfbdError: cfbdErr ? String(cfbdErr.message || cfbdErr) : null,
           },
         };
-      } catch (espnErr) {
-        dataLog("PlayerData", `ESPN failed: ${espnErr.message}`);
-        if (stale?.value?.games?.length) {
-          dataLog("PlayerData", `Returning stale cache: ${label}`);
-          return {
-            games: stale.value.games,
-            schedule: stale.value.schedule || [],
-            source: "cache",
-            originalSource: stale.value.originalSource || stale.value.source,
-            cache: "STALE",
-            stale: true,
-            meta: {
-              ...meta,
+      } catch (err) {
+        espnErr = err;
+        dataLog("PlayerData", `ESPN failed: ${err.message}`);
+        if (forcesEspn(providerMode)) {
+          if (stale?.value?.games?.length) {
+            dataLog("PlayerData", `Returning stale cache after ESPN error: ${label}`);
+            return {
+              games: stale.value.games,
+              schedule: stale.value.schedule || [],
               source: "cache",
               originalSource: stale.value.originalSource || stale.value.source,
               cache: "STALE",
               stale: true,
-              espnError: String(espnErr.message || espnErr),
-              cfbdError: cfbdErr ? String(cfbdErr.message || cfbdErr) : null,
-            },
-          };
+              meta: {
+                ...meta,
+                source: "cache",
+                originalSource: stale.value.originalSource || stale.value.source,
+                cache: "STALE",
+                stale: true,
+                espnError: String(err.message || err),
+              },
+            };
+          }
+          const unavailable = new Error("Player statistics are temporarily unavailable.");
+          unavailable.code = "PLAYER_DATA_UNAVAILABLE";
+          unavailable.espnError = String(err.message || err);
+          throw unavailable;
         }
-        const err = new Error("Player statistics are temporarily unavailable.");
-        err.code = "PLAYER_DATA_UNAVAILABLE";
-        err.cfbdError = cfbdErr ? String(cfbdErr.message || cfbdErr) : null;
-        err.espnError = String(espnErr.message || espnErr);
-        throw err;
+        dataLog("PlayerData", "Falling back to CFBD");
       }
     }
 
+    if (
+      allowsCfbd(providerMode) &&
+      policyAllowsCfbd("playerStats") &&
+      !isBackgroundContext() &&
+      !forcesEspn(providerMode) &&
+      !isCfbdCircuitOpen()
+    ) {
+      try {
+        dataLog("PlayerData", `CFBD request: ${label}`);
+        const fromCfbd = await loadFromCfbd(cfbd, {
+          playerId,
+          playerName,
+          team,
+          season: seasonYear,
+        });
+        const payload = {
+          games: fromCfbd.games,
+          schedule: fromCfbd.schedule,
+          source: "cfbd",
+          originalSource: "cfbd",
+          updatedAt: new Date().toISOString(),
+        };
+        await writeDbPayload(key, payload, ttlForLogs(seasonYear));
+        return {
+          ...payload,
+          cache: "MISS",
+          stale: false,
+          meta: {
+            ...meta,
+            source: "cfbd",
+            originalSource: "cfbd",
+            cache: "MISS",
+            espnError: espnErr ? String(espnErr.message || espnErr) : null,
+          },
+        };
+      } catch (err) {
+        cfbdErr = err;
+        dataLog("PlayerData", `CFBD request failed: ${err.status || err.code || err.message}`);
+        if (isProgrammerCfbdError(err) && forcesCfbd(providerMode)) throw err;
+        if (!shouldFallbackToEspn(err) && forcesCfbd(providerMode)) throw err;
+      }
+    } else if (isCfbdCircuitOpen() && allowsEspn(providerMode)) {
+      dataLog("PlayerData", "CFBD circuit open — ESPN already preferred");
+    }
+
     if (stale?.value?.games?.length) {
+      dataLog("PlayerData", `Returning stale cache: ${label}`);
       return {
         games: stale.value.games,
         schedule: stale.value.schedule || [],
@@ -411,8 +405,11 @@ async function getPlayerGameLog({
         meta: {
           ...meta,
           source: "cache",
+          originalSource: stale.value.originalSource || stale.value.source,
           cache: "STALE",
           stale: true,
+          espnError: espnErr ? String(espnErr.message || espnErr) : null,
+          cfbdError: cfbdErr ? String(cfbdErr.message || cfbdErr) : null,
         },
       };
     }
@@ -420,6 +417,7 @@ async function getPlayerGameLog({
     const err = new Error("Player statistics are temporarily unavailable.");
     err.code = "PLAYER_DATA_UNAVAILABLE";
     err.cfbdError = cfbdErr ? String(cfbdErr.message || cfbdErr) : null;
+    err.espnError = espnErr ? String(espnErr.message || espnErr) : null;
     throw err;
   })().finally(() => {
     inflightLogs.delete(key);
@@ -442,6 +440,27 @@ async function getTeamScheduleData({ team, season, cfbd, signal, mode } = {}) {
       originalSource: fresh.value.originalSource || fresh.value.source,
       cache: "HIT",
     };
+  }
+
+  if (allowsEspn(providerMode) && !forcesCfbd(providerMode)) {
+    try {
+      const espnSched = await espn.getEspnTeamSchedule(team, seasonYear, { signal });
+      if (Array.isArray(espnSched.schedule) && espnSched.schedule.length) {
+        const payload = {
+          schedule: espnSched.schedule,
+          source: "espn",
+          originalSource: "espn",
+        };
+        await writeDbPayload(key, payload, Math.min(ttlForLogs(seasonYear), 4 * HOUR));
+        return { ...payload, cache: "MISS" };
+      }
+      dataLog("PlayerData", `ESPN schedule empty for ${team} ${seasonYear}`);
+    } catch (err) {
+      dataLog("PlayerData", `ESPN schedule failed: ${err.message}`);
+      if (forcesEspn(providerMode)) {
+        /* fall through to stale / empty */
+      }
+    }
   }
 
   if (
@@ -468,25 +487,7 @@ async function getTeamScheduleData({ team, season, cfbd, signal, mode } = {}) {
     } catch (err) {
       dataLog("PlayerData", `CFBD schedule failed: ${err.message}`);
       if (isRateLimitError(err)) tripCfbdCircuit(err, err.headers);
-      if (!allowsEspn(providerMode) && !shouldFallbackToEspn(err)) throw err;
-    }
-  }
-
-  if (allowsEspn(providerMode)) {
-    try {
-      const espnSched = await espn.getEspnTeamSchedule(team, seasonYear, { signal });
-      if (Array.isArray(espnSched.schedule) && espnSched.schedule.length) {
-        const payload = {
-          schedule: espnSched.schedule,
-          source: "espn",
-          originalSource: "espn",
-        };
-        await writeDbPayload(key, payload, Math.min(ttlForLogs(seasonYear), 4 * HOUR));
-        return { ...payload, cache: "MISS" };
-      }
-      dataLog("PlayerData", `ESPN schedule empty for ${team} ${seasonYear}`);
-    } catch (err) {
-      dataLog("PlayerData", `ESPN schedule failed: ${err.message}`);
+      if (forcesCfbd(providerMode) && !shouldFallbackToEspn(err)) throw err;
     }
   }
 

@@ -119,11 +119,13 @@ async function handlePropEval(event) {
   const action = String(body.action || q.action || "evaluate").toLowerCase();
   const apiKey = readCfbdKey();
   const dataSourceMode = String(
-    process.env.PROP_LAB_DATA_SOURCE || process.env.DATA_SOURCE || "auto"
+    process.env.PROP_LAB_DATA_SOURCE || process.env.DATA_SOURCE || "espn"
   )
     .trim()
     .toLowerCase();
-  const espnOnly = dataSourceMode === "espn";
+  // Default espn/auto run without requiring a CFBD key for search + evaluate.
+  const espnCapableDefault =
+    dataSourceMode === "espn" || dataSourceMode === "auto" || !apiKey;
   const cfbdActions = new Set([
     "search",
     "board",
@@ -132,12 +134,11 @@ async function handlePropEval(event) {
     "backtest",
   ]);
   if (action === "entry" && method === "POST") cfbdActions.add("entry");
-  // ESPN can cover search + evaluate when CFBD key is missing or mode=espn.
   const espnCapable = new Set(["search", "evaluate", "evaluate-entry", "entry"]);
   const requiresCfbdKey =
     cfbdActions.has(action) &&
-    !(espnCapable.has(action) && (espnOnly || !apiKey));
-  // Search/evaluate still run without a CFBD key (ESPN fallback). Board/backtest need CFBD.
+    !(espnCapable.has(action) && espnCapableDefault);
+  // Search/evaluate run on ESPN by default. Board/backtest still need CFBD.
   if (requiresCfbdKey && !apiKey) {
     return json(503, { error: "CFBD_API_KEY not configured" });
   }
