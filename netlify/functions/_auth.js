@@ -13,7 +13,8 @@ function getJwtSecret() {
 function getExpiresIn() {
   const raw = process.env.JWT_EXPIRES_IN;
   if (raw && String(raw).trim()) return String(raw).trim();
-  return "60m";
+  // Fan-site default: stay signed in across visits. Override via JWT_EXPIRES_IN.
+  return "30d";
 }
 
 function getBearerToken(event) {

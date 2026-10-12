@@ -22,6 +22,8 @@
   # Prop Lab: ESPN player path; shared daily CFBD league snapshot for PPA/advanced.
   PROP_LAB_DATA_SOURCE = "espn"
   PROP_LAB_CFBD_MATCHUP = "1"
+  # Auth: keep users signed in across visits (sliding refresh on profile check).
+  JWT_EXPIRES_IN = "30d"
 
 [dev]
   publish = "Frontend"

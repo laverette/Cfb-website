@@ -80,9 +80,17 @@ exports.handler = async (event) => {
         return json(404, { message: "User not found" });
       }
       const profileRow = await findProfileByUserId(userId);
+      // Sliding session: re-issue JWT so active users stay signed in.
+      let token = null;
+      try {
+        token = signUserToken(userRow);
+      } catch (err) {
+        if (err.code !== "NO_JWT_SECRET") throw err;
+      }
       return json(200, {
         user: mapUser(userRow),
         profile: profileRow ? mapProfile(profileRow) : null,
+        ...(token ? { token } : {}),
       });
     }
 

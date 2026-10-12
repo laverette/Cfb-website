@@ -510,6 +510,9 @@
       })
       .then(function (data) {
         if (!data || !data.user) return;
+        if (data.token) {
+          localStorage.setItem(STORAGE_TOKEN, data.token);
+        }
         var prev = parseUser() || {};
         var next = Object.assign({}, prev, data.user);
         if (data.user.avatarUrl != null) next.avatarUrl = data.user.avatarUrl;
