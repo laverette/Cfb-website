@@ -11,6 +11,9 @@
 [functions."prop-lab-week-board-background"]
   timeout = 900
 
+[functions."prop-lab-prizepicks-normalize"]
+  timeout = 26
+
 [functions."bama-schedule-leaderboard"]
   timeout = 26
 
@@ -308,7 +311,20 @@
 [[redirects]]
   from = "/api/prop-lab/week-board-background"
   to = "/.netlify/functions/prop-lab-week-board-background"
+
+[[redirects]]
+  from = "/api/prop-lab/prizepicks-normalize"
+  to = "/.netlify/functions/prop-lab-prizepicks-normalize"
   status = 200
+  force = true
+
+# Same-origin proxy so the admin browser can load the full PrizePicks board
+# (partner-api blocks browser CORS from our domain).
+[[redirects]]
+  from = "/api/prop-lab/prizepicks-projections"
+  to = "https://partner-api.prizepicks.com/projections"
+  status = 200
+  force = true
 
 [[redirects]]
   from = "/api/heisman"

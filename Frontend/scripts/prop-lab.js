@@ -3127,6 +3127,8 @@
         picks.status === "complete" ? "Complete" : "Partial",
         picks.updatedAt ? `Updated ${new Date(picks.updatedAt).toLocaleString()}` : null,
         graded.length ? `${graded.length} graded` : null,
+        picks.propsSupported != null ? `${picks.propsSupported} on board` : null,
+        picks.meta?.source ? `Source ${picks.meta.source}` : null,
         picks.cfbdCalls != null ? `CFBD calls ${picks.cfbdCalls}` : null,
         picks.leagueSnapshotCache ? `League snap ${picks.leagueSnapshotCache}` : null,
         pending != null && pending > 0 ? `${pending} left to score` : null,
@@ -3200,6 +3202,42 @@
     }
   }
 
+  async function fetchPrizePicksBoardForBuild(headers) {
+    // Same-origin Netlify proxy (partner-api CORS only allows app.prizepicks.com).
+    const partnerUrl = "/api/prop-lab/prizepicks-projections?league_id=15";
+    const partnerResp = await fetch(partnerUrl, {
+      headers: { accept: "application/json" },
+    });
+    if (!partnerResp.ok) {
+      throw new Error(`PrizePicks board fetch failed (${partnerResp.status})`);
+    }
+    const partnerPayload = await partnerResp.json();
+    if (!Array.isArray(partnerPayload?.data)) {
+      throw new Error("PrizePicks proxy returned an unexpected payload");
+    }
+    // Drop bulky unused includes before POSTing to Netlify (payload ~4MB raw).
+    const keepTypes = new Set(["stat_type", "new_player", "game", "team"]);
+    const slimPayload = {
+      data: partnerPayload.data,
+      included: Array.isArray(partnerPayload.included)
+        ? partnerPayload.included.filter((row) => keepTypes.has(row?.type))
+        : [],
+    };
+    const normResp = await fetch("/.netlify/functions/prop-lab-prizepicks-normalize", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        partnerPayload: slimPayload,
+        sourceUrl: "https://partner-api.prizepicks.com/projections?league_id=15",
+      }),
+    });
+    const normData = await normResp.json().catch(() => ({}));
+    if (!normResp.ok || !normData.board) {
+      throw new Error(normData.error || `Could not normalize PrizePicks board (${normResp.status})`);
+    }
+    return normData.board;
+  }
+
   async function refreshWeekPicksBatch() {
     const btn = document.getElementById("weekPicksRefresh");
     const meta = document.getElementById("weekPicksMeta");
@@ -3209,22 +3247,42 @@
     }
     if (meta) {
       meta.hidden = false;
-      meta.textContent = "Starting full week board job…";
+      meta.textContent = "Fetching full PrizePicks board…";
     }
     const baselineUpdatedAt = state.weekPicks?.updatedAt || null;
     try {
-      // Start background job (202). Then poll until this run finishes or times out.
-      const startUrl = new URL("/.netlify/functions/prop-lab-week-board-background", window.location.origin);
       const headers = {
         accept: "application/json",
         "content-type": "application/json",
       };
       const token = authToken();
       if (token) headers.authorization = `Bearer ${token}`;
+
+      // Browser fetch (Netlify egress often blocked) → normalize → background score.
+      let board = null;
+      try {
+        board = await fetchPrizePicksBoardForBuild(headers);
+        if (meta) {
+          meta.textContent = `Scoring ${board.supportedCount || board.props?.length || "?"} props from PrizePicks…`;
+        }
+      } catch (boardErr) {
+        console.warn("PrizePicks browser board fetch failed:", boardErr);
+        throw new Error(
+          boardErr.message ||
+            "Could not load the full PrizePicks board. Deploy/proxy may be missing — thin mirror will not be used."
+        );
+      }
+
+      const startUrl = new URL("/.netlify/functions/prop-lab-week-board-background", window.location.origin);
       const startResp = await fetch(startUrl.toString(), {
         method: "POST",
         headers,
-        body: JSON.stringify({ season: state.season, week: state.week, force: true }),
+        body: JSON.stringify({
+          season: state.season,
+          week: state.week,
+          force: true,
+          ...(board ? { board } : {}),
+        }),
       });
       // 202 = accepted (Netlify background). 200 also ok if platform runs inline in dev.
       if (!startResp.ok && startResp.status !== 202) {

@@ -300,6 +300,32 @@ function parsePartnerPayload(payload) {
   return { rows, skipped, total: data.length };
 }
 
+/**
+ * Normalize a partner-api JSON:API payload into the board shape used by week scoring.
+ * Used by server fetch and by browser-assisted ingest (Netlify egress often blocked).
+ */
+function boardFromPartnerPayload(payload, { source = "partner", sourceUrl = null } = {}) {
+  const parsed = parsePartnerPayload(payload);
+  const selected = selectBoardProps(parsed.rows);
+  const fetchedAt = new Date().toISOString();
+  const endpoint = sourceUrl || partnerUrl();
+  dataLog(
+    "PrizePicksMirror",
+    `Partner payload ${selected.length} selected / ${parsed.rows.length} mapped / ${parsed.total} raw (${source})`
+  );
+  return {
+    scrapedAt: fetchedAt,
+    scrapedDate: fetchedAt.slice(0, 10),
+    scrapeHash: `${fetchedAt}|${source}|${selected.length}`,
+    totalProps: parsed.total,
+    supportedCount: selected.length,
+    skipped: parsed.skipped,
+    props: selected,
+    sourceUrl: endpoint,
+    source,
+  };
+}
+
 async function fetchFromPartner({ signal } = {}) {
   const endpoint = partnerUrl();
   const resp = await fetch(endpoint, {
@@ -312,24 +338,7 @@ async function fetchFromPartner({ signal } = {}) {
     throw err;
   }
   const payload = await resp.json();
-  const parsed = parsePartnerPayload(payload);
-  const selected = selectBoardProps(parsed.rows);
-  const fetchedAt = new Date().toISOString();
-  dataLog(
-    "PrizePicksMirror",
-    `Partner API ${selected.length} selected / ${parsed.rows.length} mapped / ${parsed.total} raw from ${endpoint}`
-  );
-  return {
-    scrapedAt: fetchedAt,
-    scrapedDate: fetchedAt.slice(0, 10),
-    scrapeHash: `${fetchedAt}|partner|${selected.length}`,
-    totalProps: parsed.total,
-    supportedCount: selected.length,
-    skipped: parsed.skipped,
-    props: selected,
-    sourceUrl: endpoint,
-    source: "partner",
-  };
+  return boardFromPartnerPayload(payload, { source: "partner", sourceUrl: endpoint });
 }
 
 async function fetchFromMirror({ signal, url } = {}) {
@@ -366,8 +375,13 @@ async function fetchFromMirror({ signal, url } = {}) {
 
 /**
  * Fetch + normalize supported NCAAF props (partner API, mirror fallback).
+ * @param {{ signal?: AbortSignal, url?: string, allowMirrorFallback?: boolean }} [opts]
  */
-async function fetchPrizePicksNcaaf({ signal, url } = {}) {
+async function fetchPrizePicksNcaaf({
+  signal,
+  url,
+  allowMirrorFallback = true,
+} = {}) {
   // Explicit mirror URL override keeps old path for debugging.
   if (url) return fetchFromMirror({ signal, url });
   if (preferMirrorOnly()) return fetchFromMirror({ signal });
@@ -377,8 +391,11 @@ async function fetchPrizePicksNcaaf({ signal, url } = {}) {
   } catch (err) {
     dataLog(
       "PrizePicksMirror",
-      `Partner API failed (${err.message}) — falling back to GitHub mirror`
+      `Partner API failed (${err.message}) — ${
+        allowMirrorFallback ? "falling back to GitHub mirror" : "no fallback"
+      }`
     );
+    if (!allowMirrorFallback) throw err;
     return fetchFromMirror({ signal });
   }
 }
@@ -416,6 +433,7 @@ module.exports = {
   mapPrizePicksStat,
   cleanTeamName,
   fetchPrizePicksNcaaf,
+  boardFromPartnerPayload,
   uniqueEvalTargets,
   selectBoardProps,
   mirrorUrl,

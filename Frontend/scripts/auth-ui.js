@@ -55,13 +55,27 @@
     return name || "index.html";
   }
 
+  var STORAGE_RETURN = "authReturnTo";
+
+  function rememberReturnTo(target) {
+    try {
+      if (target) sessionStorage.setItem(STORAGE_RETURN, String(target));
+    } catch (e) {
+      /* ignore */
+    }
+  }
+
   function getLoginHref() {
     var page = basenameOnly(window.location.pathname);
-    if (page === "login.html") return "login.html";
+    if (page === "login.html" || page === "reset-password.html") return "login.html";
     // Don't carry another user's ?username= through login — after sign-in
     // we always want the newly logged-in account's own profile.
     var target =
       page === "user-profile.html" ? "user-profile.html" : page + (window.location.search || "");
+    if (!/\.html$/i.test(String(target).split(/[?#]/)[0] || "")) {
+      target = "index.html";
+    }
+    rememberReturnTo(target);
     return "login.html?redirect=" + encodeURIComponent(target);
   }
 
@@ -531,6 +545,8 @@
     },
     getCurrentUser: parseUser,
     isLoggedIn: isLoggedIn,
+    getLoginHref: getLoginHref,
+    rememberReturnTo: rememberReturnTo,
     renderAuthNav: renderAuthNav,
     populateDropdownMenu: populateDropdownMenu,
     refreshAll: refreshAll,

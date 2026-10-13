@@ -61,7 +61,7 @@
           </div>
           <div style="text-align: center; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(141,110,99,0.8);">
             <p style="color: #F5F5F5; margin: 0 0 10px 0;">Or continue without logging in</p>
-            <a href="weeklypicks.html" class="btn btn-brown" style="padding: 8px 20px; border-radius: 10px;">Continue as Guest</a>
+            <a href="weeklypicks.html" id="loginGuestLink" class="btn btn-brown" style="padding: 8px 20px; border-radius: 10px;">Continue as Guest</a>
           </div>
         </div>
 
@@ -132,7 +132,7 @@
         <div id="message" style="margin-top: 1rem; text-align: center;"></div>
         
         <div style="text-align: center; margin: 2rem 0;">
-          <a href="weeklypicks.html" style="background-color: #3E2723; color: #F5F5F5; padding: 10px 20px; border-radius: 6px; text-decoration: none; border: 1px solid #8D6E63;">Back to Weekly Picks</a>
+          <a href="weeklypicks.html" id="loginBackLink" style="background-color: #3E2723; color: #F5F5F5; padding: 10px 20px; border-radius: 6px; text-decoration: none; border: 1px solid #8D6E63;">Back to Weekly Picks</a>
         </div>
       </div>
     </div>
@@ -160,36 +160,91 @@
       return "user-profile.html";
     }
 
-    function safePostLoginRedirect() {
-      var params = new URLSearchParams(window.location.search || "");
-      var raw = params.get("redirect");
-      var me = currentUserFromStorage();
-      if (!raw || typeof raw !== "string") {
-        window.location.href = "weeklypicks.html";
-        return;
+    function sanitizeReturnPath(raw) {
+      if (!raw || typeof raw !== "string") return null;
+      var decoded = raw.trim();
+      try {
+        // URLSearchParams already decodes once; tolerate a second pass.
+        if (/%[0-9A-Fa-f]{2}/.test(decoded)) decoded = decodeURIComponent(decoded);
+      } catch (e) {
+        return null;
       }
-      var decoded = decodeURIComponent(raw.trim());
+      // Only same-folder relative *.html paths (optional ?query / #hash).
       if (
+        !decoded ||
         decoded.indexOf("//") !== -1 ||
-        decoded.indexOf(":") !== -1 ||
+        decoded.indexOf("://") !== -1 ||
+        decoded.indexOf("\\") !== -1 ||
         decoded.charAt(0) === "/" ||
-        decoded.indexOf("\\") !== -1
+        /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(decoded)
       ) {
-        window.location.href = "weeklypicks.html";
-        return;
+        return null;
       }
       var file = decoded.split(/[?#]/)[0];
-      if (!/^[a-zA-Z0-9._-]+\.html$/.test(file)) {
-        window.location.href = "weeklypicks.html";
-        return;
+      if (!/^[a-zA-Z0-9._-]+\.html$/.test(file)) return null;
+      if (file === "login.html" || file === "reset-password.html") return null;
+      return decoded;
+    }
+
+    function referrerReturnPath() {
+      try {
+        if (!document.referrer) return null;
+        var u = new URL(document.referrer);
+        if (u.origin !== window.location.origin) return null;
+        var parts = u.pathname.split("/");
+        var file = parts[parts.length - 1] || "index.html";
+        if (!file || file.indexOf(".") === -1) file = "index.html";
+        return sanitizeReturnPath(file + (u.search || "") + (u.hash || ""));
+      } catch (e) {
+        return null;
       }
+    }
+
+    function resolvePostLoginTarget() {
+      var params = new URLSearchParams(window.location.search || "");
+      var fromQuery = sanitizeReturnPath(params.get("redirect"));
+      var fromSession = null;
+      try {
+        fromSession = sanitizeReturnPath(sessionStorage.getItem("authReturnTo"));
+      } catch (e) {
+        fromSession = null;
+      }
+      var fromReferrer = referrerReturnPath();
+      return fromQuery || fromSession || fromReferrer || "weeklypicks.html";
+    }
+
+    function safePostLoginRedirect() {
+      var me = currentUserFromStorage();
+      var target = resolvePostLoginTarget();
+      try {
+        sessionStorage.removeItem("authReturnTo");
+      } catch (e) {
+        /* ignore */
+      }
+      var file = String(target).split(/[?#]/)[0];
       // Logging in from (or back to) a profile page should show YOUR profile,
       // not whatever ?username= was open before logout.
       if (file === "user-profile.html") {
         window.location.href = ownProfileHref(me);
         return;
       }
-      window.location.href = decoded;
+      window.location.href = target;
+    }
+
+    function syncLoginBackLinks() {
+      var target = resolvePostLoginTarget();
+      var label =
+        target === "weeklypicks.html" ? "Back to Weekly Picks" : "Back to previous page";
+      var guest = document.getElementById("loginGuestLink");
+      var back = document.getElementById("loginBackLink");
+      if (guest) {
+        guest.href = target;
+        guest.textContent = target === "weeklypicks.html" ? "Continue as Guest" : "Continue without logging in";
+      }
+      if (back) {
+        back.href = target;
+        back.textContent = label;
+      }
     }
 
     // Toggle between login and register forms
@@ -430,6 +485,22 @@
     if (new URLSearchParams(window.location.search).get('forgot') === '1') {
       showForgotForm();
     }
+
+    // Remember ?redirect= and point guest/back links at the page they came from.
+    (function rememberIncomingRedirect() {
+      var params = new URLSearchParams(window.location.search || "");
+      var raw = params.get("redirect");
+      if (raw && window.AuthUI && AuthUI.rememberReturnTo) {
+        AuthUI.rememberReturnTo(raw);
+      } else if (raw) {
+        try {
+          sessionStorage.setItem("authReturnTo", raw);
+        } catch (e) {
+          /* ignore */
+        }
+      }
+      syncLoginBackLinks();
+    })();
   </script>
   <script>
     function closeMenu() {

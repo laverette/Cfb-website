@@ -16,7 +16,7 @@ const { cfbdUsageSnapshot } = require("../cfbd-guard");
 const { cached, readMemory } = require("./cache");
 
 const TABLE = "prop_lab_week_picks";
-const BATCH_DEFAULT = 12;
+const BATCH_DEFAULT = 20;
 const TOP_SINGLES = 40;
 const PLAYER_CACHE_TTL = 7 * 24 * 60 * 60 * 1000;
 
@@ -284,6 +284,7 @@ async function runWeekBoardBatch({
   signal,
   force = false,
   maxBatch = batchSize(),
+  board = null,
 } = {}) {
   const seasonYear = Number(season) || new Date().getFullYear();
   const weekNumber = Number(week);
@@ -294,7 +295,10 @@ async function runWeekBoardBatch({
   }
 
   const usageBefore = cfbdUsageSnapshot();
-  const mirror = await fetchPrizePicksNcaaf({ signal });
+  const mirror =
+    board && Array.isArray(board.props) && board.props.length
+      ? board
+      : await fetchPrizePicksNcaaf({ signal, allowMirrorFallback: false });
   const targets = uniqueEvalTargets(mirror.props);
   const leagueSnap = await getLeagueMatchupSnapshot(seasonYear, {
     apiKey,
@@ -407,6 +411,7 @@ async function runWeekBoardBatch({
       scrapedAt: mirror.scrapedAt,
       scrapedDate: mirror.scrapedDate,
       sourceUrl: mirror.sourceUrl,
+      source: mirror.source || null,
       skipped: mirror.skipped,
       batchSize: batch.length,
       pendingRemaining: Math.max(0, pending.length - batch.length),
@@ -530,11 +535,17 @@ async function runWeekBoardToCompletion({
   signal,
   force = false,
   maxMs = 14 * 60 * 1000,
+  board = null,
 } = {}) {
   const started = Date.now();
   let result = null;
   let batches = 0;
   let cfbdTotal = 0;
+  // Fetch once (or use browser-supplied board) and reuse across batches.
+  const resolvedBoard =
+    board && Array.isArray(board.props) && board.props.length
+      ? board
+      : await fetchPrizePicksNcaaf({ signal, allowMirrorFallback: false });
   while (Date.now() - started < maxMs) {
     if (signal?.aborted) break;
     result = await runWeekBoardBatch({
@@ -544,12 +555,13 @@ async function runWeekBoardToCompletion({
       powerTeams,
       signal,
       force: force && batches === 0,
+      board: resolvedBoard,
     });
     batches += 1;
     cfbdTotal += result.cfbdCallsDelta || 0;
     dataLog(
       "WeekBoard",
-      `toCompletion batch=${batches} scored=${result.propsScored} pending=${result.pendingRemaining} status=${result.status}`
+      `toCompletion batch=${batches} scored=${result.propsScored} pending=${result.pendingRemaining} status=${result.status} source=${resolvedBoard.source || "?"}`
     );
     if (!result.continue || result.status === "complete") break;
   }
@@ -558,6 +570,8 @@ async function runWeekBoardToCompletion({
     batchesThisRun: batches,
     cfbdCallsThisRun: cfbdTotal,
     complete: result?.status === "complete",
+    boardSource: resolvedBoard.source || null,
+    boardProps: resolvedBoard.supportedCount ?? resolvedBoard.props?.length ?? null,
     ms: Date.now() - started,
   };
 }

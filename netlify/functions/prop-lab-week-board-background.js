@@ -12,6 +12,11 @@ const { requireAdmin } = require("./_auth");
 const store = require("./_lib/power/store");
 const { withExecutionContext } = require("./_lib/execution-context");
 const { runWeekBoardToCompletion } = require("./_lib/prop-lab/week-board");
+const {
+  boardFromPartnerPayload,
+  uniqueEvalTargets,
+  DEFAULT_PARTNER_URL,
+} = require("./_lib/prop-lab/data/prizepicks-mirror");
 
 function readCfbdKey() {
   return (process.env.CFBD_API_KEY && String(process.env.CFBD_API_KEY).trim()) || "";
@@ -81,6 +86,24 @@ exports.handler = async (event) => {
   const apiKey = readCfbdKey();
   const powerTeams = await loadPowerTeams(season);
 
+  // Prefer browser-supplied full board (Netlify often cannot reach PrizePicks).
+  let board = null;
+  if (body.board && Array.isArray(body.board.props) && body.board.props.length) {
+    board = {
+      ...body.board,
+      props: uniqueEvalTargets(body.board.props),
+      source: body.board.source || "browser-partner",
+    };
+    board.supportedCount = board.props.length;
+  } else if (body.partnerPayload && Array.isArray(body.partnerPayload.data)) {
+    board = boardFromPartnerPayload(body.partnerPayload, {
+      source: "browser-partner",
+      sourceUrl: body.sourceUrl || DEFAULT_PARTNER_URL,
+    });
+    board.props = uniqueEvalTargets(board.props);
+    board.supportedCount = board.props.length;
+  }
+
   return withExecutionContext(
     "background",
     async () => {
@@ -92,6 +115,7 @@ exports.handler = async (event) => {
           powerTeams,
           force,
           maxMs: 14 * 60 * 1000,
+          board,
         });
         console.log(
           "prop-lab-week-board-background:",
@@ -102,6 +126,8 @@ exports.handler = async (event) => {
             scored: result.propsScored,
             pending: result.pendingRemaining,
             cfbd: result.cfbdCallsThisRun,
+            boardSource: result.boardSource || board?.source || null,
+            boardProps: result.boardProps || board?.supportedCount || null,
             ms: result.ms,
           })
         );
