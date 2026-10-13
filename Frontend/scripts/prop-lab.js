@@ -3202,7 +3202,7 @@
     }
   }
 
-  async function fetchPrizePicksBoardForBuild(headers) {
+  async function stashPrizePicksBoardForBuild(headers) {
     // Same-origin Netlify proxy (partner-api CORS only allows app.prizepicks.com).
     const partnerUrl = "/api/prop-lab/prizepicks-projections?league_id=15";
     const partnerResp = await fetch(partnerUrl, {
@@ -3229,13 +3229,15 @@
       body: JSON.stringify({
         partnerPayload: slimPayload,
         sourceUrl: "https://partner-api.prizepicks.com/projections?league_id=15",
+        season: state.season,
+        week: state.week,
       }),
     });
     const normData = await normResp.json().catch(() => ({}));
-    if (!normResp.ok || !normData.board) {
-      throw new Error(normData.error || `Could not normalize PrizePicks board (${normResp.status})`);
+    if (!normResp.ok || !normData.scrapeHash) {
+      throw new Error(normData.error || `Could not stash PrizePicks board (${normResp.status})`);
     }
-    return normData.board;
+    return normData;
   }
 
   async function refreshWeekPicksBatch() {
@@ -3258,12 +3260,12 @@
       const token = authToken();
       if (token) headers.authorization = `Bearer ${token}`;
 
-      // Browser fetch (Netlify egress often blocked) → normalize → background score.
-      let board = null;
+      // Proxy → normalize/stash in Supabase → background scores by scrapeHash (small POST).
+      let stash = null;
       try {
-        board = await fetchPrizePicksBoardForBuild(headers);
+        stash = await stashPrizePicksBoardForBuild(headers);
         if (meta) {
-          meta.textContent = `Scoring ${board.supportedCount || board.props?.length || "?"} props from PrizePicks…`;
+          meta.textContent = `Scoring ${stash.supportedCount || "?"} props from PrizePicks…`;
         }
       } catch (boardErr) {
         console.warn("PrizePicks browser board fetch failed:", boardErr);
@@ -3280,8 +3282,7 @@
         body: JSON.stringify({
           season: state.season,
           week: state.week,
-          force: true,
-          ...(board ? { board } : {}),
+          scrapeHash: stash.scrapeHash,
         }),
       });
       // 202 = accepted (Netlify background). 200 also ok if platform runs inline in dev.

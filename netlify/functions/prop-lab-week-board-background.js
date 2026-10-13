@@ -11,12 +11,10 @@ const { loadCurrentWeek } = require("./db");
 const { requireAdmin } = require("./_auth");
 const store = require("./_lib/power/store");
 const { withExecutionContext } = require("./_lib/execution-context");
-const { runWeekBoardToCompletion } = require("./_lib/prop-lab/week-board");
 const {
-  boardFromPartnerPayload,
-  uniqueEvalTargets,
-  DEFAULT_PARTNER_URL,
-} = require("./_lib/prop-lab/data/prizepicks-mirror");
+  runWeekBoardToCompletion,
+  loadStashedBoard,
+} = require("./_lib/prop-lab/week-board");
 
 function readCfbdKey() {
   return (process.env.CFBD_API_KEY && String(process.env.CFBD_API_KEY).trim()) || "";
@@ -86,22 +84,20 @@ exports.handler = async (event) => {
   const apiKey = readCfbdKey();
   const powerTeams = await loadPowerTeams(season);
 
-  // Prefer browser-supplied full board (Netlify often cannot reach PrizePicks).
+  // Prefer stashed board handle (scrapeHash) — avoids 413 on large POST bodies.
   let board = null;
-  if (body.board && Array.isArray(body.board.props) && body.board.props.length) {
-    board = {
-      ...body.board,
-      props: uniqueEvalTargets(body.board.props),
-      source: body.board.source || "browser-partner",
-    };
-    board.supportedCount = board.props.length;
-  } else if (body.partnerPayload && Array.isArray(body.partnerPayload.data)) {
-    board = boardFromPartnerPayload(body.partnerPayload, {
-      source: "browser-partner",
-      sourceUrl: body.sourceUrl || DEFAULT_PARTNER_URL,
-    });
-    board.props = uniqueEvalTargets(board.props);
-    board.supportedCount = board.props.length;
+  const scrapeHash = body.scrapeHash ? String(body.scrapeHash) : "";
+  if (scrapeHash) {
+    board = await loadStashedBoard({ season, week, scrapeHash });
+    if (!board) {
+      return {
+        statusCode: 404,
+        body: JSON.stringify({
+          error: "Stashed board not found — normalize/stash again before scoring",
+          scrapeHash,
+        }),
+      };
+    }
   }
 
   return withExecutionContext(
@@ -113,7 +109,8 @@ exports.handler = async (event) => {
           week,
           apiKey,
           powerTeams,
-          force,
+          // Stash already created a fresh row for this scrapeHash.
+          force: board ? false : force,
           maxMs: 14 * 60 * 1000,
           board,
         });
@@ -128,6 +125,7 @@ exports.handler = async (event) => {
             cfbd: result.cfbdCallsThisRun,
             boardSource: result.boardSource || board?.source || null,
             boardProps: result.boardProps || board?.supportedCount || null,
+            scrapeHash: scrapeHash || result.scrapeHash || null,
             ms: result.ms,
           })
         );

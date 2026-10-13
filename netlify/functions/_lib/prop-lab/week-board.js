@@ -240,6 +240,98 @@ async function upsertWeekRow(row) {
   return data;
 }
 
+function slimBoardProp(p) {
+  if (!p || typeof p !== "object") return null;
+  return {
+    projectionId: p.projectionId != null ? String(p.projectionId) : "",
+    prizePicksPlayerId: p.prizePicksPlayerId || null,
+    playerName: p.playerName || null,
+    team: p.team || null,
+    teamCode: p.teamCode || null,
+    opponent: p.opponent || null,
+    opponentCode: p.opponentCode || null,
+    stat: p.stat || null,
+    statId: p.statId || null,
+    line: p.line,
+    startTimeIso: p.startTimeIso || null,
+    gameId: p.gameId || null,
+    oddsType: p.oddsType || "standard",
+    status: p.status || null,
+    rank: p.rank ?? null,
+  };
+}
+
+/**
+ * Persist a full PrizePicks board for background scoring (avoids 413 on large POSTs).
+ */
+async function stashWeekBoard({ season, week, board } = {}) {
+  if (!board || !Array.isArray(board.props) || !board.props.length) {
+    const err = new Error("board.props required");
+    err.code = "BOARD_REQUIRED";
+    throw err;
+  }
+  const seasonYear = Number(season) || new Date().getFullYear();
+  const weekNumber = Number(week);
+  if (!Number.isFinite(weekNumber)) {
+    const err = new Error("week required");
+    err.code = "WEEK_REQUIRED";
+    throw err;
+  }
+  const props = uniqueEvalTargets(board.props.map(slimBoardProp).filter(Boolean));
+  const scrapeHash =
+    board.scrapeHash ||
+    `${board.scrapedAt || new Date().toISOString()}|${board.source || "stash"}|${props.length}`;
+  const row = await upsertWeekRow({
+    season_year: seasonYear,
+    week_number: weekNumber,
+    scrape_hash: scrapeHash,
+    model_version: PROP_MODEL_VERSION,
+    status: "queued",
+    generated_at: new Date().toISOString(),
+    props_total: Number(board.totalProps) || props.length,
+    props_supported: props.length,
+    props_scored: 0,
+    cfbd_calls: 0,
+    league_snapshot_cache: null,
+    legs_json: [],
+    combos_json: {},
+    scores_json: {},
+    meta_json: {
+      scrapedAt: board.scrapedAt || null,
+      scrapedDate: board.scrapedDate || null,
+      sourceUrl: board.sourceUrl || null,
+      source: board.source || "stash",
+      boardProps: props,
+      pendingRemaining: props.length,
+    },
+  });
+  return {
+    season: seasonYear,
+    week: weekNumber,
+    scrapeHash,
+    supportedCount: props.length,
+    source: board.source || "stash",
+    row,
+  };
+}
+
+async function loadStashedBoard({ season, week, scrapeHash } = {}) {
+  const row = await loadWeekRow(Number(season), Number(week), String(scrapeHash || ""));
+  const props = row?.meta_json?.boardProps;
+  if (!Array.isArray(props) || !props.length) return null;
+  return {
+    scrapedAt: row.meta_json?.scrapedAt || row.generated_at || null,
+    scrapedDate: row.meta_json?.scrapedDate || null,
+    scrapeHash: row.scrape_hash,
+    totalProps: row.props_total,
+    supportedCount: props.length,
+    skipped: row.meta_json?.skipped || null,
+    props,
+    sourceUrl: row.meta_json?.sourceUrl || null,
+    source: row.meta_json?.source || "stash",
+  };
+}
+
 async function getLatestWeekPicks({ season, week } = {}) {
   if (!hasSupabase()) return null;
   const supabase = getSupabase();
@@ -416,6 +508,12 @@ async function runWeekBoardBatch({
       batchSize: batch.length,
       pendingRemaining: Math.max(0, pending.length - batch.length),
       leagueSnapshotFetchedAt: leagueSnap?.fetchedAt || null,
+      // Keep stashed targets so a restarted background job can resume.
+      boardProps: Array.isArray(row?.meta_json?.boardProps)
+        ? row.meta_json.boardProps
+        : Array.isArray(mirror.props)
+          ? mirror.props.map(slimBoardProp).filter(Boolean)
+          : null,
     },
   });
 
@@ -582,6 +680,8 @@ module.exports = {
   getLatestWeekPicks,
   publicWeekPicksView,
   gradedLegsFromScores,
+  stashWeekBoard,
+  loadStashedBoard,
   batchSize,
   rankSingles,
   passesFloor,
