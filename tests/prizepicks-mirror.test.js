@@ -7,6 +7,7 @@ const {
   mapPrizePicksStat,
   cleanTeamName,
   uniqueEvalTargets,
+  selectBoardProps,
 } = require(path.join(root, "prizepicks-mirror.js"));
 const { cfbdMatchupEnabled } = require(path.join(root, "provider-mode.js"));
 
@@ -16,10 +17,18 @@ describe("prizepicks mirror mapping", () => {
     assert.equal(mapPrizePicksStat("Rush Yards"), "rush_yds");
     assert.equal(mapPrizePicksStat("Receptions"), "rec");
     assert.equal(mapPrizePicksStat("Fantasy Score"), "fantasy_score");
+    assert.equal(mapPrizePicksStat("FG Made"), "fg_made");
+    assert.equal(mapPrizePicksStat("Rec TDs"), "rec_td");
+    assert.equal(mapPrizePicksStat("Rush TDs"), "rush_td");
+    assert.equal(mapPrizePicksStat("Pass+Rush Yds"), "pass_rush_yds");
+    assert.equal(mapPrizePicksStat("Rush+Rec Yds"), "rush_rec_yds");
+    assert.equal(mapPrizePicksStat("INT"), "pass_int");
+    assert.equal(mapPrizePicksStat("Interceptions"), "pass_int");
+    assert.equal(mapPrizePicksStat("PAT Made"), "xp_made");
+    assert.equal(mapPrizePicksStat("Anytime TDs"), "total_td");
   });
 
   it("skips unsupported markets", () => {
-    assert.equal(mapPrizePicksStat("Anytime TDs"), null);
     assert.equal(mapPrizePicksStat("Goblin Pass Yards"), null);
   });
 
@@ -36,6 +45,17 @@ describe("prizepicks mirror mapping", () => {
     ]);
     assert.equal(rows.length, 2);
     assert.equal(rows[0].projectionId, "3");
+  });
+
+  it("keeps demon lines when a market has no standard offering", () => {
+    const rows = selectBoardProps([
+      { statId: "rec_yds", oddsType: "standard", projectionId: "1" },
+      { statId: "rec_yds", oddsType: "demon", projectionId: "2" },
+      { statId: "rec_td", oddsType: "demon", projectionId: "3" },
+      { statId: "fg_made", oddsType: "goblin", projectionId: "4" },
+    ]);
+    const ids = rows.map((r) => r.projectionId).sort();
+    assert.deepEqual(ids, ["1", "3", "4"]);
   });
 });
 
