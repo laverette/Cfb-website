@@ -10,7 +10,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
   <link rel="stylesheet" href="styles/site-theme.css">
   <link rel="stylesheet" href="Resources/Styles/power.css">
-  <link rel="stylesheet" href="Resources/Styles/prop-lab.css?v=26">
+  <link rel="stylesheet" href="Resources/Styles/prop-lab.css?v=27">
 </head>
 <body class="power-rankings-body">
   <nav class="navbar weeklypicks-navbar site-nav">
@@ -202,8 +202,8 @@
     <section class="matchup-panel prop-week-picks" id="weekPicksSection" aria-labelledby="weekPicksTitle">
       <div class="prop-week-picks-head">
         <div>
-          <h2 id="weekPicksTitle" class="matchup-panel-title">Best of the Week</h2>
-          <p class="matchup-panel-lead" id="weekPicksLead">Model-ranked PrizePicks NCAAF lines. Admins: build the board once when you’re ready (usually Friday).</p>
+          <h2 id="weekPicksTitle" class="matchup-panel-title">Week Board</h2>
+          <p class="matchup-panel-lead" id="weekPicksLead">Model-ranked PrizePicks NCAAF lines. Browse best bets or all graded props by category.</p>
         </div>
         <div class="prop-week-picks-actions">
           <button type="button" class="btn btn-outline-light btn-sm" id="weekPicksReload">Reload</button>
@@ -211,6 +211,22 @@
         </div>
       </div>
       <p class="prop-week-picks-meta" id="weekPicksMeta" hidden></p>
+      <div class="prop-week-picks-toolbar" id="weekPicksToolbar" hidden>
+        <div class="prop-week-picks-views" role="group" aria-label="Board view">
+          <button type="button" class="prop-week-view-btn is-active" data-week-view="best" id="weekViewBest">Best bets</button>
+          <button type="button" class="prop-week-view-btn" data-week-view="all" id="weekViewAll">All graded</button>
+        </div>
+        <label class="prop-week-filter">
+          <span>Category</span>
+          <select id="weekPicksCategory" aria-label="Filter by stat category">
+            <option value="">All categories</option>
+          </select>
+        </label>
+        <label class="prop-week-filter prop-week-filter-search">
+          <span>Player</span>
+          <input type="search" id="weekPicksSearch" placeholder="Search player…" autocomplete="off" enterkeyhint="search" aria-label="Search players on the week board">
+        </label>
+      </div>
       <div id="weekPicksHost" class="prop-week-picks-host">
         <p class="prop-week-picks-idle">Loading weekly board…</p>
       </div>
@@ -235,7 +251,7 @@
 
   <script src="scripts/analytics.js"></script>
   <script src="scripts/auth-ui.js"></script>
-  <script src="scripts/prop-lab.js?v=33"></script>
+  <script src="scripts/prop-lab.js?v=34"></script>
   <script>
     function closeMenu() {
       const menu = document.getElementById('dropdownMenu');

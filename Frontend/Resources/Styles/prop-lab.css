@@ -326,6 +326,75 @@ body.power-rankings-body {
   color: var(--pr-muted);
 }
 
+.prop-week-picks-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.55rem 0.75rem;
+  margin: 0 0 0.75rem;
+}
+
+.prop-week-picks-views {
+  display: inline-flex;
+  border: 1px solid rgba(245, 222, 179, 0.2);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.prop-week-view-btn {
+  appearance: none;
+  border: 0;
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--pr-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.4rem 0.7rem;
+  cursor: pointer;
+}
+
+.prop-week-view-btn + .prop-week-view-btn {
+  border-left: 1px solid rgba(245, 222, 179, 0.16);
+}
+
+.prop-week-view-btn.is-active {
+  background: rgba(232, 197, 71, 0.22);
+  color: #f5deb3;
+}
+
+.prop-week-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 9rem;
+}
+
+.prop-week-filter span {
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--pr-muted);
+}
+
+.prop-week-filter select,
+.prop-week-filter input {
+  min-height: 2.1rem;
+  border-radius: 8px;
+  border: 1px solid rgba(245, 222, 179, 0.2);
+  background: rgba(0, 0, 0, 0.28);
+  color: #f5deb3;
+  padding: 0.35rem 0.55rem;
+  font-size: 0.85rem;
+}
+
+.prop-week-filter-search {
+  flex: 1 1 10rem;
+  min-width: 11rem;
+}
+
+.prop-week-filter input::placeholder {
+  color: rgba(245, 222, 179, 0.45);
+}
+
 .prop-week-picks-idle {
   margin: 0;
   font-size: 0.85rem;

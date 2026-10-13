@@ -62,6 +62,9 @@
     lastShareId: null,
     lastShareFingerprint: null,
     weekPicks: null,
+    weekBoardView: "best", // "best" | "all"
+    weekBoardCategory: "",
+    weekBoardSearch: "",
     /** @type {null | { shareId: string, title?: string, createdAt?: string, loading?: boolean, error?: string|null }} */
     sharedView: null,
   };
@@ -2961,49 +2964,62 @@
     }
   }
 
-  function renderWeekPicks(picks) {
-    const host = document.getElementById("weekPicksHost");
-    const meta = document.getElementById("weekPicksMeta");
-    const lead = document.getElementById("weekPicksLead");
-    const refreshBtn = document.getElementById("weekPicksRefresh");
-    if (refreshBtn) refreshBtn.hidden = !isAdminUser();
-    if (!host) return;
+  function weekBoardGradedPool(picks) {
+    if (Array.isArray(picks?.graded) && picks.graded.length) return picks.graded;
+    // Fallback for older payloads that only shipped curated legs.
+    return Array.isArray(picks?.legs) ? picks.legs : [];
+  }
 
-    if (!picks) {
-      host.innerHTML =
-        "<p class='prop-week-picks-idle'>No weekly board yet. Admins can build it from the PrizePicks mirror when ready.</p>";
-      if (meta) meta.hidden = true;
-      return;
-    }
+  function filterWeekBoardLegs(legs, { category = "", search = "" } = {}) {
+    const cat = String(category || "").trim();
+    const q = String(search || "")
+      .trim()
+      .toLowerCase();
+    return (Array.isArray(legs) ? legs : []).filter((l) => {
+      if (cat && String(l.statId || "") !== cat) return false;
+      if (!q) return true;
+      const hay = `${l.playerName || ""} ${l.team || ""}`.toLowerCase();
+      return hay.includes(q);
+    });
+  }
 
-    const legs = Array.isArray(picks.legs) ? picks.legs : [];
-    const pending = picks.meta?.pendingRemaining;
-    if (lead) {
-      lead.textContent =
-        picks.status === "complete"
-          ? `Top model edges · Week ${picks.week ?? "?"} · ${legs.length} singles`
-          : `Scoring in progress · ${picks.propsScored || 0}/${picks.propsSupported || "?"} props`;
+  function fillWeekBoardCategorySelect(picks) {
+    const sel = document.getElementById("weekPicksCategory");
+    if (!sel) return;
+    const cats = Array.isArray(picks?.categories) ? picks.categories : [];
+    const prev = state.weekBoardCategory || "";
+    const opts = [`<option value="">All categories</option>`].concat(
+      cats.map(
+        (c) =>
+          `<option value="${escapeHtml(c.id)}">${escapeHtml(c.label || c.id)} (${Number(c.count) || 0})</option>`
+      )
+    );
+    sel.innerHTML = opts.join("");
+    if (prev && cats.some((c) => c.id === prev)) sel.value = prev;
+    else {
+      sel.value = "";
+      state.weekBoardCategory = "";
     }
-    if (meta) {
-      meta.hidden = false;
-      const bits = [
-        picks.status === "complete" ? "Complete" : "Partial",
-        picks.updatedAt ? `Updated ${new Date(picks.updatedAt).toLocaleString()}` : null,
-        picks.cfbdCalls != null ? `CFBD calls ${picks.cfbdCalls}` : null,
-        picks.leagueSnapshotCache ? `League snap ${picks.leagueSnapshotCache}` : null,
-        pending != null && pending > 0 ? `${pending} left to score` : null,
-      ].filter(Boolean);
-      meta.textContent = bits.join(" · ");
-    }
+  }
 
+  function syncWeekBoardToolbar(picks) {
+    const toolbar = document.getElementById("weekPicksToolbar");
+    const search = document.getElementById("weekPicksSearch");
+    if (toolbar) toolbar.hidden = !picks;
+    document.querySelectorAll("[data-week-view]").forEach((btn) => {
+      btn.classList.toggle("is-active", btn.getAttribute("data-week-view") === state.weekBoardView);
+    });
+    if (search && search.value !== state.weekBoardSearch) {
+      search.value = state.weekBoardSearch;
+    }
+    fillWeekBoardCategorySelect(picks);
+  }
+
+  function renderWeekPickRows(legs, { showCombos = false, combos = null } = {}) {
     if (!legs.length) {
-      host.innerHTML =
-        "<p class='prop-week-picks-idle'>Board is building — ranked singles will appear as scoring finishes.</p>";
-      return;
+      return "<p class='prop-week-picks-idle'>No props match this filter.</p>";
     }
-
     const singles = legs
-      .slice(0, 20)
       .map((l, i) => {
         const side = String(l.side || "more").toUpperCase();
         const opp = l.opponent?.name ? ` vs ${l.opponent.name}` : "";
@@ -3026,39 +3042,113 @@
       })
       .join("");
 
-    const combos = picks.combos || {};
-    const comboBlock = (label, pack) => {
-      const list = pack?.keep || pack?.legs || (Array.isArray(pack) ? pack : null);
-      if (!Array.isArray(list) || !list.length) return "";
-      const lines = list
-        .slice(0, 6)
-        .map(
-          (l) =>
-            `<li>${escapeHtml(l.player?.name || l.playerName || "Player")} · ${escapeHtml(
-              String(l.side || "more").toUpperCase()
-            )} ${escapeHtml(l.stat?.label || l.statLabel || l.statId || "")} ${escapeHtml(
-              String(l.line ?? "")
-            )}</li>`
-        )
-        .join("");
-      return `<div class="prop-week-combo"><h3 class="prop-section-label">${escapeHtml(
-        label
-      )}</h3><ol>${lines}</ol></div>`;
-    };
-
-    host.innerHTML = `
-      <div class="prop-week-pick-list">${singles}</div>
-      <div class="prop-week-combos">
+    let comboHtml = "";
+    if (showCombos && combos) {
+      const comboBlock = (label, pack) => {
+        const list = pack?.keep || pack?.legs || (Array.isArray(pack) ? pack : null);
+        if (!Array.isArray(list) || !list.length) return "";
+        const lines = list
+          .slice(0, 6)
+          .map(
+            (l) =>
+              `<li>${escapeHtml(l.player?.name || l.playerName || "Player")} · ${escapeHtml(
+                String(l.side || "more").toUpperCase()
+              )} ${escapeHtml(l.stat?.label || l.statLabel || l.statId || "")} ${escapeHtml(
+                String(l.line ?? "")
+              )}</li>`
+          )
+          .join("");
+        return `<div class="prop-week-combo"><h3 class="prop-section-label">${escapeHtml(
+          label
+        )}</h3><ol>${lines}</ol></div>`;
+      };
+      comboHtml = `<div class="prop-week-combos">
         ${comboBlock("Suggested Best 2", combos.best2)}
         ${comboBlock("Suggested Best 3", combos.best3)}
         ${comboBlock("Suggested Best 4", combos.best4)}
-      </div>
-    `;
+      </div>`;
+    }
+
+    return `<div class="prop-week-pick-list">${singles}</div>${comboHtml}`;
+  }
+
+  function renderWeekPicks(picks) {
+    const host = document.getElementById("weekPicksHost");
+    const meta = document.getElementById("weekPicksMeta");
+    const lead = document.getElementById("weekPicksLead");
+    const refreshBtn = document.getElementById("weekPicksRefresh");
+    if (refreshBtn) refreshBtn.hidden = !isAdminUser();
+    if (!host) return;
+
+    if (!picks) {
+      host.innerHTML =
+        "<p class='prop-week-picks-idle'>No weekly board yet. Admins can build it from the PrizePicks mirror when ready.</p>";
+      if (meta) meta.hidden = true;
+      const toolbar = document.getElementById("weekPicksToolbar");
+      if (toolbar) toolbar.hidden = true;
+      return;
+    }
+
+    syncWeekBoardToolbar(picks);
+
+    const bestLegs = Array.isArray(picks.legs) ? picks.legs : [];
+    const graded = weekBoardGradedPool(picks);
+    const pending = picks.meta?.pendingRemaining;
+    const filtered = filterWeekBoardLegs(graded, {
+      category: state.weekBoardCategory,
+      search: state.weekBoardSearch,
+    });
+    const hasFilter =
+      Boolean(state.weekBoardCategory) || Boolean(String(state.weekBoardSearch || "").trim());
+    const viewingAll = state.weekBoardView === "all" || hasFilter;
+    // Category/search → full filtered set. Unfiltered "all" caps for DOM size.
+    const ALL_VIEW_CAP = 150;
+    const displayLegs = viewingAll
+      ? hasFilter
+        ? filtered
+        : filtered.slice(0, ALL_VIEW_CAP)
+      : bestLegs.slice(0, 20);
+    const truncatedAll = viewingAll && !hasFilter && filtered.length > ALL_VIEW_CAP;
+
+    if (lead) {
+      if (picks.status !== "complete") {
+        lead.textContent = `Scoring in progress · ${picks.propsScored || 0}/${picks.propsSupported || "?"} props`;
+      } else if (viewingAll) {
+        lead.textContent = truncatedAll
+          ? `All graded · Week ${picks.week ?? "?"} · top ${ALL_VIEW_CAP} of ${filtered.length} (pick a category or search for the rest)`
+          : `All graded · Week ${picks.week ?? "?"} · ${filtered.length} of ${graded.length} props (by grade)`;
+      } else {
+        lead.textContent = `Best bets · Week ${picks.week ?? "?"} · ${bestLegs.length} singles`;
+      }
+    }
+    if (meta) {
+      meta.hidden = false;
+      const bits = [
+        picks.status === "complete" ? "Complete" : "Partial",
+        picks.updatedAt ? `Updated ${new Date(picks.updatedAt).toLocaleString()}` : null,
+        graded.length ? `${graded.length} graded` : null,
+        picks.cfbdCalls != null ? `CFBD calls ${picks.cfbdCalls}` : null,
+        picks.leagueSnapshotCache ? `League snap ${picks.leagueSnapshotCache}` : null,
+        pending != null && pending > 0 ? `${pending} left to score` : null,
+      ].filter(Boolean);
+      meta.textContent = bits.join(" · ");
+    }
+
+    if (!bestLegs.length && !graded.length) {
+      host.innerHTML =
+        "<p class='prop-week-picks-idle'>Board is building — ranked singles will appear as scoring finishes.</p>";
+      return;
+    }
+
+    host.innerHTML = renderWeekPickRows(displayLegs, {
+      showCombos: !viewingAll,
+      combos: picks.combos || {},
+    });
 
     host.querySelectorAll("[data-add-week-pick]").forEach((btn) => {
       btn.addEventListener("click", () => {
         const idx = Number(btn.getAttribute("data-add-week-pick"));
-        const leg = legs[idx];
+        const leg = displayLegs[idx];
         if (!leg) return;
         addWeekPickToBuilder(leg);
       });
@@ -3218,6 +3308,27 @@
     });
     document.getElementById("weekPicksReload")?.addEventListener("click", () => loadWeekPicks());
     document.getElementById("weekPicksRefresh")?.addEventListener("click", () => refreshWeekPicksBatch());
+    document.querySelectorAll("[data-week-view]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        state.weekBoardView = btn.getAttribute("data-week-view") === "all" ? "all" : "best";
+        renderWeekPicks(state.weekPicks);
+      });
+    });
+    document.getElementById("weekPicksCategory")?.addEventListener("change", (e) => {
+      state.weekBoardCategory = String(e.target.value || "");
+      if (state.weekBoardCategory) state.weekBoardView = "all";
+      renderWeekPicks(state.weekPicks);
+    });
+    let weekSearchTimer = null;
+    document.getElementById("weekPicksSearch")?.addEventListener("input", (e) => {
+      clearTimeout(weekSearchTimer);
+      const value = String(e.target.value || "");
+      weekSearchTimer = setTimeout(() => {
+        state.weekBoardSearch = value;
+        if (String(value).trim()) state.weekBoardView = "all";
+        renderWeekPicks(state.weekPicks);
+      }, 120);
+    });
     document.getElementById("payoutOdds")?.addEventListener("input", (e) => {
       state.payoutOdds = e.target.value;
       clearTimeout(state.payoutTimer);

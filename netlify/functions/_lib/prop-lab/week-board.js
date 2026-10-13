@@ -434,8 +434,69 @@ async function runWeekBoardBatch({
   };
 }
 
+/**
+ * Public list of every successfully graded prop (best side), sorted by grade.
+ * Strips bothSides / bulky fields so the week-picks payload stays browseable.
+ */
+function gradedLegsFromScores(scoresJson) {
+  const scores =
+    scoresJson && typeof scoresJson === "object" && !Array.isArray(scoresJson)
+      ? Object.values(scoresJson)
+      : [];
+  const legs = [];
+  for (const raw of scores) {
+    if (!raw || raw.error || raw.propScore == null) continue;
+    legs.push({
+      projectionId: raw.projectionId || null,
+      playerId: raw.playerId || null,
+      playerName: raw.playerName || null,
+      team: raw.team || null,
+      position: raw.position || null,
+      opponent: raw.opponent || null,
+      statId: raw.statId || null,
+      statLabel: raw.statLabel || raw.statId || null,
+      line: raw.line ?? null,
+      side: raw.side || null,
+      projection: raw.projection ?? null,
+      pHit: raw.pHit ?? null,
+      propScore: raw.propScore ?? null,
+      propScoreLabel: raw.propScoreLabel || null,
+      confidence: raw.confidence || null,
+      form: raw.form || null,
+      matchup: raw.matchup || null,
+      edge: raw.edge ?? null,
+    });
+  }
+  legs.sort((a, b) => {
+    const ds = (b.propScore || 0) - (a.propScore || 0);
+    if (ds) return ds;
+    return (b.pHit || 0) - (a.pHit || 0);
+  });
+  return legs;
+}
+
+function categoriesFromGraded(graded) {
+  const byId = new Map();
+  for (const leg of graded) {
+    const id = String(leg.statId || "").trim();
+    if (!id) continue;
+    if (!byId.has(id)) {
+      byId.set(id, {
+        id,
+        label: leg.statLabel || id,
+        count: 0,
+      });
+    }
+    byId.get(id).count += 1;
+  }
+  return [...byId.values()].sort(
+    (a, b) => b.count - a.count || String(a.label).localeCompare(String(b.label))
+  );
+}
+
 function publicWeekPicksView(row) {
   if (!row) return null;
+  const graded = gradedLegsFromScores(row.scores_json);
   return {
     season: row.season_year,
     week: row.week_number,
@@ -450,6 +511,8 @@ function publicWeekPicksView(row) {
     cfbdCalls: row.cfbd_calls,
     leagueSnapshotCache: row.league_snapshot_cache,
     legs: row.legs_json || [],
+    graded,
+    categories: categoriesFromGraded(graded),
     combos: row.combos_json || {},
     meta: row.meta_json || {},
   };
@@ -504,6 +567,7 @@ module.exports = {
   runWeekBoardToCompletion,
   getLatestWeekPicks,
   publicWeekPicksView,
+  gradedLegsFromScores,
   batchSize,
   rankSingles,
   passesFloor,
