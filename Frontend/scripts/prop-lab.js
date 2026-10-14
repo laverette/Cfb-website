@@ -3215,29 +3215,66 @@
     if (!Array.isArray(partnerPayload?.data)) {
       throw new Error("PrizePicks proxy returned an unexpected payload");
     }
-    // Drop bulky unused includes before POSTing to Netlify (payload ~4MB raw).
-    const keepTypes = new Set(["stat_type", "new_player", "game", "team"]);
-    const slimPayload = {
-      data: partnerPayload.data,
-      included: Array.isArray(partnerPayload.included)
-        ? partnerPayload.included.filter((row) => keepTypes.has(row?.type))
-        : [],
-    };
-    const normResp = await fetch("/.netlify/functions/prop-lab-prizepicks-normalize", {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        partnerPayload: slimPayload,
-        sourceUrl: "https://partner-api.prizepicks.com/projections?league_id=15",
-        season: state.season,
-        week: state.week,
-      }),
-    });
-    const normData = await normResp.json().catch(() => ({}));
-    if (!normResp.ok || !normData.scrapeHash) {
-      throw new Error(normData.error || `Could not stash PrizePicks board (${normResp.status})`);
+    // Parse in-browser — never POST the multi-MB partner JSON to Netlify (413).
+    const parse = window.PrizePicksBoard;
+    if (!parse?.boardFromPartnerPayload) {
+      throw new Error("PrizePicks board parser failed to load — hard-refresh and retry");
     }
-    return normData;
+    const board = parse.boardFromPartnerPayload(partnerPayload, {
+      source: "browser-partner",
+      sourceUrl: "https://partner-api.prizepicks.com/projections?league_id=15",
+    });
+    if (!board.props?.length) {
+      throw new Error("PrizePicks board had no supported props");
+    }
+
+    // Chunk slim props so each POST stays well under Netlify body limits.
+    const CHUNK = 40;
+    const props = board.props;
+    const chunkCount = Math.max(1, Math.ceil(props.length / CHUNK));
+    let last = null;
+    for (let i = 0; i < chunkCount; i++) {
+      const slice = props.slice(i * CHUNK, (i + 1) * CHUNK);
+      const normResp = await fetch("/.netlify/functions/prop-lab-prizepicks-normalize", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          props: slice,
+          scrapeHash: board.scrapeHash,
+          chunkIndex: i,
+          chunkCount,
+          totalProps: board.totalProps,
+          scrapedAt: board.scrapedAt,
+          scrapedDate: board.scrapedDate,
+          source: board.source,
+          sourceUrl: board.sourceUrl,
+          skipped: i === 0 ? board.skipped : undefined,
+          season: state.season,
+          week: state.week,
+        }),
+      });
+      const normData = await normResp.json().catch(() => ({}));
+      if (!normResp.ok || !normData.scrapeHash) {
+        throw new Error(
+          normData.error || `Could not stash PrizePicks board (${normResp.status})`
+        );
+      }
+      last = normData;
+      const meta = document.getElementById("weekPicksMeta");
+      if (meta) {
+        meta.textContent = `Stashing board ${i + 1}/${chunkCount}…`;
+      }
+    }
+    if (!last?.complete && chunkCount > 1) {
+      throw new Error("Board stash did not finish — try again");
+    }
+    return {
+      scrapeHash: last.scrapeHash,
+      supportedCount: last.supportedCount || props.length,
+      source: last.source || board.source,
+      season: last.season,
+      week: last.week,
+    };
   }
 
   async function refreshWeekPicksBatch() {

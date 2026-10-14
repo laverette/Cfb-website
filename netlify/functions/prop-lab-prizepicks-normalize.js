@@ -1,12 +1,17 @@
 /**
- * Admin: normalize a browser-fetched PrizePicks partner-api payload and stash
- * it in Supabase for the background scorer (avoids 413 on large POSTs).
+ * Admin: stash a browser-normalized PrizePicks board for background scoring.
  *
+ * Preferred (avoids 413): chunked slim props
  * POST {
- *   partnerPayload: { data, included },
+ *   props: [...],
+ *   scrapeHash, chunkIndex, chunkCount,
  *   season, week,
- *   sourceUrl?
+ *   totalProps?, scrapedAt?, scrapedDate?, source?, sourceUrl?, skipped?
  * }
+ *
+ * Legacy (may 413 on full partner JSON):
+ * POST { partnerPayload: { data, included }, season, week, sourceUrl? }
+ *
  * Auth: admin Bearer
  */
 const { json, parseJsonBody } = require("./_http");
@@ -17,7 +22,10 @@ const {
   uniqueEvalTargets,
   DEFAULT_PARTNER_URL,
 } = require("./_lib/prop-lab/data/prizepicks-mirror");
-const { stashWeekBoard } = require("./_lib/prop-lab/week-board");
+const {
+  stashWeekBoard,
+  stashWeekBoardChunk,
+} = require("./_lib/prop-lab/week-board");
 
 async function resolveSeasonWeek(body) {
   let season = Number(body.season);
@@ -44,19 +52,53 @@ exports.handler = async (event) => {
   if (admin) return admin;
 
   const body = parseJsonBody(event) || {};
-  const payload = body.partnerPayload || body.payload || null;
-  if (!payload || !Array.isArray(payload.data)) {
-    return json(400, {
-      error: "partnerPayload with JSON:API data[] is required",
-    });
-  }
-
   const { season, week } = await resolveSeasonWeek(body);
   if (!Number.isFinite(week)) {
     return json(400, { error: "week required" });
   }
 
   try {
+    // Chunked slim props from browser parse (keeps each POST tiny).
+    if (Array.isArray(body.props) && body.scrapeHash) {
+      const chunkCount = Math.max(1, Number(body.chunkCount) || 1);
+      const chunkIndex = Math.max(0, Number(body.chunkIndex) || 0);
+      const result = await stashWeekBoardChunk({
+        season,
+        week,
+        scrapeHash: String(body.scrapeHash),
+        props: body.props,
+        chunkIndex,
+        chunkCount,
+        boardMeta: {
+          totalProps: body.totalProps,
+          scrapedAt: body.scrapedAt,
+          scrapedDate: body.scrapedDate,
+          source: body.source || "browser-partner",
+          sourceUrl: body.sourceUrl || DEFAULT_PARTNER_URL,
+          skipped: body.skipped || null,
+        },
+      });
+      return json(200, {
+        ok: true,
+        season: result.season,
+        week: result.week,
+        scrapeHash: result.scrapeHash,
+        supportedCount: result.supportedCount,
+        complete: result.complete,
+        chunkIndex: result.chunkIndex,
+        chunkCount: result.chunkCount,
+        source: result.source,
+      });
+    }
+
+    // Legacy: full partner payload (may hit Netlify 413).
+    const payload = body.partnerPayload || body.payload || null;
+    if (!payload || !Array.isArray(payload.data)) {
+      return json(400, {
+        error: "props+scrapeHash (chunked) or partnerPayload.data[] required",
+      });
+    }
+
     const board = boardFromPartnerPayload(payload, {
       source: "browser-partner",
       sourceUrl: body.sourceUrl || DEFAULT_PARTNER_URL,
@@ -71,8 +113,8 @@ exports.handler = async (event) => {
       week: stashed.week,
       scrapeHash: stashed.scrapeHash,
       supportedCount: stashed.supportedCount,
+      complete: true,
       source: stashed.source,
-      // Do not echo full props — client only needs the job handle.
     });
   } catch (err) {
     console.error("prop-lab-prizepicks-normalize:", err);

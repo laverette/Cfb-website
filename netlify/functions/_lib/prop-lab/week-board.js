@@ -315,6 +315,97 @@ async function stashWeekBoard({ season, week, board } = {}) {
   };
 }
 
+/**
+ * Append a chunk of already-normalized slim props (client parses partner JSON).
+ * Final chunk runs uniqueEvalTargets and marks the board ready for scoring.
+ */
+async function stashWeekBoardChunk({
+  season,
+  week,
+  scrapeHash,
+  props: chunkProps,
+  chunkIndex = 0,
+  chunkCount = 1,
+  boardMeta = {},
+} = {}) {
+  const seasonYear = Number(season) || new Date().getFullYear();
+  const weekNumber = Number(week);
+  if (!Number.isFinite(weekNumber)) {
+    const err = new Error("week required");
+    err.code = "WEEK_REQUIRED";
+    throw err;
+  }
+  const hash = String(scrapeHash || "").trim();
+  if (!hash) {
+    const err = new Error("scrapeHash required");
+    err.code = "HASH_REQUIRED";
+    throw err;
+  }
+  const incoming = (Array.isArray(chunkProps) ? chunkProps : [])
+    .map(slimBoardProp)
+    .filter(Boolean);
+  const idx = Math.max(0, Number(chunkIndex) || 0);
+  const total = Math.max(1, Number(chunkCount) || 1);
+  const isFirst = idx === 0;
+  const isLast = idx >= total - 1;
+
+  let existing = [];
+  if (!isFirst) {
+    const prev = await loadWeekRow(seasonYear, weekNumber, hash);
+    if (!prev) {
+      const err = new Error("stash chunk missing base row — restart board build");
+      err.code = "CHUNK_ORDER";
+      throw err;
+    }
+    existing = Array.isArray(prev.meta_json?.boardProps) ? prev.meta_json.boardProps : [];
+  }
+
+  let merged = existing.concat(incoming);
+  if (isLast) {
+    merged = uniqueEvalTargets(merged);
+  }
+
+  const source = boardMeta.source || "browser-partner";
+  const row = await upsertWeekRow({
+    season_year: seasonYear,
+    week_number: weekNumber,
+    scrape_hash: hash,
+    model_version: PROP_MODEL_VERSION,
+    status: isLast ? "queued" : "stashing",
+    generated_at: boardMeta.scrapedAt || new Date().toISOString(),
+    props_total: Number(boardMeta.totalProps) || merged.length,
+    props_supported: isLast ? merged.length : 0,
+    props_scored: 0,
+    cfbd_calls: 0,
+    league_snapshot_cache: null,
+    legs_json: [],
+    combos_json: {},
+    scores_json: {},
+    meta_json: {
+      scrapedAt: boardMeta.scrapedAt || null,
+      scrapedDate: boardMeta.scrapedDate || null,
+      sourceUrl: boardMeta.sourceUrl || null,
+      source,
+      skipped: boardMeta.skipped || null,
+      boardProps: merged,
+      pendingRemaining: isLast ? merged.length : null,
+      stashChunk: { index: idx, count: total, complete: isLast },
+    },
+  });
+
+  return {
+    season: seasonYear,
+    week: weekNumber,
+    scrapeHash: hash,
+    supportedCount: isLast ? merged.length : merged.length,
+    complete: isLast,
+    chunkIndex: idx,
+    chunkCount: total,
+    source,
+    row,
+  };
+}
+
 async function loadStashedBoard({ season, week, scrapeHash } = {}) {
   const row = await loadWeekRow(Number(season), Number(week), String(scrapeHash || ""));
   const props = row?.meta_json?.boardProps;
@@ -681,6 +772,7 @@ module.exports = {
   publicWeekPicksView,
   gradedLegsFromScores,
   stashWeekBoard,
+  stashWeekBoardChunk,
   loadStashedBoard,
   batchSize,
   rankSingles,
