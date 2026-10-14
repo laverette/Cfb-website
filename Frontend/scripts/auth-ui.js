@@ -562,6 +562,8 @@
     wireAvatarPicker: wireAvatarPicker,
     parseAvatarId: parseAvatarId,
     AVATAR_COUNT: AVATAR_COUNT,
+    isAmbientAudioOptedOut: isAmbientAudioOptedOut,
+    setAmbientAudioOptOut: setAmbientAudioOptOut,
   };
 
   function ensureAnalyticsLoaded() {
@@ -935,9 +937,64 @@
     sync();
   }
 
+  var AMBIENT_OPT_OUT_KEY = "siteAmbientAudioOptOut";
+  var AMBIENT_TIME_KEY = "siteAmbientAudioTime";
+
+  function isAmbientAudioOptedOut() {
+    try {
+      return localStorage.getItem(AMBIENT_OPT_OUT_KEY) === "1";
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function setAmbientAudioOptOut(optOut) {
+    try {
+      if (optOut) localStorage.setItem(AMBIENT_OPT_OUT_KEY, "1");
+      else localStorage.removeItem(AMBIENT_OPT_OUT_KEY);
+    } catch (e) {
+      /* ignore */
+    }
+    var audio = document.getElementById("siteAudioEl");
+    if (!audio) return;
+    if (optOut) {
+      try {
+        localStorage.setItem(AMBIENT_TIME_KEY, String(audio.currentTime || 0));
+      } catch (e2) {
+        /* ignore */
+      }
+      audio.pause();
+    } else {
+      audio.muted = false;
+      tryStartAmbientAudio(audio);
+    }
+  }
+
+  function tryStartAmbientAudio(audio) {
+    if (!audio || isAmbientAudioOptedOut()) return;
+    audio.muted = false;
+    var p = audio.play();
+    if (p && typeof p.catch === "function") {
+      p.catch(function () {
+        // Browsers often block unmuted autoplay until a gesture — unlock once.
+        function unlock() {
+          if (isAmbientAudioOptedOut()) return;
+          audio.muted = false;
+          audio.play().catch(function () {});
+          document.removeEventListener("pointerdown", unlock, true);
+          document.removeEventListener("keydown", unlock, true);
+          document.removeEventListener("touchstart", unlock, true);
+        }
+        document.addEventListener("pointerdown", unlock, true);
+        document.addEventListener("keydown", unlock, true);
+        document.addEventListener("touchstart", unlock, true);
+      });
+    }
+  }
+
   /**
-   * Site-wide ambient audio. Multi-page navigations remount audio, so we persist
-   * time/play preference in localStorage and resume on each page.
+   * Hidden site-wide ambient audio. Auto ON by default; no dock controls.
+   * Opt-out lives on the user profile (synced via /api/auth/settings).
    * Drop a file at Resources/Audio/site-ambient.mp3 (or set window.SITE_AUDIO_SRC).
    */
   function mountSiteAudio() {
@@ -952,142 +1009,88 @@
       return;
     }
 
-    var STORAGE_KEY = "siteAudioPrefs";
     var DEFAULT_SRC = "Resources/Audio/site-ambient.mp3";
     var src =
       (typeof window.SITE_AUDIO_SRC === "string" && window.SITE_AUDIO_SRC.trim()) ||
       DEFAULT_SRC;
 
-    function readPrefs() {
-      try {
-        var raw = localStorage.getItem(STORAGE_KEY);
-        if (!raw) return { wantPlay: false, muted: false, volume: 0.35, t: 0 };
-        var p = JSON.parse(raw);
-        return {
-          wantPlay: Boolean(p.wantPlay),
-          muted: Boolean(p.muted),
-          volume: Math.min(1, Math.max(0, Number(p.volume) || 0.35)),
-          t: Math.max(0, Number(p.t) || 0),
-        };
-      } catch (e) {
-        return { wantPlay: false, muted: false, volume: 0.35, t: 0 };
-      }
-    }
-
-    function writePrefs(partial) {
-      var next = Object.assign(readPrefs(), partial || {}, { at: Date.now() });
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      } catch (e) {
-        /* ignore */
-      }
-      return next;
-    }
-
-    var prefs = readPrefs();
     var root = document.createElement("div");
     root.id = "siteAudioRoot";
-    root.className = "site-audio-root";
+    root.className = "site-audio-root site-audio-root--hidden";
+    root.setAttribute("aria-hidden", "true");
     root.innerHTML =
-      '<div class="site-audio-dock" role="group" aria-label="Site music">' +
-      '<button type="button" class="site-audio-btn" id="siteAudioToggle" aria-pressed="false" title="Play music">▶</button>' +
-      '<button type="button" class="site-audio-btn" id="siteAudioMute" aria-pressed="false" title="Mute">🔊</button>' +
-      "</div>" +
-      '<audio id="siteAudioEl" preload="metadata" loop playsinline></audio>';
+      '<audio id="siteAudioEl" preload="auto" loop playsinline></audio>';
     document.body.appendChild(root);
 
     var audio = document.getElementById("siteAudioEl");
-    var toggleBtn = document.getElementById("siteAudioToggle");
-    var muteBtn = document.getElementById("siteAudioMute");
-    if (!audio || !toggleBtn || !muteBtn) return;
-
+    if (!audio) return;
     audio.src = src;
-    audio.volume = prefs.volume;
-    audio.muted = prefs.muted;
-
-    function paint() {
-      var playing = !audio.paused && !audio.ended;
-      toggleBtn.textContent = playing ? "❚❚" : "▶";
-      toggleBtn.setAttribute("aria-pressed", playing ? "true" : "false");
-      toggleBtn.title = playing ? "Pause music" : "Play music";
-      muteBtn.textContent = audio.muted || audio.volume === 0 ? "🔇" : "🔊";
-      muteBtn.setAttribute("aria-pressed", audio.muted ? "true" : "false");
-      muteBtn.title = audio.muted ? "Unmute" : "Mute";
-      root.classList.toggle("is-playing", playing);
-    }
-
-    function persistTime() {
-      if (!audio.currentTime || !Number.isFinite(audio.currentTime)) return;
-      writePrefs({ t: audio.currentTime, wantPlay: !audio.paused, muted: audio.muted, volume: audio.volume });
-    }
-
-    function tryPlay() {
-      var p = audio.play();
-      if (p && typeof p.then === "function") {
-        p.then(function () {
-          writePrefs({ wantPlay: true });
-          paint();
-        }).catch(function () {
-          writePrefs({ wantPlay: false });
-          paint();
-        });
-      } else {
-        paint();
-      }
-    }
+    audio.volume = 0.4;
+    audio.muted = false;
 
     function seekResume() {
-      var t = readPrefs().t;
+      var t = 0;
+      try {
+        t = Math.max(0, Number(localStorage.getItem(AMBIENT_TIME_KEY)) || 0);
+      } catch (e) {
+        t = 0;
+      }
       if (t > 0.5 && Number.isFinite(audio.duration) && audio.duration > 1) {
         try {
           audio.currentTime = Math.min(t, Math.max(0, audio.duration - 0.25));
-        } catch (e) {
+        } catch (e2) {
           /* ignore */
         }
       }
     }
 
+    function persistTime() {
+      if (!audio.currentTime || !Number.isFinite(audio.currentTime)) return;
+      try {
+        localStorage.setItem(AMBIENT_TIME_KEY, String(audio.currentTime));
+      } catch (e) {
+        /* ignore */
+      }
+    }
+
     audio.addEventListener("loadedmetadata", function () {
       seekResume();
-      if (readPrefs().wantPlay) tryPlay();
-      paint();
+      if (!isAmbientAudioOptedOut()) tryStartAmbientAudio(audio);
     });
-    audio.addEventListener("play", paint);
-    audio.addEventListener("pause", paint);
-    audio.addEventListener("volumechange", paint);
     audio.addEventListener("timeupdate", function () {
       if (Math.floor(audio.currentTime) % 3 === 0) persistTime();
     });
-
-    toggleBtn.addEventListener("click", function () {
-      if (audio.paused) tryPlay();
-      else {
-        audio.pause();
-        writePrefs({ wantPlay: false, t: audio.currentTime });
-        paint();
-      }
-    });
-    muteBtn.addEventListener("click", function () {
-      audio.muted = !audio.muted;
-      writePrefs({ muted: audio.muted, t: audio.currentTime, wantPlay: !audio.paused });
-      paint();
-    });
-
-    function flush() {
-      persistTime();
-    }
-    window.addEventListener("pagehide", flush);
-    window.addEventListener("beforeunload", flush);
+    window.addEventListener("pagehide", persistTime);
+    window.addEventListener("beforeunload", persistTime);
     document.addEventListener("visibilitychange", function () {
-      if (document.visibilityState === "hidden") flush();
+      if (document.visibilityState === "hidden") persistTime();
     });
 
-    // If metadata already cached, kick resume.
+    // Sync opt-out from account settings when logged in.
+    var token = localStorage.getItem(STORAGE_TOKEN);
+    if (token) {
+      fetch("/api/auth/settings", {
+        headers: { Authorization: "Bearer " + token, accept: "application/json" },
+      })
+        .then(function (res) {
+          return res.ok ? res.json() : null;
+        })
+        .then(function (data) {
+          if (!data || !data.settings) return;
+          var enabled =
+            data.settings.ambientAudioEnabled == null
+              ? true
+              : Boolean(data.settings.ambientAudioEnabled);
+          setAmbientAudioOptOut(!enabled);
+          if (enabled && audio.readyState >= 1) tryStartAmbientAudio(audio);
+        })
+        .catch(function () {});
+    }
+
     if (audio.readyState >= 1) {
       seekResume();
-      if (prefs.wantPlay) tryPlay();
+      if (!isAmbientAudioOptedOut()) tryStartAmbientAudio(audio);
     }
-    paint();
   }
 
   function onReady() {

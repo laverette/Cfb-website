@@ -11,12 +11,16 @@ function mapSettings(row) {
       emailNotifications: false,
       notificationsEnabled: true,
       theme: "dark",
+      ambientAudioEnabled: true,
     };
   }
   return {
     emailNotifications: Boolean(row.email_notifications),
     notificationsEnabled: Boolean(row.notifications_enabled),
     theme: row.theme || "dark",
+    // Default ON when column/null missing (new installs / older rows).
+    ambientAudioEnabled:
+      row.ambient_audio_enabled == null ? true : Boolean(row.ambient_audio_enabled),
   };
 }
 
@@ -54,6 +58,9 @@ exports.handler = async (event) => {
     }
     if (body.theme !== undefined) {
       patch.theme = String(body.theme || "").trim();
+    }
+    if (body.ambientAudioEnabled !== undefined) {
+      patch.ambientAudioEnabled = Boolean(body.ambientAudioEnabled);
     }
 
     if (!Object.keys(patch).length) {

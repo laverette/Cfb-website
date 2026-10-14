@@ -252,7 +252,9 @@ async function findUserSettings(userId) {
   const supabase = getSupabase();
   const { data, error } = await supabase
     .from("user_settings")
-    .select("id, user_id, email_notifications, theme, notifications_enabled")
+    .select(
+      "id, user_id, email_notifications, theme, notifications_enabled, ambient_audio_enabled"
+    )
     .eq("user_id", userId)
     .maybeSingle();
   dbError(error);
@@ -271,6 +273,9 @@ async function updateUserSettings(userId, patch = {}) {
   if (patch.theme !== undefined && String(patch.theme).trim()) {
     updates.theme = String(patch.theme).trim();
   }
+  if (patch.ambientAudioEnabled !== undefined) {
+    updates.ambient_audio_enabled = Boolean(patch.ambientAudioEnabled);
+  }
   if (!Object.keys(updates).length) {
     return findUserSettings(userId);
   }
@@ -279,7 +284,9 @@ async function updateUserSettings(userId, patch = {}) {
     .from("user_settings")
     .update(updates)
     .eq("user_id", userId)
-    .select("id, user_id, email_notifications, theme, notifications_enabled")
+    .select(
+      "id, user_id, email_notifications, theme, notifications_enabled, ambient_audio_enabled"
+    )
     .maybeSingle();
   dbError(error);
   return data || null;
@@ -344,6 +351,7 @@ async function registerUser({
     email_notifications: Boolean(emailNotifications),
     theme: "dark",
     notifications_enabled: true,
+    ambient_audio_enabled: true,
   });
   return created;
 }

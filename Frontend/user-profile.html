@@ -311,6 +311,18 @@
             </label>
             <p id="reminderSettingsStatus" style="text-align:center;margin:0.75rem 0 0;font-size:0.85rem;color:#bfa88a;min-height:1.2em;"></p>
           </section>
+
+          <section class="section-card" id="audioSettingsSection">
+            <h2 class="gold-heading" style="text-align:center;margin-bottom:0.75rem;">Site music</h2>
+            <p style="text-align:center;color:#d4b896;margin:0 0 1rem;font-size:0.92rem;">
+              Background music plays automatically site-wide. Turn it off here if you’d rather browse quietly.
+            </p>
+            <label style="display:flex;align-items:center;justify-content:center;gap:0.65rem;cursor:pointer;">
+              <input type="checkbox" id="ambientAudioToggle" checked>
+              <span>Play site music</span>
+            </label>
+            <p id="audioSettingsStatus" style="text-align:center;margin:0.75rem 0 0;font-size:0.85rem;color:#bfa88a;min-height:1.2em;"></p>
+          </section>
           ` : ''}
 
           <section class="section-card">
@@ -452,6 +464,7 @@
           wireAvatarSettings(user);
           wireAccountSettings(user);
           wireReminderSettings();
+          wireAmbientAudioSettings();
         }
         wireProfileAvatarLightbox(user);
       } catch (err) {
@@ -840,6 +853,66 @@
             status.textContent = toggle.checked
               ? 'Pick reminders enabled.'
               : 'Pick reminders turned off.';
+          }
+        } catch (err) {
+          toggle.checked = !toggle.checked;
+          if (status) status.textContent = err.message || 'Could not save settings.';
+        } finally {
+          toggle.disabled = false;
+        }
+      });
+    }
+
+    async function wireAmbientAudioSettings() {
+      const toggle = document.getElementById('ambientAudioToggle');
+      const status = document.getElementById('audioSettingsStatus');
+      if (!toggle) return;
+
+      const token = window.AuthUI && AuthUI.getAuthToken && AuthUI.getAuthToken();
+      if (!token) {
+        if (status) status.textContent = 'Log in to manage site music.';
+        toggle.disabled = true;
+        return;
+      }
+
+      try {
+        const resp = await fetch('/api/auth/settings', {
+          headers: { ...authHeaders(), accept: 'application/json' },
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok) throw new Error(data.error || data.message || `Failed (${resp.status})`);
+        const enabled =
+          !data.settings || data.settings.ambientAudioEnabled == null
+            ? true
+            : !!data.settings.ambientAudioEnabled;
+        toggle.checked = enabled;
+        if (window.AuthUI && AuthUI.setAmbientAudioOptOut) {
+          AuthUI.setAmbientAudioOptOut(!enabled);
+        }
+      } catch (err) {
+        if (status) status.textContent = 'Could not load music settings.';
+        toggle.disabled = true;
+        return;
+      }
+
+      toggle.addEventListener('change', async function () {
+        if (status) status.textContent = 'Saving…';
+        toggle.disabled = true;
+        try {
+          const resp = await fetch('/api/auth/settings', {
+            method: 'PATCH',
+            headers: { ...authHeaders(), accept: 'application/json' },
+            body: JSON.stringify({ ambientAudioEnabled: toggle.checked }),
+          });
+          const data = await resp.json().catch(() => ({}));
+          if (!resp.ok) throw new Error(data.error || data.message || `Failed (${resp.status})`);
+          if (window.AuthUI && AuthUI.setAmbientAudioOptOut) {
+            AuthUI.setAmbientAudioOptOut(!toggle.checked);
+          }
+          if (status) {
+            status.textContent = toggle.checked
+              ? 'Site music enabled.'
+              : 'Site music turned off for your account.';
           }
         } catch (err) {
           toggle.checked = !toggle.checked;
