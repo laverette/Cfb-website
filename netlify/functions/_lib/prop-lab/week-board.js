@@ -3,6 +3,7 @@
  */
 const { getSupabase, hasSupabase } = require("../../db");
 const { PROP_MODEL_VERSION } = require("./version");
+const { allowsLessSide } = require("./definitions");
 const { loadPlayerBundle } = require("./bundle");
 const { evaluateFromBundle } = require("./evaluate");
 const { bestN } = require("./entry");
@@ -143,6 +144,10 @@ function passesFloor(leg) {
 function rankSingles(legs) {
   return legs
     .filter(passesFloor)
+    .filter(
+      (l) =>
+        String(l.side || "").toLowerCase() !== "less" || allowsLessSide(l.statId)
+    )
     .slice()
     .sort((a, b) => {
       const ds = (b.propScore || 0) - (a.propScore || 0);
@@ -534,11 +539,27 @@ async function runWeekBoardBatch({
         signal,
         includeDebug: false,
       };
-      const [moreEval, lessEval] = await Promise.all([
-        evaluateProp({ ...base, statId: prop.statId, line: prop.line, side: "more" }),
-        evaluateProp({ ...base, statId: prop.statId, line: prop.line, side: "less" }),
-      ]);
+      const moreEval = await evaluateProp({
+        ...base,
+        statId: prop.statId,
+        line: prop.line,
+        side: "more",
+      });
       const moreLeg = slimLeg(moreEval, prop, "more");
+      // Rec TD (and any allowLess:false stat): never grade Unders.
+      if (!allowsLessSide(prop.statId)) {
+        return {
+          ...moreLeg,
+          bothSides: { more: moreLeg, less: null },
+          scoredAt: new Date().toISOString(),
+        };
+      }
+      const lessEval = await evaluateProp({
+        ...base,
+        statId: prop.statId,
+        line: prop.line,
+        side: "less",
+      });
       const lessLeg = slimLeg(lessEval, prop, "less");
       const best = pickBetterSide(moreLeg, lessLeg);
       return {
@@ -640,6 +661,13 @@ function gradedLegsFromScores(scoresJson) {
   const legs = [];
   for (const raw of scores) {
     if (!raw || raw.error || raw.propScore == null) continue;
+    // Drop persisted Rec TD Unders from older boards.
+    if (
+      String(raw.side || "").toLowerCase() === "less" &&
+      !allowsLessSide(raw.statId)
+    ) {
+      continue;
+    }
     legs.push({
       projectionId: raw.projectionId || null,
       playerId: raw.playerId || null,
@@ -691,6 +719,10 @@ function categoriesFromGraded(graded) {
 function publicWeekPicksView(row) {
   if (!row) return null;
   const graded = gradedLegsFromScores(row.scores_json);
+  const legs = (row.legs_json || []).filter(
+    (l) =>
+      String(l?.side || "").toLowerCase() !== "less" || allowsLessSide(l?.statId)
+  );
   return {
     season: row.season_year,
     week: row.week_number,
@@ -704,7 +736,7 @@ function publicWeekPicksView(row) {
     propsScored: row.props_scored,
     cfbdCalls: row.cfbd_calls,
     leagueSnapshotCache: row.league_snapshot_cache,
-    legs: row.legs_json || [],
+    legs,
     graded,
     categories: categoriesFromGraded(graded),
     combos: row.combos_json || {},

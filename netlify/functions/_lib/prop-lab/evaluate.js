@@ -1,5 +1,5 @@
 const { PROP_MODEL_VERSION } = require("./version");
-const { getPropDef } = require("./definitions");
+const { getPropDef, allowsLessSide } = require("./definitions");
 const {
   mean,
   median,
@@ -17,7 +17,13 @@ const {
   adjustedGameValue,
   currentSeasonWeight,
 } = require("./shrinkage");
-const { estimateOpportunity, roleTrend } = require("./opportunity");
+const {
+  estimateOpportunity,
+  roleTrend,
+  longestClearProbability,
+  longestVolumeKeys,
+  harmonicNumber,
+} = require("./opportunity");
 const { matchupAdjustment, opponentQualityForGame } = require("./matchup");
 const { gameEnvironment } = require("./environment");
 const {
@@ -183,6 +189,7 @@ function whyAndCaution({
   blend,
   form,
   fcsShare,
+  maxClear,
 }) {
   const why = [];
   const caution = [];
@@ -195,13 +202,28 @@ function whyAndCaution({
   } else if (likesMore && side === "less" && line > center + 8) {
     why.push("The line sits well above the modeled median");
   }
+  // Longest props: volume-driven clear can disagree with mean-of-game-longs vs line.
+  if (def.aggregate === "max" && maxClear && Number.isFinite(maxClear.modelP)) {
+    const meanSaysMore = projection > line;
+    const volSaysMore = maxClear.pMore >= 0.5;
+    const n = maxClear.projVolume;
+    if (volSaysMore !== meanSaysMore && Number.isFinite(n) && n > 0) {
+      why.push(
+        volSaysMore
+          ? `Projected volume (~${n.toFixed(1)} touches) lifts clear odds above this line`
+          : `Projected volume (~${n.toFixed(1)} touches) keeps clear odds under this line`
+      );
+    } else if (likesMore && volSaysMore && Number.isFinite(n) && n >= 4) {
+      why.push(`Clear odds scale with projected volume (~${n.toFixed(1)} touches), not just average long`);
+    }
+  }
   if (role.role === "Rising") why.push(role.detail || "Recent usage is rising");
   if (Number.isFinite(form?.recShare) && form.recShare >= 0.22) why.push("Stable receiving share in the current sample");
   if (form?.hits != null && form?.games >= 2 && form.hits === form.games && likesMore) {
     why.push(`Player cleared this threshold in ${form.hits}/${form.games} current games`);
   }
   if (matchup.adjPct > 0.03) why.push("Favorable defensive matchup for this stat");
-  if (likesMore && edge > 0 && why.every((w) => !/median|threshold/i.test(w))) {
+  if (likesMore && edge > 0 && why.every((w) => !/median|threshold|volume|clear odds/i.test(w))) {
     why.push(`Model sits ${edge.toFixed(1)} above the PrizePicks line`);
   }
 
@@ -262,7 +284,9 @@ function evaluateFromBundle(bundle, {
     err.code = "BAD_LINE";
     throw err;
   }
-  const leanSide = String(side || "more").toLowerCase() === "less" ? "less" : "more";
+  let leanSide = String(side || "more").toLowerCase() === "less" ? "less" : "more";
+  // Stats like Rec TD are more-only on PrizePicks — never grade Unders.
+  if (leanSide === "less" && !allowsLessSide(def.id)) leanSide = "more";
 
   const currentLogs = valuesFromLogs(bundle.gameLogs, def.id).map((g) => ({
     ...g,
@@ -440,14 +464,62 @@ function evaluateFromBundle(bundle, {
     ceil: def.ceil,
     calibrate: !flagsAblation.noCalibration,
   };
-  const rawBoth = rawProbability({
+  let rawBoth = rawProbability({
     mean: projection,
     sd,
     dist: def.dist,
     line: lineNum,
     side: leanSide,
   });
-  const probs = probabilityAtLine(distParams, lineNum, leanSide);
+  let probs = probabilityAtLine(distParams, lineNum, leanSide);
+
+  // Longest stats: replace lognormal-of-mean-long with volume-aware max clear odds.
+  let maxClear = null;
+  if (def.aggregate === "max") {
+    const keys = longestVolumeKeys(def.id);
+    if (keys) {
+      const ypx = oppEst[keys.ypxField];
+      maxClear = longestClearProbability({
+        logs: bundle.gameLogs,
+        priorLogs: bundle.priorLogs,
+        line: lineNum,
+        projVolume: oppEst.opportunity,
+        volumeKey: keys.volumeKey,
+        longKey: keys.longKey,
+        volumeKeyAlt: keys.volumeKeyAlt || null,
+        ypx: Number.isFinite(ypx) ? ypx : null,
+      });
+      const pMore = maxClear.pMore;
+      const pLess = maxClear.pLess;
+      const pHit = leanSide === "less" ? pLess : pMore;
+      const modelHit =
+        leanSide === "less"
+          ? Number.isFinite(maxClear.modelP)
+            ? 1 - maxClear.modelP
+            : pLess
+          : Number.isFinite(maxClear.modelP)
+            ? maxClear.modelP
+            : pMore;
+      rawBoth = {
+        pMore: Number.isFinite(maxClear.modelP) ? maxClear.modelP : pMore,
+        pLess: Number.isFinite(maxClear.modelP) ? 1 - maxClear.modelP : pLess,
+        pHit: modelHit,
+      };
+      probs = {
+        ...probs,
+        pMore,
+        pLess,
+        pHit,
+        pRaw: pHit,
+        pUncalibrated: pHit,
+        calibrationAdjustment: 0,
+        calibrationMethod: "max_extreme_value",
+        pull: 0,
+        shrinkReason: "Blended volume max model (55%) with empirical clears (45%)",
+        z: null,
+      };
+    }
+  }
 
   const l3 = lastN(currentValues, 3);
   const l5 = lastN(currentValues, 5);
@@ -487,6 +559,7 @@ function evaluateFromBundle(bundle, {
     blend: { ...blend, priorAvg },
     form: { hits: hitCount, games: currentValues.length, recShare: oppEst.recShare },
     fcsShare,
+    maxClear,
   });
   if (!narrative.why.length) narrative.why.push("Limited positive signal after shrinkage and matchup caps");
 
@@ -521,6 +594,19 @@ function evaluateFromBundle(bundle, {
     z: probs.z,
     finalPMore: probs.pMore,
     finalPHit: probs.pHit,
+    maxClear: maxClear
+      ? {
+          modelP: maxClear.modelP,
+          empP: maxClear.empP,
+          pMore: maxClear.pMore,
+          theta: maxClear.theta,
+          projVolume: maxClear.projVolume,
+          expectedMax: maxClear.expectedMax,
+          empClears: maxClear.empClears,
+          empGames: maxClear.empGames,
+          source: maxClear.source,
+        }
+      : null,
     confidenceGrade: conf.letter,
     confidenceScore: conf.score,
     confidenceReasons: confReasons,
@@ -768,19 +854,83 @@ function evaluateFromBundle(bundle, {
   };
 }
 
+function relineMaxClearProbs(evaluation, lineNum, leanSide) {
+  const prev = evaluation.modelDebug?.maxClear;
+  const def = getPropDef(evaluation.stat?.id);
+  if (def?.aggregate !== "max" || !prev) return null;
+  const theta = Number(prev.theta);
+  const n = Number(prev.projVolume);
+  let modelP = null;
+  if (Number.isFinite(theta) && theta > 0 && Number.isFinite(n) && n > 0) {
+    const pTouchLe = 1 - Math.exp(-Math.max(lineNum, 0) / theta);
+    modelP = clamp(1 - Math.pow(clamp(pTouchLe, 0, 1), n), 0.02, 0.98);
+  }
+  const values = (evaluation.gameLog || [])
+    .map((g) => g.value)
+    .filter((v) => Number.isFinite(v));
+  const sample = values.some((v) => v > 0) ? values.filter((v) => v > 0) : values;
+  const clears = sample.filter((v) => v > lineNum).length;
+  const games = sample.length;
+  const empP = clamp((clears + 2) / Math.max(games + 4, 1), 0.05, 0.95);
+  const pMore = clamp(
+    Number.isFinite(modelP) ? 0.55 * modelP + 0.45 * empP : empP,
+    0.05,
+    0.95
+  );
+  const pLess = 1 - pMore;
+  const pHit = leanSide === "less" ? pLess : pMore;
+  return {
+    rawBoth: {
+      pMore: Number.isFinite(modelP) ? modelP : pMore,
+      pLess: Number.isFinite(modelP) ? 1 - modelP : pLess,
+      pHit: leanSide === "less" ? (Number.isFinite(modelP) ? 1 - modelP : pLess) : (Number.isFinite(modelP) ? modelP : pMore),
+    },
+    probs: {
+      pMore,
+      pLess,
+      pHit,
+      pRaw: pHit,
+      pUncalibrated: pHit,
+      calibrationAdjustment: 0,
+      calibrationMethod: "max_extreme_value",
+      pull: 0,
+      shrinkReason: "Blended volume max model (55%) with empirical clears (45%)",
+      z: null,
+    },
+    maxClear: {
+      ...prev,
+      modelP,
+      empP,
+      pMore,
+      empClears: clears,
+      empGames: games,
+      expectedMax:
+        Number.isFinite(theta) && theta > 0 && Number.isFinite(n) && n > 0
+          ? theta * harmonicNumber(n)
+          : prev.expectedMax,
+    },
+  };
+}
+
 function relineEvaluation(evaluation, line, side) {
   const lineNum = toNum(line);
   if (lineNum == null) throw Object.assign(new Error("Line must be a number"), { code: "BAD_LINE" });
-  const leanSide = String(side || evaluation.side || "more").toLowerCase() === "less" ? "less" : "more";
+  let leanSide = String(side || evaluation.side || "more").toLowerCase() === "less" ? "less" : "more";
+  if (leanSide === "less" && !allowsLessSide(evaluation.stat?.id)) leanSide = "more";
   const dist = evaluation.distribution;
-  const rawBoth = rawProbability({
+  const maxReline = relineMaxClearProbs(evaluation, lineNum, leanSide);
+  let rawBoth = rawProbability({
     mean: dist.mean,
     sd: dist.sd,
     dist: dist.dist || dist.type,
     line: lineNum,
     side: leanSide,
   });
-  const probs = probabilityAtLine(dist, lineNum, leanSide);
+  let probs = probabilityAtLine(dist, lineNum, leanSide);
+  if (maxReline) {
+    rawBoth = maxReline.rawBoth;
+    probs = { ...probs, ...maxReline.probs };
+  }
   const edge = leanSide === "less" ? lineNum - evaluation.projection : evaluation.projection - lineNum;
   const scored = propScore({
     pHit: probs.pHit,
@@ -798,6 +948,7 @@ function relineEvaluation(evaluation, line, side) {
   const values = (evaluation.gameLog || []).map((g) => g.value);
   const modelDebug = {
     ...(evaluation.modelDebug || {}),
+    maxClear: maxReline?.maxClear || evaluation.modelDebug?.maxClear || null,
     rawPMore: rawBoth.pMore,
     calibrationAdjustment: probs.calibrationAdjustment || 0,
     calibrationMethod: probs.calibrationMethod || "identity",

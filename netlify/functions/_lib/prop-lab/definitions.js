@@ -242,6 +242,8 @@ const PROP_DEFINITIONS = [
     floor: 0,
     ceil: 5,
     combo: false,
+    // PrizePicks Rec TD is more-only for many players (esp. RBs); never grade Unders.
+    allowLess: false,
     matchupKeys: ["passTdAllowed", "passPpa"],
   },
   {
@@ -531,6 +533,12 @@ function fantasyScoreFromStats(stats) {
   return any ? total : null;
 }
 
+function allowsLessSide(statId) {
+  const def = getPropDef(statId);
+  if (!def) return true;
+  return def.allowLess !== false;
+}
+
 function catalogPublic() {
   return PROP_DEFINITIONS.map((d) => ({
     id: d.id,
@@ -540,6 +548,7 @@ function catalogPublic() {
     family: d.family,
     combo: Boolean(d.combo),
     positions: d.positions || [],
+    allowLess: d.allowLess !== false,
   }));
 }
 
@@ -552,6 +561,7 @@ module.exports = {
   PROP_DEFINITIONS,
   PROP_BY_ID,
   getPropDef,
+  allowsLessSide,
   catalogPublic,
   positionRulesPublic,
   canonicalPosition,

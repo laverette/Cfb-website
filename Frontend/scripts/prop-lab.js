@@ -217,6 +217,22 @@
     }
   }
 
+  function statAllowsLess(statId) {
+    const s = (state.stats || []).find((x) => x.id === statId);
+    if (!s) return true;
+    return s.allowLess !== false;
+  }
+
+  function syncSideOptions(statId) {
+    const sideSel = document.getElementById("propSide");
+    if (!sideSel) return;
+    const allowLess = statAllowsLess(statId || sideSel.dataset.statId);
+    const lessOpt = [...sideSel.options].find((o) => o.value === "less");
+    if (lessOpt) lessOpt.hidden = !allowLess;
+    if (!allowLess && sideSel.value === "less") sideSel.value = "more";
+    sideSel.dataset.statId = statId || "";
+  }
+
   function fillStats(stats, position) {
     const sel = document.getElementById("propStat");
     if (!sel) return;
@@ -244,6 +260,7 @@
 
     if (eligible.some((s) => s.id === prev)) sel.value = prev;
     else if (eligible.length === 1) sel.value = eligible[0].id;
+    syncSideOptions(sel.value);
     syncBuilderReady();
   }
 
@@ -790,10 +807,14 @@
                 ${leg.loading || !e || e.error ? "disabled" : ""}
               >
               <select class="prop-leg-side" aria-label="Edit side for ${escapeHtml(leg.name)}" ${
-                leg.loading || !e || e.error ? "disabled" : ""
+                leg.loading || !e || e.error || !statAllowsLess(leg.statId) ? "disabled" : ""
               }>
-                <option value="more" ${(leg.side || "more") === "more" ? "selected" : ""}>More</option>
-                <option value="less" ${leg.side === "less" ? "selected" : ""}>Less</option>
+                <option value="more" ${(leg.side || "more") === "more" || !statAllowsLess(leg.statId) ? "selected" : ""}>More</option>
+                ${
+                  statAllowsLess(leg.statId)
+                    ? `<option value="less" ${leg.side === "less" ? "selected" : ""}>Less</option>`
+                    : ""
+                }
               </select>
             </p>
           </div>
@@ -3553,8 +3574,10 @@
       document.getElementById("entrySummary")?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
     document.getElementById("propStat")?.addEventListener("change", () => {
+      const sid = document.getElementById("propStat")?.value;
+      syncSideOptions(sid);
       syncBuilderReady();
-      if (document.getElementById("propStat").value) document.getElementById("propLine")?.focus();
+      if (sid) document.getElementById("propLine")?.focus();
     });
     document.getElementById("propLine")?.addEventListener("focus", () => {
       setTimeout(() => document.getElementById("propLine")?.scrollIntoView({ block: "center", behavior: "smooth" }), 80);

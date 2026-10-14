@@ -46,37 +46,109 @@ function share(playerPerGame, teamPerGame) {
   return clamp(playerPerGame / teamPerGame, 0, 1);
 }
 
+/** Euler–Mascheroni — used for H_n ≈ ln(n) + γ + 1/(2n). */
+const EULER_GAMMA = 0.5772156649015329;
+
+/** Blend weights for max-stat clear probability (model vs empirical). */
+const MAX_CLEAR_MODEL_W = 0.55;
+const MAX_CLEAR_EMP_W = 0.45;
+/** Pseudo-counts for Beta shrink of empirical clear rate toward 0.5. */
+const MAX_CLEAR_EMP_PSEUDO = 4;
+
 /**
- * Expected max of a volume of roughly exponential outcomes grows with
- * log(volume). Prefer the player's own average per-game long, rescaled for the
- * projected opportunity count; otherwise fall back to yards-per-touch × log.
+ * Harmonic number H_n (supports fractional n via digamma approximation).
+ * For exponential touch lengths, E[max of n] = θ · H_n.
  */
-function longestStatProjection({ base, histVolume, projVolume, ypx, floorFactor = 1.6 }) {
+function harmonicNumber(n) {
+  const x = Number(n);
+  if (!Number.isFinite(x) || x <= 0) return 0;
+  if (x < 1) return x;
+  if (x > 40 || x !== Math.floor(x)) {
+    return Math.log(x) + EULER_GAMMA + 1 / (2 * x);
+  }
+  let h = 0;
+  for (let i = 1; i <= x; i++) h += 1 / i;
+  return h;
+}
+
+/**
+ * Fit per-touch exponential scale θ from per-game long / H_volume.
+ * Falls back to yards-per-touch when the long sample is thin.
+ */
+function fitLongestTheta({ logs, volumeKey, longKey, ypx } = {}) {
+  const thetas = [];
+  for (const g of logs || []) {
+    const vol = Number(g.stats?.[volumeKey]);
+    const lng = Number(g.stats?.[longKey]);
+    if (!(vol > 0) || !(lng > 0)) continue;
+    const h = harmonicNumber(vol);
+    if (h > 0) thetas.push(lng / h);
+  }
+  if (thetas.length >= 2) {
+    return { theta: mean(thetas), games: thetas.length, source: "logs" };
+  }
+  if (thetas.length === 1) {
+    const t = thetas[0];
+    if (Number.isFinite(ypx) && ypx > 0) {
+      return { theta: 0.6 * t + 0.4 * ypx, games: 1, source: "logs+ypx" };
+    }
+    return { theta: t, games: 1, source: "logs" };
+  }
+  if (Number.isFinite(ypx) && ypx > 0) {
+    return { theta: ypx, games: 0, source: "ypx" };
+  }
+  return { theta: null, games: 0, source: null };
+}
+
+/**
+ * Expected max under exponential touch lengths: θ · H_n'.
+ * Falls back to avg-long / H_hist · H_proj, then ypx · H_proj.
+ */
+function longestStatProjection({
+  base,
+  histVolume,
+  projVolume,
+  ypx,
+  floorFactor = 1.6,
+  logs,
+  volumeKey,
+  longKey,
+} = {}) {
   const proj = Number.isFinite(projVolume) && projVolume > 0 ? projVolume : histVolume;
   if (!Number.isFinite(proj) || proj <= 0) return null;
 
+  if (volumeKey && longKey) {
+    const fitted = fitLongestTheta({ logs, volumeKey, longKey, ypx });
+    if (Number.isFinite(fitted.theta) && fitted.theta > 0) {
+      return fitted.theta * harmonicNumber(proj);
+    }
+  }
+
   if (Number.isFinite(base) && base > 0 && Number.isFinite(histVolume) && histVolume > 0) {
-    const scale = Math.log1p(proj) / Math.log1p(histVolume);
-    return base * clamp(scale, 0.8, 1.25);
+    const theta = base / Math.max(harmonicNumber(histVolume), 0.5);
+    return theta * harmonicNumber(proj);
   }
 
   if (Number.isFinite(ypx) && ypx > 0) {
-    return ypx * (floorFactor + 0.9 * Math.log1p(proj));
+    return ypx * Math.max(harmonicNumber(proj), floorFactor);
   }
   return null;
 }
 
-function longestRushProjection({ usage, opportunity, rushAtt, ypc }) {
+function longestRushProjection({ usage, opportunity, rushAtt, ypc, logs }) {
   return longestStatProjection({
     base: usage?.rushLong,
     histVolume: rushAtt,
     projVolume: opportunity,
     ypx: ypc,
     floorFactor: 1.6,
+    logs,
+    volumeKey: "rush_att",
+    longKey: "rush_long",
   });
 }
 
-function longestPassProjection({ usage, opportunity, passComp, ypa }) {
+function longestPassProjection({ usage, opportunity, passComp, ypa, logs }) {
   const hist = Number.isFinite(usage?.passComp) && usage.passComp > 0 ? usage.passComp : usage?.passAtt;
   return longestStatProjection({
     base: usage?.passLong,
@@ -84,17 +156,140 @@ function longestPassProjection({ usage, opportunity, passComp, ypa }) {
     projVolume: opportunity,
     ypx: ypa,
     floorFactor: 2.4,
+    logs,
+    volumeKey: Number.isFinite(passComp) && passComp > 0 ? "pass_comp" : "pass_att",
+    longKey: "pass_long",
   });
 }
 
-function longestRecProjection({ usage, opportunity, recAvg, ypr }) {
+function longestRecProjection({ usage, opportunity, recAvg, ypr, logs }) {
   return longestStatProjection({
     base: usage?.recLong,
     histVolume: recAvg,
     projVolume: opportunity,
     ypx: ypr,
     floorFactor: 2.1,
+    logs,
+    volumeKey: "rec",
+    longKey: "rec_long",
   });
+}
+
+/** Map longest prop id → box-score volume / long keys + efficiency field. */
+function longestVolumeKeys(statId) {
+  switch (String(statId || "")) {
+    case "rec_long":
+      return { volumeKey: "rec", longKey: "rec_long", ypxField: "ypr" };
+    case "rush_long":
+      return { volumeKey: "rush_att", longKey: "rush_long", ypxField: "ypc" };
+    case "pass_long":
+      return { volumeKey: "pass_comp", longKey: "pass_long", ypxField: "ypa", volumeKeyAlt: "pass_att" };
+    default:
+      return null;
+  }
+}
+
+function empiricLongClears(logs, volumeKey, longKey, line, volumeKeyAlt) {
+  let clears = 0;
+  let games = 0;
+  for (const g of logs || []) {
+    let vol = Number(g.stats?.[volumeKey]);
+    if (!(vol > 0) && volumeKeyAlt) vol = Number(g.stats?.[volumeKeyAlt]);
+    const lng = Number(g.stats?.[longKey] ?? g.value);
+    if (!(vol > 0) || !Number.isFinite(lng)) continue;
+    games += 1;
+    if (lng > line) clears += 1;
+  }
+  return { clears, games };
+}
+
+/**
+ * Volume-aware P(max > line) for longest props, blended with empirical clears.
+ * Touch lengths ~ Exp(θ) ⇒ P(max > L) = 1 − (1 − e^{−L/θ})^n'.
+ */
+function longestClearProbability({
+  logs,
+  priorLogs,
+  line,
+  projVolume,
+  volumeKey,
+  longKey,
+  volumeKeyAlt,
+  ypx,
+} = {}) {
+  const L = Number(line);
+  const n = Number(projVolume);
+  if (!Number.isFinite(L)) {
+    return {
+      pMore: 0.5,
+      pLess: 0.5,
+      modelP: null,
+      empP: 0.5,
+      theta: null,
+      projVolume: n,
+      expectedMax: null,
+      empGames: 0,
+      empClears: 0,
+      source: null,
+    };
+  }
+
+  let fitted = fitLongestTheta({ logs, volumeKey, longKey, ypx });
+  if (!Number.isFinite(fitted.theta) && volumeKeyAlt) {
+    fitted = fitLongestTheta({ logs, volumeKey: volumeKeyAlt, longKey, ypx });
+  }
+  if (!Number.isFinite(fitted.theta)) {
+    fitted = fitLongestTheta({ logs: priorLogs, volumeKey, longKey, ypx });
+  }
+  if (!Number.isFinite(fitted.theta) && volumeKeyAlt) {
+    fitted = fitLongestTheta({
+      logs: priorLogs,
+      volumeKey: volumeKeyAlt,
+      longKey,
+      ypx,
+    });
+  }
+
+  let modelP = null;
+  if (Number.isFinite(fitted.theta) && fitted.theta > 0 && Number.isFinite(n) && n > 0) {
+    const pTouchLe = 1 - Math.exp(-Math.max(L, 0) / fitted.theta);
+    modelP = clamp(1 - Math.pow(clamp(pTouchLe, 0, 1), n), 0.02, 0.98);
+  }
+
+  const cur = empiricLongClears(logs, volumeKey, longKey, L, volumeKeyAlt);
+  const pri = empiricLongClears(priorLogs, volumeKey, longKey, L, volumeKeyAlt);
+  const clears = cur.clears + 0.35 * pri.clears;
+  const games = cur.games + 0.35 * pri.games;
+  const empP = clamp(
+    (clears + MAX_CLEAR_EMP_PSEUDO * 0.5) / (games + MAX_CLEAR_EMP_PSEUDO),
+    0.05,
+    0.95
+  );
+
+  const pMore = clamp(
+    Number.isFinite(modelP)
+      ? MAX_CLEAR_MODEL_W * modelP + MAX_CLEAR_EMP_W * empP
+      : empP,
+    0.05,
+    0.95
+  );
+  const expectedMax =
+    Number.isFinite(fitted.theta) && fitted.theta > 0 && Number.isFinite(n) && n > 0
+      ? fitted.theta * harmonicNumber(n)
+      : null;
+
+  return {
+    pMore,
+    pLess: 1 - pMore,
+    modelP,
+    empP,
+    theta: fitted.theta,
+    projVolume: Number.isFinite(n) ? n : null,
+    expectedMax,
+    empGames: cur.games,
+    empClears: cur.clears,
+    source: fitted.source,
+  };
 }
 
 /**
@@ -144,7 +339,7 @@ function estimateOpportunity(bundle, def) {
         : def.id === "rec_td"
           ? (opportunity || 0) * (usage.recTd && recAvg ? usage.recTd / recAvg : 0.08)
           : def.id === "rec_long"
-            ? longestRecProjection({ usage, opportunity, recAvg, ypr })
+            ? longestRecProjection({ usage, opportunity, recAvg, ypr, logs })
             : opportunity != null && efficiency != null
               ? opportunity * efficiency
               : null;
@@ -161,7 +356,7 @@ function estimateOpportunity(bundle, def) {
         : def.id === "rush_td"
           ? (opportunity || 0) * (usage.rushTd && rushAtt ? usage.rushTd / rushAtt : 0.05)
           : def.id === "rush_long"
-            ? longestRushProjection({ usage, opportunity, rushAtt, ypc })
+            ? longestRushProjection({ usage, opportunity, rushAtt, ypc, logs })
             : opportunity != null && efficiency != null
               ? opportunity * efficiency
               : null;
@@ -200,6 +395,7 @@ function estimateOpportunity(bundle, def) {
                   opportunity: longOpp,
                   passComp,
                   ypa,
+                  logs,
                 })
               : opportunity != null && efficiency != null
                 ? opportunity * efficiency
@@ -348,8 +544,12 @@ module.exports = {
   estimateOpportunity,
   roleTrend,
   playerAverages,
+  harmonicNumber,
+  fitLongestTheta,
   longestStatProjection,
   longestRushProjection,
   longestPassProjection,
   longestRecProjection,
+  longestVolumeKeys,
+  longestClearProbability,
 };
