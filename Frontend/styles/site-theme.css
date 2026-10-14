@@ -1881,3 +1881,60 @@ body.site-feedback-open {
   overflow: hidden;
 }
 
+/* Site-wide ambient audio dock (auth-ui.js) */
+.site-audio-root {
+  position: fixed;
+  left: 0.85rem;
+  bottom: 0.85rem;
+  z-index: 1200;
+  pointer-events: none;
+}
+
+.site-audio-dock {
+  pointer-events: auto;
+  display: inline-flex;
+  gap: 0.35rem;
+  padding: 0.35rem;
+  border-radius: 999px;
+  border: 1px solid rgba(245, 222, 179, 0.22);
+  background: rgba(18, 12, 8, 0.88);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(8px);
+}
+
+.site-audio-btn {
+  appearance: none;
+  width: 2.15rem;
+  height: 2.15rem;
+  border-radius: 999px;
+  border: 1px solid rgba(245, 222, 179, 0.18);
+  background: rgba(245, 222, 179, 0.08);
+  color: #f5deb3;
+  font-size: 0.85rem;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.site-audio-btn:hover,
+.site-audio-btn:focus-visible {
+  background: rgba(232, 197, 71, 0.22);
+  border-color: rgba(232, 197, 71, 0.45);
+  outline: none;
+}
+
+.site-audio-root.is-playing .site-audio-btn#siteAudioToggle {
+  background: rgba(232, 197, 71, 0.28);
+  color: #1a120e;
+  border-color: rgba(232, 197, 71, 0.55);
+}
+
+@media (max-width: 640px) {
+  .site-audio-root {
+    left: 0.55rem;
+    bottom: 0.55rem;
+  }
+}
+

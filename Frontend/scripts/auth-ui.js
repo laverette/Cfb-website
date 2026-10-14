@@ -935,6 +935,161 @@
     sync();
   }
 
+  /**
+   * Site-wide ambient audio. Multi-page navigations remount audio, so we persist
+   * time/play preference in localStorage and resume on each page.
+   * Drop a file at Resources/Audio/site-ambient.mp3 (or set window.SITE_AUDIO_SRC).
+   */
+  function mountSiteAudio() {
+    if (document.getElementById("siteAudioRoot")) return;
+    var page = basenameOnly(window.location.pathname);
+    if (
+      page === "admin.html" ||
+      page === "admin-analytics.html" ||
+      page === "login.html" ||
+      page === "reset-password.html"
+    ) {
+      return;
+    }
+
+    var STORAGE_KEY = "siteAudioPrefs";
+    var DEFAULT_SRC = "Resources/Audio/site-ambient.mp3";
+    var src =
+      (typeof window.SITE_AUDIO_SRC === "string" && window.SITE_AUDIO_SRC.trim()) ||
+      DEFAULT_SRC;
+
+    function readPrefs() {
+      try {
+        var raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return { wantPlay: false, muted: false, volume: 0.35, t: 0 };
+        var p = JSON.parse(raw);
+        return {
+          wantPlay: Boolean(p.wantPlay),
+          muted: Boolean(p.muted),
+          volume: Math.min(1, Math.max(0, Number(p.volume) || 0.35)),
+          t: Math.max(0, Number(p.t) || 0),
+        };
+      } catch (e) {
+        return { wantPlay: false, muted: false, volume: 0.35, t: 0 };
+      }
+    }
+
+    function writePrefs(partial) {
+      var next = Object.assign(readPrefs(), partial || {}, { at: Date.now() });
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      } catch (e) {
+        /* ignore */
+      }
+      return next;
+    }
+
+    var prefs = readPrefs();
+    var root = document.createElement("div");
+    root.id = "siteAudioRoot";
+    root.className = "site-audio-root";
+    root.innerHTML =
+      '<div class="site-audio-dock" role="group" aria-label="Site music">' +
+      '<button type="button" class="site-audio-btn" id="siteAudioToggle" aria-pressed="false" title="Play music">▶</button>' +
+      '<button type="button" class="site-audio-btn" id="siteAudioMute" aria-pressed="false" title="Mute">🔊</button>' +
+      "</div>" +
+      '<audio id="siteAudioEl" preload="metadata" loop playsinline></audio>';
+    document.body.appendChild(root);
+
+    var audio = document.getElementById("siteAudioEl");
+    var toggleBtn = document.getElementById("siteAudioToggle");
+    var muteBtn = document.getElementById("siteAudioMute");
+    if (!audio || !toggleBtn || !muteBtn) return;
+
+    audio.src = src;
+    audio.volume = prefs.volume;
+    audio.muted = prefs.muted;
+
+    function paint() {
+      var playing = !audio.paused && !audio.ended;
+      toggleBtn.textContent = playing ? "❚❚" : "▶";
+      toggleBtn.setAttribute("aria-pressed", playing ? "true" : "false");
+      toggleBtn.title = playing ? "Pause music" : "Play music";
+      muteBtn.textContent = audio.muted || audio.volume === 0 ? "🔇" : "🔊";
+      muteBtn.setAttribute("aria-pressed", audio.muted ? "true" : "false");
+      muteBtn.title = audio.muted ? "Unmute" : "Mute";
+      root.classList.toggle("is-playing", playing);
+    }
+
+    function persistTime() {
+      if (!audio.currentTime || !Number.isFinite(audio.currentTime)) return;
+      writePrefs({ t: audio.currentTime, wantPlay: !audio.paused, muted: audio.muted, volume: audio.volume });
+    }
+
+    function tryPlay() {
+      var p = audio.play();
+      if (p && typeof p.then === "function") {
+        p.then(function () {
+          writePrefs({ wantPlay: true });
+          paint();
+        }).catch(function () {
+          writePrefs({ wantPlay: false });
+          paint();
+        });
+      } else {
+        paint();
+      }
+    }
+
+    function seekResume() {
+      var t = readPrefs().t;
+      if (t > 0.5 && Number.isFinite(audio.duration) && audio.duration > 1) {
+        try {
+          audio.currentTime = Math.min(t, Math.max(0, audio.duration - 0.25));
+        } catch (e) {
+          /* ignore */
+        }
+      }
+    }
+
+    audio.addEventListener("loadedmetadata", function () {
+      seekResume();
+      if (readPrefs().wantPlay) tryPlay();
+      paint();
+    });
+    audio.addEventListener("play", paint);
+    audio.addEventListener("pause", paint);
+    audio.addEventListener("volumechange", paint);
+    audio.addEventListener("timeupdate", function () {
+      if (Math.floor(audio.currentTime) % 3 === 0) persistTime();
+    });
+
+    toggleBtn.addEventListener("click", function () {
+      if (audio.paused) tryPlay();
+      else {
+        audio.pause();
+        writePrefs({ wantPlay: false, t: audio.currentTime });
+        paint();
+      }
+    });
+    muteBtn.addEventListener("click", function () {
+      audio.muted = !audio.muted;
+      writePrefs({ muted: audio.muted, t: audio.currentTime, wantPlay: !audio.paused });
+      paint();
+    });
+
+    function flush() {
+      persistTime();
+    }
+    window.addEventListener("pagehide", flush);
+    window.addEventListener("beforeunload", flush);
+    document.addEventListener("visibilitychange", function () {
+      if (document.visibilityState === "hidden") flush();
+    });
+
+    // If metadata already cached, kick resume.
+    if (audio.readyState >= 1) {
+      seekResume();
+      if (prefs.wantPlay) tryPlay();
+    }
+    paint();
+  }
+
   function onReady() {
     ensureAnalyticsLoaded();
     refreshAll();
@@ -942,6 +1097,7 @@
     mountNameSuggestForm();
     maybeValidateToken();
     mountSiteFeedback();
+    mountSiteAudio();
     wireMenuFootballSpin();
   }
 
