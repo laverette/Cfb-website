@@ -219,6 +219,7 @@
       const opponent =
         cleanTeamName(oppGame.name) ||
         (oppFromDesc && oppFromDesc.length > 3 ? cleanTeamName(oppFromDesc) : oppFromDesc);
+      const allowedWagerTypes = attrs.allowed_wager_types || null;
 
       rows.push({
         projectionId: String(proj.id || ""),
@@ -234,6 +235,7 @@
         startTimeIso: attrs.start_time || gameInc?.attributes?.start_time || null,
         gameId: gameRel?.id != null ? String(gameRel.id) : null,
         oddsType,
+        allowedWagerTypes,
         status,
         rank: statInc?.attributes?.rank ?? attrs.rank ?? null,
       });

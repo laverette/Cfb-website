@@ -1,5 +1,10 @@
 const { PROP_MODEL_VERSION } = require("./version");
-const { getPropDef, allowsLessSide } = require("./definitions");
+const {
+  getPropDef,
+  allowsLessSide,
+  allowedSidesForProp,
+  sideAllowedForProp,
+} = require("./definitions");
 const {
   mean,
   median,
@@ -263,6 +268,8 @@ function evaluateFromBundle(bundle, {
   seed = 20260,
   ablation = null,
   skipSims = false,
+  oddsType = null,
+  allowedWagerTypes = null,
 } = {}) {
   const flagsAblation = {
     rawSeasonAverage: Boolean(ablation?.rawSeasonAverage),
@@ -285,8 +292,13 @@ function evaluateFromBundle(bundle, {
     throw err;
   }
   let leanSide = String(side || "more").toLowerCase() === "less" ? "less" : "more";
-  // Stats like Rec TD are more-only on PrizePicks — never grade Unders.
-  if (leanSide === "less" && !allowsLessSide(def.id)) leanSide = "more";
+  // Rec TD / demon (More-only) / partner allowed_wager_types — never grade illegal sides.
+  const sideProp = { statId: def.id, oddsType, allowedWagerTypes };
+  if (!sideAllowedForProp(sideProp, leanSide)) {
+    leanSide = allowedSidesForProp(sideProp)[0] || "more";
+  } else if (leanSide === "less" && !allowsLessSide(def.id)) {
+    leanSide = "more";
+  }
 
   const currentLogs = valuesFromLogs(bundle.gameLogs, def.id).map((g) => ({
     ...g,
@@ -916,7 +928,17 @@ function relineEvaluation(evaluation, line, side) {
   const lineNum = toNum(line);
   if (lineNum == null) throw Object.assign(new Error("Line must be a number"), { code: "BAD_LINE" });
   let leanSide = String(side || evaluation.side || "more").toLowerCase() === "less" ? "less" : "more";
-  if (leanSide === "less" && !allowsLessSide(evaluation.stat?.id)) leanSide = "more";
+  const relineProp = {
+    statId: evaluation.stat?.id,
+    oddsType: evaluation.oddsType || evaluation.modelDebug?.oddsType || null,
+    allowedWagerTypes:
+      evaluation.allowedWagerTypes || evaluation.modelDebug?.allowedWagerTypes || null,
+  };
+  if (!sideAllowedForProp(relineProp, leanSide)) {
+    leanSide = allowedSidesForProp(relineProp)[0] || "more";
+  } else if (leanSide === "less" && !allowsLessSide(evaluation.stat?.id)) {
+    leanSide = "more";
+  }
   const dist = evaluation.distribution;
   const maxReline = relineMaxClearProbs(evaluation, lineNum, leanSide);
   let rawBoth = rawProbability({

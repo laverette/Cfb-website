@@ -221,6 +221,7 @@ function normalizeMirrorRows(rows, skipped) {
       startDateCST: row.startDateCST || null,
       gameId: row.gameId != null ? String(row.gameId) : null,
       oddsType: row.oddsType || "standard",
+      allowedWagerTypes: row.allowedWagerTypes || row.allowed_wager_types || null,
       status: row.status || null,
       rank: row.rank ?? null,
     });
@@ -302,6 +303,7 @@ function parsePartnerPayload(payload) {
     const opponent =
       cleanTeamName(oppGame.name) ||
       (oppFromDesc && oppFromDesc.length > 3 ? cleanTeamName(oppFromDesc) : oppFromDesc);
+    const allowedWagerTypes = attrs.allowed_wager_types || null;
 
     rows.push({
       projectionId: String(proj.id || ""),
@@ -320,6 +322,7 @@ function parsePartnerPayload(payload) {
       startDateCST: null,
       gameId: gameRel?.id != null ? String(gameRel.id) : null,
       oddsType,
+      allowedWagerTypes,
       status,
       rank: statInc?.attributes?.rank ?? attrs.rank ?? null,
     });

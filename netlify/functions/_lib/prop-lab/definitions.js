@@ -541,6 +541,44 @@ function allowsLessSide(statId) {
   return def.allowLess !== false;
 }
 
+/**
+ * PrizePicks sides that are actually bettable for this projection.
+ * Demons are More-only; partner `allowed_wager_types` is authoritative when present
+ * (`over` / `under` / `under_or_over`). Stat-level allowLess still applies.
+ *
+ * @param {{ statId?: string, oddsType?: string, allowedWagerTypes?: string }} prop
+ * @returns {("more"|"less")[]}
+ */
+function allowedSidesForProp(prop = {}) {
+  const statId = prop.statId || prop.stat?.id || null;
+  const ot = String(prop.oddsType || "standard").toLowerCase();
+  const wt = String(prop.allowedWagerTypes || prop.allowed_wager_types || "")
+    .trim()
+    .toLowerCase();
+
+  let allowMore = true;
+  let allowLess = allowsLessSide(statId);
+
+  if (wt === "over" || wt === "more") {
+    allowLess = false;
+  } else if (wt === "under" || wt === "less") {
+    allowMore = false;
+  } else if (ot === "demon") {
+    // Demons are More-only even when wager-type metadata is missing.
+    allowLess = false;
+  }
+
+  const sides = [];
+  if (allowMore) sides.push("more");
+  if (allowLess) sides.push("less");
+  return sides.length ? sides : ["more"];
+}
+
+function sideAllowedForProp(prop, side) {
+  const want = String(side || "more").toLowerCase() === "less" ? "less" : "more";
+  return allowedSidesForProp(prop).includes(want);
+}
+
 function catalogPublic() {
   return PROP_DEFINITIONS.map((d) => ({
     id: d.id,
@@ -564,6 +602,8 @@ module.exports = {
   PROP_BY_ID,
   getPropDef,
   allowsLessSide,
+  allowedSidesForProp,
+  sideAllowedForProp,
   catalogPublic,
   positionRulesPublic,
   canonicalPosition,
