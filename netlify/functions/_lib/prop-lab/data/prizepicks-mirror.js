@@ -11,7 +11,7 @@ const { dataLog } = require("./log");
 const DEFAULT_MIRROR_URL =
   "https://raw.githubusercontent.com/enkday/prizepicks-data-mirror/main/data/prizepicks-ncaaf.json";
 const DEFAULT_PARTNER_URL =
-  "https://partner-api.prizepicks.com/projections?league_id=15";
+  "https://partner-api.prizepicks.com/projections?league_id=15&per_page=250";
 /** PrizePicks CFB / NCAAF league id on partner-api */
 const NCAAF_LEAGUE_ID = 15;
 
@@ -24,15 +24,18 @@ const STAT_ALIASES = {
   "passing attempts": "pass_att",
   completions: "pass_comp",
   "pass completions": "pass_comp",
+  "passing completions": "pass_comp",
   "passing tds": "pass_td",
   "pass tds": "pass_td",
   "pass td": "pass_td",
+  "passing touchdowns": "pass_td",
   interceptions: "pass_int",
   ints: "pass_int",
   int: "pass_int",
   "pass int": "pass_int",
   "pass ints": "pass_int",
   "passing interceptions": "pass_int",
+  "interceptions thrown": "pass_int",
   "longest completion": "pass_long",
   "longest pass": "pass_long",
   "rush yards": "rush_yds",
@@ -40,23 +43,30 @@ const STAT_ALIASES = {
   "rush yds": "rush_yds",
   "rush attempts": "rush_att",
   "rushing attempts": "rush_att",
+  carries: "rush_att",
   "rush tds": "rush_td",
   "rushing tds": "rush_td",
   "rush td": "rush_td",
+  "rushing touchdowns": "rush_td",
   "longest rush": "rush_long",
   "rec yards": "rec_yds",
+  "rec yds": "rec_yds",
   "receiving yards": "rec_yds",
   "receiving yds": "rec_yds",
   receptions: "rec",
   "rec tds": "rec_td",
+  "rec td": "rec_td",
   "receiving tds": "rec_td",
   "receiving td": "rec_td",
+  "receiving touchdowns": "rec_td",
   "longest reception": "rec_long",
   "rush+rec yards": "rush_rec_yds",
   "rush+rec yds": "rush_rec_yds",
   "rush + rec yards": "rush_rec_yds",
   "rush + rec yds": "rush_rec_yds",
   "rush + receiving yards": "rush_rec_yds",
+  "rush+receiving yards": "rush_rec_yds",
+  "rush+receiving yds": "rush_rec_yds",
   "pass+rush yards": "pass_rush_yds",
   "pass+rush yds": "pass_rush_yds",
   "pass + rush yards": "pass_rush_yds",
@@ -65,6 +75,8 @@ const STAT_ALIASES = {
   "total tds": "total_td",
   "anytime tds": "total_td",
   "anytime td": "total_td",
+  "player touchdowns": "total_td",
+  "player tds": "total_td",
   "fantasy score": "fantasy_score",
   "fantasy pts": "fantasy_score",
   "fantasy points": "fantasy_score",
@@ -74,7 +86,9 @@ const STAT_ALIASES = {
   "kicker points": "kicking_pts",
   "pats made": "xp_made",
   "pat made": "xp_made",
+  "xp made": "xp_made",
   "extra points": "xp_made",
+  "extra points made": "xp_made",
 };
 
 const MASCOT_SUFFIX =
@@ -148,23 +162,29 @@ function oddsRank(oddsType) {
 }
 
 /**
- * Prefer standard lines. For markets PrizePicks only offers as demon/goblin
- * (Rec TDs, Rush TDs, FG Made, …), keep the best non-standard line.
+ * Keep every distinct PrizePicks line. Prefer standard > demon > goblin when
+ * the same player+stat+line appears under multiple odds types.
+ * Must group per player (not per market) so demon-only players are not dropped
+ * when someone else has a standard line in that market.
  */
 function selectBoardProps(rows) {
-  const byStat = new Map();
+  const byPlayerStatLine = new Map();
   for (const row of rows) {
     const sid = row.statId || normalizeStatKey(row.stat);
-    if (!byStat.has(sid)) byStat.set(sid, []);
-    byStat.get(sid).push(row);
+    const key = `${String(row.playerName || "")
+      .toLowerCase()}|${String(row.team || row.teamCode || "")
+      .toLowerCase()}|${sid}|${Number(row.line)}`;
+    if (!byPlayerStatLine.has(key)) byPlayerStatLine.set(key, []);
+    byPlayerStatLine.get(key).push(row);
   }
   const out = [];
-  for (const group of byStat.values()) {
-    const hasStandard = group.some((r) => oddsRank(r.oddsType) === 0);
-    const filtered = hasStandard
-      ? group.filter((r) => oddsRank(r.oddsType) === 0)
-      : group.slice().sort((a, b) => oddsRank(a.oddsType) - oddsRank(b.oddsType));
-    out.push(...filtered);
+  for (const group of byPlayerStatLine.values()) {
+    const sorted = group.slice().sort((a, b) => {
+      const od = oddsRank(a.oddsType) - oddsRank(b.oddsType);
+      if (od) return od;
+      return (a.rank ?? 9999) - (b.rank ?? 9999);
+    });
+    if (sorted[0]) out.push(sorted[0]);
   }
   return out;
 }
@@ -260,7 +280,14 @@ function parsePartnerPayload(payload) {
       continue;
     }
     const status = attrs.status || attrs.odds_type_status || null;
-    if (String(status || "").toLowerCase() === "suspended") continue;
+    if (String(status || "").toLowerCase() === "suspended") {
+      skipped.suspended = (skipped.suspended || 0) + 1;
+      continue;
+    }
+    if (!String(proj.id || "").trim()) {
+      skipped.empty_projection_id = (skipped.empty_projection_id || 0) + 1;
+      continue;
+    }
 
     const playerAttrs = playerInc?.attributes || {};
     const playerName = String(playerAttrs.display_name || playerAttrs.name || "").trim();
@@ -326,19 +353,58 @@ function boardFromPartnerPayload(payload, { source = "partner", sourceUrl = null
   };
 }
 
-async function fetchFromPartner({ signal } = {}) {
-  const endpoint = partnerUrl();
-  const resp = await fetch(endpoint, {
-    headers: PARTNER_HEADERS,
-    signal,
-  });
-  if (!resp.ok) {
-    const err = new Error(`PrizePicks partner API failed (${resp.status})`);
-    err.status = resp.status;
-    throw err;
+function mergePartnerPages(pages) {
+  const data = [];
+  const includedByKey = new Map();
+  for (const payload of pages) {
+    for (const row of payload?.data || []) data.push(row);
+    for (const inc of payload?.included || []) {
+      if (inc?.type && inc?.id != null) includedByKey.set(`${inc.type}:${inc.id}`, inc);
+    }
   }
-  const payload = await resp.json();
-  return boardFromPartnerPayload(payload, { source: "partner", sourceUrl: endpoint });
+  return { data, included: [...includedByKey.values()] };
+}
+
+/**
+ * Fetch all partner-api pages (per_page=250). Single-page boards are common;
+ * still follow meta.total_pages when the slate grows.
+ */
+async function fetchPartnerPayload({ signal } = {}) {
+  const endpoint = partnerUrl();
+  const pages = [];
+  let page = 1;
+  let totalPages = 1;
+  const maxPages = 20;
+  while (page <= totalPages && page <= maxPages) {
+    const url = new URL(endpoint);
+    if (!url.searchParams.has("per_page")) url.searchParams.set("per_page", "250");
+    url.searchParams.set("page", String(page));
+    const resp = await fetch(url.toString(), {
+      headers: PARTNER_HEADERS,
+      signal,
+    });
+    if (!resp.ok) {
+      const err = new Error(`PrizePicks partner API failed (${resp.status})`);
+      err.status = resp.status;
+      throw err;
+    }
+    const payload = await resp.json();
+    pages.push(payload);
+    const metaPages = Number(payload?.meta?.total_pages);
+    totalPages = Number.isFinite(metaPages) && metaPages > 0 ? metaPages : 1;
+    page += 1;
+  }
+  return {
+    payload: mergePartnerPages(pages),
+    sourceUrl: endpoint,
+    pagesFetched: pages.length,
+  };
+}
+
+async function fetchFromPartner({ signal } = {}) {
+  const { payload, sourceUrl, pagesFetched } = await fetchPartnerPayload({ signal });
+  dataLog("PrizePicksMirror", `Partner fetch ${pagesFetched} page(s)`);
+  return boardFromPartnerPayload(payload, { source: "partner", sourceUrl });
 }
 
 async function fetchFromMirror({ signal, url } = {}) {
@@ -401,12 +467,12 @@ async function fetchPrizePicksNcaaf({
 }
 
 /**
- * Deduplicate to one row per player+team+stat+line (keep first / lowest rank).
- * Also collapses odds variants to one per player+stat when lines differ.
+ * Deduplicate exact player+team+stat+line rows (keep preferred odds type).
+ * Distinct lines for the same player+stat are kept — PrizePicks often lists
+ * standard and goblin/demon at different numbers, and both are bettable.
  */
 function uniqueEvalTargets(props) {
   const seenLine = new Set();
-  const seenPlayerStat = new Set();
   const out = [];
   const sorted = (props || []).slice().sort((a, b) => {
     const od = oddsRank(a.oddsType) - oddsRank(b.oddsType);
@@ -416,10 +482,7 @@ function uniqueEvalTargets(props) {
   for (const p of sorted) {
     const lineKey = `${p.playerName}|${p.team}|${p.statId}|${p.line}`.toLowerCase();
     if (seenLine.has(lineKey)) continue;
-    const psKey = `${p.playerName}|${p.team}|${p.statId}`.toLowerCase();
-    if (seenPlayerStat.has(psKey)) continue;
     seenLine.add(lineKey);
-    seenPlayerStat.add(psKey);
     out.push(p);
   }
   return out;

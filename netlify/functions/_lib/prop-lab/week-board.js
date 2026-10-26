@@ -118,6 +118,7 @@ function slimLeg(evaluation, prop, side) {
         }
       : null,
     edge: Number.isFinite(evaluation.pHit) ? evaluation.pHit - 0.5 : null,
+    oddsType: prop.oddsType || "standard",
   };
 }
 
@@ -687,6 +688,7 @@ function gradedLegsFromScores(scoresJson) {
       form: raw.form || null,
       matchup: raw.matchup || null,
       edge: raw.edge ?? null,
+      oddsType: raw.oddsType || null,
     });
   }
   legs.sort((a, b) => {

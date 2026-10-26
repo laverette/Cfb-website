@@ -3223,19 +3223,42 @@
     }
   }
 
-  async function stashPrizePicksBoardForBuild(headers) {
+  async function fetchPrizePicksPartnerPayload() {
     // Same-origin Netlify proxy (partner-api CORS only allows app.prizepicks.com).
-    const partnerUrl = "/api/prop-lab/prizepicks-projections?league_id=15";
-    const partnerResp = await fetch(partnerUrl, {
-      headers: { accept: "application/json" },
-    });
-    if (!partnerResp.ok) {
-      throw new Error(`PrizePicks board fetch failed (${partnerResp.status})`);
+    const base = "/api/prop-lab/prizepicks-projections?league_id=15&per_page=250";
+    const pages = [];
+    let page = 1;
+    let totalPages = 1;
+    const maxPages = 20;
+    while (page <= totalPages && page <= maxPages) {
+      const partnerResp = await fetch(`${base}&page=${page}`, {
+        headers: { accept: "application/json" },
+      });
+      if (!partnerResp.ok) {
+        throw new Error(`PrizePicks board fetch failed (${partnerResp.status})`);
+      }
+      const payload = await partnerResp.json();
+      if (!Array.isArray(payload?.data)) {
+        throw new Error("PrizePicks proxy returned an unexpected payload");
+      }
+      pages.push(payload);
+      const metaPages = Number(payload?.meta?.total_pages);
+      totalPages = Number.isFinite(metaPages) && metaPages > 0 ? metaPages : 1;
+      page += 1;
     }
-    const partnerPayload = await partnerResp.json();
-    if (!Array.isArray(partnerPayload?.data)) {
-      throw new Error("PrizePicks proxy returned an unexpected payload");
+    const data = [];
+    const includedByKey = new Map();
+    for (const payload of pages) {
+      for (const row of payload.data || []) data.push(row);
+      for (const inc of payload.included || []) {
+        if (inc?.type && inc?.id != null) includedByKey.set(`${inc.type}:${inc.id}`, inc);
+      }
     }
+    return { data, included: [...includedByKey.values()] };
+  }
+
+  async function stashPrizePicksBoardForBuild(headers) {
+    const partnerPayload = await fetchPrizePicksPartnerPayload();
     // Parse in-browser — never POST the multi-MB partner JSON to Netlify (413).
     const parse = window.PrizePicksBoard;
     if (!parse?.boardFromPartnerPayload) {
@@ -3243,7 +3266,7 @@
     }
     const board = parse.boardFromPartnerPayload(partnerPayload, {
       source: "browser-partner",
-      sourceUrl: "https://partner-api.prizepicks.com/projections?league_id=15",
+      sourceUrl: "https://partner-api.prizepicks.com/projections?league_id=15&per_page=250",
     });
     if (!board.props?.length) {
       throw new Error("PrizePicks board had no supported props");

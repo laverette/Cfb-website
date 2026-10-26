@@ -14,15 +14,18 @@
     "passing attempts": "pass_att",
     completions: "pass_comp",
     "pass completions": "pass_comp",
+    "passing completions": "pass_comp",
     "passing tds": "pass_td",
     "pass tds": "pass_td",
     "pass td": "pass_td",
+    "passing touchdowns": "pass_td",
     interceptions: "pass_int",
     ints: "pass_int",
     int: "pass_int",
     "pass int": "pass_int",
     "pass ints": "pass_int",
     "passing interceptions": "pass_int",
+    "interceptions thrown": "pass_int",
     "longest completion": "pass_long",
     "longest pass": "pass_long",
     "rush yards": "rush_yds",
@@ -30,23 +33,30 @@
     "rush yds": "rush_yds",
     "rush attempts": "rush_att",
     "rushing attempts": "rush_att",
+    carries: "rush_att",
     "rush tds": "rush_td",
     "rushing tds": "rush_td",
     "rush td": "rush_td",
+    "rushing touchdowns": "rush_td",
     "longest rush": "rush_long",
     "rec yards": "rec_yds",
+    "rec yds": "rec_yds",
     "receiving yards": "rec_yds",
     "receiving yds": "rec_yds",
     receptions: "rec",
     "rec tds": "rec_td",
+    "rec td": "rec_td",
     "receiving tds": "rec_td",
     "receiving td": "rec_td",
+    "receiving touchdowns": "rec_td",
     "longest reception": "rec_long",
     "rush+rec yards": "rush_rec_yds",
     "rush+rec yds": "rush_rec_yds",
     "rush + rec yards": "rush_rec_yds",
     "rush + rec yds": "rush_rec_yds",
     "rush + receiving yards": "rush_rec_yds",
+    "rush+receiving yards": "rush_rec_yds",
+    "rush+receiving yds": "rush_rec_yds",
     "pass+rush yards": "pass_rush_yds",
     "pass+rush yds": "pass_rush_yds",
     "pass + rush yards": "pass_rush_yds",
@@ -55,6 +65,8 @@
     "total tds": "total_td",
     "anytime tds": "total_td",
     "anytime td": "total_td",
+    "player touchdowns": "total_td",
+    "player tds": "total_td",
     "fantasy score": "fantasy_score",
     "fantasy pts": "fantasy_score",
     "fantasy points": "fantasy_score",
@@ -64,7 +76,9 @@
     "kicker points": "kicking_pts",
     "pats made": "xp_made",
     "pat made": "xp_made",
+    "xp made": "xp_made",
     "extra points": "xp_made",
+    "extra points made": "xp_made",
   };
 
   const MASCOT_SUFFIX =
@@ -96,27 +110,34 @@
     return 9;
   }
 
+  /**
+   * Keep every distinct line; prefer standard > demon > goblin for duplicates.
+   * Group per player+stat+line so demon-only players are not dropped.
+   */
   function selectBoardProps(rows) {
-    const byStat = new Map();
+    const byPlayerStatLine = new Map();
     for (const row of rows) {
       const sid = row.statId || normalizeStatKey(row.stat);
-      if (!byStat.has(sid)) byStat.set(sid, []);
-      byStat.get(sid).push(row);
+      const key = `${String(row.playerName || "")
+        .toLowerCase()}|${String(row.team || row.teamCode || "")
+        .toLowerCase()}|${sid}|${Number(row.line)}`;
+      if (!byPlayerStatLine.has(key)) byPlayerStatLine.set(key, []);
+      byPlayerStatLine.get(key).push(row);
     }
     const out = [];
-    for (const group of byStat.values()) {
-      const hasStandard = group.some((r) => oddsRank(r.oddsType) === 0);
-      const filtered = hasStandard
-        ? group.filter((r) => oddsRank(r.oddsType) === 0)
-        : group.slice().sort((a, b) => oddsRank(a.oddsType) - oddsRank(b.oddsType));
-      out.push(...filtered);
+    for (const group of byPlayerStatLine.values()) {
+      const sorted = group.slice().sort((a, b) => {
+        const od = oddsRank(a.oddsType) - oddsRank(b.oddsType);
+        if (od) return od;
+        return (a.rank ?? 9999) - (b.rank ?? 9999);
+      });
+      if (sorted[0]) out.push(sorted[0]);
     }
     return out;
   }
 
   function uniqueEvalTargets(props) {
     const seenLine = new Set();
-    const seenPlayerStat = new Set();
     const out = [];
     const sorted = (props || []).slice().sort((a, b) => {
       const od = oddsRank(a.oddsType) - oddsRank(b.oddsType);
@@ -126,10 +147,7 @@
     for (const p of sorted) {
       const lineKey = `${p.playerName}|${p.team}|${p.statId}|${p.line}`.toLowerCase();
       if (seenLine.has(lineKey)) continue;
-      const psKey = `${p.playerName}|${p.team}|${p.statId}`.toLowerCase();
-      if (seenPlayerStat.has(psKey)) continue;
       seenLine.add(lineKey);
-      seenPlayerStat.add(psKey);
       out.push(p);
     }
     return out;
@@ -179,7 +197,14 @@
         continue;
       }
       const status = attrs.status || attrs.odds_type_status || null;
-      if (String(status || "").toLowerCase() === "suspended") continue;
+      if (String(status || "").toLowerCase() === "suspended") {
+        skipped.suspended = (skipped.suspended || 0) + 1;
+        continue;
+      }
+      if (!String(proj.id || "").trim()) {
+        skipped.empty_projection_id = (skipped.empty_projection_id || 0) + 1;
+        continue;
+      }
 
       const playerAttrs = playerInc?.attributes || {};
       const playerName = String(playerAttrs.display_name || playerAttrs.name || "").trim();
@@ -223,7 +248,8 @@
   function boardFromPartnerPayload(payload, opts) {
     const source = opts?.source || "browser-partner";
     const sourceUrl =
-      opts?.sourceUrl || "https://partner-api.prizepicks.com/projections?league_id=15";
+      opts?.sourceUrl ||
+      "https://partner-api.prizepicks.com/projections?league_id=15&per_page=250";
     const parsed = parsePartnerPayload(payload);
     const selected = uniqueEvalTargets(selectBoardProps(parsed.rows));
     const fetchedAt = new Date().toISOString();
