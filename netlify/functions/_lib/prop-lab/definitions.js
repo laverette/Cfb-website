@@ -320,6 +320,8 @@ const PROP_DEFINITIONS = [
     ceil: 8,
     combo: true,
     parts: ["pass_td", "rush_td", "rec_td"],
+    // PrizePicks Anytime/Total TDs is more-only — never grade Unders.
+    allowLess: false,
     matchupKeys: ["passTdAllowed", "rushTdAllowed"],
   },
   {
