@@ -65,6 +65,7 @@
     weekBoardView: "best", // "best" | "all"
     weekBoardCategory: "",
     weekBoardSearch: "",
+    weekBoardSort: "grade", // "grade" | "more" | "less" | "position"
     /** @type {null | { shareId: string, title?: string, createdAt?: string, loading?: boolean, error?: string|null }} */
     sharedView: null,
   };
@@ -2999,9 +3000,60 @@
     return (Array.isArray(legs) ? legs : []).filter((l) => {
       if (cat && String(l.statId || "") !== cat) return false;
       if (!q) return true;
-      const hay = `${l.playerName || ""} ${l.team || ""}`.toLowerCase();
+      const hay = `${l.playerName || ""} ${l.team || ""} ${l.position || ""}`.toLowerCase();
       return hay.includes(q);
     });
+  }
+
+  function weekBoardSideRank(side) {
+    return String(side || "more").toLowerCase() === "less" ? 1 : 0;
+  }
+
+  function weekBoardPositionKey(position) {
+    const raw = String(position || "")
+      .trim()
+      .toUpperCase();
+    if (!raw) return "ZZZ";
+    const canon = canonicalPosition(raw) || raw;
+    // Offense first in a familiar order, then everything else A–Z.
+    const order = { QB: 0, RB: 1, WR: 2, TE: 3, K: 4, PK: 4 };
+    const tier = order[canon] != null ? order[canon] : 50;
+    return `${String(tier).padStart(2, "0")}|${canon}`;
+  }
+
+  function compareWeekBoardGrade(a, b) {
+    const ds = (b.propScore || 0) - (a.propScore || 0);
+    if (ds) return ds;
+    return (b.pHit || 0) - (a.pHit || 0);
+  }
+
+  function sortWeekBoardLegs(legs, sortMode = "grade") {
+    const mode = String(sortMode || "grade").toLowerCase();
+    const list = (Array.isArray(legs) ? legs : []).slice();
+    if (mode === "more") {
+      return list.sort((a, b) => {
+        const side = weekBoardSideRank(a.side) - weekBoardSideRank(b.side);
+        if (side) return side;
+        return compareWeekBoardGrade(a, b);
+      });
+    }
+    if (mode === "less") {
+      return list.sort((a, b) => {
+        const side = weekBoardSideRank(b.side) - weekBoardSideRank(a.side);
+        if (side) return side;
+        return compareWeekBoardGrade(a, b);
+      });
+    }
+    if (mode === "position") {
+      return list.sort((a, b) => {
+        const pa = weekBoardPositionKey(a.position);
+        const pb = weekBoardPositionKey(b.position);
+        if (pa < pb) return -1;
+        if (pa > pb) return 1;
+        return compareWeekBoardGrade(a, b);
+      });
+    }
+    return list.sort(compareWeekBoardGrade);
   }
 
   function fillWeekBoardCategorySelect(picks) {
@@ -3026,12 +3078,19 @@
   function syncWeekBoardToolbar(picks) {
     const toolbar = document.getElementById("weekPicksToolbar");
     const search = document.getElementById("weekPicksSearch");
+    const sortSel = document.getElementById("weekPicksSort");
     if (toolbar) toolbar.hidden = !picks;
     document.querySelectorAll("[data-week-view]").forEach((btn) => {
       btn.classList.toggle("is-active", btn.getAttribute("data-week-view") === state.weekBoardView);
     });
     if (search && search.value !== state.weekBoardSearch) {
       search.value = state.weekBoardSearch;
+    }
+    if (sortSel) {
+      const allowed = new Set(["grade", "more", "less", "position"]);
+      const mode = allowed.has(state.weekBoardSort) ? state.weekBoardSort : "grade";
+      state.weekBoardSort = mode;
+      if (sortSel.value !== mode) sortSel.value = mode;
     }
     fillWeekBoardCategorySelect(picks);
   }
@@ -3044,11 +3103,12 @@
       .map((l, i) => {
         const side = String(l.side || "more").toUpperCase();
         const opp = l.opponent?.name ? ` vs ${l.opponent.name}` : "";
+        const teamPos = [l.team, l.position].filter(Boolean).join(" · ");
         return `<article class="prop-week-pick" data-idx="${i}">
           <span class="prop-week-pick-rank">${i + 1}</span>
           <div class="prop-week-pick-main">
             <p class="prop-week-pick-name">${escapeHtml(l.playerName || "Player")}</p>
-            <p class="prop-week-pick-meta">${escapeHtml([l.team, opp].filter(Boolean).join("") || "—")}</p>
+            <p class="prop-week-pick-meta">${escapeHtml([teamPos, opp].filter(Boolean).join("") || "—")}</p>
             <p class="prop-week-pick-line">${escapeHtml(side)} ${escapeHtml(l.statLabel || l.statId || "")} ${escapeHtml(
               String(l.line)
             )}</p>
@@ -3124,22 +3184,40 @@
     const viewingAll = state.weekBoardView === "all" || hasFilter;
     // Category/search → full filtered set. Unfiltered "all" caps for DOM size.
     const ALL_VIEW_CAP = 150;
+    const sortMode = state.weekBoardSort || "grade";
+    const sortedBest = sortWeekBoardLegs(bestLegs, sortMode);
+    const sortedFiltered = sortWeekBoardLegs(filtered, sortMode);
     const displayLegs = viewingAll
       ? hasFilter
-        ? filtered
-        : filtered.slice(0, ALL_VIEW_CAP)
-      : bestLegs.slice(0, 20);
+        ? sortedFiltered
+        : sortedFiltered.slice(0, ALL_VIEW_CAP)
+      : sortedBest.slice(0, 20);
     const truncatedAll = viewingAll && !hasFilter && filtered.length > ALL_VIEW_CAP;
+    let sortLabel = "by grade";
+    switch (sortMode) {
+      case "more":
+        sortLabel = "more first";
+        break;
+      case "less":
+        sortLabel = "less first";
+        break;
+      case "position":
+        sortLabel = "by position";
+        break;
+      default:
+        sortLabel = "by grade";
+        break;
+    }
 
     if (lead) {
       if (picks.status !== "complete") {
         lead.textContent = `Scoring in progress · ${picks.propsScored || 0}/${picks.propsSupported || "?"} props`;
       } else if (viewingAll) {
         lead.textContent = truncatedAll
-          ? `All graded · Week ${picks.week ?? "?"} · top ${ALL_VIEW_CAP} of ${filtered.length} (pick a category or search for the rest)`
-          : `All graded · Week ${picks.week ?? "?"} · ${filtered.length} of ${graded.length} props (by grade)`;
+          ? `All graded · Week ${picks.week ?? "?"} · top ${ALL_VIEW_CAP} of ${filtered.length} (${sortLabel}; pick a category or search for the rest)`
+          : `All graded · Week ${picks.week ?? "?"} · ${filtered.length} of ${graded.length} props (${sortLabel})`;
       } else {
-        lead.textContent = `Best bets · Week ${picks.week ?? "?"} · ${bestLegs.length} singles`;
+        lead.textContent = `Best bets · Week ${picks.week ?? "?"} · ${bestLegs.length} singles (${sortLabel})`;
       }
     }
     if (meta) {
@@ -3457,6 +3535,12 @@
     document.getElementById("weekPicksCategory")?.addEventListener("change", (e) => {
       state.weekBoardCategory = String(e.target.value || "");
       if (state.weekBoardCategory) state.weekBoardView = "all";
+      renderWeekPicks(state.weekPicks);
+    });
+    document.getElementById("weekPicksSort")?.addEventListener("change", (e) => {
+      const allowed = new Set(["grade", "more", "less", "position"]);
+      const next = String(e.target.value || "grade").toLowerCase();
+      state.weekBoardSort = allowed.has(next) ? next : "grade";
       renderWeekPicks(state.weekPicks);
     });
     let weekSearchTimer = null;
