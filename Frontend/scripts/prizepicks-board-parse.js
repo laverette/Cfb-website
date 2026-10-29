@@ -102,30 +102,45 @@
     return stripped || s;
   }
 
+  function normalizeOddsType(oddsType) {
+    return String(oddsType || "standard")
+      .trim()
+      .toLowerCase();
+  }
+
+  function isBaseOddsType(oddsType) {
+    const o = normalizeOddsType(oddsType);
+    return o === "standard" || o === "normal" || o === "default" || o === "";
+  }
+
   function oddsRank(oddsType) {
-    const o = String(oddsType || "standard").toLowerCase();
-    if (o === "standard") return 0;
+    const o = normalizeOddsType(oddsType);
+    if (isBaseOddsType(o)) return 0;
     if (o === "demon") return 1;
     if (o === "goblin") return 2;
     return 9;
   }
 
+  function playerStatKey(row) {
+    const sid = row.statId || normalizeStatKey(row.stat);
+    return `${String(row.playerName || "")
+      .toLowerCase()}|${String(row.team || row.teamCode || "")
+      .toLowerCase()}|${sid}`;
+  }
+
   /**
-   * Keep every distinct line; prefer standard > demon > goblin for duplicates.
-   * Group per player+stat+line so demon-only players are not dropped.
+   * One base (standard) line per player+stat. Drop goblin/demon variants.
    */
   function selectBoardProps(rows) {
-    const byPlayerStatLine = new Map();
-    for (const row of rows) {
-      const sid = row.statId || normalizeStatKey(row.stat);
-      const key = `${String(row.playerName || "")
-        .toLowerCase()}|${String(row.team || row.teamCode || "")
-        .toLowerCase()}|${sid}|${Number(row.line)}`;
-      if (!byPlayerStatLine.has(key)) byPlayerStatLine.set(key, []);
-      byPlayerStatLine.get(key).push(row);
+    const byPlayerStat = new Map();
+    for (const row of rows || []) {
+      if (!isBaseOddsType(row.oddsType)) continue;
+      const key = playerStatKey(row);
+      if (!byPlayerStat.has(key)) byPlayerStat.set(key, []);
+      byPlayerStat.get(key).push(row);
     }
     const out = [];
-    for (const group of byPlayerStatLine.values()) {
+    for (const group of byPlayerStat.values()) {
       const sorted = group.slice().sort((a, b) => {
         const od = oddsRank(a.oddsType) - oddsRank(b.oddsType);
         if (od) return od;
@@ -137,17 +152,20 @@
   }
 
   function uniqueEvalTargets(props) {
-    const seenLine = new Set();
+    const seen = new Set();
     const out = [];
-    const sorted = (props || []).slice().sort((a, b) => {
-      const od = oddsRank(a.oddsType) - oddsRank(b.oddsType);
-      if (od) return od;
-      return (a.rank ?? 9999) - (b.rank ?? 9999);
-    });
+    const sorted = (props || [])
+      .filter((p) => isBaseOddsType(p.oddsType))
+      .slice()
+      .sort((a, b) => {
+        const od = oddsRank(a.oddsType) - oddsRank(b.oddsType);
+        if (od) return od;
+        return (a.rank ?? 9999) - (b.rank ?? 9999);
+      });
     for (const p of sorted) {
-      const lineKey = `${p.playerName}|${p.team}|${p.statId}|${p.line}`.toLowerCase();
-      if (seenLine.has(lineKey)) continue;
-      seenLine.add(lineKey);
+      const key = playerStatKey(p);
+      if (seen.has(key)) continue;
+      seen.add(key);
       out.push(p);
     }
     return out;
