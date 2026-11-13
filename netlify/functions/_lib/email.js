@@ -102,12 +102,13 @@ function buildPickReminderEmail({
   const subject = isTest ? `[TEST] ${subjectBase}` : subjectBase;
   const preheader = `Saturday reminder: submit your ${week} picks.`;
 
+  const lockLabel = locksAt ? formatLockTimeCt(locksAt) : "1:00 PM Central on Saturday";
   const text = [
     isTest ? "[TEST REMINDER]" : null,
     `Hi ${name},`,
     "",
     `Saturday reminder — you haven't submitted your ${week} weekly picks yet.`,
-    "Picks stay open — submit or edit anytime.",
+    `Picks lock at ${lockLabel}.`,
     "",
     `Submit picks: ${picksUrl}`,
     "",
@@ -164,7 +165,7 @@ function buildPickReminderEmail({
                 Hi ${escapeHtml(name)} — you still haven’t submitted your board for <strong style="color:#ffe566;">${escapeHtml(week)}</strong>.
               </p>
               <p style="margin:0 0 18px;font-size:15px;line-height:1.5;color:#e8d5a3;">
-                Picks stay open — submit or edit anytime.
+                Picks lock at ${escapeHtml(lockLabel)}.
               </p>
             </td>
           </tr>

@@ -1,4 +1,4 @@
-const { loadGamesByWeek } = require("./db");
+const { loadGamesByWeek, weekLockFromGames } = require("./db");
 const { parseWeekId, invalidWeekIdPayload } = require("./_parseWeekId");
 
 function json(statusCode, body, extraHeaders = {}) {
@@ -25,7 +25,12 @@ exports.handler = async (event) => {
 
   try {
     const games = await loadGamesByWeek(weekId);
-    return json(200, { games });
+    const lock = weekLockFromGames(games);
+    return json(200, {
+      games,
+      picksLocked: lock.picksLocked,
+      locksAt: lock.locksAt,
+    });
   } catch (err) {
     console.error("picks-games-by-week:", err);
     if (err.code === "NO_DATABASE_URL") {

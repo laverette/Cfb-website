@@ -1,7 +1,7 @@
 /**
  * POST /api/picks/submit
  * Body: { weekId, picks: [{ gameId?, gameNumber?, pickedTeamEspnId }] }
- * One set per user per week. Updates allowed until 30 min after first Saturday kickoff.
+ * One set per user per week. Updates allowed until 1:00 PM Central on Saturday.
  */
 const { submitUserPicks } = require("./db");
 const { json, parseJsonBody } = require("./_http");
@@ -48,7 +48,7 @@ exports.handler = async (event) => {
     console.error("picks-submit:", err);
     if (err.code === "PICKS_LOCKED") {
       return json(400, {
-        message: "Picks are locked. The deadline (30 minutes after Saturday’s first kickoff) has passed.",
+        message: "Picks are locked. The deadline is 1:00 PM Central on Saturday.",
         code: "PICKS_LOCKED",
         locksAt: err.locksAt || null,
       });

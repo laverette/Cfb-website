@@ -118,6 +118,15 @@ function slimLeg(evaluation, prop, side) {
         }
       : null,
     edge: Number.isFinite(evaluation.pHit) ? evaluation.pHit - 0.5 : null,
+    flags: evaluation.flags || [],
+    doNotBet: Boolean(evaluation.doNotBet),
+    availability: evaluation.availability
+      ? {
+          status: evaluation.availability.status,
+          headline: evaluation.availability.headline || null,
+          note: evaluation.availability.note || null,
+        }
+      : null,
     oddsType: prop.oddsType || "standard",
     allowedWagerTypes: prop.allowedWagerTypes || null,
   };
@@ -136,6 +145,7 @@ function pickBetterSide(moreLeg, lessLeg) {
 
 function passesFloor(leg) {
   if (!leg || leg.error) return false;
+  if (leg.doNotBet) return false;
   if (leg.confidence === "D") return false;
   if ((leg.form?.games ?? 0) < 3) return false;
   if ((leg.pHit ?? 0) < 0.54) return false;
@@ -680,7 +690,7 @@ function gradedLegsFromScores(scoresJson) {
       : [];
   const legs = [];
   for (const raw of scores) {
-    if (!raw || raw.error || raw.propScore == null) continue;
+    if (!raw || raw.error || raw.propScore == null || raw.doNotBet) continue;
     // Drop unbettable sides from older boards (Rec TD under, demon under, …).
     if (!sideAllowedForProp(raw, raw.side)) continue;
     legs.push({
@@ -702,6 +712,9 @@ function gradedLegsFromScores(scoresJson) {
       form: raw.form || null,
       matchup: raw.matchup || null,
       edge: raw.edge ?? null,
+      flags: raw.flags || [],
+      doNotBet: Boolean(raw.doNotBet),
+      availability: raw.availability || null,
       oddsType: raw.oddsType || null,
       allowedWagerTypes: raw.allowedWagerTypes || null,
     });

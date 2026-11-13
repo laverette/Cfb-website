@@ -287,6 +287,30 @@ function entryValue({
   const ok = (legs || []).filter((l) => l && !l.error && Number.isFinite(Number(l.pHit)));
   if (!ok.length) return null;
   const price = parsePayout(payout, ok.length);
+  const blocked = ok.filter((l) => l.doNotBet);
+  if (blocked.length) {
+    const names = blocked.map((l) => l.player?.name || "A player").join(", ");
+    return {
+      verdict: "pass",
+      verdictLabel: "Pass",
+      summary: `Pass — ${names} ${blocked.length === 1 ? "is" : "are"} reported out.`,
+      reasons: blocked.map(
+        (l) => l.availability?.note || `${l.player?.name || "Player"} is reported out. Pass this prop.`
+      ),
+      tooltip:
+        "A reported-out player is passed. A voided prop is not a made under. Educational lean only — not betting advice.",
+      ev: null,
+      evLabel: "",
+      edge: null,
+      pUse: null,
+      breakeven: null,
+      neededLabel: null,
+      modelLabel: null,
+      safetyPercent: null,
+      playModes: null,
+      payout: price,
+    };
+  }
   const conservative = ok.map((l) => ({ ...l, pHit: conservativePHit(l) }));
   const conservativeTogether = jointAllHit(conservative, pairs) || together;
   const pRaw = together?.pModel ?? together?.p ?? null;

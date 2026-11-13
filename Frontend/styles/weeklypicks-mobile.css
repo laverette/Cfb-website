@@ -172,11 +172,14 @@ body.has-mobile-dock {
   }
 
   .hub-chrome {
-    width: calc(100% - 0.9rem);
-    margin: 0.4rem auto 0.35rem;
-    padding: 0.5rem 0.6rem 0.55rem;
-    border-radius: 12px;
+    width: min(22rem, calc(100% - 1.5rem));
+    margin: 0.9rem auto 0.7rem;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
     box-shadow: none;
+    text-align: center;
   }
 
   .hub-week-kicker {
@@ -184,34 +187,72 @@ body.has-mobile-dock {
   }
 
   .hub-weekbar {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.45rem;
     margin-top: 0;
-    gap: 0.4rem;
+  }
+
+  .hub-week-copy {
+    width: 100%;
+    min-width: 0;
   }
 
   .hub-week-title {
-    font-size: 1.12rem;
+    font-family: "Barlow Condensed", Impact, sans-serif;
+    font-size: 2rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    line-height: 1;
+    text-align: center;
+    text-transform: uppercase;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
   }
 
   .hub-week-status {
-    margin: 0.12rem 0 0;
-    font-size: 0.78rem;
+    margin: 0.4rem 0 0;
+    color: #f5deb3;
+    font-size: 1rem;
+    line-height: 1.35;
+    text-align: center;
+  }
+
+  body.weekly-results-view .hub-week-status {
+    display: none;
+  }
+
+  .hub-week-tools {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    min-width: 0;
+    gap: 0.55rem;
+  }
+
+  .hub-progress {
+    width: min(100%, 16rem);
   }
 
   .hub-progress-label {
-    margin-bottom: 0.15rem;
-    font-size: 0.74rem;
+    margin-bottom: 0.3rem;
+    font-size: 0.9rem;
+    text-align: center;
   }
 
   .hub-chrome .football-toggle-btn {
+    align-self: center;
     min-height: 40px;
-    padding: 0.28rem 0.7rem;
-    font-size: 0.75rem;
+    padding: 0.4rem 1rem;
+    font-size: 0.9rem;
     font-weight: 700;
-    background: transparent;
-    color: #d4b896;
-    border: 1px solid rgba(245, 222, 179, 0.28);
+    color: #f5deb3;
+    background: rgba(62, 39, 35, 0.72);
+    border: 1px solid rgba(255, 215, 0, 0.35);
     box-shadow: none;
-    align-self: flex-start;
   }
 
   .hub-scoreboard {
@@ -739,7 +780,7 @@ body.has-mobile-dock {
 
 @media (max-width: 359px) {
   .site-name-suggest-label { font-size: 0.82rem; }
-  .hub-week-title { font-size: 1rem; }
+  .hub-week-title { font-size: 1.7rem; }
   .pick-matchup .team-pick-name { font-size: 0.72rem; }
   .analysis-kpis { grid-template-columns: 1fr 1fr 1fr; }
 }

@@ -38,6 +38,8 @@ const {
   cfbdOverviewEnabled,
 } = require("./data/provider-mode");
 const { getLeagueMatchupSnapshot } = require("./data/league-snapshot");
+const { getTeamNews } = require("./data/espn/news");
+const { resolveAvailability } = require("./availability");
 const { dataLog } = require("./data/log");
 
 async function loadOverview(cfbd, playerId, year, providerMode) {
@@ -550,6 +552,23 @@ async function loadPlayerBundle({
 
   const byeWeek = opponentResolution?.status === "bye";
 
+  let newsArticles = [];
+  if (playerTeam && asOfWeek == null) {
+    try {
+      newsArticles = await getTeamNews(playerTeam, { signal });
+    } catch (err) {
+      dataLog("Availability", `Team news failed for ${playerTeam}: ${err.message}`);
+      newsArticles = [];
+    }
+  }
+  const availability = resolveAvailability({
+    playerName: resolvedName,
+    articles: newsArticles,
+    gameLogs,
+    schedule,
+    week: bundleWeek,
+  });
+
   return {
     player: {
       id: pid,
@@ -628,6 +647,7 @@ async function loadPlayerBundle({
     oppRating,
     market: consensusLine,
     flags,
+    availability,
     defenseDataSource,
     matchupDataConfidence,
     defenseProfileMeta,

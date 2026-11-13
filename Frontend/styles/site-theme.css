@@ -1881,13 +1881,130 @@ body.site-feedback-open {
   overflow: hidden;
 }
 
-/* Hidden site-wide ambient audio (controls live on profile settings) */
-.site-audio-root--hidden {
-  position: absolute;
-  width: 0;
-  height: 0;
+/* Discreet corner player for classic band songs */
+.band-player {
+  position: fixed;
+  right: 0.75rem;
+  bottom: calc(0.75rem + var(--mobile-bottom-bar-height, 0px));
+  z-index: 1100;
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: flex-end;
+  width: max-content;
+  max-width: min(16rem, calc(100vw - 1.5rem));
+  color: var(--text-main);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.band-player.is-open {
+  width: min(20rem, calc(100vw - 1.5rem));
+}
+
+.band-player-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.28rem;
+  background: rgba(30, 20, 16, 0.92);
+  border: 1px solid rgba(141, 110, 99, 0.85);
+  border-radius: 999px;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.35);
+}
+
+.band-player-transport {
+  display: none;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.band-player.is-open .band-player-transport {
+  display: flex;
+}
+
+.band-player-btn,
+.band-player-title,
+.band-player-pick {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--text-main);
+  font: inherit;
+  cursor: pointer;
+}
+
+.band-player-btn {
+  flex: 0 0 auto;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  color: var(--gold);
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
+.band-player-btn:hover,
+.band-player-title:hover,
+.band-player-pick:hover {
+  background: rgba(255, 215, 0, 0.12);
+}
+
+.band-player-mute {
+  width: auto;
+  padding: 0 0.65rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.band-player-mute[aria-pressed="true"] {
+  color: #1a1410;
+  background: var(--gold);
+}
+
+.band-player-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 9.5rem;
+  padding: 0.35rem 0.45rem;
   overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  pointer-events: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.band-player.is-open .band-player-title {
+  max-width: none;
+}
+
+.band-player-list {
+  list-style: none;
+  width: 100%;
+  margin: 0 0 0.35rem;
+  padding: 0.3rem;
+  max-height: 14rem;
+  overflow: auto;
+  background: rgba(30, 20, 16, 0.96);
+  border: 1px solid rgba(141, 110, 99, 0.85);
+  border-radius: 12px;
+}
+
+.band-player-list[hidden] {
+  display: none !important;
+}
+
+.band-player-pick {
+  display: block;
+  width: 100%;
+  padding: 0.45rem 0.6rem;
+  border-radius: 8px;
+  text-align: left;
+  font-size: 0.78rem;
+}
+
+.band-player-list .is-current .band-player-pick {
+  color: var(--gold);
 }
 

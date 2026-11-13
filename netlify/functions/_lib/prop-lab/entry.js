@@ -287,12 +287,24 @@ function explainCut(leg, keep, pairs, mode) {
 
 function bestN(legs, n = 4, mode = "balanced") {
   const ok = (legs || []).filter((l) => l && !l.error);
-  const k = Math.min(n, ok.length);
-  if (!k) return { keep: [], cut: [], reason: "No legs to optimize.", why: [], mode };
-  const pairs = analyzeCorrelations(ok);
+  const blocked = ok
+    .filter((l) => l.doNotBet)
+    .map((l) => ({ ...l, cutReason: "Reported out — pass this prop." }));
+  const pool = ok.filter((l) => !l.doNotBet);
+  const k = Math.min(n, pool.length);
+  if (!k) {
+    return {
+      keep: [],
+      cut: blocked,
+      reason: blocked.length ? "Every leg is reported out." : "No legs to optimize.",
+      why: [],
+      mode,
+    };
+  }
+  const pairs = analyzeCorrelations(pool);
   let best = null;
   let bestScore = -Infinity;
-  for (const combo of combinations(ok, k)) {
+  for (const combo of combinations(pool, k)) {
     const s = comboScore(combo, pairs, mode);
     if (s > bestScore) {
       bestScore = s;
@@ -301,10 +313,15 @@ function bestN(legs, n = 4, mode = "balanced") {
   }
   const keepIds = new Set(best.map(legKey));
   const keep = best.slice().sort((a, b) => (b.propScore || 0) - (a.propScore || 0));
-  const cut = ok.filter((l) => !keepIds.has(legKey(l))).map((l) => ({
-    ...l,
-    cutReason: explainCut(l, keep, pairs, mode),
-  }));
+  const cut = [
+    ...pool
+      .filter((l) => !keepIds.has(legKey(l)))
+      .map((l) => ({
+        ...l,
+        cutReason: explainCut(l, keep, pairs, mode),
+      })),
+    ...blocked,
+  ];
   const why = explainBestN(keep, cut, pairs, mode);
   const keepPairs = analyzeCorrelations(keep);
   return {

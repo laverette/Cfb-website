@@ -45,6 +45,7 @@ const { buildPredictiveSd } = require("./variance");
 const { suggestWhatIfLines } = require("./whatif-lines");
 const { hitCountLabel } = require("./format");
 const { propIdentityKey } = require("./prop-identity");
+const { adjustmentFor } = require("./availability");
 
 function formatOppReason(reason, week) {
   const w = week != null ? ` for Week ${week}` : "";
@@ -195,6 +196,7 @@ function whyAndCaution({
   form,
   fcsShare,
   maxClear,
+  availability = null,
 }) {
   const why = [];
   const caution = [];
@@ -244,6 +246,14 @@ function whyAndCaution({
     caution.push("Projection is prior-stabilized, not raw early-season pace");
   }
   if (env.blowoutRisk === "High") caution.push("High blowout risk can scramble volume");
+  if (availability?.blockBet && availability.note) {
+    caution.unshift(availability.note);
+    why.length = 0;
+  } else if (availability?.note && availability.status === "new_starter") {
+    why.unshift(availability.note);
+  } else if (availability?.note) {
+    caution.unshift(availability.note);
+  }
   if (!likesMore) caution.push("Projection is close to or on the wrong side of the line");
   if (pHit < 0.55 && !caution.some((c) => /wrong side|close to/i.test(c))) {
     caution.push("Modeled edge versus this line is modest");
@@ -385,7 +395,12 @@ function evaluateFromBundle(bundle, {
   const matchupDelta = flagsAblation.noMatchup ? 0 : afterUsage * matchup.adjPct;
   const envDelta = flagsAblation.noGameScript ? 0 : afterUsage * env.adjPct;
   const projectionRaw = afterUsage + matchupDelta + envDelta;
-  const projection = clamp(projectionRaw, def.floor, def.ceil);
+  const avail = adjustmentFor(bundle.availability, {
+    projection: projectionRaw,
+    family: def.family,
+    usage: bundle.usage,
+  });
+  const projection = clamp(avail.projection, def.floor, def.ceil);
 
   const sampleSd = stddev(currentValues);
   const priorSd = stddev(priorValues);
@@ -400,7 +415,7 @@ function evaluateFromBundle(bundle, {
     blowoutRisk: env.blowoutRisk,
     projection,
   });
-  const sd = sdPack.final;
+  const sd = sdPack.final * (avail.sdScale || 1);
   const cv = projection > 0 && sd ? sd / projection : 1;
 
   const extraFlags = [];
@@ -410,6 +425,7 @@ function evaluateFromBundle(bundle, {
   if (oppEst.inferred) extraFlags.push("Low Usage Stability");
   if (fcsShare >= 0.4) extraFlags.push("FCS-Heavy Sample");
   if (fcsShare > 0 && fcsShare < 0.4 && currentLogs.length <= 3) extraFlags.push("Weak Opponent Sample");
+  for (const flag of avail.flags) extraFlags.push(flag);
   const flags = collectFlags(bundle, extraFlags);
 
   const completeness =
@@ -542,11 +558,19 @@ function evaluateFromBundle(bundle, {
 
   const consistency = hitAll == null ? 0.45 : 1 - Math.min(0.5, Math.abs(0.5 - hitAll));
   const edge = leanSide === "less" ? lineNum - projection : projection - lineNum;
-  const scored = propScore({
+  let scored = propScore({
     pHit: probs.pHit,
     confidenceLetter: conf.letter,
     roleStable: role.role === "Stable",
   });
+  if (avail.blockBet) {
+    scored = {
+      ...scored,
+      score: 0,
+      label: "Pass",
+      components: { ...scored.components, final: 0 },
+    };
+  }
   const sanity = lineSanity({
     statId: def.id,
     line: lineNum,
@@ -572,8 +596,11 @@ function evaluateFromBundle(bundle, {
     form: { hits: hitCount, games: currentValues.length, recShare: oppEst.recShare },
     fcsShare,
     maxClear,
+    availability: avail.note ? avail : null,
   });
-  if (!narrative.why.length) narrative.why.push("Limited positive signal after shrinkage and matchup caps");
+  if (!narrative.why.length && !avail.blockBet) {
+    narrative.why.push("Limited positive signal after shrinkage and matchup caps");
+  }
 
   const gameLog = buildGameLogRows(currentLogs, lineNum, leanSide);
   const priorLog = buildGameLogRows(priorLogs, lineNum, leanSide);
@@ -584,6 +611,7 @@ function evaluateFromBundle(bundle, {
     { label: "Recent usage", value: usageDelta },
     { label: "Matchup", value: matchupDelta },
     { label: "Game environment", value: envDelta },
+    ...(Math.abs(avail.delta) >= 0.05 ? [{ label: "Availability", value: avail.delta }] : []),
   ].map((row) => ({
     ...row,
     value: Number.isFinite(row.value) ? Number(row.value.toFixed(2)) : 0,
@@ -716,7 +744,18 @@ function evaluateFromBundle(bundle, {
         : null,
     opponentResolution: bundle.opponentResolution || null,
     byeWeek: Boolean(bundle.byeWeek),
-    highProbLowConf: probs.pHit >= 0.8 && ["C", "D"].includes(conf.letter),
+    doNotBet: Boolean(avail.blockBet),
+    availability: avail.note
+      ? {
+          status: avail.status,
+          evidence: avail.evidence,
+          headline: avail.headline,
+          sourceUrl: avail.sourceUrl,
+          note: avail.note,
+          recentMissed: avail.recentMissed,
+        }
+      : null,
+    highProbLowConf: !avail.blockBet && probs.pHit >= 0.8 && ["C", "D"].includes(conf.letter),
     stat: { id: def.id, label: def.label, short: def.short, category: def.category },
     line: lineNum,
     side: leanSide,
@@ -750,7 +789,7 @@ function evaluateFromBundle(bundle, {
     fcs: { games: fcsGames, of: currentLogs.length, share: fcsShare },
     hitCount,
     hitCountLabel: hitCountLabel(hitCount, currentValues.length),
-    lean: probs.pHit >= 0.52 ? leanSide : "tossup",
+    lean: avail.blockBet ? "pass" : probs.pHit >= 0.52 ? leanSide : "tossup",
     edge,
     flags,
     form: {
@@ -954,11 +993,19 @@ function relineEvaluation(evaluation, line, side) {
     probs = { ...probs, ...maxReline.probs };
   }
   const edge = leanSide === "less" ? lineNum - evaluation.projection : evaluation.projection - lineNum;
-  const scored = propScore({
+  let scored = propScore({
     pHit: probs.pHit,
     confidenceLetter: evaluation.confidence,
     roleStable: evaluation.usage?.role === "Stable",
   });
+  if (evaluation.doNotBet) {
+    scored = {
+      ...scored,
+      score: 0,
+      label: "Pass",
+      components: { ...scored.components, final: 0 },
+    };
+  }
   const sanity = lineSanity({
     statId: evaluation.stat?.id,
     line: lineNum,
@@ -1027,11 +1074,11 @@ function relineEvaluation(evaluation, line, side) {
       side: leanSide,
     }),
     whatIfLines: suggestWhatIfLines(evaluation.stat?.id, lineNum),
-    highProbLowConf: probs.pHit >= 0.8 && ["C", "D"].includes(evaluation.confidence),
+    highProbLowConf: !evaluation.doNotBet && probs.pHit >= 0.8 && ["C", "D"].includes(evaluation.confidence),
     hitCount: hits,
     hitCountLabel: hitCountLabel(hits, values.length),
     modelDebug,
-    lean: probs.pHit >= 0.52 ? leanSide : "tossup",
+    lean: evaluation.doNotBet ? "pass" : probs.pHit >= 0.52 ? leanSide : "tossup",
     gameLog: (evaluation.gameLog || []).map((g) => ({
       ...g,
       over: g.value > lineNum,

@@ -78,7 +78,12 @@
     "FCS-Heavy Sample": "A large share of the current sample came against FCS opponents.",
     "High Variance": "Week-to-week results swing more than typical for this stat.",
     "Role Change": "Recent usage does not match the rest of the sample.",
-    "New Starter": "Limited established role or freshman/new starter flag.",
+    "New Starter": "Limited established role, or a report that this player was just named the starter.",
+    Unavailable: "A current report says this player is out. Pass the prop.",
+    Doubtful: "A current report lists this player as doubtful. The projection is cut for a reduced or missed role.",
+    Questionable: "A current report lists this player as questionable. The projection is cut slightly and the range is wider.",
+    "Possible Absence": "A regular player has no stat line in the last completed team game. Not a confirmed injury report.",
+    Returning: "The player is back after missing time. The projection uses the games they played.",
     Transfer: "Player changed teams — prior-year stats are a weaker prior.",
     "Missing Data": "Some CFBD fields were unavailable.",
     "Limited History": "Thin or missing prior-year history.",
@@ -772,9 +777,9 @@
         const kpis = e && !e.error
           ? `<div class="prop-leg-kpis">
               <div class="prop-kpi-chip"><span>Proj</span><strong>${escapeHtml(fmt(e.projection, 1))}</strong></div>
-              <div class="prop-kpi-chip"><span>P(${escapeHtml((e.side || "more").toUpperCase())})</span><strong class="${
-                e.pHit >= 0.58 ? "is-good" : e.pHit < 0.52 ? "is-bad" : "is-gold"
-              }">${escapeHtml(pct(e.pHit))}</strong></div>
+              <div class="prop-kpi-chip"><span>${e.doNotBet ? "Status" : `P(${escapeHtml((e.side || "more").toUpperCase())})`}</span><strong class="${
+                e.doNotBet ? "is-bad" : e.pHit >= 0.58 ? "is-good" : e.pHit < 0.52 ? "is-bad" : "is-gold"
+              }">${escapeHtml(e.doNotBet ? "Out" : pct(e.pHit))}</strong></div>
               <div class="prop-kpi-chip prop-score-chip ${
                 (e.propScore || 0) >= 70 ? "is-strong" : (e.propScore || 0) < 55 ? "is-weak" : "is-mid"
               }"><span>Score</span><strong>${escapeHtml(String(e.propScore ?? "—"))}</strong><em>${escapeHtml(
@@ -1023,7 +1028,7 @@
     // —— 1 LEG: compact leg analysis ——
     if (n === 1) {
       const e = evals[0];
-      const modelPct = e.pHit != null ? pct(e.pHit) : "—";
+      const modelPct = e.doNotBet ? "Pass" : e.pHit != null ? pct(e.pHit) : "—";
       const needed =
         value?.neededLabel ||
         (together?.pctLabel ? together.pctLabel : null);
@@ -1375,15 +1380,22 @@
               : ""
           }
           <div class="prop-card-hero">
-            <div><span>Projection</span><strong>${escapeHtml(fmt(e.projection, 1))}</strong></div>
-            <div class="${pHit >= 0.58 ? "is-good" : pHit < 0.52 ? "is-bad" : ""}"><span>P(${escapeHtml(
-          (e.side || "more").toUpperCase()
-        )})</span><strong>${escapeHtml(pct(pHit))}</strong></div>
+            <div><span>${e.doNotBet ? "If active" : "Projection"}</span><strong>${escapeHtml(fmt(e.projection, 1))}</strong></div>
+            <div class="${e.doNotBet ? "is-bad" : pHit >= 0.58 ? "is-good" : pHit < 0.52 ? "is-bad" : ""}"><span>${
+              e.doNotBet ? "Status" : `P(${escapeHtml((e.side || "more").toUpperCase())})`
+            }</span><strong>${escapeHtml(e.doNotBet ? "Out" : pct(pHit))}</strong></div>
             <div><span>Prop Score</span><strong>${escapeHtml(String(score))}</strong><em>${escapeHtml(scoreLabel || "")}</em></div>
             <div class="is-conf"><span>Model Confidence <button type="button" class="prop-info" title="Confidence reflects data quality and model reliability, not whether the prop is good or bad.">i</button></span><strong>${escapeHtml(
               e.confidence || "—"
             )}</strong></div>
           </div>
+          ${
+            e.doNotBet
+              ? `<div class="prop-unusual"><strong>Reported out</strong> ${escapeHtml(
+                  e.availability?.headline || e.availability?.note || "Pass this prop."
+                )}</div>`
+              : ""
+          }
           ${unusual}${hiLo}
           <p class="prop-card-sub prop-dist-line">Mean ${escapeHtml(fmt(e.projection, 1))} · Median ${escapeHtml(
           fmt(e.median, 1)
@@ -3049,6 +3061,11 @@
           <div class="prop-week-pick-main">
             <p class="prop-week-pick-name">${escapeHtml(l.playerName || "Player")}</p>
             <p class="prop-week-pick-meta">${escapeHtml([l.team, opp].filter(Boolean).join("") || "—")}</p>
+            ${
+              l.availability?.headline
+                ? `<p class="prop-week-pick-meta">${escapeHtml(l.availability.headline)}</p>`
+                : ""
+            }
             <p class="prop-week-pick-line">${escapeHtml(side)} ${escapeHtml(l.statLabel || l.statId || "")} ${escapeHtml(
               String(l.line)
             )}</p>

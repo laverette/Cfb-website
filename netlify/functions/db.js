@@ -632,25 +632,94 @@ function picksLockedError(locksAt) {
   return err;
 }
 
-/** Formerly: lock 30 min after first Saturday kickoff. Locking disabled — picks stay open. */
-const WEEKLY_PICKS_LOCK_AFTER_MS = 30 * 60 * 1000;
+/** Picks close at 1:00 PM America/Chicago on the slate's Saturday. */
+const PICKS_LOCK_TZ = "America/Chicago";
+const PICKS_LOCK_HOUR = 13;
 
-function isSaturdayInEastern(date) {
-  const weekday = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/New_York",
+const WEEKDAY_INDEX = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+
+function centralParts(date) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: PICKS_LOCK_TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
     weekday: "short",
-  }).format(date);
-  return weekday === "Sat";
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const map = {};
+  for (const part of parts) map[part.type] = part.value;
+  let hour = Number(map.hour);
+  if (hour === 24) hour = 0;
+  return {
+    year: Number(map.year),
+    month: Number(map.month),
+    day: Number(map.day),
+    hour,
+    minute: Number(map.minute),
+    weekday: map.weekday,
+  };
+}
+
+/** Wall-clock time in America/Chicago, as a UTC Date. Handles CST and CDT. */
+function centralTimeToUtc(year, month, day, hour, minute) {
+  let utc = Date.UTC(year, month - 1, day, hour, minute, 0);
+  for (let i = 0; i < 3; i += 1) {
+    const got = centralParts(new Date(utc));
+    const gotUtc = Date.UTC(got.year, got.month - 1, got.day, got.hour, got.minute, 0);
+    const want = Date.UTC(year, month - 1, day, hour, minute, 0);
+    const delta = want - gotUtc;
+    if (delta === 0) break;
+    utc += delta;
+  }
+  return new Date(utc);
+}
+
+function shiftYmd(year, month, day, days) {
+  const shifted = new Date(Date.UTC(year, month - 1, day + days));
+  return {
+    year: shifted.getUTCFullYear(),
+    month: shifted.getUTCMonth() + 1,
+    day: shifted.getUTCDate(),
+  };
+}
+
+function gameKickoffMs(game) {
+  const raw = game?.game_date || game?.gameDate || game?.start_date || game?.startDate;
+  const ms = Date.parse(raw);
+  return Number.isFinite(ms) ? ms : null;
 }
 
 /**
- * Locking is off: always unlocked so users can submit/edit anytime.
- * locksAt is null so clients and reminders do not treat a deadline as active.
+ * Saturday of the slate. Thursday and Friday kickoffs still lock on the
+ * coming Saturday; a Sunday game locks on the Saturday just before it.
  */
-function weekLockFromGames(_games, _now = new Date()) {
+function slateSaturdayYmd(games) {
+  const kickoffs = (games || []).map(gameKickoffMs).filter((ms) => ms != null);
+  if (!kickoffs.length) return null;
+  const parts = centralParts(new Date(Math.min(...kickoffs)));
+  const idx = WEEKDAY_INDEX[parts.weekday];
+  if (idx == null) return null;
+  if (idx === 6) return { year: parts.year, month: parts.month, day: parts.day };
+  if (idx === 4 || idx === 5) return shiftYmd(parts.year, parts.month, parts.day, 6 - idx);
+  const daysBack = (idx - 6 + 7) % 7;
+  return shiftYmd(parts.year, parts.month, parts.day, -daysBack);
+}
+
+/**
+ * Lock at 1:00 PM Central on the slate Saturday — two hours after the usual
+ * 11:00 AM first kickoff. A week with no kickoff times stays open.
+ */
+function weekLockFromGames(games, now = new Date()) {
+  const nowDate = now instanceof Date ? now : new Date(now);
+  const ymd = slateSaturdayYmd(games);
+  if (!ymd) return { picksLocked: false, locksAt: null };
+  const locksAtDate = centralTimeToUtc(ymd.year, ymd.month, ymd.day, PICKS_LOCK_HOUR, 0);
   return {
-    picksLocked: false,
-    locksAt: null,
+    picksLocked: nowDate.getTime() >= locksAtDate.getTime(),
+    locksAt: locksAtDate.toISOString(),
   };
 }
 
@@ -668,7 +737,7 @@ async function submitUserPicks({ userId, weekId, picks }) {
   }
 
   const lock = weekLockFromGames(games);
-  // Locking disabled — never reject for PICKS_LOCKED.
+  if (lock.picksLocked) throw picksLockedError(lock.locksAt);
 
   const existing = await getUserWeekSubmission(userId, weekId, { lock });
 
@@ -1301,6 +1370,7 @@ module.exports = {
   getUserWeekSubmission,
   getUserPicksForWeek,
   getWeekPickLock,
+  weekLockFromGames,
   submitUserPicks,
   getLeaderboard,
   getPublicUserProfile,
