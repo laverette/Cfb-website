@@ -29,6 +29,7 @@ const { recordPredictions } = require("./_lib/prop-lab/grading");
 const {
   getLatestWeekPicks,
   publicWeekPicksView,
+  backfillWeekBoardPositions,
 } = require("./_lib/prop-lab/week-board");
 const { withExecutionContext } = require("./_lib/execution-context");
 const { cfbdUsageSnapshot } = require("./_lib/cfbd-guard");
@@ -234,18 +235,53 @@ async function handlePropEval(event) {
           /* ignore */
         }
       }
-      const row = await getLatestWeekPicks({
+      let row = await getLatestWeekPicks({
         season: Number.isFinite(season) ? season : undefined,
         week: Number.isFinite(week) ? week : undefined,
       });
+      // Older boards often saved null positions — backfill a chunk so the
+      // Position filter has QB/RB/WR options without a full rebuild.
+      let positionBackfill = null;
+      const wantBackfill =
+        q.backfillPositions === "1" ||
+        q.backfillPositions === "true" ||
+        q.backfill_positions === "1" ||
+        body.backfillPositions === true ||
+        body.backfillPositions === "1" ||
+        body.backfillPositions === "true";
+      if (row?.scores_json && typeof row.scores_json === "object") {
+        const values = Object.values(row.scores_json);
+        const scoredOk = values.filter((s) => s && !s.error);
+        const missingPos = scoredOk.filter((s) => !s.position).length;
+        if (wantBackfill || (scoredOk.length >= 20 && missingPos / scoredOk.length >= 0.5)) {
+          try {
+            positionBackfill = await backfillWeekBoardPositions({
+              season: Number.isFinite(season) ? season : row.season_year,
+              week: Number.isFinite(week) ? week : row.week_number,
+              scrapeHash: row.scrape_hash,
+              apiKey: readCfbdKey(),
+              maxPlayers: wantBackfill ? 64 : 40,
+            });
+            if (positionBackfill?.updated > 0) {
+              row = await getLatestWeekPicks({
+                season: Number.isFinite(season) ? season : undefined,
+                week: Number.isFinite(week) ? week : undefined,
+              });
+            }
+          } catch (err) {
+            console.warn("week-picks position backfill:", err.message || err);
+          }
+        }
+      }
       return json(
         200,
         {
           picks: publicWeekPicksView(row),
           season: season || null,
           week: week || null,
+          positionBackfill,
         },
-        { "cache-control": "public, max-age=30, s-maxage=60" }
+        { "cache-control": "public, max-age=15, s-maxage=30" }
       );
     }
 

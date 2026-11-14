@@ -3364,16 +3364,51 @@
     renderAll();
   }
 
+  function weekBoardMissingPositionShare(picks) {
+    const graded = weekBoardGradedPool(picks);
+    if (!graded.length) return 0;
+    const missing = graded.filter((l) => !weekBoardLegPosition(l)).length;
+    return missing / graded.length;
+  }
+
   async function loadWeekPicks() {
     const host = document.getElementById("weekPicksHost");
     if (host) host.innerHTML = "<p class='prop-week-picks-idle'>Loading weekly board…</p>";
     try {
-      const data = await api({
+      let data = await api({
         action: "week-picks",
         season: state.season,
         week: state.week,
       });
       state.weekPicks = data.picks || null;
+      // If the board was scored without positions, ask the API to attach them
+      // so the Position filter can list QB/RB/WR instead of only "All positions".
+      if (
+        state.weekPicks &&
+        weekBoardMissingPositionShare(state.weekPicks) >= 0.5 &&
+        !(data.positionBackfill && data.positionBackfill.updated > 0 && data.positionBackfill.pending === 0)
+      ) {
+        const meta = document.getElementById("weekPicksMeta");
+        if (meta) {
+          meta.hidden = false;
+          meta.textContent = "Attaching player positions for filters…";
+        }
+        let guard = 0;
+        while (guard < 6 && weekBoardMissingPositionShare(state.weekPicks) >= 0.15) {
+          guard += 1;
+          data = await api({
+            action: "week-picks",
+            season: state.season,
+            week: state.week,
+            backfillPositions: true,
+          });
+          state.weekPicks = data.picks || state.weekPicks;
+          if (!(data.positionBackfill && (data.positionBackfill.updated > 0 || data.positionBackfill.pending > 0))) {
+            break;
+          }
+          if (data.positionBackfill.pending <= 0) break;
+        }
+      }
       renderWeekPicks(state.weekPicks);
     } catch (err) {
       if (host) {
