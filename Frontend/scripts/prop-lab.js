@@ -3184,10 +3184,12 @@
       if (meta) meta.hidden = true;
       const toolbar = document.getElementById("weekPicksToolbar");
       if (toolbar) toolbar.hidden = true;
+      syncWeekBoardBuildButton();
       return;
     }
 
     syncWeekBoardToolbar(picks);
+    syncWeekBoardBuildButton();
 
     const bestLegs = Array.isArray(picks.legs) ? picks.legs : [];
     const graded = weekBoardGradedPool(picks);
@@ -3416,16 +3418,54 @@
     };
   }
 
+  function weekBoardCanResume(picks) {
+    if (!picks?.scrapeHash) return false;
+    if (picks.status === "complete") return false;
+    const pending = Number(picks.meta?.pendingRemaining);
+    if (Number.isFinite(pending) && pending > 0) return true;
+    const scored = Number(picks.propsScored) || 0;
+    const supported = Number(picks.propsSupported) || 0;
+    return supported > 0 && scored < supported;
+  }
+
+  function syncWeekBoardBuildButton() {
+    const btn = document.getElementById("weekPicksRefresh");
+    if (!btn || btn.disabled) return;
+    btn.textContent = weekBoardCanResume(state.weekPicks) ? "Continue scoring" : "Build week board";
+  }
+
+  async function kickWeekBoardJob(headers, scrapeHash) {
+    const startUrl = new URL("/.netlify/functions/prop-lab-week-board-background", window.location.origin);
+    const startResp = await fetch(startUrl.toString(), {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        season: state.season,
+        week: state.week,
+        scrapeHash,
+        resume: true,
+      }),
+    });
+    // 202 = accepted (Netlify background). 200 also ok if platform runs inline in dev.
+    if (!startResp.ok && startResp.status !== 202) {
+      const data = await startResp.json().catch(() => ({}));
+      throw new Error(data.error || `Could not start board job (${startResp.status})`);
+    }
+  }
+
   async function refreshWeekPicksBatch() {
     const btn = document.getElementById("weekPicksRefresh");
     const meta = document.getElementById("weekPicksMeta");
+    const resumeExisting = weekBoardCanResume(state.weekPicks);
     if (btn) {
       btn.disabled = true;
-      btn.textContent = "Building…";
+      btn.textContent = resumeExisting ? "Resuming…" : "Building…";
     }
     if (meta) {
       meta.hidden = false;
-      meta.textContent = "Fetching full PrizePicks board…";
+      meta.textContent = resumeExisting
+        ? "Resuming week board scoring…"
+        : "Fetching full PrizePicks board…";
     }
     const baselineUpdatedAt = state.weekPicks?.updatedAt || null;
     try {
@@ -3436,49 +3476,78 @@
       const token = authToken();
       if (token) headers.authorization = `Bearer ${token}`;
 
-      // Proxy → normalize/stash in Supabase → background scores by scrapeHash (small POST).
-      let stash = null;
-      try {
-        stash = await stashPrizePicksBoardForBuild(headers);
-        if (meta) {
-          meta.textContent = `Scoring ${stash.supportedCount || "?"} props from PrizePicks…`;
+      let scrapeHash = resumeExisting ? String(state.weekPicks.scrapeHash) : "";
+      let supportedHint =
+        resumeExisting
+          ? state.weekPicks.propsSupported || state.weekPicks.meta?.pendingRemaining
+          : null;
+
+      // Fresh build: proxy → normalize/stash → background scores by scrapeHash.
+      // Resume: keep the existing scrapeHash so scored props are not wiped.
+      if (!resumeExisting) {
+        let stash = null;
+        try {
+          stash = await stashPrizePicksBoardForBuild(headers);
+          scrapeHash = stash.scrapeHash;
+          supportedHint = stash.supportedCount;
+          if (meta) {
+            meta.textContent = `Scoring ${stash.supportedCount || "?"} props from PrizePicks…`;
+          }
+        } catch (boardErr) {
+          console.warn("PrizePicks browser board fetch failed:", boardErr);
+          throw new Error(
+            boardErr.message ||
+              "Could not load the full PrizePicks board. Deploy/proxy may be missing — thin mirror will not be used."
+          );
         }
-      } catch (boardErr) {
-        console.warn("PrizePicks browser board fetch failed:", boardErr);
-        throw new Error(
-          boardErr.message ||
-            "Could not load the full PrizePicks board. Deploy/proxy may be missing — thin mirror will not be used."
-        );
+      } else if (meta) {
+        meta.textContent = `Continuing from ${state.weekPicks.propsScored || 0}/${
+          supportedHint || "?"
+        }…`;
       }
 
-      const startUrl = new URL("/.netlify/functions/prop-lab-week-board-background", window.location.origin);
-      const startResp = await fetch(startUrl.toString(), {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          season: state.season,
-          week: state.week,
-          scrapeHash: stash.scrapeHash,
-        }),
-      });
-      // 202 = accepted (Netlify background). 200 also ok if platform runs inline in dev.
-      if (!startResp.ok && startResp.status !== 202) {
-        const data = await startResp.json().catch(() => ({}));
-        throw new Error(data.error || `Could not start board job (${startResp.status})`);
-      }
+      await kickWeekBoardJob(headers, scrapeHash);
 
-      const deadline = Date.now() + 16 * 60 * 1000;
-      let sawThisRun = false;
+      // Background jobs self-chain past ~15 minutes; poll long enough for a full board.
+      const deadline = Date.now() + 90 * 60 * 1000;
+      let sawThisRun = resumeExisting;
+      let lastUpdatedAt = baselineUpdatedAt;
+      let lastScored = Number(state.weekPicks?.propsScored) || 0;
+      let stagnantPolls = 0;
       while (Date.now() < deadline) {
         await new Promise((r) => setTimeout(r, 5000));
         await loadWeekPicks();
         const picks = state.weekPicks;
         const scored = picks?.propsScored ?? 0;
-        const supported = picks?.propsSupported ?? 0;
+        const supported = picks?.propsSupported ?? supportedHint ?? 0;
         const pending = picks?.meta?.pendingRemaining;
         const updatedAt = picks?.updatedAt || null;
         if (updatedAt && updatedAt !== baselineUpdatedAt) sawThisRun = true;
-        if (picks?.status === "partial") sawThisRun = true;
+        if (picks?.status === "partial" || picks?.status === "queued") sawThisRun = true;
+        if (updatedAt && updatedAt !== lastUpdatedAt) {
+          lastUpdatedAt = updatedAt;
+          stagnantPolls = 0;
+        } else if (scored > lastScored) {
+          lastScored = scored;
+          stagnantPolls = 0;
+        } else {
+          stagnantPolls += 1;
+        }
+        // If the background worker went quiet mid-board, kick another resume job.
+        if (
+          sawThisRun &&
+          picks?.status !== "complete" &&
+          weekBoardCanResume(picks) &&
+          stagnantPolls >= 8
+        ) {
+          stagnantPolls = 0;
+          if (meta) meta.textContent = `Worker idle — restarting score job… ${scored}/${supported || "?"}`;
+          try {
+            await kickWeekBoardJob(headers, picks.scrapeHash || scrapeHash);
+          } catch (kickErr) {
+            console.warn("week board resume kick failed:", kickErr);
+          }
+        }
         if (meta) {
           meta.hidden = false;
           meta.textContent =
@@ -3491,7 +3560,9 @@
         if (sawThisRun && picks?.status === "complete") break;
       }
       if (!(state.weekPicks?.status === "complete" && sawThisRun) && meta) {
-        meta.textContent = `${meta.textContent || "Still building"} · refresh later if needed`;
+        meta.textContent = weekBoardCanResume(state.weekPicks)
+          ? `${meta.textContent || "Still building"} · press Continue scoring to resume`
+          : `${meta.textContent || "Still building"} · refresh later if needed`;
       }
     } catch (err) {
       const host = document.getElementById("weekPicksHost");
@@ -3502,14 +3573,27 @@
         );
       }
     } finally {
-      if (btn) {
-        btn.disabled = false;
-        btn.textContent = "Build week board";
-      }
+      if (btn) btn.disabled = false;
+      syncWeekBoardBuildButton();
     }
   }
 
+  function syncPropDockHeight() {
+    const dock = document.getElementById("propDock");
+    if (!dock) {
+      document.documentElement.style.removeProperty("--mobile-bottom-bar-height");
+      return;
+    }
+    const h = Math.ceil(dock.getBoundingClientRect().height || 0);
+    document.documentElement.style.setProperty("--mobile-bottom-bar-height", `${Math.max(0, h)}px`);
+  }
+
   document.addEventListener("DOMContentLoaded", async () => {
+    syncPropDockHeight();
+    window.addEventListener("resize", syncPropDockHeight);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", syncPropDockHeight);
+    }
     bindPlayerCombo();
     trackOnce("prop_lab_opened", { season: state.season, source: "prop_lab" }, "prop_lab_opened", {
       session: true,

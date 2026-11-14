@@ -16,6 +16,8 @@ const {
   loadStashedBoard,
 } = require("./_lib/prop-lab/week-board");
 
+const MAX_CHAIN_DEPTH = 24;
+
 function readCfbdKey() {
   return (process.env.CFBD_API_KEY && String(process.env.CFBD_API_KEY).trim()) || "";
 }
@@ -26,6 +28,55 @@ function isAuthorized(event) {
   if (cronSecret && qs.secret === cronSecret) return true;
   const admin = requireAdmin(event);
   return !admin;
+}
+
+function resolveSiteBase(event) {
+  const proto =
+    (event.headers["x-forwarded-proto"] || event.headers["X-Forwarded-Proto"] || "https")
+      .toString()
+      .split(",")[0]
+      .trim() || "https";
+  const host = (event.headers.host || event.headers.Host || "").toString();
+  return (
+    process.env.URL ||
+    process.env.DEPLOY_PRIME_URL ||
+    process.env.SITE_URL ||
+    (host ? `${proto}://${host}` : "")
+  )
+    .toString()
+    .replace(/\/$/, "");
+}
+
+/**
+ * Netlify background jobs die around 15 minutes. Re-queue ourselves so a large
+ * board can finish across chained invocations without wiping progress.
+ */
+function kickContinueChain(event, { season, week, scrapeHash, chainDepth }) {
+  const base = resolveSiteBase(event);
+  if (!base || !scrapeHash) return false;
+  const cronSecret = (process.env.CRON_SECRET && String(process.env.CRON_SECRET).trim()) || "";
+  const url = new URL(`${base}/.netlify/functions/prop-lab-week-board-background`);
+  if (cronSecret) url.searchParams.set("secret", cronSecret);
+  const authHeader = event.headers.authorization || event.headers.Authorization || "";
+  const headers = {
+    "content-type": "application/json",
+    accept: "application/json",
+  };
+  if (!cronSecret && authHeader) headers.authorization = authHeader;
+  fetch(url.toString(), {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      season,
+      week,
+      scrapeHash,
+      chainDepth,
+      resume: true,
+    }),
+  }).catch((err) =>
+    console.warn("prop-lab-week-board-background chain kick:", err.message || err)
+  );
+  return true;
 }
 
 async function loadPowerTeams(season) {
@@ -81,6 +132,7 @@ exports.handler = async (event) => {
   }
 
   const force = qs.force === "1" || qs.force === "true" || body.force === true;
+  const chainDepth = Math.max(0, Number(body.chainDepth) || 0);
   const apiKey = readCfbdKey();
   const powerTeams = await loadPowerTeams(season);
 
@@ -114,6 +166,21 @@ exports.handler = async (event) => {
           maxMs: 14 * 60 * 1000,
           board,
         });
+        const hashForChain = scrapeHash || result.scrapeHash || null;
+        const shouldChain =
+          Boolean(result.needsContinue || (result.continue && result.status !== "complete")) &&
+          Boolean(hashForChain) &&
+          chainDepth < MAX_CHAIN_DEPTH &&
+          Number(result.pendingRemaining) > 0;
+        let chained = false;
+        if (shouldChain) {
+          chained = kickContinueChain(event, {
+            season,
+            week,
+            scrapeHash: hashForChain,
+            chainDepth: chainDepth + 1,
+          });
+        }
         console.log(
           "prop-lab-week-board-background:",
           JSON.stringify({
@@ -125,13 +192,22 @@ exports.handler = async (event) => {
             cfbd: result.cfbdCallsThisRun,
             boardSource: result.boardSource || board?.source || null,
             boardProps: result.boardProps || board?.supportedCount || null,
-            scrapeHash: scrapeHash || result.scrapeHash || null,
+            scrapeHash: hashForChain,
+            chainDepth,
+            chained,
             ms: result.ms,
           })
         );
         return {
           statusCode: 200,
-          body: JSON.stringify({ ok: true, ...result, picks: undefined, row: undefined }),
+          body: JSON.stringify({
+            ok: true,
+            ...result,
+            chainDepth,
+            chained,
+            picks: undefined,
+            row: undefined,
+          }),
         };
       } catch (err) {
         console.error("prop-lab-week-board-background:", err);

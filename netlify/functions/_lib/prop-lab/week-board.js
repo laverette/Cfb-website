@@ -15,6 +15,7 @@ const {
 const { dataLog } = require("./data/log");
 const { cfbdUsageSnapshot } = require("../cfbd-guard");
 const { cached, readMemory } = require("./cache");
+const { leanPersistedScore } = require("./lean-score");
 
 const TABLE = "prop_lab_week_picks";
 const BATCH_DEFAULT = 20;
@@ -612,7 +613,7 @@ async function runWeekBoardBatch({
   });
 
   for (const s of scored) {
-    if (s?.projectionId) scores[s.projectionId] = s;
+    if (s?.projectionId) scores[s.projectionId] = leanPersistedScore(s);
   }
 
   const allScored = Object.values(scores);
@@ -625,6 +626,7 @@ async function runWeekBoardBatch({
   const usageAfter = cfbdUsageSnapshot();
   const cfbdCallsDelta = Math.max(0, (usageAfter.allowed || 0) - (usageBefore.allowed || 0));
   const priorCalls = Number(row?.cfbd_calls) || 0;
+  const pendingRemaining = Math.max(0, pending.length - batch.length);
 
   const saved = await upsertWeekRow({
     season_year: seasonYear,
@@ -648,7 +650,7 @@ async function runWeekBoardBatch({
       source: mirror.source || null,
       skipped: mirror.skipped,
       batchSize: batch.length,
-      pendingRemaining: Math.max(0, pending.length - batch.length),
+      pendingRemaining,
       leagueSnapshotFetchedAt: leagueSnap?.fetchedAt || null,
       // Keep stashed targets so a restarted background job can resume.
       boardProps: Array.isArray(row?.meta_json?.boardProps)
@@ -668,7 +670,7 @@ async function runWeekBoardBatch({
     propsTotal: mirror.totalProps,
     propsSupported: targets.length,
     propsScored: Object.keys(scores).length,
-    pendingRemaining: Math.max(0, pending.length - batch.length),
+    pendingRemaining,
     batchScored: batch.length,
     cfbdCallsDelta,
     cfbdCallsTotal: priorCalls + cfbdCallsDelta,
@@ -796,15 +798,26 @@ async function runWeekBoardToCompletion({
       : await fetchPrizePicksNcaaf({ signal, allowMirrorFallback: false });
   while (Date.now() - started < maxMs) {
     if (signal?.aborted) break;
-    result = await runWeekBoardBatch({
-      season,
-      week,
-      apiKey,
-      powerTeams,
-      signal,
-      force: force && batches === 0,
-      board: resolvedBoard,
-    });
+    const remainingMs = maxMs - (Date.now() - started);
+    // Leave a little headroom so the final upsert is not killed mid-write.
+    if (remainingMs < 20_000) break;
+    try {
+      result = await runWeekBoardBatch({
+        season,
+        week,
+        apiKey,
+        powerTeams,
+        signal,
+        force: force && batches === 0,
+        board: resolvedBoard,
+      });
+    } catch (err) {
+      dataLog(
+        "WeekBoard",
+        `toCompletion batch error after ${batches} batches: ${err.message || err}`
+      );
+      break;
+    }
     batches += 1;
     cfbdTotal += result.cfbdCallsDelta || 0;
     dataLog(
@@ -818,6 +831,7 @@ async function runWeekBoardToCompletion({
     batchesThisRun: batches,
     cfbdCallsThisRun: cfbdTotal,
     complete: result?.status === "complete",
+    needsContinue: Boolean(result && result.status !== "complete" && result.continue),
     boardSource: resolvedBoard.source || null,
     boardProps: resolvedBoard.supportedCount ?? resolvedBoard.props?.length ?? null,
     ms: Date.now() - started,
@@ -830,6 +844,7 @@ module.exports = {
   getLatestWeekPicks,
   publicWeekPicksView,
   gradedLegsFromScores,
+  leanPersistedScore, // re-export for callers/tests
   stashWeekBoard,
   stashWeekBoardChunk,
   loadStashedBoard,

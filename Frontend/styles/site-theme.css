@@ -1885,13 +1885,13 @@ body.site-feedback-open {
 .band-player {
   position: fixed;
   right: 0.75rem;
-  bottom: calc(0.75rem + var(--mobile-bottom-bar-height, 0px));
+  bottom: calc(0.75rem + var(--mobile-bottom-bar-height, 0px) + env(safe-area-inset-bottom, 0px));
   z-index: 1100;
   display: flex;
   flex-direction: column-reverse;
   align-items: flex-end;
   width: max-content;
-  max-width: min(16rem, calc(100vw - 1.5rem));
+  max-width: min(18rem, calc(100vw - 1.5rem));
   color: var(--text-main);
   font-family: Arial, Helvetica, sans-serif;
 }
@@ -1911,14 +1911,31 @@ body.site-feedback-open {
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.35);
 }
 
+.band-player.is-playing .band-player-bar {
+  border-color: rgba(232, 197, 71, 0.75);
+}
+
+.band-player.is-flash .band-player-bar {
+  background: rgba(55, 40, 18, 0.96);
+  border-color: rgba(232, 197, 71, 0.9);
+}
+
 .band-player-transport {
-  display: none;
+  display: flex;
   align-items: center;
   gap: 0.15rem;
 }
 
-.band-player.is-open .band-player-transport {
-  display: flex;
+.band-player-transport [data-act="prev"],
+.band-player-transport [data-act="next"] {
+  display: none;
+}
+
+.band-player.is-open .band-player-transport [data-act="prev"],
+.band-player.is-open .band-player-transport [data-act="next"] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .band-player-btn,
@@ -1940,6 +1957,9 @@ body.site-feedback-open {
   color: var(--gold);
   font-size: 1.05rem;
   line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .band-player-btn:hover,
@@ -1948,8 +1968,15 @@ body.site-feedback-open {
   background: rgba(255, 215, 0, 0.12);
 }
 
+.band-player-btn.is-active,
+.band-player-play.is-active {
+  color: #1a1410;
+  background: var(--gold);
+}
+
 .band-player-mute {
   width: auto;
+  min-width: 3.6rem;
   padding: 0 0.65rem;
   font-size: 0.72rem;
   font-weight: 700;
@@ -1957,14 +1984,15 @@ body.site-feedback-open {
   text-transform: uppercase;
 }
 
-.band-player-mute[aria-pressed="true"] {
+.band-player-mute[aria-pressed="true"],
+.band-player-mute.is-active {
   color: #1a1410;
   background: var(--gold);
 }
 
 .band-player-title {
   flex: 1 1 auto;
-  min-width: 0;
+  min-width: 4.5rem;
   max-width: 9.5rem;
   padding: 0.35rem 0.45rem;
   overflow: hidden;
@@ -1977,6 +2005,10 @@ body.site-feedback-open {
 
 .band-player.is-open .band-player-title {
   max-width: none;
+}
+
+.band-player.is-flash .band-player-title {
+  color: var(--gold);
 }
 
 .band-player-list {
