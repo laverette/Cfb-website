@@ -1068,42 +1068,29 @@
 
     var audio = document.getElementById("siteAudioEl");
     var playBtn = root.querySelector('[data-act="play"]');
-    // Title control uses data-act="toggle" (opens track list + transport).
+    // Title control uses data-act="toggle" (opens the track list only).
     var titleBtn = root.querySelector('[data-act="toggle"]');
     var muteBtn = root.querySelector('[data-act="mute"]');
     var listEl = root.querySelector(".band-player-list");
     var muted = readStorageFlag(BAND_MUTE_KEY);
     var listOpen = false;
     var available = {};
-    var flashTimer = null;
 
     function trackAt(i) {
       return tracks[(i + tracks.length) % tracks.length];
     }
 
-    function flashAction(label) {
-      if (!titleBtn) return;
-      root.classList.add("is-flash");
-      titleBtn.setAttribute("data-flash", label);
-      if (flashTimer) clearTimeout(flashTimer);
-      flashTimer = setTimeout(function () {
-        root.classList.remove("is-flash");
-        titleBtn.removeAttribute("data-flash");
-        paint();
-      }, 900);
-    }
-
     function paint() {
       var track = trackAt(index);
       var playing = Boolean(audio && !audio.paused && !audio.ended);
+      // Keep one compact layout — never swap the title for status flash text.
       if (titleBtn) {
-        var flash = titleBtn.getAttribute("data-flash");
-        titleBtn.textContent = flash || track.school + " · " + track.title;
-        titleBtn.title = track.title;
+        titleBtn.textContent = track.school + " · " + track.title;
+        titleBtn.title = track.title + " (tap for track list)";
         titleBtn.setAttribute("aria-expanded", listOpen ? "true" : "false");
         titleBtn.setAttribute(
           "aria-label",
-          listOpen ? "Close player controls" : "Open player controls"
+          listOpen ? "Close track list" : "Open track list"
         );
       }
       if (playBtn) {
@@ -1274,23 +1261,19 @@
       var act = btn.getAttribute("data-act");
       if (act === "toggle") {
         listOpen = !listOpen;
-        flashAction(listOpen ? "Tracks" : "Player");
         paint();
         return;
       }
       if (act === "prev") {
         if (audio.currentTime > 3) {
           audio.currentTime = 0;
-          flashAction("Restart");
           paint();
           return;
         }
-        flashAction("Previous");
         loadTrack(index - 1, !audio.paused && !audio.ended && !isAmbientAudioOptedOut());
         return;
       }
       if (act === "next") {
-        flashAction("Next");
         loadTrack(index + 1, !audio.paused && !audio.ended && !isAmbientAudioOptedOut());
         return;
       }
@@ -1302,12 +1285,10 @@
           } catch (e) {
             /* ignore */
           }
-          flashAction("Paused");
           paint();
           return;
         }
         setAmbientAudioOptOut(false);
-        flashAction("Playing");
         loadTrack(index, true);
         return;
       }
@@ -1315,7 +1296,6 @@
         muted = !muted;
         audio.muted = muted;
         writeStorageFlag(BAND_MUTE_KEY, muted);
-        flashAction(muted ? "Muted" : "Sound on");
         paint();
       }
     });

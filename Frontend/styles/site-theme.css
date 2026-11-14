@@ -1881,61 +1881,44 @@ body.site-feedback-open {
   overflow: hidden;
 }
 
-/* Discreet corner player for classic band songs */
+/* Discreet corner player — one compact pill only (no expanding “full” mode) */
 .band-player {
+  --band-player-width: min(15.5rem, calc(100vw - 1.5rem));
   position: fixed;
   right: 0.75rem;
   bottom: calc(0.75rem + var(--mobile-bottom-bar-height, 0px) + env(safe-area-inset-bottom, 0px));
   z-index: 1100;
   display: flex;
   flex-direction: column-reverse;
-  align-items: flex-end;
-  width: max-content;
-  max-width: min(18rem, calc(100vw - 1.5rem));
+  align-items: stretch;
+  width: var(--band-player-width);
+  max-width: var(--band-player-width);
   color: var(--text-main);
   font-family: Arial, Helvetica, sans-serif;
-}
-
-.band-player.is-open {
-  width: min(20rem, calc(100vw - 1.5rem));
 }
 
 .band-player-bar {
   display: flex;
   align-items: center;
-  gap: 0.2rem;
-  padding: 0.28rem;
-  background: rgba(30, 20, 16, 0.92);
+  gap: 0.15rem;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.22rem 0.28rem;
+  background: rgba(30, 20, 16, 0.94);
   border: 1px solid rgba(141, 110, 99, 0.85);
   border-radius: 999px;
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.35);
 }
 
 .band-player.is-playing .band-player-bar {
-  border-color: rgba(232, 197, 71, 0.75);
-}
-
-.band-player.is-flash .band-player-bar {
-  background: rgba(55, 40, 18, 0.96);
-  border-color: rgba(232, 197, 71, 0.9);
+  border-color: rgba(232, 197, 71, 0.55);
 }
 
 .band-player-transport {
   display: flex;
   align-items: center;
-  gap: 0.15rem;
-}
-
-.band-player-transport [data-act="prev"],
-.band-player-transport [data-act="next"] {
-  display: none;
-}
-
-.band-player.is-open .band-player-transport [data-act="prev"],
-.band-player.is-open .band-player-transport [data-act="next"] {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  gap: 0;
+  flex: 0 0 auto;
 }
 
 .band-player-btn,
@@ -1951,11 +1934,11 @@ body.site-feedback-open {
 
 .band-player-btn {
   flex: 0 0 auto;
-  width: 2rem;
-  height: 2rem;
+  width: 1.85rem;
+  height: 1.85rem;
   border-radius: 999px;
   color: var(--gold);
-  font-size: 1.05rem;
+  font-size: 0.95rem;
   line-height: 1;
   display: inline-flex;
   align-items: center;
@@ -1968,7 +1951,12 @@ body.site-feedback-open {
   background: rgba(255, 215, 0, 0.12);
 }
 
-.band-player-btn.is-active,
+.band-player-btn:active,
+.band-player-title:active,
+.band-player-mute:active {
+  background: rgba(255, 215, 0, 0.22);
+}
+
 .band-player-play.is-active {
   color: #1a1410;
   background: var(--gold);
@@ -1976,9 +1964,10 @@ body.site-feedback-open {
 
 .band-player-mute {
   width: auto;
-  min-width: 3.6rem;
-  padding: 0 0.65rem;
-  font-size: 0.72rem;
+  min-width: 3.35rem;
+  height: 1.85rem;
+  padding: 0 0.55rem;
+  font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -1992,35 +1981,29 @@ body.site-feedback-open {
 
 .band-player-title {
   flex: 1 1 auto;
-  min-width: 4.5rem;
-  max-width: 9.5rem;
-  padding: 0.35rem 0.45rem;
+  min-width: 0;
+  max-width: none;
+  padding: 0.28rem 0.3rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   text-align: left;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 700;
-}
-
-.band-player.is-open .band-player-title {
-  max-width: none;
-}
-
-.band-player.is-flash .band-player-title {
-  color: var(--gold);
 }
 
 .band-player-list {
   list-style: none;
   width: 100%;
+  box-sizing: border-box;
   margin: 0 0 0.35rem;
-  padding: 0.3rem;
-  max-height: 14rem;
+  padding: 0.28rem;
+  max-height: 11rem;
   overflow: auto;
-  background: rgba(30, 20, 16, 0.96);
-  border: 1px solid rgba(141, 110, 99, 0.85);
+  background: rgba(22, 15, 12, 0.97);
+  border: 1px solid rgba(141, 110, 99, 0.75);
   border-radius: 12px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.4);
 }
 
 .band-player-list[hidden] {
@@ -2030,13 +2013,15 @@ body.site-feedback-open {
 .band-player-pick {
   display: block;
   width: 100%;
-  padding: 0.45rem 0.6rem;
+  padding: 0.4rem 0.5rem;
   border-radius: 8px;
   text-align: left;
-  font-size: 0.78rem;
+  font-size: 0.72rem;
+  color: rgba(245, 222, 179, 0.88);
 }
 
 .band-player-list .is-current .band-player-pick {
   color: var(--gold);
+  background: rgba(232, 197, 71, 0.12);
 }
 
