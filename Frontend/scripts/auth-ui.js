@@ -1068,32 +1068,60 @@
 
     var audio = document.getElementById("siteAudioEl");
     var playBtn = root.querySelector('[data-act="play"]');
-    var titleBtn = root.querySelector('[data-act="list"]');
+    // Title control uses data-act="toggle" (opens track list + transport).
+    var titleBtn = root.querySelector('[data-act="toggle"]');
     var muteBtn = root.querySelector('[data-act="mute"]');
     var listEl = root.querySelector(".band-player-list");
     var muted = readStorageFlag(BAND_MUTE_KEY);
     var listOpen = false;
     var available = {};
+    var flashTimer = null;
 
     function trackAt(i) {
       return tracks[(i + tracks.length) % tracks.length];
     }
 
+    function flashAction(label) {
+      if (!titleBtn) return;
+      root.classList.add("is-flash");
+      titleBtn.setAttribute("data-flash", label);
+      if (flashTimer) clearTimeout(flashTimer);
+      flashTimer = setTimeout(function () {
+        root.classList.remove("is-flash");
+        titleBtn.removeAttribute("data-flash");
+        paint();
+      }, 900);
+    }
+
     function paint() {
       var track = trackAt(index);
-      var playing = audio && !audio.paused && !audio.ended;
-      titleBtn.textContent = track.school + " · " + track.title;
-      titleBtn.title = track.title;
-      playBtn.textContent = playing ? "\u275A\u275A" : "\u25B6";
-      playBtn.setAttribute("aria-label", playing ? "Pause" : "Play");
-      muteBtn.textContent = muted ? "Unmute" : "Mute";
-      muteBtn.setAttribute("aria-pressed", muted ? "true" : "false");
-      muteBtn.setAttribute("aria-label", muted ? "Unmute" : "Mute");
+      var playing = Boolean(audio && !audio.paused && !audio.ended);
+      if (titleBtn) {
+        var flash = titleBtn.getAttribute("data-flash");
+        titleBtn.textContent = flash || track.school + " · " + track.title;
+        titleBtn.title = track.title;
+        titleBtn.setAttribute("aria-expanded", listOpen ? "true" : "false");
+        titleBtn.setAttribute(
+          "aria-label",
+          listOpen ? "Close player controls" : "Open player controls"
+        );
+      }
+      if (playBtn) {
+        playBtn.textContent = playing ? "\u275A\u275A" : "\u25B6";
+        playBtn.setAttribute("aria-label", playing ? "Pause" : "Play");
+        playBtn.classList.toggle("is-active", playing);
+      }
+      if (muteBtn) {
+        muteBtn.textContent = muted ? "Unmute" : "Mute";
+        muteBtn.setAttribute("aria-pressed", muted ? "true" : "false");
+        muteBtn.setAttribute("aria-label", muted ? "Unmute" : "Mute");
+        muteBtn.classList.toggle("is-active", muted);
+      }
       root.classList.toggle("is-open", listOpen);
-      titleBtn.setAttribute("aria-expanded", listOpen ? "true" : "false");
-      titleBtn.setAttribute("aria-label", listOpen ? "Close player controls" : "Open player controls");
-      listEl.hidden = !listOpen;
-      var items = listEl.querySelectorAll("li");
+      root.classList.toggle("is-playing", playing);
+      root.classList.toggle("is-muted", muted);
+      if (listEl) listEl.hidden = !listOpen;
+      var items = listEl ? listEl.querySelectorAll("li") : [];
       for (var n = 0; n < items.length; n += 1) {
         items[n].classList.toggle("is-current", Number(items[n].getAttribute("data-index")) === index);
       }
@@ -1246,18 +1274,23 @@
       var act = btn.getAttribute("data-act");
       if (act === "toggle") {
         listOpen = !listOpen;
+        flashAction(listOpen ? "Tracks" : "Player");
         paint();
         return;
       }
       if (act === "prev") {
         if (audio.currentTime > 3) {
           audio.currentTime = 0;
+          flashAction("Restart");
+          paint();
           return;
         }
+        flashAction("Previous");
         loadTrack(index - 1, !audio.paused && !audio.ended && !isAmbientAudioOptedOut());
         return;
       }
       if (act === "next") {
+        flashAction("Next");
         loadTrack(index + 1, !audio.paused && !audio.ended && !isAmbientAudioOptedOut());
         return;
       }
@@ -1269,10 +1302,12 @@
           } catch (e) {
             /* ignore */
           }
+          flashAction("Paused");
           paint();
           return;
         }
         setAmbientAudioOptOut(false);
+        flashAction("Playing");
         loadTrack(index, true);
         return;
       }
@@ -1280,6 +1315,7 @@
         muted = !muted;
         audio.muted = muted;
         writeStorageFlag(BAND_MUTE_KEY, muted);
+        flashAction(muted ? "Muted" : "Sound on");
         paint();
       }
     });
