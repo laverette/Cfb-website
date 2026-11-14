@@ -120,7 +120,7 @@
 
     function avatarHtml(entry, size) {
       if (window.AuthUI && AuthUI.avatarImgHtml) {
-        return AuthUI.avatarImgHtml(entry, 'results-stand-avatar user-avatar', size || 32);
+        return AuthUI.avatarImgHtml(entry, 'results-stand-avatar user-avatar', size || 40);
       }
       return '';
     }
@@ -231,7 +231,7 @@
           <li class="results-stand-row">
             <span class="results-stand-rank" aria-hidden="true">${index + 1}</span>
             <div class="results-stand-player">
-              <a class="results-stand-avatar-link" href="${profileUrl}">${avatarHtml(e, 32)}</a>
+              <a class="results-stand-avatar-link" href="${profileUrl}">${avatarHtml(e, 40)}</a>
               <div class="results-stand-player-copy">
                 <a class="results-stand-name" href="${profileUrl}">${name}</a>
                 <span class="results-stand-record">${escapeHtml(recordLabel(e))}</span>
