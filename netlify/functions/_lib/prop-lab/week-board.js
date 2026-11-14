@@ -3,7 +3,11 @@
  */
 const { getSupabase, hasSupabase } = require("../../db");
 const { PROP_MODEL_VERSION } = require("./version");
-const { allowedSidesForProp, sideAllowedForProp } = require("./definitions");
+const {
+  allowedSidesForProp,
+  sideAllowedForProp,
+  canonicalPosition,
+} = require("./definitions");
 const { loadPlayerBundle } = require("./bundle");
 const { evaluateFromBundle } = require("./evaluate");
 const { bestN } = require("./entry");
@@ -38,13 +42,26 @@ function batchSize() {
 }
 
 function playerResolveKey(name, team, season) {
-  return `pp-player:v1:${season}:${String(name || "").toLowerCase()}|${String(team || "").toLowerCase()}`;
+  // v2: older cache rows often omitted position, which emptied the week-board filter.
+  return `pp-player:v2:${season}:${String(name || "").toLowerCase()}|${String(team || "").toLowerCase()}`;
+}
+
+function stampPosition(...candidates) {
+  for (const raw of candidates) {
+    const canon = canonicalPosition(raw);
+    if (canon) return canon;
+    const fallback = String(raw || "")
+      .trim()
+      .toUpperCase();
+    if (fallback) return fallback;
+  }
+  return null;
 }
 
 async function resolvePlayer({ name, team, season, apiKey, signal }) {
   const key = playerResolveKey(name, team, season);
   const hit = readMemory(key);
-  if (hit) return hit;
+  if (hit?.id) return hit;
 
   const cachedHit = await cached(
     key,
@@ -67,7 +84,7 @@ async function resolvePlayer({ name, team, season, apiKey, signal }) {
         id: rawId.startsWith("espn:") || first.source === "cfbd" ? rawId : `espn:${rawId}`,
         name: first.name || name,
         team: first.team || team,
-        position: first.position || null,
+        position: stampPosition(first.position),
         source: first.source || "espn",
       };
     },
@@ -76,7 +93,7 @@ async function resolvePlayer({ name, team, season, apiKey, signal }) {
   return cachedHit.value;
 }
 
-function slimLeg(evaluation, prop, side) {
+function slimLeg(evaluation, prop, side, resolvedPlayer = null) {
   if (!evaluation || evaluation.error) {
     return {
       projectionId: prop.projectionId,
@@ -87,15 +104,19 @@ function slimLeg(evaluation, prop, side) {
       statLabel: prop.stat,
       line: prop.line,
       side,
+      position: stampPosition(resolvedPlayer?.position),
       error: evaluation?.error || "eval failed",
     };
   }
   return {
     projectionId: prop.projectionId,
-    playerId: evaluation.player?.id || null,
+    playerId: evaluation.player?.id || resolvedPlayer?.id || null,
     playerName: evaluation.player?.name || prop.playerName,
     team: evaluation.player?.team || prop.team,
-    position: evaluation.player?.position || null,
+    position: stampPosition(
+      evaluation.player?.position,
+      resolvedPlayer?.position
+    ),
     opponent: evaluation.opponent || { name: prop.opponent },
     statId: evaluation.stat?.id || prop.statId,
     statLabel: evaluation.stat?.label || prop.stat,
@@ -561,7 +582,8 @@ async function runWeekBoardBatch({
               side: "more",
             }),
             prop,
-            "more"
+            "more",
+            player
           )
         : null;
       const lessLeg = sides.includes("less")
@@ -573,7 +595,8 @@ async function runWeekBoardBatch({
               side: "less",
             }),
             prop,
-            "less"
+            "less",
+            player
           )
         : null;
       const best =
@@ -700,7 +723,7 @@ function gradedLegsFromScores(scoresJson) {
       playerId: raw.playerId || null,
       playerName: raw.playerName || null,
       team: raw.team || null,
-      position: raw.position || null,
+      position: stampPosition(raw.position) || null,
       opponent: raw.opponent || null,
       statId: raw.statId || null,
       statLabel: raw.statLabel || raw.statId || null,
@@ -838,6 +861,129 @@ async function runWeekBoardToCompletion({
   };
 }
 
+/**
+ * Attach missing player positions onto an already-scored week board so the
+ * Position filter has something to list (older boards often saved null).
+ */
+async function backfillWeekBoardPositions({
+  season,
+  week,
+  scrapeHash = null,
+  apiKey,
+  signal,
+  maxPlayers = 48,
+} = {}) {
+  const seasonYear = Number(season) || new Date().getFullYear();
+  const weekNumber = Number(week);
+  if (!Number.isFinite(weekNumber)) {
+    const err = new Error("week required");
+    err.code = "WEEK_REQUIRED";
+    throw err;
+  }
+
+  const row = scrapeHash
+    ? await loadWeekRow(seasonYear, weekNumber, String(scrapeHash))
+    : await getLatestWeekPicks({ season: seasonYear, week: weekNumber });
+  if (!row?.scores_json || typeof row.scores_json !== "object") {
+    return { ok: false, updated: 0, pending: 0, reason: "no_row" };
+  }
+
+  const scores = { ...row.scores_json };
+  const needKeys = [];
+  const seen = new Set();
+  for (const score of Object.values(scores)) {
+    if (!score || score.error || stampPosition(score.position)) continue;
+    if (!score.playerName) continue;
+    const key = `${String(score.playerName).toLowerCase()}|${String(score.team || "").toLowerCase()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    needKeys.push({
+      key,
+      playerName: score.playerName,
+      team: score.team || null,
+    });
+  }
+  if (!needKeys.length) {
+    return {
+      ok: true,
+      updated: 0,
+      pending: 0,
+      scrapeHash: row.scrape_hash,
+    };
+  }
+
+  const slice = needKeys.slice(0, Math.max(1, Number(maxPlayers) || 48));
+  const resolved = await mapPool(slice, 4, async (item) => {
+    const player = await resolvePlayer({
+      name: item.playerName,
+      team: item.team,
+      season: seasonYear,
+      apiKey,
+      signal,
+    });
+    return { key: item.key, position: stampPosition(player?.position) };
+  });
+  const byKey = new Map();
+  for (const r of resolved) {
+    if (r?.position) byKey.set(r.key, r.position);
+  }
+
+  let updated = 0;
+  for (const [id, score] of Object.entries(scores)) {
+    if (!score || score.error || stampPosition(score.position)) continue;
+    const key = `${String(score.playerName || "").toLowerCase()}|${String(score.team || "").toLowerCase()}`;
+    const pos = byKey.get(key);
+    if (!pos) continue;
+    scores[id] = leanPersistedScore({ ...score, position: pos });
+    updated += 1;
+  }
+
+  const legs = Array.isArray(row.legs_json)
+    ? row.legs_json.map((leg) => {
+        if (!leg || stampPosition(leg.position)) return leg;
+        const key = `${String(leg.playerName || "").toLowerCase()}|${String(leg.team || "").toLowerCase()}`;
+        const pos = byKey.get(key);
+        return pos ? { ...leg, position: pos } : leg;
+      })
+    : row.legs_json;
+
+  if (updated > 0) {
+    await upsertWeekRow({
+      season_year: row.season_year,
+      week_number: row.week_number,
+      scrape_hash: row.scrape_hash,
+      model_version: row.model_version,
+      status: row.status,
+      generated_at: row.generated_at,
+      props_total: row.props_total,
+      props_supported: row.props_supported,
+      props_scored: row.props_scored,
+      cfbd_calls: row.cfbd_calls,
+      league_snapshot_cache: row.league_snapshot_cache,
+      legs_json: legs,
+      combos_json: row.combos_json,
+      scores_json: scores,
+      meta_json: {
+        ...(row.meta_json || {}),
+        positionsBackfilledAt: new Date().toISOString(),
+        positionsBackfilled: updated,
+      },
+    });
+  }
+
+  dataLog(
+    "WeekBoard",
+    `position backfill updated=${updated} lookedUp=${slice.length} stillMissingPlayers=${Math.max(0, needKeys.length - slice.length)}`
+  );
+
+  return {
+    ok: true,
+    updated,
+    pending: Math.max(0, needKeys.length - slice.length),
+    scrapeHash: row.scrape_hash,
+  };
+}
+
 module.exports = {
   runWeekBoardBatch,
   runWeekBoardToCompletion,
@@ -845,6 +991,7 @@ module.exports = {
   publicWeekPicksView,
   gradedLegsFromScores,
   leanPersistedScore, // re-export for callers/tests
+  backfillWeekBoardPositions,
   stashWeekBoard,
   stashWeekBoardChunk,
   loadStashedBoard,
