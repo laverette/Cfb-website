@@ -235,8 +235,8 @@
 
 .lb-podium-avatar,
 .lb-podium-card .user-avatar {
-  width: 52px;
-  height: 52px;
+  width: 60px;
+  height: 60px;
   border-radius: 50%;
   object-fit: cover;
   border: 2px solid rgba(255, 215, 0, 0.55);
@@ -247,8 +247,8 @@
 
 .lb-podium-card.place-1 .lb-podium-avatar,
 .lb-podium-card.place-1 .user-avatar {
-  width: 64px;
-  height: 64px;
+  width: 72px;
+  height: 72px;
   border-width: 3px;
   border-color: #ffd700;
 }
@@ -356,8 +356,8 @@
 
 .lb-highlight-avatar,
 .lb-highlight-list .user-avatar {
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   object-fit: cover;
   border: 1px solid rgba(255, 215, 0, 0.45);
@@ -581,8 +581,8 @@
 
 .lb-row-avatar,
 .lb-player-link .user-avatar {
-  width: 30px;
-  height: 30px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   object-fit: cover;
   border: 1.5px solid rgba(255, 215, 0, 0.45);
@@ -593,7 +593,7 @@
 .lb-player-link .user-avatar--initial {
   display: grid;
   place-items: center;
-  font-size: 0.7rem;
+  font-size: 0.78rem;
   font-weight: 800;
   color: #1e1e1e;
   background: linear-gradient(135deg, #ffd700, #f0a500);
@@ -1184,8 +1184,8 @@
 
   .lb-highlight-avatar,
   .lb-highlight-list .user-avatar {
-    width: 18px;
-    height: 18px;
+    width: 22px;
+    height: 22px;
   }
 
   .lb-highlight-list .lb-temp {
@@ -1317,8 +1317,8 @@
 
   .lb-row-avatar,
   .lb-player-link .user-avatar {
-    width: 26px;
-    height: 26px;
+    width: 32px;
+    height: 32px;
   }
 
   .lb-player-user {

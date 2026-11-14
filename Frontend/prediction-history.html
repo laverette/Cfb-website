@@ -164,7 +164,7 @@
 
     function playerAvatarHtml(entry, className, size) {
       if (window.AuthUI && typeof AuthUI.avatarImgHtml === 'function') {
-        return AuthUI.avatarImgHtml(entry, className || 'lb-row-avatar user-avatar', size || 32);
+        return AuthUI.avatarImgHtml(entry, className || 'lb-row-avatar user-avatar', size || 36);
       }
       return '';
     }
@@ -272,7 +272,7 @@
         return `
           <article class="lb-podium-card place-${place}">
             <div class="lb-podium-medal">${rankMedal(place)}</div>
-            ${playerAvatarHtml(e, 'lb-podium-avatar user-avatar', place === 1 ? 64 : 52)}
+            ${playerAvatarHtml(e, 'lb-podium-avatar user-avatar', place === 1 ? 72 : 60)}
             <a class="lb-podium-name" href="${profileHref(e)}">${escapeHtml(e.displayName || e.username)}</a>
             <p class="lb-podium-record">${recordLabel(e)} · ${Number(e.accuracy || 0).toFixed(isMobileLb() ? 0 : 1)}%</p>
             <p class="lb-podium-streak ${meta.className}">${isMobileLb() ? `${meta.compact} ${meta.abs}` : `${meta.emoji} ${meta.label}`}</p>
@@ -321,7 +321,7 @@
       document.getElementById('hotList').innerHTML = hotShown.length
         ? hotShown.map((e) => `
             <li>
-              ${playerAvatarHtml(e, 'lb-highlight-avatar user-avatar', 24)}
+              ${playerAvatarHtml(e, 'lb-highlight-avatar user-avatar', 28)}
               <a href="${profileHref(e)}">${escapeHtml(e.displayName || e.username)}</a>
               <span class="lb-temp lb-temp-hot">🔥 ${e.currentStreak}</span>
             </li>`).join('')
@@ -329,7 +329,7 @@
       document.getElementById('coldList').innerHTML = coldShown.length
         ? coldShown.map((e) => `
             <li>
-              ${playerAvatarHtml(e, 'lb-highlight-avatar user-avatar', 24)}
+              ${playerAvatarHtml(e, 'lb-highlight-avatar user-avatar', 28)}
               <a href="${profileHref(e)}">${escapeHtml(e.displayName || e.username)}</a>
               <span class="lb-temp lb-temp-cold">❄️ ${Math.abs(e.currentStreak)}</span>
             </li>`).join('')
@@ -402,7 +402,7 @@
                     <td class="lb-rank" data-label="#">${rankMedal(e.rank)}</td>
                     <td data-label="Player">
                       <a class="lb-player-link" href="${profileHref(e)}">
-                        ${playerAvatarHtml(e, 'lb-row-avatar user-avatar', 30)}
+                        ${playerAvatarHtml(e, 'lb-row-avatar user-avatar', 36)}
                         <span class="lb-player-text">
                           <span class="lb-player-name">${escapeHtml(e.displayName || e.username)}${isMe ? ' <em class="lb-you-inline">(you)</em>' : ''}</span>
                           <span class="lb-player-user">@${escapeHtml(e.username)}</span>
