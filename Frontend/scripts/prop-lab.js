@@ -64,6 +64,7 @@
     weekPicks: null,
     weekBoardView: "best", // "best" | "all"
     weekBoardCategory: "",
+    weekBoardPosition: "",
     weekBoardSearch: "",
     weekBoardSort: "grade", // "grade" | "more" | "less" | "position"
     /** @type {null | { shareId: string, title?: string, createdAt?: string, loading?: boolean, error?: string|null }} */
@@ -3004,13 +3005,24 @@
     return Array.isArray(picks?.legs) ? picks.legs : [];
   }
 
-  function filterWeekBoardLegs(legs, { category = "", search = "" } = {}) {
+  function weekBoardLegPosition(leg) {
+    return canonicalPosition(leg?.position) || String(leg?.position || "").trim().toUpperCase() || "";
+  }
+
+  function filterWeekBoardLegs(legs, { category = "", position = "", search = "" } = {}) {
     const cat = String(category || "").trim();
+    const pos = String(position || "")
+      .trim()
+      .toUpperCase();
     const q = String(search || "")
       .trim()
       .toLowerCase();
     return (Array.isArray(legs) ? legs : []).filter((l) => {
       if (cat && String(l.statId || "") !== cat) return false;
+      if (pos) {
+        const legPos = weekBoardLegPosition(l);
+        if (legPos !== pos) return false;
+      }
       if (!q) return true;
       const hay = `${l.playerName || ""} ${l.team || ""} ${l.position || ""}`.toLowerCase();
       return hay.includes(q);
@@ -3087,6 +3099,52 @@
     }
   }
 
+  function weekBoardPositionOptions(picks) {
+    const graded = weekBoardGradedPool(picks);
+    // Counts reflect the active category so "Fantasy Score + WR" is obvious.
+    const scoped = filterWeekBoardLegs(graded, {
+      category: state.weekBoardCategory,
+      search: "",
+    });
+    const byPos = new Map();
+    for (const leg of scoped) {
+      const id = weekBoardLegPosition(leg);
+      if (!id) continue;
+      if (!byPos.has(id)) byPos.set(id, { id, label: id, count: 0 });
+      byPos.get(id).count += 1;
+    }
+    return [...byPos.values()].sort((a, b) => {
+      const ka = weekBoardPositionKey(a.id);
+      const kb = weekBoardPositionKey(b.id);
+      if (ka < kb) return -1;
+      if (ka > kb) return 1;
+      return String(a.label).localeCompare(String(b.label));
+    });
+  }
+
+  function fillWeekBoardPositionSelect(picks) {
+    const sel = document.getElementById("weekPicksPosition");
+    if (!sel) return;
+    const positions = weekBoardPositionOptions(picks);
+    const prev = String(state.weekBoardPosition || "")
+      .trim()
+      .toUpperCase();
+    const opts = [`<option value="">All positions</option>`].concat(
+      positions.map(
+        (p) =>
+          `<option value="${escapeHtml(p.id)}">${escapeHtml(p.label)} (${Number(p.count) || 0})</option>`
+      )
+    );
+    sel.innerHTML = opts.join("");
+    if (prev && positions.some((p) => p.id === prev)) {
+      sel.value = prev;
+      state.weekBoardPosition = prev;
+    } else {
+      sel.value = "";
+      state.weekBoardPosition = "";
+    }
+  }
+
   function syncWeekBoardToolbar(picks) {
     const toolbar = document.getElementById("weekPicksToolbar");
     const search = document.getElementById("weekPicksSearch");
@@ -3105,6 +3163,7 @@
       if (sortSel.value !== mode) sortSel.value = mode;
     }
     fillWeekBoardCategorySelect(picks);
+    fillWeekBoardPositionSelect(picks);
   }
 
   function renderWeekPickRows(legs, { showCombos = false, combos = null } = {}) {
@@ -3196,10 +3255,13 @@
     const pending = picks.meta?.pendingRemaining;
     const filtered = filterWeekBoardLegs(graded, {
       category: state.weekBoardCategory,
+      position: state.weekBoardPosition,
       search: state.weekBoardSearch,
     });
     const hasFilter =
-      Boolean(state.weekBoardCategory) || Boolean(String(state.weekBoardSearch || "").trim());
+      Boolean(state.weekBoardCategory) ||
+      Boolean(state.weekBoardPosition) ||
+      Boolean(String(state.weekBoardSearch || "").trim());
     const viewingAll = state.weekBoardView === "all" || hasFilter;
     // Category/search → full filtered set. Unfiltered "all" caps for DOM size.
     const ALL_VIEW_CAP = 150;
@@ -3636,6 +3698,13 @@
     document.getElementById("weekPicksCategory")?.addEventListener("change", (e) => {
       state.weekBoardCategory = String(e.target.value || "");
       if (state.weekBoardCategory) state.weekBoardView = "all";
+      renderWeekPicks(state.weekPicks);
+    });
+    document.getElementById("weekPicksPosition")?.addEventListener("change", (e) => {
+      state.weekBoardPosition = String(e.target.value || "")
+        .trim()
+        .toUpperCase();
+      if (state.weekBoardPosition) state.weekBoardView = "all";
       renderWeekPicks(state.weekPicks);
     });
     document.getElementById("weekPicksSort")?.addEventListener("change", (e) => {
