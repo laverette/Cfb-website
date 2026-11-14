@@ -203,7 +203,7 @@
       <div class="prop-week-picks-head">
         <div>
           <h2 id="weekPicksTitle" class="matchup-panel-title">Week Board</h2>
-          <p class="matchup-panel-lead" id="weekPicksLead">Model-ranked PrizePicks NCAAF lines. Browse best bets or all graded props by category.</p>
+          <p class="matchup-panel-lead" id="weekPicksLead">Model-ranked PrizePicks NCAAF lines. Browse best bets or filter graded props by category and position.</p>
         </div>
         <div class="prop-week-picks-actions">
           <button type="button" class="btn btn-outline-light btn-sm" id="weekPicksReload">Reload</button>
@@ -220,6 +220,12 @@
           <span>Category</span>
           <select id="weekPicksCategory" aria-label="Filter by stat category">
             <option value="">All categories</option>
+          </select>
+        </label>
+        <label class="prop-week-filter">
+          <span>Position</span>
+          <select id="weekPicksPosition" aria-label="Filter by player position">
+            <option value="">All positions</option>
           </select>
         </label>
         <label class="prop-week-filter">
@@ -261,7 +267,7 @@
   <script src="scripts/analytics.js"></script>
   <script src="scripts/auth-ui.js?v=12"></script>
   <script src="scripts/prizepicks-board-parse.js?v=4"></script>
-  <script src="scripts/prop-lab.js?v=42"></script>
+  <script src="scripts/prop-lab.js?v=43"></script>
   <script>
     function closeMenu() {
       const menu = document.getElementById('dropdownMenu');
