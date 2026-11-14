@@ -5206,8 +5206,8 @@ select {
 
 .results-stand-avatar,
 .results-stand-row .user-avatar {
-  width: 32px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   object-fit: cover;
   border: 1.5px solid rgba(255, 215, 0, 0.5);
@@ -5219,7 +5219,7 @@ select {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.75rem;
+  font-size: 0.85rem;
   font-weight: 800;
   color: #1e1e1e;
   background: linear-gradient(135deg, #ffd700, #f0a500);
@@ -5473,8 +5473,8 @@ a.results-stand-name:hover {
 
   #week10-results .results-stand-avatar,
   #week10-results .results-stand-row .user-avatar {
-    width: 26px;
-    height: 26px;
+    width: 34px;
+    height: 34px;
   }
 
   #week10-results .results-stand-player-copy {

@@ -1143,7 +1143,7 @@
           }
           var userAvatar =
             window.AuthUI && typeof AuthUI.avatarImgHtml === "function"
-              ? AuthUI.avatarImgHtml(e, "cfp-gallery-avatar user-avatar", 32)
+              ? AuthUI.avatarImgHtml(e, "cfp-gallery-avatar user-avatar", 40)
               : "";
           return (
             '<a class="cfp-gallery-card" href="' +

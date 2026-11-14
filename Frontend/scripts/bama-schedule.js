@@ -870,7 +870,7 @@
     var label = entry.displayName || entry.username || "Player";
     var avatar =
       window.AuthUI && typeof AuthUI.avatarImgHtml === "function"
-        ? AuthUI.avatarImgHtml(entry, "lb-row-avatar user-avatar", 28)
+        ? AuthUI.avatarImgHtml(entry, "lb-row-avatar user-avatar", 36)
         : "";
     return (
       '<a class="lb-player-link" href="user-profile.html?username=' +
@@ -998,7 +998,7 @@
           var medal = ["🥇", "🥈", "🥉"][i] || "";
           var avatar =
             window.AuthUI && typeof AuthUI.avatarImgHtml === "function"
-              ? AuthUI.avatarImgHtml(e, "lb-podium-avatar user-avatar", i === 0 ? 56 : 44)
+              ? AuthUI.avatarImgHtml(e, "lb-podium-avatar user-avatar", i === 0 ? 72 : 60)
               : "";
           return (
             '<div class="lb-podium-slot lb-podium-' +
