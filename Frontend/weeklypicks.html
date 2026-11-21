@@ -715,7 +715,7 @@
         ...prev,
         locksAt: lock.locksAt,
         picksLocked,
-        canEdit: Boolean(prev.hasSubmitted) && !picksLocked,
+        canEdit: Boolean(prev.hasSubmitted),
       };
       syncHubLockLabel();
       const loggedIn = Boolean(localStorage.getItem('authToken'));
@@ -740,7 +740,7 @@
       if (picksPastLock(status)) {
         el.classList.add('is-locked');
         el.textContent = status.hasSubmitted
-          ? `Locked ${when}`
+          ? `New picks closed ${when} · edits open`
           : `Closed ${when}`;
         return;
       }
@@ -2375,7 +2375,7 @@
               clearPicksDraft();
               await showSavedPicksForWeek({
                 lastSubmitted: result.lastSubmitted,
-                canEdit: Boolean(result.canEdit) && !result.picksLocked,
+                canEdit: Boolean(result.canEdit || result.hasSubmitted),
                 locksAt: result.locksAt,
               });
             } else if (result.picksLocked || picksPastLock(result)) {
@@ -2449,10 +2449,13 @@
       let title = 'Picks saved';
       let body = `You can edit these picks until ${when}.`;
       if (status.picksLocked || picksPastLock(status)) {
-        title = 'Picks locked';
-        body = status.hasSubmitted
-          ? `The deadline was ${when}. These picks can no longer be changed.`
-          : `The deadline was ${when}. This week’s slate is closed.`;
+        if (status.hasSubmitted) {
+          title = 'Picks saved';
+          body = `New picks closed ${when}. You can still edit your board.`;
+        } else {
+          title = 'Picks closed';
+          body = `The deadline was ${when}. This week’s slate is closed for new submissions.`;
+        }
       } else if (status.hasSubmitted) {
         title = 'Picks saved';
         body = `You can edit these picks until ${when}.`;
@@ -2525,7 +2528,7 @@
           const status = window.__PICKS_STATUS__ || {};
           await showSavedPicksForWeek({
             lastSubmitted: status.lastSubmitted,
-            canEdit: Boolean(status.canEdit) && !status.picksLocked,
+            canEdit: Boolean(status.canEdit || status.hasSubmitted),
             locksAt: status.locksAt,
           });
         });
@@ -2582,7 +2585,7 @@
 
       const onEdit = async function () {
         const status = window.__PICKS_STATUS__ || {};
-        if (picksPastLock(status) || status.canEdit === false) {
+        if (!status.hasSubmitted && status.canEdit === false) {
           alert(`Picks are locked. The deadline was ${formatPicksLock(status.locksAt)}.`);
           return;
         }
@@ -2600,7 +2603,7 @@
         showPicksStatusBanner({
           hasSubmitted: true,
           canEdit: true,
-          picksLocked: false,
+          picksLocked: Boolean(status.picksLocked) || picksPastLock(status),
           lastSubmitted: status.lastSubmitted,
           locksAt: status.locksAt || options.locksAt,
         });
@@ -2695,9 +2698,13 @@
       const submittedDate = lastSubmitted ? new Date(lastSubmitted).toLocaleString() : '';
       const countLabel = gameCount ? `${gameCount} game${gameCount === 1 ? '' : 's'}` : 'Your slate';
       const when = formatPicksLock(locksAt);
-      const body = canEdit
-        ? `You can edit these picks until ${when}.`
-        : `Picks locked ${when}.`;
+      const lockedForNew = picksPastLock({ locksAt });
+      const allowEdit = canEdit !== false;
+      const body = allowEdit
+        ? lockedForNew
+          ? `New picks closed ${when}. You can still edit your board.`
+          : `You can edit these picks until ${when}.`
+        : `New picks closed ${when}.`;
       return `
         <div class="picks-submitted-card" id="picksSubmittedCard">
           <p class="picks-submitted-kicker">Picks in</p>
@@ -2709,7 +2716,7 @@
             <button type="button" class="screenshot-button" id="viewResultsBtn">View Results</button>
             <button type="button" class="screenshot-button" id="picksScreenshotBtn">Save image</button>
             ${
-              canEdit
+              allowEdit
                 ? `<button type="button" class="screenshot-button edit-picks-button" id="picksEditBtn">Edit Picks</button>`
                 : ''
             }
@@ -3058,10 +3065,13 @@
         recordHtml = `<p class="picks-share-record">${safeText(bits.join(' · '))}</p>`;
       }
 
+      const editNote = picksPastLock({ locksAt })
+        ? `New picks closed ${formatPicksLock(locksAt)}. You can still edit.`
+        : `You can edit these picks until ${formatPicksLock(locksAt)}.`;
       const editBlock = canEdit
         ? `
             <button id="editPicksBtn" class="screenshot-button edit-picks-button" type="button">Edit Picks</button>
-            <p class="screenshot-note">You can edit these picks until ${safeText(formatPicksLock(locksAt))}.</p>
+            <p class="screenshot-note">${safeText(editNote)}</p>
           `
         : '';
 
@@ -3182,11 +3192,16 @@
             ? window.__CFBD_GAME_COUNT__
           : 12;
 
-      if (picksPastLock(window.__PICKS_STATUS__)) {
-        disableFormForAlreadySubmitted();
-        showPicksStatusBanner({ ...(window.__PICKS_STATUS__ || {}), picksLocked: true });
-        alert(`Picks are locked. The deadline was ${formatPicksLock(window.__PICKS_STATUS__ && window.__PICKS_STATUS__.locksAt)}.`);
-        return;
+      {
+        const status = window.__PICKS_STATUS__ || {};
+        if (picksPastLock(status) && !status.hasSubmitted) {
+          disableFormForAlreadySubmitted();
+          showPicksStatusBanner({ ...status, picksLocked: true });
+          alert(
+            `New picks are closed. The deadline was ${formatPicksLock(status.locksAt)}.`
+          );
+          return;
+        }
       }
 
       const { picks, missingPicks } = collectPicksFromForm(form, gameCount);
@@ -3215,16 +3230,20 @@
           return;
         }
         if (result.code === 'PICKS_LOCKED') {
+          const prev = window.__PICKS_STATUS__ || {};
           window.__PICKS_STATUS__ = {
-            ...(window.__PICKS_STATUS__ || {}),
+            ...prev,
             picksLocked: true,
-            canEdit: false,
-            locksAt: result.locksAt || (window.__PICKS_STATUS__ && window.__PICKS_STATUS__.locksAt) || null,
+            canEdit: Boolean(prev.hasSubmitted),
+            locksAt: result.locksAt || prev.locksAt || null,
           };
-          disableFormForAlreadySubmitted();
+          if (!prev.hasSubmitted) disableFormForAlreadySubmitted();
           showPicksStatusBanner(window.__PICKS_STATUS__);
           syncHubLockLabel();
-          alert(result.message || 'Picks are locked. The deadline is 1:00 PM Central on Saturday.');
+          alert(
+            result.message ||
+              'New picks are closed. The deadline is 1:00 PM Central on Saturday.'
+          );
           return;
         }
         if (!response.ok) {
@@ -3232,13 +3251,17 @@
           return;
         }
         clearPicksDraft();
-        window.__PICKS_STATUS__ = {
-          hasSubmitted: true,
-          canEdit: true,
-          picksLocked: false,
-          lastSubmitted: new Date().toISOString(),
-          locksAt: result.locksAt || (window.__PICKS_STATUS__ && window.__PICKS_STATUS__.locksAt) || null,
-        };
+        {
+          const prev = window.__PICKS_STATUS__ || {};
+          const locksAt = result.locksAt || prev.locksAt || null;
+          window.__PICKS_STATUS__ = {
+            hasSubmitted: true,
+            canEdit: true,
+            picksLocked: Boolean(prev.picksLocked) || picksPastLock({ locksAt }),
+            lastSubmitted: new Date().toISOString(),
+            locksAt,
+          };
+        }
         paTrack('weekly_picks_submitted', {
           season: activeWeekMeta?.seasonYear || 2026,
           week: activeWeekMeta?.weekNumber || null,
@@ -4352,8 +4375,7 @@
       const status = window.__PICKS_STATUS__ || {};
       const canEdit =
         resultsRecapScope === 'current' &&
-        Boolean(status.canEdit) &&
-        !status.picksLocked;
+        Boolean(status.canEdit || status.hasSubmitted);
       const shareOpts = {
         userName: currentUser?.displayName || currentUser?.username || 'Guest',
         form: resultsRecapScope === 'current'

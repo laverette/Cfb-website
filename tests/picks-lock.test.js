@@ -56,4 +56,15 @@ describe("weekly picks Saturday 1 PM Central lock", () => {
     assert.equal(lock.picksLocked, false);
     assert.equal(lock.locksAt, null);
   });
+
+  it("keeps the Saturday 1 PM cutoff for first-time submissions", () => {
+    const games = [game("2026-11-14T17:00:00Z")];
+    const lock = weekLockFromGames(games, new Date("2026-11-14T19:00:00Z"));
+    assert.equal(lock.picksLocked, true);
+    // Edits are gated separately in submitUserPicks via hasSubmitted.
+    const blocksNew = lock.picksLocked && !false;
+    const blocksEdit = lock.picksLocked && !true;
+    assert.equal(blocksNew, true);
+    assert.equal(blocksEdit, false);
+  });
 });

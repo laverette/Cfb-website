@@ -579,7 +579,9 @@ async function getUserWeekSubmission(userId, weekId, options = {}) {
     lastSubmitted,
     picksLocked: lock.picksLocked,
     locksAt: lock.locksAt,
-    canEdit: !lock.picksLocked,
+    // Submitted boards stay editable after the Saturday cutoff; the lock only
+    // blocks first-time submissions.
+    canEdit: pickCount > 0,
   };
 }
 
@@ -737,9 +739,11 @@ async function submitUserPicks({ userId, weekId, picks }) {
   }
 
   const lock = weekLockFromGames(games);
-  if (lock.picksLocked) throw picksLockedError(lock.locksAt);
-
   const existing = await getUserWeekSubmission(userId, weekId, { lock });
+  // New submissions close at Saturday 1 PM Central. Edits stay open afterward.
+  if (lock.picksLocked && !existing.hasSubmitted) {
+    throw picksLockedError(lock.locksAt);
+  }
 
   const byId = new Map(games.map((g) => [Number(g.id), g]));
   const byNumber = new Map(games.map((g) => [Number(g.game_number), g]));
