@@ -284,9 +284,9 @@ body.picks-results-open .hub-progress {
 }
 
 .results-stand-row.is-me {
-  border-color: #ffd700;
-  box-shadow: 0 0 0 1px rgba(255, 215, 0, 0.45);
-  background: linear-gradient(135deg, rgba(255, 215, 0, 0.16), rgba(62, 39, 35, 0.88));
+  border-color: rgba(255, 215, 0, 0.55);
+  box-shadow: inset 0 0 0 1px rgba(255, 215, 0, 0.22);
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.12), rgba(62, 39, 35, 0.55));
 }
 
 .results-stand-row.is-comparable {
