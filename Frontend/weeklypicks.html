@@ -3044,7 +3044,7 @@
               }
             </div>
             <p class="picks-share-matchup">${safeText(matchupLine)}</p>
-            <div class="picks-share-teams">
+            <div class="picks-share-teams${showScores ? ' has-scores' : ''}">
               <div class="picks-share-team${awayIsPick ? ' is-pick' : ''}${awayWinning}">
                 ${logoImgHtml(awayLogo, awayName, game?.awayTeamEspnId)}
                 <span>${safeText(awayName || 'TBD')}</span>
@@ -3337,6 +3337,13 @@
       return window.__html2canvasLoading;
     }
 
+    function restoreScreenshotButton(btn) {
+      if (!btn) return;
+      btn.disabled = false;
+      btn.innerHTML = btn.dataset.prevLabel || 'Save image';
+      delete btn.dataset.prevLabel;
+    }
+
     async function takeScreenshot(evt) {
       const clickedBtn = evt && evt.currentTarget;
       try {
@@ -3358,17 +3365,22 @@
           alert('Nothing to save yet.');
           return;
         }
-        await loadHtml2Canvas();
-        await captureScreenshot({ triggerBtn: clickedBtn });
+        await withTimeout(
+          loadHtml2Canvas(),
+          12000,
+          'Could not load image saver. Check your connection.'
+        );
+        // Hard ceiling so the button never stays on “Saving…” forever on iOS.
+        await withTimeout(
+          captureScreenshot({ triggerBtn: clickedBtn, restoreBtnEarly: true }),
+          isMobileCapture() ? 22000 : 35000,
+          'Image capture timed out. Try again.'
+        );
       } catch (err) {
         console.error('Screenshot failed:', err);
         alert(err && err.message ? err.message : 'Could not save the image. Try again.');
       } finally {
-        if (clickedBtn) {
-          clickedBtn.disabled = false;
-          clickedBtn.innerHTML = clickedBtn.dataset.prevLabel || 'Save image';
-          delete clickedBtn.dataset.prevLabel;
-        }
+        restoreScreenshotButton(clickedBtn);
       }
     }
 
@@ -3587,6 +3599,9 @@
       clone.querySelectorAll('.picks-share-teams').forEach((el) => {
         el.style.display = 'flex';
       });
+      clone.querySelectorAll('.picks-share-team').forEach((el) => {
+        el.style.display = 'flex';
+      });
       clone.querySelectorAll('.picks-share-matchup').forEach((el) => {
         el.style.display = 'none';
       });
@@ -3636,7 +3651,8 @@
 
     async function renderShareCanvas(clone, captureWidth, mobile) {
       const h2c = await loadHtml2Canvas();
-      const scale = mobile ? 1.25 : 2;
+      // Keep mobile canvases smaller — large scale + tall cards hangs older iPhones.
+      const scale = mobile ? 1 : 2;
       const height = Math.ceil(clone.scrollHeight || clone.offsetHeight || 0);
       return withTimeout(
         h2c(clone, {
@@ -3645,7 +3661,7 @@
           useCORS: true,
           allowTaint: false,
           // Logos are stamped after capture — don't wait on <img> paint.
-          imageTimeout: 1500,
+          imageTimeout: 1200,
           logging: false,
           scrollX: 0,
           scrollY: 0,
@@ -3661,6 +3677,9 @@
               node.querySelectorAll('.picks-share-teams').forEach((el) => {
                 el.style.display = 'flex';
               });
+              node.querySelectorAll('.picks-share-team').forEach((el) => {
+                el.style.display = 'flex';
+              });
               node.querySelectorAll('.picks-share-matchup').forEach((el) => {
                 el.style.display = 'none';
               });
@@ -3670,7 +3689,7 @@
             }
           },
         }),
-        mobile ? 15000 : 25000,
+        mobile ? 12000 : 25000,
         'Image capture timed out. Try again.'
       );
     }
@@ -3684,7 +3703,7 @@
 
       const week = shareWeekLabel(recapWeekMeta());
       const mobile = isMobileCapture();
-      const captureWidth = mobile ? 720 : 1100;
+      const captureWidth = mobile ? 640 : 1100;
       const host = mountCaptureHost(captureWidth);
       const clone = prepareCaptureClone(source, captureWidth);
       host.appendChild(clone);
@@ -3700,6 +3719,12 @@
       try {
         const canvas = await renderShareCanvas(clone, captureWidth, mobile);
         if (!canvas || !canvas.width) throw new Error('Could not render picks image.');
+        // Clear “Saving…” before the Photos sheet so a hung share never traps the button.
+        if (opts.restoreBtnEarly) restoreScreenshotButton(btn);
+        if (btn && manageBtn) {
+          btn.disabled = false;
+          btn.innerHTML = prevLabel || 'Save image';
+        }
         const fileName = `${week.fileSlug}-${new Date().toISOString().split('T')[0]}.png`;
         await exportCanvasImage(canvas, {
           fileName,
@@ -3729,14 +3754,34 @@
       return navigator.platform === 'MacIntel' && (navigator.maxTouchPoints || 0) > 1;
     }
 
-    function canvasToBlob(canvas, type = 'image/png', quality) {
-      return new Promise((resolve) => {
-        if (!canvas || typeof canvas.toBlob !== 'function') {
-          resolve(null);
-          return;
+    async function canvasToBlob(canvas, type = 'image/png', quality) {
+      if (!canvas) return null;
+      if (typeof canvas.toBlob !== 'function') {
+        try {
+          const dataUrl = canvas.toDataURL(type, quality);
+          const resp = await fetch(dataUrl);
+          return await resp.blob();
+        } catch (_) {
+          return null;
         }
-        canvas.toBlob((blob) => resolve(blob || null), type, quality);
-      });
+      }
+      try {
+        return await withTimeout(
+          new Promise((resolve) => {
+            canvas.toBlob((blob) => resolve(blob || null), type, quality);
+          }),
+          8000,
+          'toBlob-timeout'
+        );
+      } catch (_) {
+        try {
+          const dataUrl = canvas.toDataURL('image/png');
+          const resp = await fetch(dataUrl);
+          return await resp.blob();
+        } catch (__) {
+          return null;
+        }
+      }
     }
 
     function canShareImageFile(file) {
@@ -3756,17 +3801,21 @@
      * Opens the system sheet with the PNG only (no URL / no text), so iOS/Android
      * offer Save Image → Camera Roll / Photos — not "Save to Files".
      */
-    async function shareImageToCameraRoll(file) {
+    async function shareImageToCameraRoll(file, { timeoutMs = 6000 } = {}) {
       if (!file || !navigator.share) return { ok: false, reason: 'unsupported' };
       const payload = { files: [file] };
       try {
         if (typeof navigator.canShare === 'function' && !navigator.canShare(payload)) {
           return { ok: false, reason: 'unsupported' };
         }
-        await navigator.share(payload);
+        // iOS can hang forever if share is invoked after the tap gesture expires.
+        await withTimeout(navigator.share(payload), timeoutMs, 'share-timeout');
         return { ok: true };
       } catch (err) {
         if (err && err.name === 'AbortError') return { ok: true, aborted: true };
+        if (err && /share-timeout/i.test(String(err.message || ''))) {
+          return { ok: false, reason: 'timeout' };
+        }
         return { ok: false, reason: 'share_failed' };
       }
     }
@@ -3796,19 +3845,19 @@
         lastModified: Date.now(),
       });
 
-      // Mobile: one system prompt only — Save Image to Photos / Camera Roll.
-      // No custom popup, no Downloads / "Save as file".
+      // Mobile: try the system Photos share once, then fall back to a one-tap retry.
+      // After a long html2canvas run iOS often drops the original gesture, so we never
+      // leave the UI waiting on a hung navigator.share().
       if (isMobileCapture()) {
         if (!canShareImageFile(file)) {
           alert('This browser cannot save images to Photos. Try Safari on iPhone or Chrome on Android.');
           return;
         }
-        const result = await shareImageToCameraRoll(file);
+        const result = await shareImageToCameraRoll(file, { timeoutMs: 4500 });
         if (result.ok) {
           if (!result.aborted) flashScreenshotButtons('Saved.');
           return;
         }
-        // iOS often drops the tap gesture after async capture — one retry button, nothing else.
         openPhotosRetry(file);
         return;
       }
@@ -4657,22 +4706,28 @@
             btn.dataset.prevLabel = btn.innerHTML;
             btn.innerHTML = 'Saving…';
           }
-          await loadHtml2Canvas();
-          await captureElementScreenshot('h2hShareCard', 'h2h');
+          await withTimeout(
+            loadHtml2Canvas(),
+            12000,
+            'Could not load image saver. Check your connection.'
+          );
+          await withTimeout(
+            captureElementScreenshot('h2hShareCard', 'h2h', {
+              onCanvasReady: () => restoreScreenshotButton(btn),
+            }),
+            isMobileCapture() ? 22000 : 35000,
+            'Image capture timed out. Try again.'
+          );
         } catch (err) {
           console.warn('screenshot:', err);
           alert(err && err.message ? err.message : 'Could not save image.');
         } finally {
-          if (btn) {
-            btn.disabled = false;
-            btn.innerHTML = btn.dataset.prevLabel || 'Save image';
-            delete btn.dataset.prevLabel;
-          }
+          restoreScreenshotButton(btn);
         }
       })();
     }
 
-    async function captureElementScreenshot(elementId, filePrefix) {
+    async function captureElementScreenshot(elementId, filePrefix, opts = {}) {
       const source = document.getElementById(elementId);
       if (!source) {
         alert('Nothing to save yet.');
@@ -4680,13 +4735,14 @@
       }
       const week = shareWeekLabel();
       const mobile = isMobileCapture();
-      const captureWidth = mobile ? 720 : 900;
+      const captureWidth = mobile ? 640 : 900;
       const host = mountCaptureHost(captureWidth);
       const clone = prepareCaptureClone(source, captureWidth);
       host.appendChild(clone);
       try {
         const canvas = await renderShareCanvas(clone, captureWidth, mobile);
         if (!canvas || !canvas.width) throw new Error('Could not render image.');
+        if (typeof opts.onCanvasReady === 'function') opts.onCanvasReady(canvas);
         const fileName = `${filePrefix || 'card'}-${week.fileSlug}-${new Date().toISOString().split('T')[0]}.png`;
         await exportCanvasImage(canvas, {
           fileName,

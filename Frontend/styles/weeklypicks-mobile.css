@@ -504,7 +504,8 @@ body.has-mobile-dock {
     font-size: 0.62rem;
     padding: 0.08rem 0.4rem;
   }
-  /* Keep live/final scores on narrow screens; hide logos (matchup text covers names). */
+  /* Keep live/final scores on narrow screens; hide logos (matchup text covers names).
+     Use .has-scores (not :has()) so older iOS/Android still show scores. */
   .picks-share-teams {
     display: none;
     align-items: center;
@@ -512,7 +513,7 @@ body.has-mobile-dock {
     gap: 0.35rem;
     margin: 0 0 0.2rem;
   }
-  .picks-share-teams:has(.picks-share-scoreblock) {
+  .picks-share-teams.has-scores {
     display: flex;
   }
   .picks-share-team,
