@@ -2974,8 +2974,18 @@
 
         const liveGame = findLiveGameForPick(scores, game);
         let status = liveGame ? getGameStatus(liveGame) : { kind: 'scheduled', label: '' };
-        const awayScore = liveGame ? toScoreInt(liveGame.awayPoints) : null;
-        const homeScore = liveGame ? toScoreInt(liveGame.homePoints) : null;
+        let awayScore = liveGame ? toScoreInt(liveGame.awayPoints) : null;
+        let homeScore = liveGame ? toScoreInt(liveGame.homePoints) : null;
+        if (awayScore == null) {
+          awayScore = toScoreInt(
+            game?.awayScore ?? game?.away_score ?? game?.awayPoints ?? game?.away_points
+          );
+        }
+        if (homeScore == null) {
+          homeScore = toScoreInt(
+            game?.homeScore ?? game?.home_score ?? game?.homePoints ?? game?.home_points
+          );
+        }
         const result = pickResultForShare(game, pick, liveGame);
         // Graded picks still count as final when live boards no longer list the game.
         if (
@@ -2985,7 +2995,10 @@
         ) {
           status = { kind: 'final', label: 'FINAL' };
         }
-        const showScores = status.kind === 'live' || (status.kind === 'final' && liveGame);
+        const showScores =
+          (status.kind === 'live' || status.kind === 'final') &&
+          awayScore != null &&
+          homeScore != null;
 
         if (result.state === 'correct') correctCount += 1;
         if (result.state === 'wrong') wrongCount += 1;
