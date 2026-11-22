@@ -320,17 +320,18 @@
         </div>
       </div>
 
+      <div class="h2h-backdrop" id="h2hBackdrop" hidden></div>
       <div class="h2h-panel section-card" id="h2hPanel" hidden>
-      <div class="h2h-panel-head">
-        <h3 class="gold-heading" style="margin:0;" id="h2hPanelTitle">Head to head</h3>
-        <button type="button" class="btn btn-brown btn-sm" id="h2hCloseBtn">Close</button>
+        <div class="h2h-panel-head">
+          <h3 class="gold-heading" style="margin:0;" id="h2hPanelTitle">Head to head</h3>
+          <button type="button" class="btn btn-brown btn-sm" id="h2hCloseBtn">Close</button>
+        </div>
+        <div id="h2hCardHost"></div>
+        <div class="h2h-actions">
+          <button type="button" class="screenshot-button" id="h2hScreenshotBtn">Save image</button>
+          <p class="screenshot-note">Share your board vs a friend.</p>
+        </div>
       </div>
-      <div id="h2hCardHost"></div>
-      <div class="h2h-actions">
-        <button type="button" class="screenshot-button" id="h2hScreenshotBtn">Save image</button>
-        <p class="screenshot-note">Share your board vs a friend.</p>
-      </div>
-    </div>
     </div>
 
     <div class="hub-panel" id="resultsPanelAwards" data-results-panel="awards" hidden>
@@ -3044,7 +3045,7 @@
               }
             </div>
             <p class="picks-share-matchup">${safeText(matchupLine)}</p>
-            <div class="picks-share-teams">
+            <div class="picks-share-teams${showScores ? ' has-scores' : ''}">
               <div class="picks-share-team${awayIsPick ? ' is-pick' : ''}${awayWinning}">
                 ${logoImgHtml(awayLogo, awayName, game?.awayTeamEspnId)}
                 <span>${safeText(awayName || 'TBD')}</span>
@@ -3337,6 +3338,13 @@
       return window.__html2canvasLoading;
     }
 
+    function restoreScreenshotButton(btn) {
+      if (!btn) return;
+      btn.disabled = false;
+      btn.innerHTML = btn.dataset.prevLabel || 'Save image';
+      delete btn.dataset.prevLabel;
+    }
+
     async function takeScreenshot(evt) {
       const clickedBtn = evt && evt.currentTarget;
       try {
@@ -3358,17 +3366,22 @@
           alert('Nothing to save yet.');
           return;
         }
-        await loadHtml2Canvas();
-        await captureScreenshot({ triggerBtn: clickedBtn });
+        await withTimeout(
+          loadHtml2Canvas(),
+          12000,
+          'Could not load image saver. Check your connection.'
+        );
+        // Hard ceiling so the button never stays on “Saving…” forever on iOS.
+        await withTimeout(
+          captureScreenshot({ triggerBtn: clickedBtn, restoreBtnEarly: true }),
+          isMobileCapture() ? 22000 : 35000,
+          'Image capture timed out. Try again.'
+        );
       } catch (err) {
         console.error('Screenshot failed:', err);
         alert(err && err.message ? err.message : 'Could not save the image. Try again.');
       } finally {
-        if (clickedBtn) {
-          clickedBtn.disabled = false;
-          clickedBtn.innerHTML = clickedBtn.dataset.prevLabel || 'Save image';
-          delete clickedBtn.dataset.prevLabel;
-        }
+        restoreScreenshotButton(clickedBtn);
       }
     }
 
@@ -3587,6 +3600,9 @@
       clone.querySelectorAll('.picks-share-teams').forEach((el) => {
         el.style.display = 'flex';
       });
+      clone.querySelectorAll('.picks-share-team').forEach((el) => {
+        el.style.display = 'flex';
+      });
       clone.querySelectorAll('.picks-share-matchup').forEach((el) => {
         el.style.display = 'none';
       });
@@ -3636,7 +3652,8 @@
 
     async function renderShareCanvas(clone, captureWidth, mobile) {
       const h2c = await loadHtml2Canvas();
-      const scale = mobile ? 1.25 : 2;
+      // Keep mobile canvases smaller — large scale + tall cards hangs older iPhones.
+      const scale = mobile ? 1 : 2;
       const height = Math.ceil(clone.scrollHeight || clone.offsetHeight || 0);
       return withTimeout(
         h2c(clone, {
@@ -3645,7 +3662,7 @@
           useCORS: true,
           allowTaint: false,
           // Logos are stamped after capture — don't wait on <img> paint.
-          imageTimeout: 1500,
+          imageTimeout: 1200,
           logging: false,
           scrollX: 0,
           scrollY: 0,
@@ -3661,6 +3678,9 @@
               node.querySelectorAll('.picks-share-teams').forEach((el) => {
                 el.style.display = 'flex';
               });
+              node.querySelectorAll('.picks-share-team').forEach((el) => {
+                el.style.display = 'flex';
+              });
               node.querySelectorAll('.picks-share-matchup').forEach((el) => {
                 el.style.display = 'none';
               });
@@ -3670,7 +3690,7 @@
             }
           },
         }),
-        mobile ? 15000 : 25000,
+        mobile ? 12000 : 25000,
         'Image capture timed out. Try again.'
       );
     }
@@ -3684,7 +3704,7 @@
 
       const week = shareWeekLabel(recapWeekMeta());
       const mobile = isMobileCapture();
-      const captureWidth = mobile ? 720 : 1100;
+      const captureWidth = mobile ? 640 : 1100;
       const host = mountCaptureHost(captureWidth);
       const clone = prepareCaptureClone(source, captureWidth);
       host.appendChild(clone);
@@ -3700,6 +3720,12 @@
       try {
         const canvas = await renderShareCanvas(clone, captureWidth, mobile);
         if (!canvas || !canvas.width) throw new Error('Could not render picks image.');
+        // Clear “Saving…” before the Photos sheet so a hung share never traps the button.
+        if (opts.restoreBtnEarly) restoreScreenshotButton(btn);
+        if (btn && manageBtn) {
+          btn.disabled = false;
+          btn.innerHTML = prevLabel || 'Save image';
+        }
         const fileName = `${week.fileSlug}-${new Date().toISOString().split('T')[0]}.png`;
         await exportCanvasImage(canvas, {
           fileName,
@@ -3729,14 +3755,34 @@
       return navigator.platform === 'MacIntel' && (navigator.maxTouchPoints || 0) > 1;
     }
 
-    function canvasToBlob(canvas, type = 'image/png', quality) {
-      return new Promise((resolve) => {
-        if (!canvas || typeof canvas.toBlob !== 'function') {
-          resolve(null);
-          return;
+    async function canvasToBlob(canvas, type = 'image/png', quality) {
+      if (!canvas) return null;
+      if (typeof canvas.toBlob !== 'function') {
+        try {
+          const dataUrl = canvas.toDataURL(type, quality);
+          const resp = await fetch(dataUrl);
+          return await resp.blob();
+        } catch (_) {
+          return null;
         }
-        canvas.toBlob((blob) => resolve(blob || null), type, quality);
-      });
+      }
+      try {
+        return await withTimeout(
+          new Promise((resolve) => {
+            canvas.toBlob((blob) => resolve(blob || null), type, quality);
+          }),
+          8000,
+          'toBlob-timeout'
+        );
+      } catch (_) {
+        try {
+          const dataUrl = canvas.toDataURL('image/png');
+          const resp = await fetch(dataUrl);
+          return await resp.blob();
+        } catch (__) {
+          return null;
+        }
+      }
     }
 
     function canShareImageFile(file) {
@@ -3756,17 +3802,21 @@
      * Opens the system sheet with the PNG only (no URL / no text), so iOS/Android
      * offer Save Image → Camera Roll / Photos — not "Save to Files".
      */
-    async function shareImageToCameraRoll(file) {
+    async function shareImageToCameraRoll(file, { timeoutMs = 6000 } = {}) {
       if (!file || !navigator.share) return { ok: false, reason: 'unsupported' };
       const payload = { files: [file] };
       try {
         if (typeof navigator.canShare === 'function' && !navigator.canShare(payload)) {
           return { ok: false, reason: 'unsupported' };
         }
-        await navigator.share(payload);
+        // iOS can hang forever if share is invoked after the tap gesture expires.
+        await withTimeout(navigator.share(payload), timeoutMs, 'share-timeout');
         return { ok: true };
       } catch (err) {
         if (err && err.name === 'AbortError') return { ok: true, aborted: true };
+        if (err && /share-timeout/i.test(String(err.message || ''))) {
+          return { ok: false, reason: 'timeout' };
+        }
         return { ok: false, reason: 'share_failed' };
       }
     }
@@ -3796,19 +3846,19 @@
         lastModified: Date.now(),
       });
 
-      // Mobile: one system prompt only — Save Image to Photos / Camera Roll.
-      // No custom popup, no Downloads / "Save as file".
+      // Mobile: try the system Photos share once, then fall back to a one-tap retry.
+      // After a long html2canvas run iOS often drops the original gesture, so we never
+      // leave the UI waiting on a hung navigator.share().
       if (isMobileCapture()) {
         if (!canShareImageFile(file)) {
           alert('This browser cannot save images to Photos. Try Safari on iPhone or Chrome on Android.');
           return;
         }
-        const result = await shareImageToCameraRoll(file);
+        const result = await shareImageToCameraRoll(file, { timeoutMs: 4500 });
         if (result.ok) {
           if (!result.aborted) flashScreenshotButtons('Saved.');
           return;
         }
-        // iOS often drops the tap gesture after async capture — one retry button, nothing else.
         openPhotosRetry(file);
         return;
       }
@@ -4004,6 +4054,15 @@
       return `<span class="results-stand-avatar user-avatar user-avatar--initial" aria-hidden="true">${safeText(initial)}</span>`;
     }
 
+    function openHeadToHeadFromRow(row, opponent) {
+      if (!opponent) return;
+      if (row) {
+        row.classList.add('is-opening');
+        window.setTimeout(() => row.classList.remove('is-opening'), 420);
+      }
+      openHeadToHead(opponent);
+    }
+
     function renderResultsLeaderboardList(containerId, entries, { emptyMessage } = {}) {
       const list = document.getElementById(containerId);
       if (!list) return;
@@ -4018,16 +4077,13 @@
         const pct = Number(e.accuracy || 0).toFixed(1);
         const rank = index + 1;
         const rankClass = rank === 1 ? 'is-gold' : rank === 2 ? 'is-silver' : rank === 3 ? 'is-bronze' : '';
-        const pendingHtml = e.pendingPicks > 0
-          ? `<span class="results-stand-pending">${safeText(e.pendingPicks)} pending</span>`
-          : '';
         const profileUrl = e.username
           ? `user-profile.html?username=${encodeURIComponent(e.username)}`
           : '';
         const nameHtml = profileUrl
           ? `<a class="results-stand-name" href="${safeText(profileUrl)}" title="${name}">${name}</a>`
           : `<span class="results-stand-name" title="${name}">${name}</span>`;
-        const avatarInner = playerAvatarHtml(e, 40);
+        const avatarInner = playerAvatarHtml(e, 44);
         const avatarHtml = profileUrl
           ? `<a class="results-stand-avatar-link" href="${safeText(profileUrl)}" title="${name} profile" aria-label="${name} profile">${avatarInner}</a>`
           : avatarInner;
@@ -4037,13 +4093,13 @@
           Boolean(e.username) &&
           Boolean(localStorage.getItem('authToken')) &&
           !isMe;
+        const youHtml = isMe ? `<span class="hub-you-pill">You</span>` : '';
         const compareHtml = canCompare
-          ? `<button type="button" class="results-stand-compare" data-opponent="${safeText(e.username)}" title="Compare picks">Compare</button>`
-          : isMe
-            ? `<span class="hub-you-pill">You</span>`
-            : '';
+          ? `<button type="button" class="results-stand-compare" data-opponent="${safeText(e.username)}" title="Compare picks">Compare boards</button>`
+          : '';
+        const stagger = ` style="--stand-i:${index}"`;
         return `
-          <li class="results-stand-row${isMe ? ' is-me' : ''}${canCompare ? ' is-comparable' : ''}"${canCompare ? ` data-opponent="${safeText(e.username)}"` : ''}>
+          <li class="results-stand-row${isMe ? ' is-me' : ''}${canCompare ? ' is-comparable' : ''}"${canCompare ? ` data-opponent="${safeText(e.username)}"` : ''}${stagger}>
             <span class="results-stand-rank ${rankClass}" aria-hidden="true">${rank}</span>
             <div class="results-stand-player">
               ${avatarHtml}
@@ -4054,9 +4110,9 @@
             </div>
             <div class="results-stand-stats">
               <span class="results-stand-acc">${pct}%</span>
-              ${pendingHtml}
-              ${compareHtml}
+              ${youHtml}
             </div>
+            ${compareHtml}
           </li>
         `;
       }).join('');
@@ -4065,14 +4121,14 @@
         btn.addEventListener('click', (evt) => {
           evt.stopPropagation();
           const opponent = btn.getAttribute('data-opponent');
-          if (opponent) openHeadToHead(opponent);
+          openHeadToHeadFromRow(btn.closest('.results-stand-row'), opponent);
         });
       });
       list.querySelectorAll('.results-stand-row.is-comparable').forEach((row) => {
         row.addEventListener('click', (evt) => {
           if (evt.target.closest('a, button')) return;
           const opponent = row.getAttribute('data-opponent');
-          if (opponent) openHeadToHead(opponent);
+          openHeadToHeadFromRow(row, opponent);
         });
       });
     }
@@ -4293,10 +4349,19 @@
           <div class="analysis-kpi"><span>Final</span><strong>${gamesFinal}${slateGames ? `/${slateGames}` : ''}</strong></div>
           <div class="analysis-kpi"><span>Combined</span><strong>${totalCorrect}–${totalIncorrect}</strong></div>
         </div>
-        <div class="analysis-insights">
-          <article class="analysis-insight"><h4>Top of board</h4><p>${safeText(topLine)}</p></article>
-          <article class="analysis-insight"><h4>Longest heater</h4><p>${safeText(heaterLine)}</p></article>
-          <article class="analysis-insight"><h4>Tough week</h4><p>${safeText(toughLine)}</p></article>
+        <div class="analysis-spotlights" role="list">
+          <div class="analysis-spotlight" role="listitem">
+            <span class="analysis-spotlight-label">Top</span>
+            <span class="analysis-spotlight-value">${safeText(topLine)}</span>
+          </div>
+          <div class="analysis-spotlight" role="listitem">
+            <span class="analysis-spotlight-label">Heater</span>
+            <span class="analysis-spotlight-value">${safeText(heaterLine)}</span>
+          </div>
+          <div class="analysis-spotlight" role="listitem">
+            <span class="analysis-spotlight-label">Tough</span>
+            <span class="analysis-spotlight-value">${safeText(toughLine)}</span>
+          </div>
         </div>
       `;
       container.hidden = false;
@@ -4564,28 +4629,88 @@
 
     function h2hPickState(pick) {
       if (!pick) return { state: 'pending', label: '—' };
+      if (pick.isTie) return { state: 'tie', label: 'Tie' };
       if (pick.isCorrect === true) return { state: 'correct', label: '✓' };
       if (pick.isCorrect === false) return { state: 'wrong', label: '✗' };
       return { state: 'pending', label: 'Pending' };
+    }
+
+    function h2hPickLogoHtml(game, pick) {
+      const name = pick?.pickedTeamName || '';
+      const espnId = pick?.pickedTeamEspnId;
+      if (!name && !espnId) {
+        return '<span class="h2h-pick-logo h2h-pick-logo--empty" aria-hidden="true"></span>';
+      }
+      const awayName = String(game?.awayTeamName || '');
+      const homeName = String(game?.homeTeamName || '');
+      const picked = String(name || '');
+      let logoUrl = '';
+      let logoEspn = espnId;
+      if (Number(espnId) && Number(espnId) === Number(game?.awayTeamEspnId)) {
+        logoUrl = game?.awayTeamLogoUrl;
+        logoEspn = game?.awayTeamEspnId;
+      } else if (Number(espnId) && Number(espnId) === Number(game?.homeTeamEspnId)) {
+        logoUrl = game?.homeTeamLogoUrl;
+        logoEspn = game?.homeTeamEspnId;
+      } else if (picked && picked === awayName) {
+        logoUrl = game?.awayTeamLogoUrl;
+        logoEspn = game?.awayTeamEspnId || espnId;
+      } else if (picked && picked === homeName) {
+        logoUrl = game?.homeTeamLogoUrl;
+        logoEspn = game?.homeTeamEspnId || espnId;
+      } else {
+        logoEspn = espnId;
+      }
+      const resolved = resolveTeamLogo(logoUrl, logoEspn);
+      if (!resolved) {
+        return `<span class="h2h-pick-logo h2h-pick-logo--fallback" aria-hidden="true">${safeText((name || '?').slice(0, 2).toUpperCase())}</span>`;
+      }
+      let src = resolved;
+      try {
+        const parsed = new URL(resolved, window.location.href);
+        if (/(^|\.)espncdn\.com$/i.test(parsed.hostname)) {
+          src = `/api/logo?src=${encodeURIComponent(parsed.toString())}`;
+        }
+      } catch (_) {}
+      return `<img class="h2h-pick-logo" src="${safeText(src)}" alt="" width="22" height="22" loading="lazy" decoding="async">`;
+    }
+
+    function h2hGameRelation(game) {
+      const vName = String(game?.viewer?.pickedTeamName || '').trim();
+      const oName = String(game?.opponent?.pickedTeamName || '').trim();
+      if (!vName || !oName) return { kind: 'open', label: 'Open' };
+      if (vName.toLowerCase() === oName.toLowerCase()) return { kind: 'agree', label: 'Agree' };
+      return { kind: 'split', label: 'Split' };
     }
 
     function buildH2hCardHtml(data) {
       const week = shareWeekLabel();
       const viewer = data.viewer || {};
       const opponent = data.opponent || {};
-      const gamesHtml = (data.games || []).map((g) => {
+      const games = Array.isArray(data.games) ? data.games : [];
+      let agreeCount = 0;
+      let splitCount = 0;
+      const gamesHtml = games.map((g) => {
         const v = h2hPickState(g.viewer);
         const o = h2hPickState(g.opponent);
+        const relation = h2hGameRelation(g);
+        if (relation.kind === 'agree') agreeCount += 1;
+        if (relation.kind === 'split') splitCount += 1;
         return `
-          <div class="h2h-game">
-            <div class="h2h-game-matchup">Game ${safeText(g.gameNumber)} · ${safeText(g.awayTeamName)} @ ${safeText(g.homeTeamName)}</div>
+          <div class="h2h-game is-${safeText(relation.kind)}">
+            <div class="h2h-game-top">
+              <div class="h2h-game-matchup">Game ${safeText(g.gameNumber)} · ${safeText(g.awayTeamName)} @ ${safeText(g.homeTeamName)}</div>
+              <span class="h2h-game-chip is-${safeText(relation.kind)}">${safeText(relation.label)}</span>
+            </div>
             <div class="h2h-game-picks">
               <div class="h2h-pick is-${safeText(v.state)}">
-                <span>${safeText(g.viewer?.pickedTeamName || '—')}</span>
+                ${h2hPickLogoHtml(g, g.viewer)}
+                <span class="h2h-pick-name">${safeText(g.viewer?.pickedTeamName || '—')}</span>
                 <em>${safeText(v.label)}</em>
               </div>
               <div class="h2h-pick is-${safeText(o.state)}">
-                <span>${safeText(g.opponent?.pickedTeamName || '—')}</span>
+                ${h2hPickLogoHtml(g, g.opponent)}
+                <span class="h2h-pick-name">${safeText(g.opponent?.pickedTeamName || '—')}</span>
                 <em>${safeText(o.label)}</em>
               </div>
             </div>
@@ -4599,38 +4724,66 @@
           <p class="picks-share-week-badge">${safeText(week.weekPart)}${week.yearPart ? safeText(week.yearPart) : ''}</p>
           <div class="h2h-names">
             <div class="h2h-player">
-              ${playerAvatarHtml(viewer, 48)}
+              ${playerAvatarHtml(viewer, 52)}
               <strong>${safeText(viewer.displayName || viewer.username || 'You')}</strong>
               <span>${safeText(h2hRecordLabel(data.viewerRecord))}</span>
             </div>
             <div class="h2h-vs">VS</div>
             <div class="h2h-player">
-              ${playerAvatarHtml(opponent, 48)}
+              ${playerAvatarHtml(opponent, 52)}
               <strong>${safeText(opponent.displayName || opponent.username || 'Them')}</strong>
               <span>${safeText(h2hRecordLabel(data.opponentRecord))}</span>
             </div>
+          </div>
+          <div class="h2h-tally" aria-label="Agreement summary">
+            <span class="h2h-tally-chip is-agree"><strong>${agreeCount}</strong> agree</span>
+            <span class="h2h-tally-chip is-split"><strong>${splitCount}</strong> split</span>
           </div>
           <div class="h2h-games">${gamesHtml}</div>
         </div>
       `;
     }
 
+    function closeHeadToHead() {
+      const panel = document.getElementById('h2hPanel');
+      const backdrop = document.getElementById('h2hBackdrop');
+      if (panel) {
+        panel.classList.remove('is-open');
+        panel.hidden = true;
+      }
+      if (backdrop) {
+        backdrop.classList.remove('is-open');
+        backdrop.hidden = true;
+      }
+      document.body.classList.remove('h2h-open');
+    }
+
+    function showHeadToHeadShell(opponentUsername) {
+      const panel = document.getElementById('h2hPanel');
+      const backdrop = document.getElementById('h2hBackdrop');
+      const title = document.getElementById('h2hPanelTitle');
+      if (!panel) return;
+      if (title) title.textContent = `You vs ${opponentUsername}`;
+      if (backdrop) {
+        backdrop.hidden = false;
+        requestAnimationFrame(() => backdrop.classList.add('is-open'));
+      }
+      panel.hidden = false;
+      document.body.classList.add('h2h-open');
+      requestAnimationFrame(() => panel.classList.add('is-open'));
+    }
+
     async function openHeadToHead(opponentUsername) {
       const panel = document.getElementById('h2hPanel');
       const host = document.getElementById('h2hCardHost');
-      const title = document.getElementById('h2hPanelTitle');
       if (!panel || !host) return;
       if (!localStorage.getItem('authToken')) {
         alert('Log in to compare picks.');
         return;
       }
       setResultsPanel('league');
-      panel.hidden = false;
-      requestAnimationFrame(() => {
-        panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      });
+      showHeadToHeadShell(opponentUsername);
       host.innerHTML = '<p class="screenshot-note">Loading head-to-head…</p>';
-      if (title) title.textContent = `You vs ${opponentUsername}`;
       try {
         const params = new URLSearchParams({
           opponentUsername: String(opponentUsername),
@@ -4642,7 +4795,6 @@
         const data = await resp.json().catch(() => ({}));
         if (!resp.ok) throw new Error(data.message || data.error || `Failed (${resp.status})`);
         host.innerHTML = buildH2hCardHtml(data);
-        panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
       } catch (err) {
         host.innerHTML = `<p class="screenshot-note">${safeText(err.message || 'Could not compare')}</p>`;
       }
@@ -4657,22 +4809,28 @@
             btn.dataset.prevLabel = btn.innerHTML;
             btn.innerHTML = 'Saving…';
           }
-          await loadHtml2Canvas();
-          await captureElementScreenshot('h2hShareCard', 'h2h');
+          await withTimeout(
+            loadHtml2Canvas(),
+            12000,
+            'Could not load image saver. Check your connection.'
+          );
+          await withTimeout(
+            captureElementScreenshot('h2hShareCard', 'h2h', {
+              onCanvasReady: () => restoreScreenshotButton(btn),
+            }),
+            isMobileCapture() ? 22000 : 35000,
+            'Image capture timed out. Try again.'
+          );
         } catch (err) {
           console.warn('screenshot:', err);
           alert(err && err.message ? err.message : 'Could not save image.');
         } finally {
-          if (btn) {
-            btn.disabled = false;
-            btn.innerHTML = btn.dataset.prevLabel || 'Save image';
-            delete btn.dataset.prevLabel;
-          }
+          restoreScreenshotButton(btn);
         }
       })();
     }
 
-    async function captureElementScreenshot(elementId, filePrefix) {
+    async function captureElementScreenshot(elementId, filePrefix, opts = {}) {
       const source = document.getElementById(elementId);
       if (!source) {
         alert('Nothing to save yet.');
@@ -4680,13 +4838,14 @@
       }
       const week = shareWeekLabel();
       const mobile = isMobileCapture();
-      const captureWidth = mobile ? 720 : 900;
+      const captureWidth = mobile ? 640 : 900;
       const host = mountCaptureHost(captureWidth);
       const clone = prepareCaptureClone(source, captureWidth);
       host.appendChild(clone);
       try {
         const canvas = await renderShareCanvas(clone, captureWidth, mobile);
         if (!canvas || !canvas.width) throw new Error('Could not render image.');
+        if (typeof opts.onCanvasReady === 'function') opts.onCanvasReady(canvas);
         const fileName = `${filePrefix || 'card'}-${week.fileSlug}-${new Date().toISOString().split('T')[0]}.png`;
         await exportCanvasImage(canvas, {
           fileName,
@@ -4701,13 +4860,26 @@
     function wireH2hPanel() {
       const closeBtn = document.getElementById('h2hCloseBtn');
       const shotBtn = document.getElementById('h2hScreenshotBtn');
+      const backdrop = document.getElementById('h2hBackdrop');
       if (closeBtn) {
-        closeBtn.addEventListener('click', () => {
-          const panel = document.getElementById('h2hPanel');
-          if (panel) panel.hidden = true;
+        closeBtn.addEventListener('click', () => closeHeadToHead());
+      }
+      if (backdrop && backdrop.dataset.wired !== '1') {
+        backdrop.dataset.wired = '1';
+        backdrop.addEventListener('click', () => closeHeadToHead());
+      }
+      if (shotBtn && shotBtn.dataset.wired !== '1') {
+        shotBtn.dataset.wired = '1';
+        shotBtn.addEventListener('click', takeH2hScreenshot);
+      }
+      if (!window.__H2H_ESC_WIRED__) {
+        window.__H2H_ESC_WIRED__ = true;
+        document.addEventListener('keydown', (evt) => {
+          if (evt.key === 'Escape' && document.body.classList.contains('h2h-open')) {
+            closeHeadToHead();
+          }
         });
       }
-      if (shotBtn) shotBtn.addEventListener('click', takeH2hScreenshot);
     }
 
     function startResultsLeaderboardRefresh() {
