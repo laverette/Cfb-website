@@ -320,17 +320,18 @@
         </div>
       </div>
 
+      <div class="h2h-backdrop" id="h2hBackdrop" hidden></div>
       <div class="h2h-panel section-card" id="h2hPanel" hidden>
-      <div class="h2h-panel-head">
-        <h3 class="gold-heading" style="margin:0;" id="h2hPanelTitle">Head to head</h3>
-        <button type="button" class="btn btn-brown btn-sm" id="h2hCloseBtn">Close</button>
+        <div class="h2h-panel-head">
+          <h3 class="gold-heading" style="margin:0;" id="h2hPanelTitle">Head to head</h3>
+          <button type="button" class="btn btn-brown btn-sm" id="h2hCloseBtn">Close</button>
+        </div>
+        <div id="h2hCardHost"></div>
+        <div class="h2h-actions">
+          <button type="button" class="screenshot-button" id="h2hScreenshotBtn">Save image</button>
+          <p class="screenshot-note">Share your board vs a friend.</p>
+        </div>
       </div>
-      <div id="h2hCardHost"></div>
-      <div class="h2h-actions">
-        <button type="button" class="screenshot-button" id="h2hScreenshotBtn">Save image</button>
-        <p class="screenshot-note">Share your board vs a friend.</p>
-      </div>
-    </div>
     </div>
 
     <div class="hub-panel" id="resultsPanelAwards" data-results-panel="awards" hidden>
@@ -4004,6 +4005,15 @@
       return `<span class="results-stand-avatar user-avatar user-avatar--initial" aria-hidden="true">${safeText(initial)}</span>`;
     }
 
+    function openHeadToHeadFromRow(row, opponent) {
+      if (!opponent) return;
+      if (row) {
+        row.classList.add('is-opening');
+        window.setTimeout(() => row.classList.remove('is-opening'), 420);
+      }
+      openHeadToHead(opponent);
+    }
+
     function renderResultsLeaderboardList(containerId, entries, { emptyMessage } = {}) {
       const list = document.getElementById(containerId);
       if (!list) return;
@@ -4018,16 +4028,13 @@
         const pct = Number(e.accuracy || 0).toFixed(1);
         const rank = index + 1;
         const rankClass = rank === 1 ? 'is-gold' : rank === 2 ? 'is-silver' : rank === 3 ? 'is-bronze' : '';
-        const pendingHtml = e.pendingPicks > 0
-          ? `<span class="results-stand-pending">${safeText(e.pendingPicks)} pending</span>`
-          : '';
         const profileUrl = e.username
           ? `user-profile.html?username=${encodeURIComponent(e.username)}`
           : '';
         const nameHtml = profileUrl
           ? `<a class="results-stand-name" href="${safeText(profileUrl)}" title="${name}">${name}</a>`
           : `<span class="results-stand-name" title="${name}">${name}</span>`;
-        const avatarInner = playerAvatarHtml(e, 40);
+        const avatarInner = playerAvatarHtml(e, 44);
         const avatarHtml = profileUrl
           ? `<a class="results-stand-avatar-link" href="${safeText(profileUrl)}" title="${name} profile" aria-label="${name} profile">${avatarInner}</a>`
           : avatarInner;
@@ -4037,13 +4044,13 @@
           Boolean(e.username) &&
           Boolean(localStorage.getItem('authToken')) &&
           !isMe;
+        const youHtml = isMe ? `<span class="hub-you-pill">You</span>` : '';
         const compareHtml = canCompare
-          ? `<button type="button" class="results-stand-compare" data-opponent="${safeText(e.username)}" title="Compare picks">Compare</button>`
-          : isMe
-            ? `<span class="hub-you-pill">You</span>`
-            : '';
+          ? `<button type="button" class="results-stand-compare" data-opponent="${safeText(e.username)}" title="Compare picks">Compare boards</button>`
+          : '';
+        const stagger = ` style="--stand-i:${index}"`;
         return `
-          <li class="results-stand-row${isMe ? ' is-me' : ''}${canCompare ? ' is-comparable' : ''}"${canCompare ? ` data-opponent="${safeText(e.username)}"` : ''}>
+          <li class="results-stand-row${isMe ? ' is-me' : ''}${canCompare ? ' is-comparable' : ''}"${canCompare ? ` data-opponent="${safeText(e.username)}"` : ''}${stagger}>
             <span class="results-stand-rank ${rankClass}" aria-hidden="true">${rank}</span>
             <div class="results-stand-player">
               ${avatarHtml}
@@ -4054,9 +4061,9 @@
             </div>
             <div class="results-stand-stats">
               <span class="results-stand-acc">${pct}%</span>
-              ${pendingHtml}
-              ${compareHtml}
+              ${youHtml}
             </div>
+            ${compareHtml}
           </li>
         `;
       }).join('');
@@ -4065,14 +4072,14 @@
         btn.addEventListener('click', (evt) => {
           evt.stopPropagation();
           const opponent = btn.getAttribute('data-opponent');
-          if (opponent) openHeadToHead(opponent);
+          openHeadToHeadFromRow(btn.closest('.results-stand-row'), opponent);
         });
       });
       list.querySelectorAll('.results-stand-row.is-comparable').forEach((row) => {
         row.addEventListener('click', (evt) => {
           if (evt.target.closest('a, button')) return;
           const opponent = row.getAttribute('data-opponent');
-          if (opponent) openHeadToHead(opponent);
+          openHeadToHeadFromRow(row, opponent);
         });
       });
     }
@@ -4293,10 +4300,19 @@
           <div class="analysis-kpi"><span>Final</span><strong>${gamesFinal}${slateGames ? `/${slateGames}` : ''}</strong></div>
           <div class="analysis-kpi"><span>Combined</span><strong>${totalCorrect}–${totalIncorrect}</strong></div>
         </div>
-        <div class="analysis-insights">
-          <article class="analysis-insight"><h4>Top of board</h4><p>${safeText(topLine)}</p></article>
-          <article class="analysis-insight"><h4>Longest heater</h4><p>${safeText(heaterLine)}</p></article>
-          <article class="analysis-insight"><h4>Tough week</h4><p>${safeText(toughLine)}</p></article>
+        <div class="analysis-spotlights" role="list">
+          <div class="analysis-spotlight" role="listitem">
+            <span class="analysis-spotlight-label">Top</span>
+            <span class="analysis-spotlight-value">${safeText(topLine)}</span>
+          </div>
+          <div class="analysis-spotlight" role="listitem">
+            <span class="analysis-spotlight-label">Heater</span>
+            <span class="analysis-spotlight-value">${safeText(heaterLine)}</span>
+          </div>
+          <div class="analysis-spotlight" role="listitem">
+            <span class="analysis-spotlight-label">Tough</span>
+            <span class="analysis-spotlight-value">${safeText(toughLine)}</span>
+          </div>
         </div>
       `;
       container.hidden = false;
@@ -4564,28 +4580,88 @@
 
     function h2hPickState(pick) {
       if (!pick) return { state: 'pending', label: '—' };
+      if (pick.isTie) return { state: 'tie', label: 'Tie' };
       if (pick.isCorrect === true) return { state: 'correct', label: '✓' };
       if (pick.isCorrect === false) return { state: 'wrong', label: '✗' };
       return { state: 'pending', label: 'Pending' };
+    }
+
+    function h2hPickLogoHtml(game, pick) {
+      const name = pick?.pickedTeamName || '';
+      const espnId = pick?.pickedTeamEspnId;
+      if (!name && !espnId) {
+        return '<span class="h2h-pick-logo h2h-pick-logo--empty" aria-hidden="true"></span>';
+      }
+      const awayName = String(game?.awayTeamName || '');
+      const homeName = String(game?.homeTeamName || '');
+      const picked = String(name || '');
+      let logoUrl = '';
+      let logoEspn = espnId;
+      if (Number(espnId) && Number(espnId) === Number(game?.awayTeamEspnId)) {
+        logoUrl = game?.awayTeamLogoUrl;
+        logoEspn = game?.awayTeamEspnId;
+      } else if (Number(espnId) && Number(espnId) === Number(game?.homeTeamEspnId)) {
+        logoUrl = game?.homeTeamLogoUrl;
+        logoEspn = game?.homeTeamEspnId;
+      } else if (picked && picked === awayName) {
+        logoUrl = game?.awayTeamLogoUrl;
+        logoEspn = game?.awayTeamEspnId || espnId;
+      } else if (picked && picked === homeName) {
+        logoUrl = game?.homeTeamLogoUrl;
+        logoEspn = game?.homeTeamEspnId || espnId;
+      } else {
+        logoEspn = espnId;
+      }
+      const resolved = resolveTeamLogo(logoUrl, logoEspn);
+      if (!resolved) {
+        return `<span class="h2h-pick-logo h2h-pick-logo--fallback" aria-hidden="true">${safeText((name || '?').slice(0, 2).toUpperCase())}</span>`;
+      }
+      let src = resolved;
+      try {
+        const parsed = new URL(resolved, window.location.href);
+        if (/(^|\.)espncdn\.com$/i.test(parsed.hostname)) {
+          src = `/api/logo?src=${encodeURIComponent(parsed.toString())}`;
+        }
+      } catch (_) {}
+      return `<img class="h2h-pick-logo" src="${safeText(src)}" alt="" width="22" height="22" loading="lazy" decoding="async">`;
+    }
+
+    function h2hGameRelation(game) {
+      const vName = String(game?.viewer?.pickedTeamName || '').trim();
+      const oName = String(game?.opponent?.pickedTeamName || '').trim();
+      if (!vName || !oName) return { kind: 'open', label: 'Open' };
+      if (vName.toLowerCase() === oName.toLowerCase()) return { kind: 'agree', label: 'Agree' };
+      return { kind: 'split', label: 'Split' };
     }
 
     function buildH2hCardHtml(data) {
       const week = shareWeekLabel();
       const viewer = data.viewer || {};
       const opponent = data.opponent || {};
-      const gamesHtml = (data.games || []).map((g) => {
+      const games = Array.isArray(data.games) ? data.games : [];
+      let agreeCount = 0;
+      let splitCount = 0;
+      const gamesHtml = games.map((g) => {
         const v = h2hPickState(g.viewer);
         const o = h2hPickState(g.opponent);
+        const relation = h2hGameRelation(g);
+        if (relation.kind === 'agree') agreeCount += 1;
+        if (relation.kind === 'split') splitCount += 1;
         return `
-          <div class="h2h-game">
-            <div class="h2h-game-matchup">Game ${safeText(g.gameNumber)} · ${safeText(g.awayTeamName)} @ ${safeText(g.homeTeamName)}</div>
+          <div class="h2h-game is-${safeText(relation.kind)}">
+            <div class="h2h-game-top">
+              <div class="h2h-game-matchup">Game ${safeText(g.gameNumber)} · ${safeText(g.awayTeamName)} @ ${safeText(g.homeTeamName)}</div>
+              <span class="h2h-game-chip is-${safeText(relation.kind)}">${safeText(relation.label)}</span>
+            </div>
             <div class="h2h-game-picks">
               <div class="h2h-pick is-${safeText(v.state)}">
-                <span>${safeText(g.viewer?.pickedTeamName || '—')}</span>
+                ${h2hPickLogoHtml(g, g.viewer)}
+                <span class="h2h-pick-name">${safeText(g.viewer?.pickedTeamName || '—')}</span>
                 <em>${safeText(v.label)}</em>
               </div>
               <div class="h2h-pick is-${safeText(o.state)}">
-                <span>${safeText(g.opponent?.pickedTeamName || '—')}</span>
+                ${h2hPickLogoHtml(g, g.opponent)}
+                <span class="h2h-pick-name">${safeText(g.opponent?.pickedTeamName || '—')}</span>
                 <em>${safeText(o.label)}</em>
               </div>
             </div>
@@ -4599,38 +4675,66 @@
           <p class="picks-share-week-badge">${safeText(week.weekPart)}${week.yearPart ? safeText(week.yearPart) : ''}</p>
           <div class="h2h-names">
             <div class="h2h-player">
-              ${playerAvatarHtml(viewer, 48)}
+              ${playerAvatarHtml(viewer, 52)}
               <strong>${safeText(viewer.displayName || viewer.username || 'You')}</strong>
               <span>${safeText(h2hRecordLabel(data.viewerRecord))}</span>
             </div>
             <div class="h2h-vs">VS</div>
             <div class="h2h-player">
-              ${playerAvatarHtml(opponent, 48)}
+              ${playerAvatarHtml(opponent, 52)}
               <strong>${safeText(opponent.displayName || opponent.username || 'Them')}</strong>
               <span>${safeText(h2hRecordLabel(data.opponentRecord))}</span>
             </div>
+          </div>
+          <div class="h2h-tally" aria-label="Agreement summary">
+            <span class="h2h-tally-chip is-agree"><strong>${agreeCount}</strong> agree</span>
+            <span class="h2h-tally-chip is-split"><strong>${splitCount}</strong> split</span>
           </div>
           <div class="h2h-games">${gamesHtml}</div>
         </div>
       `;
     }
 
+    function closeHeadToHead() {
+      const panel = document.getElementById('h2hPanel');
+      const backdrop = document.getElementById('h2hBackdrop');
+      if (panel) {
+        panel.classList.remove('is-open');
+        panel.hidden = true;
+      }
+      if (backdrop) {
+        backdrop.classList.remove('is-open');
+        backdrop.hidden = true;
+      }
+      document.body.classList.remove('h2h-open');
+    }
+
+    function showHeadToHeadShell(opponentUsername) {
+      const panel = document.getElementById('h2hPanel');
+      const backdrop = document.getElementById('h2hBackdrop');
+      const title = document.getElementById('h2hPanelTitle');
+      if (!panel) return;
+      if (title) title.textContent = `You vs ${opponentUsername}`;
+      if (backdrop) {
+        backdrop.hidden = false;
+        requestAnimationFrame(() => backdrop.classList.add('is-open'));
+      }
+      panel.hidden = false;
+      document.body.classList.add('h2h-open');
+      requestAnimationFrame(() => panel.classList.add('is-open'));
+    }
+
     async function openHeadToHead(opponentUsername) {
       const panel = document.getElementById('h2hPanel');
       const host = document.getElementById('h2hCardHost');
-      const title = document.getElementById('h2hPanelTitle');
       if (!panel || !host) return;
       if (!localStorage.getItem('authToken')) {
         alert('Log in to compare picks.');
         return;
       }
       setResultsPanel('league');
-      panel.hidden = false;
-      requestAnimationFrame(() => {
-        panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      });
+      showHeadToHeadShell(opponentUsername);
       host.innerHTML = '<p class="screenshot-note">Loading head-to-head…</p>';
-      if (title) title.textContent = `You vs ${opponentUsername}`;
       try {
         const params = new URLSearchParams({
           opponentUsername: String(opponentUsername),
@@ -4642,7 +4746,6 @@
         const data = await resp.json().catch(() => ({}));
         if (!resp.ok) throw new Error(data.message || data.error || `Failed (${resp.status})`);
         host.innerHTML = buildH2hCardHtml(data);
-        panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
       } catch (err) {
         host.innerHTML = `<p class="screenshot-note">${safeText(err.message || 'Could not compare')}</p>`;
       }
@@ -4701,13 +4804,26 @@
     function wireH2hPanel() {
       const closeBtn = document.getElementById('h2hCloseBtn');
       const shotBtn = document.getElementById('h2hScreenshotBtn');
+      const backdrop = document.getElementById('h2hBackdrop');
       if (closeBtn) {
-        closeBtn.addEventListener('click', () => {
-          const panel = document.getElementById('h2hPanel');
-          if (panel) panel.hidden = true;
+        closeBtn.addEventListener('click', () => closeHeadToHead());
+      }
+      if (backdrop && backdrop.dataset.wired !== '1') {
+        backdrop.dataset.wired = '1';
+        backdrop.addEventListener('click', () => closeHeadToHead());
+      }
+      if (shotBtn && shotBtn.dataset.wired !== '1') {
+        shotBtn.dataset.wired = '1';
+        shotBtn.addEventListener('click', takeH2hScreenshot);
+      }
+      if (!window.__H2H_ESC_WIRED__) {
+        window.__H2H_ESC_WIRED__ = true;
+        document.addEventListener('keydown', (evt) => {
+          if (evt.key === 'Escape' && document.body.classList.contains('h2h-open')) {
+            closeHeadToHead();
+          }
         });
       }
-      if (shotBtn) shotBtn.addEventListener('click', takeH2hScreenshot);
     }
 
     function startResultsLeaderboardRefresh() {
