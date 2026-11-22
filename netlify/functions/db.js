@@ -351,7 +351,7 @@ async function registerUser({
     email_notifications: Boolean(emailNotifications),
     theme: "dark",
     notifications_enabled: true,
-    ambient_audio_enabled: true,
+    ambient_audio_enabled: false,
   });
   return created;
 }

@@ -939,19 +939,22 @@
 
   var AMBIENT_OPT_OUT_KEY = "siteAmbientAudioOptOut";
   var AMBIENT_TIME_KEY = "siteAmbientAudioTime";
-
-  function isAmbientAudioOptedOut() {
-    try {
-      return localStorage.getItem(AMBIENT_OPT_OUT_KEY) === "1";
-    } catch (e) {
-      return false;
-    }
-  }
-
+  var AMBIENT_CUTOVER_KEY = "siteMusicOptInCutoverV1";
   var BAND_INDEX_KEY = "bandPlayerIndex";
-  var BAND_MUTE_KEY = "bandPlayerMuted";
   var BAND_PLAY_KEY = "bandPlayerPlaying";
   var bandUi = null;
+
+  /**
+   * Music is opt-in only. Missing / unknown preference = off (no player UI).
+   * localStorage "0" means enabled; anything else means quiet.
+   */
+  function isAmbientAudioOptedOut() {
+    try {
+      return localStorage.getItem(AMBIENT_OPT_OUT_KEY) !== "0";
+    } catch (e) {
+      return true;
+    }
+  }
 
   /**
    * Classic band cuts only. Playback uses files in Resources/Audio.
@@ -983,38 +986,61 @@
 
   function setAmbientAudioOptOut(optOut) {
     try {
-      if (optOut) localStorage.setItem(AMBIENT_OPT_OUT_KEY, "1");
-      else localStorage.removeItem(AMBIENT_OPT_OUT_KEY);
+      localStorage.setItem(AMBIENT_OPT_OUT_KEY, optOut ? "1" : "0");
     } catch (e) {
       /* ignore */
     }
-    if (bandUi) bandUi.syncOptOut();
-    else if (optOut) {
+    if (bandUi) {
+      bandUi.syncPreference(!optOut);
+      return;
+    }
+    if (optOut) {
       var audio = document.getElementById("siteAudioEl");
       if (audio) audio.pause();
-    }
-  }
-
-  function readStorageFlag(key) {
-    try {
-      return localStorage.getItem(key) === "1";
-    } catch (e) {
-      return false;
-    }
-  }
-
-  function writeStorageFlag(key, on) {
-    try {
-      if (on) localStorage.setItem(key, "1");
-      else localStorage.removeItem(key);
-    } catch (e) {
-      /* ignore */
+      try {
+        sessionStorage.setItem(BAND_PLAY_KEY, "0");
+      } catch (e2) {
+        /* ignore */
+      }
     }
   }
 
   /**
-   * Corner player. Stays paused until the listener hits play, then skip,
-   * back, and mute stay on the pill. Profile opt-out still forces silence.
+   * One-time: music used to default ON. Flip everyone to OFF without requiring
+   * a DB console migration; later profile “Yes” choices still persist.
+   */
+  function maybeCutoverMusicOptIn(token) {
+    try {
+      if (localStorage.getItem(AMBIENT_CUTOVER_KEY) === "1") {
+        return Promise.resolve(false);
+      }
+      localStorage.setItem(AMBIENT_CUTOVER_KEY, "1");
+      localStorage.setItem(AMBIENT_OPT_OUT_KEY, "1");
+      sessionStorage.setItem(BAND_PLAY_KEY, "0");
+    } catch (e) {
+      return Promise.resolve(false);
+    }
+    if (!token) return Promise.resolve(true);
+    return fetch("/api/auth/settings", {
+      method: "PATCH",
+      headers: {
+        Authorization: "Bearer " + token,
+        "Content-Type": "application/json",
+        accept: "application/json",
+      },
+      body: JSON.stringify({ ambientAudioEnabled: false }),
+    })
+      .then(function () {
+        return true;
+      })
+      .catch(function () {
+        return true;
+      });
+  }
+
+  /**
+   * Invisible site music. No on-screen player — profile settings only.
+   * Plays when the account preference is on; otherwise nothing mounts as UI.
    */
   function mountSiteAudio() {
     if (document.getElementById("siteAudioRoot")) return;
@@ -1026,6 +1052,12 @@
       page === "reset-password.html"
     ) {
       return;
+    }
+
+    // Strip any leftover visible player from older deploys.
+    var stale = document.querySelectorAll(".band-player");
+    for (var s = 0; s < stale.length; s += 1) {
+      if (stale[s].id !== "siteAudioRoot") stale[s].remove();
     }
 
     var tracks = BAND_TRACKS.map(function (track) {
@@ -1051,67 +1083,19 @@
 
     var root = document.createElement("div");
     root.id = "siteAudioRoot";
-    root.className = "band-player";
+    root.className = "site-audio-engine";
+    root.setAttribute("aria-hidden", "true");
+    root.hidden = true;
     root.innerHTML =
-      '<audio id="siteAudioEl" preload="none" playsinline></audio>' +
-      '<div class="band-player-bar" role="group" aria-label="Band music">' +
-      '<div class="band-player-transport">' +
-      '<button type="button" class="band-player-btn" data-act="prev" aria-label="Previous song">&#8249;</button>' +
-      '<button type="button" class="band-player-btn band-player-play" data-act="play" aria-label="Play">&#9654;</button>' +
-      '<button type="button" class="band-player-btn" data-act="next" aria-label="Skip song">&#8250;</button>' +
-      "</div>" +
-      '<button type="button" class="band-player-title" data-act="toggle" aria-expanded="false"></button>' +
-      '<button type="button" class="band-player-btn band-player-mute" data-act="mute" aria-pressed="false" aria-label="Mute">Mute</button>' +
-      "</div>" +
-      '<ol class="band-player-list" hidden></ol>';
+      '<audio id="siteAudioEl" preload="none" playsinline></audio>';
     document.body.appendChild(root);
 
     var audio = document.getElementById("siteAudioEl");
-    var playBtn = root.querySelector('[data-act="play"]');
-    // Title control uses data-act="toggle" (opens the track list only).
-    var titleBtn = root.querySelector('[data-act="toggle"]');
-    var muteBtn = root.querySelector('[data-act="mute"]');
-    var listEl = root.querySelector(".band-player-list");
-    var muted = readStorageFlag(BAND_MUTE_KEY);
-    var listOpen = false;
     var available = {};
+    var loadedSrc = "";
 
     function trackAt(i) {
       return tracks[(i + tracks.length) % tracks.length];
-    }
-
-    function paint() {
-      var track = trackAt(index);
-      var playing = Boolean(audio && !audio.paused && !audio.ended);
-      // Keep one compact layout — never swap the title for status flash text.
-      if (titleBtn) {
-        titleBtn.textContent = track.school + " · " + track.title;
-        titleBtn.title = track.title + " (tap for track list)";
-        titleBtn.setAttribute("aria-expanded", listOpen ? "true" : "false");
-        titleBtn.setAttribute(
-          "aria-label",
-          listOpen ? "Close track list" : "Open track list"
-        );
-      }
-      if (playBtn) {
-        playBtn.textContent = playing ? "\u275A\u275A" : "\u25B6";
-        playBtn.setAttribute("aria-label", playing ? "Pause" : "Play");
-        playBtn.classList.toggle("is-active", playing);
-      }
-      if (muteBtn) {
-        muteBtn.textContent = muted ? "Unmute" : "Mute";
-        muteBtn.setAttribute("aria-pressed", muted ? "true" : "false");
-        muteBtn.setAttribute("aria-label", muted ? "Unmute" : "Mute");
-        muteBtn.classList.toggle("is-active", muted);
-      }
-      root.classList.toggle("is-open", listOpen);
-      root.classList.toggle("is-playing", playing);
-      root.classList.toggle("is-muted", muted);
-      if (listEl) listEl.hidden = !listOpen;
-      var items = listEl ? listEl.querySelectorAll("li") : [];
-      for (var n = 0; n < items.length; n += 1) {
-        items[n].classList.toggle("is-current", Number(items[n].getAttribute("data-index")) === index);
-      }
     }
 
     function persistTime() {
@@ -1124,12 +1108,10 @@
       }
     }
 
-    var loadedSrc = "";
-
     function loadTrack(i, autoplay) {
       index = (i + tracks.length) % tracks.length;
       var track = trackAt(index);
-      audio.muted = muted;
+      audio.muted = false;
       audio.volume = 0.4;
       if (loadedSrc !== track.src) {
         loadedSrc = track.src;
@@ -1143,41 +1125,20 @@
       }
       try {
         sessionStorage.setItem(BAND_PLAY_KEY, autoplay ? "1" : "0");
-      } catch (e) {
+        localStorage.setItem(BAND_INDEX_KEY, String(index));
+      } catch (e2) {
         /* ignore */
       }
-      paint();
       if (!autoplay || isAmbientAudioOptedOut()) {
         audio.pause();
-        paint();
         return;
       }
       var pending = audio.play();
       if (pending && typeof pending.catch === "function") {
         pending.catch(function () {
-          paint();
+          /* Autoplay may be blocked until a profile toggle gesture. */
         });
       }
-    }
-
-    function buildList() {
-      listEl.innerHTML = "";
-      tracks.forEach(function (track, i) {
-        var li = document.createElement("li");
-        var btn = document.createElement("button");
-        btn.type = "button";
-        btn.className = "band-player-pick";
-        btn.textContent = track.school + " — " + track.title;
-        btn.addEventListener("click", function () {
-          listOpen = false;
-          setAmbientAudioOptOut(false);
-          loadTrack(i, true);
-        });
-        li.setAttribute("data-index", String(i));
-        li.appendChild(btn);
-        listEl.appendChild(li);
-      });
-      paint();
     }
 
     function markMissingAndSkip() {
@@ -1191,12 +1152,7 @@
         }
       }
       audio.pause();
-      paint();
     }
-
-    audio.muted = muted;
-    audio.volume = 0.4;
-    buildList();
 
     function keepPlayableTracks(flags) {
       var nextTracks = [];
@@ -1217,15 +1173,14 @@
         /* ignore */
       }
       available = {};
-      buildList();
       if (loadedSrc === currentSrc && tracks[index] && tracks[index].src === currentSrc) {
-        paint();
         return;
       }
       loadedSrc = "";
       loadTrack(index, !audio.paused && !audio.ended && !isAmbientAudioOptedOut());
     }
 
+    audio.volume = 0.4;
     Promise.all(
       tracks.map(function (track, i) {
         if (i === 0) return Promise.resolve(true);
@@ -1243,93 +1198,45 @@
     });
 
     audio.addEventListener("ended", function () {
+      if (isAmbientAudioOptedOut()) return;
       loadTrack(index + 1, true);
     });
-    audio.addEventListener("play", paint);
-    audio.addEventListener("pause", paint);
     audio.addEventListener("error", function () {
-      if (audio.getAttribute("src")) markMissingAndSkip();
+      if (audio.getAttribute("src") && !isAmbientAudioOptedOut()) markMissingAndSkip();
     });
     audio.addEventListener("timeupdate", function () {
       if (Math.floor(audio.currentTime) % 3 === 0) persistTime();
     });
     window.addEventListener("pagehide", persistTime);
 
-    root.addEventListener("click", function (event) {
-      var btn = event.target.closest("[data-act]");
-      if (!btn) return;
-      var act = btn.getAttribute("data-act");
-      if (act === "toggle") {
-        listOpen = !listOpen;
-        paint();
-        return;
-      }
-      if (act === "prev") {
-        if (audio.currentTime > 3) {
-          audio.currentTime = 0;
-          paint();
-          return;
-        }
-        loadTrack(index - 1, !audio.paused && !audio.ended && !isAmbientAudioOptedOut());
-        return;
-      }
-      if (act === "next") {
-        loadTrack(index + 1, !audio.paused && !audio.ended && !isAmbientAudioOptedOut());
-        return;
-      }
-      if (act === "play") {
-        if (!audio.paused && !audio.ended) {
-          audio.pause();
-          try {
-            sessionStorage.setItem(BAND_PLAY_KEY, "0");
-          } catch (e) {
-            /* ignore */
-          }
-          paint();
-          return;
-        }
-        setAmbientAudioOptOut(false);
-        loadTrack(index, true);
-        return;
-      }
-      if (act === "mute") {
-        muted = !muted;
-        audio.muted = muted;
-        writeStorageFlag(BAND_MUTE_KEY, muted);
-        paint();
-      }
-    });
-
-    document.addEventListener("pointerdown", function (event) {
-      if (!listOpen || root.contains(event.target)) return;
-      listOpen = false;
-      paint();
-    });
-
     bandUi = {
-      syncOptOut: function () {
-        if (isAmbientAudioOptedOut()) {
+      syncPreference: function (enabled) {
+        if (!enabled) {
           try {
             sessionStorage.setItem(BAND_PLAY_KEY, "0");
           } catch (e) {
             /* ignore */
           }
           audio.pause();
+          return;
         }
-        paint();
+        loadTrack(index, true);
       },
     };
 
-    var resume = false;
-    try {
-      resume = sessionStorage.getItem(BAND_PLAY_KEY) === "1";
-    } catch (e2) {
-      resume = false;
+    function applyServerPreference(enabled) {
+      setAmbientAudioOptOut(!enabled);
     }
-    loadTrack(index, resume && !isAmbientAudioOptedOut());
+
+    loadTrack(index, false);
 
     var token = localStorage.getItem(STORAGE_TOKEN);
-    if (token) {
+    maybeCutoverMusicOptIn(token).then(function () {
+      if (!token) {
+        // Guests stay quiet — no music, no UI.
+        setAmbientAudioOptOut(true);
+        return;
+      }
       fetch("/api/auth/settings", {
         headers: { Authorization: "Bearer " + token, accept: "application/json" },
       })
@@ -1338,14 +1245,13 @@
         })
         .then(function (data) {
           if (!data || !data.settings || !bandUi) return;
-          var enabled =
-            data.settings.ambientAudioEnabled == null
-              ? true
-              : Boolean(data.settings.ambientAudioEnabled);
-          if (!enabled) setAmbientAudioOptOut(true);
+          var enabled = Boolean(data.settings.ambientAudioEnabled);
+          applyServerPreference(enabled);
         })
-        .catch(function () {});
-    }
+        .catch(function () {
+          setAmbientAudioOptOut(true);
+        });
+    });
   }
 
   function onReady() {

@@ -11,16 +11,15 @@ function mapSettings(row) {
       emailNotifications: false,
       notificationsEnabled: true,
       theme: "dark",
-      ambientAudioEnabled: true,
+      ambientAudioEnabled: false,
     };
   }
   return {
     emailNotifications: Boolean(row.email_notifications),
     notificationsEnabled: Boolean(row.notifications_enabled),
     theme: row.theme || "dark",
-    // Default ON when column/null missing (new installs / older rows).
-    ambientAudioEnabled:
-      row.ambient_audio_enabled == null ? true : Boolean(row.ambient_audio_enabled),
+    // Opt-in only — null/missing stays off.
+    ambientAudioEnabled: Boolean(row.ambient_audio_enabled),
   };
 }
 
