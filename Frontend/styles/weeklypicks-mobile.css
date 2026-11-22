@@ -504,8 +504,35 @@ body.has-mobile-dock {
     font-size: 0.62rem;
     padding: 0.08rem 0.4rem;
   }
-  .picks-share-teams { display: none; }
+  /* Keep live/final scores on narrow screens; hide logos (matchup text covers names). */
+  .picks-share-teams {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    margin: 0 0 0.2rem;
+  }
+  .picks-share-teams:has(.picks-share-scoreblock) {
+    display: flex;
+  }
+  .picks-share-team,
+  .picks-share-at {
+    display: none;
+  }
+  .picks-share-scoreblock {
+    min-width: 0;
+    gap: 0.08rem;
+  }
+  .picks-share-status {
+    font-size: 0.58rem;
+    letter-spacing: 0.06em;
+  }
+  .picks-share-score {
+    font-size: 0.95rem;
+  }
   .picks-share-card.is-capture .picks-share-teams { display: flex !important; }
+  .picks-share-card.is-capture .picks-share-team { display: flex !important; }
+  .picks-share-card.is-capture .picks-share-at { display: revert !important; }
   .picks-share-card.is-capture .picks-share-matchup { display: none !important; }
   .picks-share-matchup {
     margin: 0 0 0.25rem;
